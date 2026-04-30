@@ -1,0 +1,1172 @@
+# ZeroForge — Master Platform Builder Prompt
+### Version 1.0 | MVP Scope: Data Engineering Flagship Domain
+### Target Builders: Replit · Cursor · Claude Code
+
+---
+
+> **How to use this prompt**: Copy the entire contents of this document and paste it directly into Replit's project prompt, Cursor's composer, or Claude Code. It is written as a direct set of instructions to the builder. Everything marked `[CUSTOMIZE]` is a field the founder may want to change. Everything else is a precise specification.
+
+---
+
+## SECTION 0 — PRIME DIRECTIVE
+
+You are building **ZeroForge** [CUSTOMIZE: rename if desired], a next-generation technical learning platform for Data Engineering, AI Engineering, Data Science, and MLOps. The platform's core philosophy is **project-first, production-grade, zero-to-hero learning**.
+
+The MVP launches with one fully built domain: **Data Engineering**. The other three domains (AI Engineering, Data Science, MLOps) must appear in the navigation and marketing pages as "Coming Soon" with an email waitlist capture — but they are NOT built out yet.
+
+This is not a video course platform. It is a **project-based, in-browser coding platform** with a built-in AI tutor, live Python/SQL editors, step-by-step guided workflows, and a curriculum engineered for what **2026 and beyond hiring managers actually want to see** from candidates.
+
+Build a production-quality MVP. No scaffolding. No placeholder pages. No fake data beyond seeded demo content. Every feature you build must work end-to-end.
+
+---
+
+## SECTION 1 — TECH STACK
+
+### Frontend
+- **Framework**: Next.js 14+ with App Router, TypeScript strict mode
+- **Styling**: Tailwind CSS + shadcn/ui component library
+- **State Management**: Zustand (global client state) + TanStack Query v5 (server state, caching)
+- **Code Editor**: Monaco Editor (same engine as VS Code) — use `@monaco-editor/react`
+- **Icons**: Lucide React
+- **Animations**: Framer Motion (use sparingly — only for meaningful transitions)
+- **Charts/Progress**: Recharts for progress visualizations
+
+### Backend
+- **API Layer**: Next.js API Routes (full-stack, no separate backend service for MVP)
+- **Runtime**: Node.js 20+
+- **Validation**: Zod for all API inputs and outputs
+
+### Database
+- **Primary DB**: PostgreSQL via **Neon** (serverless PostgreSQL, Replit-compatible) or **Supabase**
+- **ORM**: Drizzle ORM (type-safe, fast, Neon-compatible)
+- **Migrations**: Drizzle Kit
+
+### Authentication
+- **Auth Provider**: **Clerk** (best for Replit deployment — handles OAuth, session management, and webhooks cleanly)
+- Support: Google OAuth, GitHub OAuth, Email/Password
+
+### Code Execution
+- **Python Execution**: **Piston API** (open-source, free, supports Python 3.11+) — self-hostable on Replit; fallback to Judge0 RapidAPI free tier
+- **SQL Execution**: **DuckDB WASM** (in-browser SQL execution, zero-latency, no server round-trip for basic SQL) + server-side PostgreSQL connection for advanced project exercises that need a real Postgres environment
+- Both editors must support: syntax highlighting, auto-complete basics, error underlining, line numbers, copy code button, reset to starter code button
+
+### AI Tutor
+- **Provider**: Anthropic Claude API (`claude-sonnet-4-6` model)
+- **Streaming**: Use Anthropic's streaming API for real-time token-by-token output in the tutor chat
+- **Context window**: Include system prompt with current project context, current step, user's current code, learning mode, and conversation history (last 10 messages)
+- Store API key in environment variable `ANTHROPIC_API_KEY`
+
+### Payments & Subscriptions
+- **Provider**: Stripe
+- **Subscription Products**:
+  - Free Tier (no payment required)
+  - Pro Monthly: $29/month
+  - Pro Annual: $199/year
+- Use Stripe Checkout for payment flow
+- Use Stripe Webhooks to sync subscription status to the database
+- Store Stripe keys in environment variables
+
+### Storage
+- **Media/Images**: Cloudflare R2 (or Supabase Storage) for project thumbnails, note images
+- **Videos**: YouTube embed (for MVP — no custom video hosting)
+
+### Other
+- **Email**: Resend (for welcome emails, certificate delivery, waitlist confirmations)
+- **Cache**: Upstash Redis for rate-limiting AI tutor calls per user per day
+- **Environment**: All secrets in `.env.local`, never hardcoded
+
+---
+
+## SECTION 2 — INFORMATION ARCHITECTURE
+
+### Public Routes (no auth required)
+```
+/                          — Landing page
+/pricing                   — Pricing page
+/domains                   — Domain explorer (overview of all 4 domains)
+/domains/data-engineering  — DE domain landing page
+/blog                      — Empty blog index (placeholder, add later)
+/certificate/[uid]         — Public certificate view page
+```
+
+### Authenticated Routes (Clerk-protected)
+```
+/dashboard                 — User home: progress, streak, continue learning
+/domains/data-engineering/beginner
+/domains/data-engineering/intermediate
+/domains/data-engineering/advanced
+/domains/data-engineering/[track]/[project-slug]   — PROJECT WORKSPACE (core page)
+/python-mastery            — Python mastery section home
+/python-mastery/[module-slug]/[lesson-slug]        — Python lesson workspace
+/sql-mastery               — SQL mastery section home
+/sql-mastery/[module-slug]/[lesson-slug]           — SQL lesson workspace
+/certificates              — User's earned certificates
+/profile                   — User settings and profile
+/upgrade                   — Upgrade to Pro page
+```
+
+### Admin Routes (role-gated: admin only)
+```
+/admin                     — Admin dashboard
+/admin/projects            — Manage projects/content
+/admin/users               — User management
+```
+
+---
+
+## SECTION 3 — DATABASE SCHEMA
+
+Create and run all migrations with Drizzle Kit. Here is the full schema:
+
+```typescript
+// schema.ts
+
+// USERS
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clerkId: text("clerk_id").unique().notNull(),
+  email: text("email").unique().notNull(),
+  name: text("name"),
+  avatarUrl: text("avatar_url"),
+  role: text("role").default("learner"), // learner | admin
+  subscriptionTier: text("subscription_tier").default("free"), // free | pro
+  streakCount: integer("streak_count").default(0),
+  lastActiveAt: timestamp("last_active_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// SUBSCRIPTIONS
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  plan: text("plan").notNull(), // free | pro_monthly | pro_annual
+  status: text("status").notNull(), // active | canceled | past_due | trialing
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// DOMAINS
+export const domains = pgTable("domains", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").unique().notNull(), // data-engineering | ai-engineering | data-science | mlops
+  title: text("title").notNull(),
+  tagline: text("tagline"),
+  description: text("description"),
+  iconName: text("icon_name"), // lucide icon name
+  colorHex: text("color_hex"), // brand color for this domain
+  isAvailable: boolean("is_available").default(false),
+  comingSoon: boolean("coming_soon").default(true),
+  totalProjects: integer("total_projects").default(0),
+  orderIndex: integer("order_index").default(0),
+});
+
+// TRACKS (Beginner / Intermediate / Advanced per domain)
+export const tracks = pgTable("tracks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  domainId: uuid("domain_id").references(() => domains.id).notNull(),
+  slug: text("slug").notNull(), // beginner | intermediate | advanced
+  title: text("title").notNull(), // "Beginner Track"
+  description: text("description"),
+  difficultyLevel: text("difficulty_level").notNull(), // beginner | intermediate | advanced
+  estimatedHours: integer("estimated_hours"),
+  projectCount: integer("project_count").default(0),
+  orderIndex: integer("order_index").default(0),
+  prerequisites: text("prerequisites").array(),
+  isPremium: boolean("is_premium").default(false), // intermediate + advanced are pro-only
+});
+
+// PROJECTS
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  trackId: uuid("track_id").references(() => tracks.id).notNull(),
+  domainId: uuid("domain_id").references(() => domains.id).notNull(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  shortDescription: text("short_description").notNull(),
+  fullDescription: text("full_description").notNull(), // markdown
+  difficultyLevel: text("difficulty_level").notNull(),
+  estimatedMinutes: integer("estimated_minutes").default(60),
+  techStack: text("tech_stack").array(), // ["Python", "Pandas", "PostgreSQL"]
+  learningObjectives: text("learning_objectives").array(),
+  prerequisites: text("prerequisites").array(),
+  orderIndex: integer("order_index").default(0),
+  isPremium: boolean("is_premium").default(false), // first 5 in each domain free
+  thumbnailUrl: text("thumbnail_url"),
+  starterCode: text("starter_code"), // initial code in editor
+  language: text("language").default("python"), // python | sql | both
+  totalSteps: integer("total_steps").default(1),
+  tags: text("tags").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// PROJECT STEPS (guided mode content)
+export const projectSteps = pgTable("project_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id).notNull(),
+  stepNumber: integer("step_number").notNull(),
+  title: text("title").notNull(),
+  instructionMd: text("instruction_md").notNull(), // full markdown instructions
+  codeContext: text("code_context"), // relevant code snippet shown alongside instructions
+  expectedOutput: text("expected_output"), // what output/result to expect
+  validationHint: text("validation_hint"), // how to know if step is done correctly
+});
+
+// PROJECT HINTS (for hint mode — progressive reveal)
+export const projectHints = pgTable("project_hints", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id).notNull(),
+  stepNumber: integer("step_number"),
+  hintLevel: integer("hint_level").notNull(), // 1, 2, 3 (1=vague, 3=nearly a solution)
+  hintText: text("hint_text").notNull(),
+});
+
+// PROJECT SOLUTIONS (the full answer reveal)
+export const projectSolutions = pgTable("project_solutions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id).notNull(),
+  solutionCode: text("solution_code").notNull(),
+  solutionExplanationMd: text("solution_explanation_md").notNull(), // detailed walkthrough
+  fileStructureJson: jsonb("file_structure_json"), // {filename: content} map for multi-file projects
+  videoExplanationUrl: text("video_explanation_url"), // optional YouTube embed
+});
+
+// PROJECT NOTES (theory / cheatsheets attached to a project)
+export const projectNotes = pgTable("project_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id),
+  trackId: uuid("track_id").references(() => tracks.id),
+  title: text("title").notNull(),
+  contentMd: text("content_md").notNull(), // full markdown with embedded images
+  noteType: text("note_type").default("theory"), // theory | cheatsheet | reference | quickstart
+  videoUrl: text("video_url"), // optional embedded video
+  orderIndex: integer("order_index").default(0),
+});
+
+// USER PROGRESS
+export const userProgress = pgTable("user_progress", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  projectId: uuid("project_id").references(() => projects.id).notNull(),
+  status: text("status").default("not_started"), // not_started | in_progress | completed
+  currentStep: integer("current_step").default(1),
+  learningMode: text("learning_mode").default("guided"), // guided | hint | independent
+  revealedAnswer: boolean("revealed_answer").default(false),
+  hintsUsed: integer("hints_used").default(0),
+  completionPercent: integer("completion_percent").default(0),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow(),
+});
+
+// USER CODE SESSIONS (auto-saved code per project)
+export const userCodeSessions = pgTable("user_code_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  projectId: uuid("project_id").references(() => projects.id).notNull(),
+  codeContent: text("code_content"),
+  sqlContent: text("sql_content"),
+  language: text("language").default("python"),
+  savedAt: timestamp("saved_at").defaultNow(),
+});
+
+// AI CHAT SESSIONS
+export const aiChatSessions = pgTable("ai_chat_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  projectId: uuid("project_id").references(() => projects.id),
+  messagesJson: jsonb("messages_json").default([]), // array of {role, content} objects
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// CERTIFICATES
+export const certificates = pgTable("certificates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  domainId: uuid("domain_id").references(() => domains.id),
+  trackId: uuid("track_id").references(() => tracks.id),
+  certificateUid: text("certificate_uid").unique().notNull(), // e.g. "ZF-DE-BEG-2026-A4X9"
+  recipientName: text("recipient_name").notNull(),
+  title: text("title").notNull(), // "Data Engineering — Beginner Track"
+  shareUrl: text("share_url"),
+  issuedAt: timestamp("issued_at").defaultNow(),
+});
+
+// DISCUSSION THREADS (one per project)
+export const discussionThreads = pgTable("discussion_threads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  contentMd: text("content_md").notNull(),
+  isPinned: boolean("is_pinned").default(false),
+  replyCount: integer("reply_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// DISCUSSION REPLIES
+export const discussionReplies = pgTable("discussion_replies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  threadId: uuid("thread_id").references(() => discussionThreads.id).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  contentMd: text("content_md").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// WAITLIST (for coming-soon domains)
+export const waitlist = pgTable("waitlist", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").unique().notNull(),
+  domainInterest: text("domain_interest"), // ai-engineering | data-science | mlops
+  signedUpAt: timestamp("signed_up_at").defaultNow(),
+});
+```
+
+---
+
+## SECTION 4 — DESIGN SYSTEM
+
+### Color Palette
+```css
+/* Background & Surface */
+--bg-primary: #0C0E14;         /* Deep navy-black — main background */
+--bg-secondary: #13161F;       /* Cards, panels */
+--bg-tertiary: #1A1E2E;        /* Hover states, input backgrounds */
+--border: #252A3A;             /* All borders */
+
+/* Brand & Accent */
+--accent-blue: #3B82F6;        /* Primary CTA, links, active states */
+--accent-blue-hover: #2563EB;
+--accent-emerald: #10B981;     /* Success, completion, beginner badge */
+--accent-amber: #F59E0B;       /* Warning, intermediate badge, hints */
+--accent-red: #EF4444;         /* Error, advanced badge */
+--accent-purple: #8B5CF6;      /* AI tutor, premium features */
+
+/* Text */
+--text-primary: #F1F5F9;       /* Main text */
+--text-secondary: #94A3B8;     /* Muted, labels */
+--text-muted: #475569;         /* Very muted, placeholders */
+```
+
+### Typography
+```css
+/* UI Font */
+font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+/* Code Font */
+font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+```
+Import both from Google Fonts in the root layout.
+
+### Difficulty Badge Colors
+- **Beginner**: Green pill (`bg-emerald-900/50 text-emerald-400 border border-emerald-700`)
+- **Intermediate**: Amber pill (`bg-amber-900/50 text-amber-400 border border-amber-700`)
+- **Advanced**: Red pill (`bg-red-900/50 text-red-400 border border-red-700`)
+
+### Design Philosophy
+- **Dark mode only** for MVP (engineers prefer dark; toggle can come later)
+- **No unnecessary whitespace abuse** — content-dense like real dev tools
+- **No stock photo imagery** — use SVG illustrations, code mockups, tech stack icons
+- **Sidebar-based layout** for the project workspace page
+- **Smooth transitions** only where they reduce cognitive load (e.g., panel slides, step transitions)
+- Mobile responsiveness: Tablet minimum (1024px breakpoint). Mobile is NOT a priority for MVP.
+
+---
+
+## SECTION 5 — PAGE-BY-PAGE SPECIFICATION
+
+---
+
+### PAGE 1: Landing Page (`/`)
+
+**Purpose**: Convert visitors to sign-ups. Credibility-first, feature-proof second.
+
+**Sections in order**:
+
+1. **Hero Section**
+   - Tagline: `"From Zero to Hired: Build 120 Real Data Engineering Projects"` [CUSTOMIZE]
+   - Sub-headline: `"The only platform where you build production-grade pipelines, not toy tutorials. Powered by an AI tutor that knows exactly where you're stuck."`
+   - Two CTAs: `"Start Free — No Card Required"` (primary, blue) + `"See the Curriculum"` (secondary, ghost)
+   - Hero visual: A dark-mode mockup of the project workspace showing the Python editor, step instructions panel, and AI tutor chat — static image or CSS mockup
+   - Small social proof strip: `"Join 0+ data engineers building real skills"` (honest — start at 0, update dynamically)
+
+2. **Domain Strip** (4 domain cards in a horizontal row)
+   - Data Engineering: LIVE — click takes to `/domains/data-engineering`
+   - AI Engineering: COMING SOON — click opens waitlist modal
+   - Data Science: COMING SOON
+   - MLOps: COMING SOON
+   - Each card shows: icon, title, project count (120 projects), a few tech stack logos
+
+3. **How It Works** (3-column layout)
+   - Column 1: Choose your project → Column 2: Code in your browser → Column 3: Get unstuck with your AI tutor
+   - Simple icons, two sentences each. No fluff.
+
+4. **Feature Highlights** (alternating left/right layout, 4 features)
+   - Feature 1: **Three Learning Modes** — Guided step-by-step / Hint-based challenge / Full independent. Screenshot of the mode selector.
+   - Feature 2: **Python + SQL Editors Built In** — Live code execution, real output, no setup. Animated code mockup.
+   - Feature 3: **AI Tutor That Knows Your Project** — Claude-powered, context-aware, knows which step you're on and what your code looks like. Screenshot of AI chat.
+   - Feature 4: **2026-Ready Curriculum** — Built around what hiring managers actually look for. Tech stack logos: Spark, Kafka, dbt, Airflow, Snowflake, Databricks, Delta Lake, Iceberg, AWS, Azure.
+
+5. **Curriculum Preview** (Sample project cards from DE beginner track)
+   - Show 6 project cards in a grid
+   - Each card: title, difficulty badge, tech stack tags, estimated time, "Start Project" button
+   - `"See all 120 projects →"` link below the grid
+
+6. **Pricing Preview** (simplified — three columns: Free / Pro Monthly / Pro Annual)
+   - Just teaser pricing with CTA to `/pricing`
+
+7. **Competitor Differentiation Strip** (honest comparison table)
+   - Rows: Live Code Execution | AI Tutor Built-In | Project-First (Not Video-First) | 2026 Hiring Curriculum | SQL + Python Mastery Sections | Guided + Hint + Independent Modes | Certificates
+   - Columns: ZeroForge ✓✓✓ vs generic "others" ✓/✗
+
+8. **Footer**: Links (About, Pricing, Curriculum, Blog, Contact) + Social icons + Legal + Email signup
+
+---
+
+### PAGE 2: Pricing Page (`/pricing`)
+
+**Tiers**:
+
+| Feature | Free | Pro Monthly ($29) | Pro Annual ($199/yr) |
+|---------|------|-------------------|----------------------|
+| Projects (DE Beginner) | First 10 only | All 120 | All 120 |
+| AI Tutor | 15 msgs/day | Unlimited | Unlimited |
+| Python Mastery | First 2 modules | Full | Full |
+| SQL Mastery | First 2 modules | Full | Full |
+| Guided + Hint + Independent modes | ✓ | ✓ | ✓ |
+| Reveal Answer | ✓ (limited) | ✓ Unlimited | ✓ Unlimited |
+| Certificates | ✗ | ✓ | ✓ |
+| Future domains (AI Eng, DS, MLOps) | ✗ | ✓ when released | ✓ when released |
+| Priority support | ✗ | ✗ | ✓ |
+
+**Logic**: Annual plan prominently marked "Best Value — Save 43%". Both paid tiers go through Stripe Checkout. Cancellation is self-serve from `/profile`.
+
+---
+
+### PAGE 3: Domain Landing Page (`/domains/data-engineering`)
+
+**Sections**:
+1. Domain hero: title, tagline, stats (120 projects, 3 tracks, estimated hours)
+2. Tech stack icons row (all tools covered in the curriculum)
+3. Track cards (3 cards: Beginner / Intermediate / Advanced) with project count, estimated hours, difficulty description, and "Start Track" or "Locked — Upgrade" CTA
+4. Sample projects preview (6 cards)
+5. What you'll be able to build (bullet list with real outcomes, e.g., "Build a production Airflow + dbt + Snowflake pipeline from scratch")
+6. Certificate preview (mockup image of the certificate they'll earn)
+
+---
+
+### PAGE 4: Track Page (`/domains/data-engineering/beginner`)
+
+**Layout**: Full-width page with a project grid.
+
+**Top Section**:
+- Breadcrumb: Home > Data Engineering > Beginner Track
+- Track title + description
+- Progress bar: `X of 40 projects completed`
+- Streak indicator
+
+**Project Grid** (3 columns on desktop, 2 on tablet):
+Each **Project Card** must show:
+- Thumbnail or generated gradient with project number
+- Project title
+- Short description (1 line, truncated)
+- Difficulty badge
+- Tech stack tags (max 4 shown, "+N more" if overflow)
+- Estimated time (e.g., "~45 min")
+- Status indicator: Not Started (grey) / In Progress (blue pulse) / Completed (green checkmark)
+- Lock icon overlay for free-tier users on projects 11+
+- "Continue" or "Start" button on hover
+
+**Sorting/Filtering** (top of grid):
+- Filter by: All / Not Started / In Progress / Completed
+- Filter by tech: Python / SQL / Airflow / Spark / dbt / Snowflake / etc.
+- Sort by: Default order / Estimated time / Difficulty
+
+---
+
+### PAGE 5: Project Workspace (`/domains/data-engineering/[track]/[project-slug]`)
+
+**This is the most important page in the entire platform. Build it with maximum care.**
+
+#### Layout: Two-Panel Resizable Split
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ TOP BAR: [ZeroForge logo] [Breadcrumb] [Mode Selector] [AI Toggle] │
+│          [Progress: Step 3 of 8] [Save] [Run] [Settings]           │
+├──────────────────────────┬─────────────────────────────────────────┤
+│                          │                                         │
+│  LEFT PANEL (38%)        │  RIGHT PANEL (62%)                      │
+│                          │                                         │
+│  Tab Row:                │  Tab Row:                               │
+│  [Instructions] [Notes]  │  [Python Editor] [SQL Editor] [Output]  │
+│  [AI Tutor] [Discussion] │  [Terminal]                             │
+│                          │                                         │
+│  ─── Instructions ───    │  ─── Monaco Editor ───                  │
+│                          │                                         │
+│  Step 3 of 8:            │  [code editor here]                     │
+│  "Connect to             │                                         │
+│  PostgreSQL"             │                                         │
+│                          │                                         │
+│  [step content           │  ─── Output Panel ───                   │
+│   in markdown]           │                                         │
+│                          │  > Running...                           │
+│  Expected output:        │  > Output: [result here]                │
+│  [code block]            │                                         │
+│                          │                                         │
+│  [Hint 1] [Hint 2]       │                                         │
+│  [Hint 3] [Show Answer]  │                                         │
+│                          │                                         │
+├──────────────────────────┴─────────────────────────────────────────┤
+│ BOTTOM: [← Prev Step]  [Step 3 / 8 ●●●○○○○○]  [Next Step →]       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+#### LEFT PANEL — TABS
+
+**Tab 1: Instructions**
+- Step title (h3)
+- Full step instructions rendered as markdown (with syntax-highlighted code blocks)
+- "Expected output" section with a code block showing what correct output looks like
+- For **Guided Mode**: Show full step instructions immediately
+- For **Hint Mode**: Show the challenge description only. Show a "Need a hint?" section with 3 progressive hint buttons. Clicking Hint 1 reveals it; Hint 2 is locked until Hint 1 is seen; Hint 3 locks until Hint 2 seen.
+- For **Independent Mode**: Show only the project brief and final deliverable requirements. No step-by-step, no hints visible.
+- **Reveal Answer button** (always present, regardless of mode):
+  - Styled as `text-red-400 border-red-800` — not prominent but accessible
+  - Click triggers a confirmation modal: `"Are you sure? Revealing the answer will be logged and won't count toward your completion streak. You can still complete the project after viewing it."`
+  - On confirm: slide up a solution panel showing full solution code with line-by-line explanation in markdown
+
+**Tab 2: Notes**
+- Displays attached theory notes and cheat sheets for this project
+- Each note rendered as rich markdown with syntax-highlighted code, images, and embedded YouTube videos
+- Note type badge: THEORY / CHEATSHEET / REFERENCE
+- Collapsible sections
+
+**Tab 3: AI Tutor**
+- A full chat interface powered by the Anthropic Claude API (streaming)
+- System prompt structure (build this exactly):
+```
+You are ZeroForge's AI tutor — a senior data engineer and patient teacher.
+
+CURRENT CONTEXT:
+- Platform: ZeroForge — a data engineering learning platform
+- Project: {project.title}
+- Track: {track.title} ({track.difficultyLevel})
+- Current Step: {currentStep.stepNumber} of {project.totalSteps}: "{currentStep.title}"
+- Learning Mode: {learningMode}
+- User's Current Code:
+\`\`\`{project.language}
+{userCurrentCode}
+\`\`\`
+
+STEP INSTRUCTIONS:
+{currentStep.instructionMd}
+
+RULES:
+- If learning mode is "guided": you may provide detailed explanations and show corrected code snippets.
+- If learning mode is "hint": do NOT give direct code answers. Guide with questions, analogies, and partial hints only.
+- If learning mode is "independent": do NOT reveal anything about the solution. Only clarify concepts or error messages at a high level.
+- Always be encouraging, patient, and technically precise.
+- If the user's code has a bug, diagnose it clearly but don't just hand over the fix unless mode allows it.
+- Format code with proper markdown fenced code blocks.
+- Keep responses concise (under 300 words unless the question is complex).
+```
+- Chat UI: Dark theme, streaming text, code blocks with copy buttons, user avatar + "Tutor" avatar
+- **Quick Action Buttons** (below the chat input):
+  - "Explain this concept" — auto-sends: "Can you explain [current step title] from first principles?"
+  - "Debug my code" — auto-sends: "Here's my current code. Can you help me find the bug?" (appends current code)
+  - "Give me a hint" — auto-sends: "I'm stuck. Can you give me a hint without giving away the answer?"
+  - "Review my solution" — auto-sends: "Can you review my code and tell me if it's correct and if there are improvements?"
+- Rate limiting: Free users get 15 AI messages/day across all projects. Pro users: unlimited. Show a usage counter for free users. When limit is reached, show upgrade prompt.
+
+**Tab 4: Discussion**
+- Shows all discussion threads for this project
+- Button: "Start a Discussion"
+- Thread list: avatar, title, reply count, timestamp
+- Each thread opens in an expanded view within the panel
+- Reply capability (markdown input, no rich editor for MVP)
+
+#### RIGHT PANEL — TABS
+
+**Tab 1: Python Editor**
+- Monaco Editor configured for Python
+- Theme: dark (VS Code Dark+)
+- Default: pre-loaded with starter code from `projects.starterCode`
+- Auto-save every 30 seconds to `userCodeSessions` table
+- Toolbar: [Reset to Starter] [Copy Code] [Format Code]
+- ▶ Run button (prominent, blue): executes via Piston API, shows output in Output tab
+
+**Tab 2: SQL Editor**
+- Monaco Editor configured for SQL
+- Uses DuckDB WASM for in-browser execution (beginner-level projects)
+- For projects requiring real PostgreSQL: send to server-side execution endpoint
+- Toolbar: [Reset] [Copy] [Explain Query]
+- ▶ Run Query button: shows results as a formatted data table in Output tab
+
+**Tab 3: Output**
+- Shows stdout/stderr from Python execution
+- Shows query results as a table for SQL
+- Shows error messages with clear formatting (red border, error text)
+- Shows execution time
+- "Clear Output" button
+
+**Tab 4: Terminal** (Pro only)
+- Simple terminal emulator (xterm.js) connected to a sandboxed shell session via Piston
+- Free users see: "Terminal access is available on the Pro plan" with upgrade CTA
+
+#### Mode Selector (top bar)
+- Three segmented buttons: `[Guided]` `[Hint-Based]` `[Independent]`
+- Tooltip on each explaining the mode
+- On mode change: confirm dialog if in-progress ("Switching modes will not delete your code. Continue?")
+- Mode is saved to `userProgress.learningMode`
+
+#### Bottom Navigation Bar
+- Previous Step button (disabled on step 1)
+- Step progress dots (filled = completed, current = pulsing blue, future = grey)
+- Next Step button → on last step → "Complete Project" button
+- "Complete Project" flow:
+  1. Confirmation modal with "Well done!" message
+  2. Update `userProgress.status = 'completed'`
+  3. Check if track is completed → if yes, trigger certificate generation
+  4. Confetti animation
+  5. "Next Project →" suggestion card
+
+---
+
+### PAGE 6: Dashboard (`/dashboard`)
+
+**Sections**:
+1. **Welcome header**: `"Good morning, [Name]"` + streak counter badge
+2. **Continue Where You Left Off**: last 2 in-progress projects as cards with progress bars
+3. **Your Stats**: Projects completed | Total hours coded | Current streak | AI tutor messages used
+4. **Domain Progress**: For each available domain — a circular progress ring showing overall completion %
+5. **Skill Activity Calendar**: GitHub-style contribution heatmap (green squares for days with activity)
+6. **Suggested Next Projects**: 3 recommended project cards based on current progress
+7. **Certificates Earned**: Mini certificate cards with share buttons
+
+---
+
+### PAGE 7: Python Mastery Section (`/python-mastery`)
+
+Structure mirrors the domain tracks but scoped to Python.
+
+**Modules** (these are the top-level groups):
+1. Python Fundamentals (variables, types, control flow, functions)
+2. Object-Oriented Python
+3. Python for Data (Pandas, NumPy, Matplotlib, Seaborn)
+4. Python for Machine Learning (Scikit-learn, PyTorch basics, Keras)
+5. Python for Web Scraping (Requests, BeautifulSoup, Scrapy)
+6. Python for Data Engineering (PySpark, Airflow operators, dbt macros)
+7. Async & Performance Python
+8. Testing in Python (pytest, data pipeline testing)
+
+Each module has:
+- 3–5 concise theory notes (markdown with code examples)
+- 5–8 guided projects (same project workspace as main DE projects)
+- Projects follow the same 3-mode system (Guided / Hint / Independent)
+
+---
+
+### PAGE 8: SQL Mastery Section (`/sql-mastery`)
+
+**Modules**:
+1. SQL Basics (SELECT, WHERE, ORDER BY, LIMIT, DISTINCT)
+2. Aggregations (GROUP BY, HAVING, COUNT, SUM, AVG, MIN, MAX)
+3. JOINs (INNER, LEFT, RIGHT, FULL OUTER, CROSS, SELF)
+4. Subqueries and CTEs
+5. Window Functions (ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD, NTILE, FIRST_VALUE)
+6. Advanced PostgreSQL (arrays, JSONB, full-text search, lateral joins)
+7. SQL for Analytics (cohort analysis, retention, funnel analysis in SQL)
+8. SQL Performance (indexes, EXPLAIN ANALYZE, query optimization)
+9. SQL for Data Engineering (DDL, DML, transactions, schema design)
+
+SQL editor uses DuckDB WASM with pre-loaded sample datasets (at minimum: `employees`, `orders`, `products`, `events` tables seeded via DuckDB WASM initialization).
+
+---
+
+### PAGE 9: Certificates Page (`/certificates`)
+
+- Shows all earned certificates in a card grid
+- Each certificate card: domain name, track name, issue date, certificate ID, [View Certificate] [Share on LinkedIn] buttons
+- Share on LinkedIn opens: `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name={title}&organizationName=ZeroForge&issueYear={year}&issueMonth={month}&certUrl={shareUrl}&certId={certificateUid}`
+
+**Certificate Public View Page** (`/certificate/[uid]`):
+- Public, no auth required
+- Shows: recipient name, certificate title, domain, issue date, ZeroForge logo, verification message
+- LinkedIn share button
+- Clean printable layout
+
+---
+
+## SECTION 6 — DATA ENGINEERING CURRICULUM (120 PROJECTS)
+
+Seed the database with ALL 120 projects listed below. Every project must have:
+- `title`, `slug`, `shortDescription`, `difficultyLevel`, `estimatedMinutes`, `techStack`, `learningObjectives` (3–5 items), `orderIndex`, `isPremium` (false for first 10 in beginner track)
+
+### BEGINNER TRACK — 40 Projects
+
+**Block 1: Python Foundations for DE (Projects 1–10)**
+1. Your First Python Pipeline — Read a CSV, clean it, write to a new CSV | Python, Pandas | 45 min
+2. Working with JSON Files in Python — Parse nested JSON, flatten it, export | Python | 40 min
+3. File Formats Deep Dive — Read/write CSV, JSON, Parquet, Avro in Python | Python, PyArrow, pandas | 60 min
+4. Python Data Types for Engineers — Bytes, datetimes, decimals, type coercion | Python | 35 min
+5. Logging and Error Handling in Pipelines — try/except, logging module, structured logs | Python | 45 min
+6. Environment Variables & Config Management — python-dotenv, config classes, secrets safety | Python | 40 min
+7. Working with APIs: Pull Real Data — GET requests, pagination, auth headers, rate limits | Python, Requests | 55 min
+8. File System Operations in Python — pathlib, glob patterns, directory traversal | Python, pathlib | 35 min
+9. Scheduling a Python Script — cron jobs, schedule library, basic automation | Python, cron | 45 min
+10. Your First Real ETL Pipeline — Full extract→transform→load with CSV→PostgreSQL | Python, psycopg2, Pandas | 90 min
+
+**Block 2: SQL Foundations for DE (Projects 11–20)**
+11. Design and Create Your First Database Schema | SQL, PostgreSQL | 50 min
+12. Load Real Data and Run Basic Queries | SQL, PostgreSQL | 45 min
+13. Aggregation Mastery: GROUP BY, HAVING, Window Basics | SQL | 55 min
+14. JOIN Every Way: INNER, LEFT, RIGHT, FULL, CROSS | SQL | 60 min
+15. CTEs and Subqueries: Write Readable, Maintainable SQL | SQL | 50 min
+16. Window Functions: ROW_NUMBER, RANK, LAG, LEAD, NTILE | SQL | 70 min
+17. Date and Time in PostgreSQL: Intervals, Truncation, Extraction | SQL, PostgreSQL | 55 min
+18. Working with NULL: COALESCE, NULLIF, NULL-safe Logic | SQL | 40 min
+19. Query Optimization: EXPLAIN ANALYZE, Indexes, Execution Plans | SQL, PostgreSQL | 65 min
+20. PostgreSQL for Engineers: JSONB, Arrays, Lateral Joins | SQL, PostgreSQL | 75 min
+
+**Block 3: Cloud Foundations (Projects 21–30)**
+21. AWS S3: Upload and Download Files Programmatically | Python, boto3, AWS S3 | 55 min
+22. AWS S3: Organize a Data Lake Folder Structure | Python, boto3, AWS S3 | 50 min
+23. AWS IAM: Roles, Policies, and Least-Privilege Access | AWS IAM | 45 min
+24. Azure Blob Storage: Container Management and File Ingestion | Python, Azure SDK | 55 min
+25. GCP Cloud Storage: Uploading and Managing Files | Python, GCP SDK | 50 min
+26. Snowflake: Set Up Your First Warehouse and Database | Snowflake, SQL | 60 min
+27. Snowflake: Load Data from CSV and S3 Stages | Snowflake, SQL, S3 | 65 min
+28. Databricks: Set Up a Cluster and Run Your First Notebook | Databricks, Python | 60 min
+29. Docker: Containerize a Python ETL Script | Docker, Python | 70 min
+30. Docker Compose: Multi-Container Pipeline with Postgres | Docker, Docker Compose | 80 min
+
+**Block 4: DE Tooling Foundations (Projects 31–40)**
+31. Apache Airflow: Install, Configure, and Run Your First DAG | Airflow, Python | 75 min
+32. Airflow: Schedule a Daily Data Pipeline with BashOperator | Airflow | 60 min
+33. Airflow: PythonOperator, XComs, and Task Dependencies | Airflow, Python | 70 min
+34. dbt: Set Up a Project and Connect to Postgres | dbt, SQL, PostgreSQL | 65 min
+35. dbt: Write Your First Model and Run It | dbt, SQL | 60 min
+36. dbt: Tests and Documentation in dbt | dbt, SQL | 55 min
+37. Data Profiling with pandas-profiling / ydata-profiling | Python, Pandas | 50 min
+38. Great Expectations: Define and Run Data Quality Tests | Great Expectations, Python | 75 min
+39. PySpark: Install Spark, Understand the Architecture | PySpark, Python | 65 min
+40. BEGINNER CAPSTONE: End-to-End Pipeline (CSV → S3 → Postgres → Airflow DAG → dbt model) | Python, Airflow, dbt, S3, Postgres | 180 min
+
+### INTERMEDIATE TRACK — 50 Projects
+
+**Block 5: PySpark & Big Data (Projects 41–52)**
+41. PySpark DataFrames: Read, Explore, Filter, Aggregate | PySpark | 75 min
+42. PySpark: Reading Parquet from S3 and Writing to Delta Lake | PySpark, Delta Lake, S3 | 80 min
+43. PySpark SQL: registerTempTable and Spark SQL Queries | PySpark | 65 min
+44. PySpark: Handling Nested JSON and StructType Schemas | PySpark | 75 min
+45. PySpark: Window Functions for Time-Series Aggregations | PySpark | 80 min
+46. PySpark: Optimizing Jobs — Partitioning, Caching, Broadcast | PySpark | 90 min
+47. PySpark: UDFs and pandas UDFs | PySpark, Python | 70 min
+48. Delta Lake: ACID Transactions, Upserts with MERGE | Delta Lake, PySpark | 85 min
+49. Delta Lake: Schema Evolution, Enforcement, and Time Travel | Delta Lake | 80 min
+50. Apache Iceberg: Table Format Basics and Catalog Setup | Iceberg, PySpark | 85 min
+51. Databricks: Delta Live Tables Pipeline | Databricks, Delta Lake | 95 min
+52. Databricks: Unity Catalog and Data Governance | Databricks | 80 min
+
+**Block 6: Airflow Advanced (Projects 53–60)**
+53. Airflow: Dynamic Task Mapping (map() for fan-out pipelines) | Airflow | 80 min
+54. Airflow: Custom Operators and Hooks | Airflow, Python | 85 min
+55. Airflow: Monitoring, SLA Miss Callbacks, Alerting | Airflow | 70 min
+56. Airflow: Backfilling, Catchup, and Historical Reloads | Airflow | 65 min
+57. Airflow + dbt: Orchestrate dbt with Cosmos | Airflow, dbt, Cosmos | 90 min
+58. Airflow: Secrets Backend with HashiCorp Vault | Airflow, Vault | 75 min
+59. Airflow on Kubernetes: KubernetesPodOperator | Airflow, Kubernetes | 90 min
+60. Airflow: Production-Grade DAG with Retry Logic and Observability | Airflow | 100 min
+
+**Block 7: dbt Advanced (Projects 61–68)**
+61. dbt: Incremental Models — Efficiently Update Large Tables | dbt, SQL | 80 min
+62. dbt: Snapshots for Slowly Changing Dimensions (SCD Type 2) | dbt, SQL | 85 min
+63. dbt: Macros, Jinja Templating, and DRY SQL | dbt, Jinja | 75 min
+64. dbt: Advanced Testing with dbt-expectations | dbt | 70 min
+65. dbt: Hooks, Operations, and Post-Model Actions | dbt | 65 min
+66. dbt on Snowflake: Dynamic Tables and Performance Tuning | dbt, Snowflake | 90 min
+67. dbt on BigQuery: Handling Arrays, Structs, UNNEST | dbt, BigQuery | 85 min
+68. dbt: Build a Complete Dimensional Model End-to-End | dbt, SQL | 120 min
+
+**Block 8: Warehouse & Lakehouse Deep Dives (Projects 69–76)**
+69. Snowflake: Streams, Tasks, and Dynamic Tables | Snowflake | 90 min
+70. Snowflake: Cost Optimization — Virtual Warehouses, Suspend/Resume | Snowflake | 75 min
+71. BigQuery: Partitioning, Clustering, and Cost Management | BigQuery | 80 min
+72. BigQuery: Materialized Views and BI Engine | BigQuery | 75 min
+73. Redshift: Loading from S3 with COPY and Unloading | Redshift, S3 | 80 min
+74. Data Vault 2.0: Design Hub, Link, and Satellite Entities | SQL, Data Vault | 100 min
+75. Star Schema Design: Fact and Dimension Tables End-to-End | SQL, dbt | 100 min
+76. Choosing the Right Storage: Warehouse vs. Lake vs. Lakehouse | Architecture | 60 min
+
+**Block 9: Streaming Foundations (Projects 77–84)**
+77. Apache Kafka: Set Up a Local Cluster, Create Topics | Kafka, Docker | 75 min
+78. Kafka: Python Producer and Consumer — Send and Read Events | Kafka, Python | 80 min
+79. Kafka: Partitions, Consumer Groups, and Offsets Deep Dive | Kafka | 75 min
+80. Kafka: Schema Registry and Avro Serialization | Kafka, Avro | 80 min
+81. Kafka Streams: Real-Time Aggregations in Python | Kafka, Python | 90 min
+82. AWS Kinesis: Build a Real-Time Streaming Pipeline | AWS Kinesis, Python | 85 min
+83. CDC with Debezium: Capture Postgres Changes to Kafka | Debezium, Kafka, PostgreSQL | 95 min
+84. Build a Real-Time Dashboard Pipeline (Kafka → ClickHouse / PostgreSQL → Dashboard) | Kafka, Python | 120 min
+
+**Block 10: Data Quality & Governance (Projects 85–90)**
+85. Data Contracts: Define and Enforce Schemas with Pydantic | Python, Pydantic | 70 min
+86. Data Lineage: Instrument Your Pipeline with OpenLineage | OpenLineage, Airflow | 80 min
+87. Great Expectations: Advanced Suites and Checkpoints | Great Expectations | 85 min
+88. Data Observability: Anomaly Detection on Your Data | Python, dbt | 75 min
+89. SCD Types 1, 2, 3, 4, and 6: Implement All in SQL and dbt | SQL, dbt | 100 min
+90. INTERMEDIATE CAPSTONE: Full Lakehouse Pipeline (Kafka → PySpark → Delta Lake → dbt → Snowflake → Airflow) | All tools | 240 min
+
+### ADVANCED TRACK — 30 Projects
+
+**Block 11: Production & Platform Engineering (Projects 91–98)**
+91. Terraform for Data Engineers: Provision AWS Infrastructure as Code | Terraform, AWS | 100 min
+92. Spark on Kubernetes: Submit Jobs with spark-submit on K8s | Kubernetes, Spark | 110 min
+93. CI/CD for Data: GitHub Actions Pipeline for dbt + Airflow | GitHub Actions, dbt | 90 min
+94. Cost Engineering: Monitor and Reduce Cloud Data Bills | AWS, Snowflake, BigQuery | 80 min
+95. Internal Data Platform: Build a Self-Serve Ingestion API | Python, FastAPI, Docker | 120 min
+96. Multi-Cloud Architecture: Design and Implement a Hybrid Pipeline | AWS + GCP | 120 min
+97. Incident Response: Handle a Pipeline Failure in Production | Airflow, dbt, PostgreSQL | 90 min
+98. SLA Monitoring and Alerting at Scale | Airflow, Prometheus, Grafana | 100 min
+
+**Block 12: AI-Augmented Data Engineering (Projects 99–105)**
+99. LLM-Powered ETL: Use Claude to Parse and Transform Unstructured Data | Python, Claude API | 110 min
+100. AI for Data Quality: LLM-Assisted Anomaly Explanations | Python, Claude API | 100 min
+101. Build a Text-to-SQL Pipeline (Natural Language → SQL) | Python, Claude API, PostgreSQL | 120 min
+102. Vector Databases for Data Engineers: Pinecone / Weaviate Setup | Python, Pinecone | 110 min
+103. Embedding Pipelines: Process and Index Unstructured Documents | Python, OpenAI Embeddings | 115 min
+104. RAG Pipeline with a Data Warehouse Backend | Python, Claude API, PostgreSQL | 130 min
+105. Build an Agentic Data Pipeline: LLM-Orchestrated Ingestion | Python, Claude API, Airflow | 150 min
+
+**Block 13: Modern Architecture Patterns (Projects 106–113)**
+106. Event-Driven Architecture: Kafka + Airflow + Postgres | Kafka, Airflow | 130 min
+107. Data Mesh: Implement Federated Ownership and Governance | Architecture, dbt | 120 min
+108. Real-Time Feature Store: Build with Feast | Feast, Redis, Kafka | 130 min
+109. Medallion Architecture: Bronze → Silver → Gold End-to-End | Delta Lake, dbt | 140 min
+110. Reverse ETL: Push Warehouse Data to CRM with Hightouch | Snowflake, Hightouch | 90 min
+111. Delta Sharing: Share Data Across Organizations Securely | Delta Lake | 100 min
+112. DataOps Pipeline: Automated Testing + Deployment + Monitoring | dbt, GitHub Actions | 120 min
+113. Building a DataOps Platform Dashboard | Python, FastAPI, React | 130 min
+
+**Block 14: Advanced Capstones (Projects 114–120)**
+114. Real-Time Streaming System: Kafka + Flink + Apache Iceberg | Kafka, Flink, Iceberg | 240 min
+115. Enterprise Pipeline: Airflow + dbt + Snowflake + Great Expectations + DataHub | All | 300 min
+116. Cloud-Native Data Lake: S3 + AWS Glue + Athena + QuickSight | AWS | 240 min
+117. Real-Time Analytics Platform: Kafka + Apache Druid | Kafka, Druid | 240 min
+118. Multi-Source Integration Platform: 5 Sources → 1 Warehouse | Python, Airflow, dbt | 270 min
+119. AI-Powered Data Platform for an LLM Application | Python, Claude API, Kafka, PG | 300 min
+120. FINAL CAPSTONE: Full-Stack Data Engineering System (end-to-end, cloud-deployed, monitored, documented) | All tools | 480 min
+
+---
+
+## SECTION 7 — SUBSCRIPTION & ACCESS CONTROL
+
+### Access Rules
+- **Free users**: Access to projects 1–10 in the Beginner Track only. Python Mastery modules 1–2 only. SQL Mastery modules 1–2 only. AI tutor: 15 messages/day. Reveal Answer: 3 times total.
+- **Pro users**: Full access to all 120 projects across all three tracks, all Python and SQL mastery modules. Unlimited AI tutor. Unlimited reveal answers. Certificates. Terminal tab in workspace.
+
+### Access Check Logic
+- On every project workspace load: check `users.subscriptionTier`
+- If `free` and `project.isPremium === true`: show a full-page lock overlay with upgrade CTA (do NOT render the project content behind it)
+- If `free` and AI messages >= 15/day: show "Daily AI limit reached" banner with upgrade button
+- Stripe webhook handler at `/api/webhooks/stripe`: listen for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` and update `subscriptions` table + `users.subscriptionTier` accordingly
+
+---
+
+## SECTION 8 — AI TUTOR API ROUTE
+
+Create `POST /api/ai/tutor` endpoint:
+
+```typescript
+// Input
+{
+  projectId: string;
+  currentStep: number;
+  learningMode: "guided" | "hint" | "independent";
+  userCode: string;
+  conversationHistory: Array<{role: "user" | "assistant"; content: string}>;
+  userMessage: string;
+}
+
+// Implementation
+// 1. Validate auth (Clerk session)
+// 2. Check rate limit (Upstash Redis): key = `ai_limit:{userId}:{date}`, increment, check against tier limit
+// 3. Fetch project + step from DB
+// 4. Build system prompt (see Section 5, Tab 3)
+// 5. Call Anthropic Claude API with streaming:
+//    model: "claude-sonnet-4-6"
+//    max_tokens: 1024
+//    system: [system_prompt]
+//    messages: [...conversationHistory, {role: "user", content: userMessage}]
+// 6. Stream response back to client using Server-Sent Events
+// 7. On completion, save updated conversation to ai_chat_sessions table
+```
+
+---
+
+## SECTION 9 — CERTIFICATE GENERATION
+
+When a user completes all projects in a track (all `userProgress.status === 'completed'` for that track), trigger:
+
+1. Generate a unique `certificateUid`: format `ZF-DE-BEG-{YEAR}-{4_RANDOM_CHARS}` (example: `ZF-DE-BEG-2026-X7K2`)
+2. Insert into `certificates` table
+3. Generate `shareUrl`: `https://zeroforge.dev/certificate/{certificateUid}` [CUSTOMIZE domain]
+4. Send a congratulations email via Resend with certificate link
+5. On the client: trigger confetti animation, open a "Congratulations" modal with:
+   - Certificate title
+   - "View Certificate" button
+   - LinkedIn Share button (pre-builds the LinkedIn certification URL)
+   - "Share on Twitter/X" button
+
+For the public certificate page (`/certificate/[uid]`), render a clean, printable HTML certificate with:
+- ZeroForge logo
+- "This certifies that"
+- Recipient name (large)
+- "has successfully completed"
+- Track title + Domain
+- Issue date
+- Unique ID
+- "Verify at zeroforge.dev/certificate/[uid]"
+
+---
+
+## SECTION 10 — COMPETITIVE DIFFERENTIATORS TO IMPLEMENT
+
+Based on analysis of: Analyst Builder, ProjectPro, DataExpert.io, DataCamp, Educative.io, DataQuest, HyperSkill, Zero to Mastery, PluralSight, CodeCademy.
+
+**Steal from Analyst Builder**: Real databases in the SQL editor. Don't use fake/toy data — use realistic, industry-representative datasets seeded in DuckDB and PostgreSQL.
+
+**Steal from DataExpert.io**: Technical depth and credibility. Don't dumb down the curriculum. Projects must use real tools, real configurations, and produce outputs that look like real production work.
+
+**Steal from DataCamp**: Interactive in-browser execution with zero setup. The moment a user signs up they are coding — no downloads, no environment setup. Also steal their Skill Track and Career Track visual organization.
+
+**Steal from Educative.io**: The text + code hybrid reading experience. Notes should be rich, structured prose with inline code examples — not a wall of video timestamps.
+
+**Steal from DataQuest**: The "guided answer checking" — after each step, show whether the user's output matches the expected output (exact match or structural match). Green check = correct, red X = try again.
+
+**Steal from HyperSkill**: Theory → Practice immediately — every theory note has a "Try it now" button that drops the user into a micro-exercise right in the same page.
+
+**Steal from Zero to Mastery**: Community and career framing. Add a "Why this matters for hiring" section to every project card (1–2 sentences explaining what this skill signals to a hiring manager).
+
+**Steal from CodeCademy**: XP system and daily streak. Award XP for completing steps, projects, and streaks. Show an XP level and progress bar in the dashboard.
+
+**From ProjectPro.io**: Every advanced project should include a "Real-World Context" section explaining what company or industry scenario this is based on (anonymized/generic is fine).
+
+**Unique to ZeroForge (no one else does this)**: The three-mode learning system (Guided / Hint / Independent) within the SAME project. Every platform picks one mode. ZeroForge lets the learner choose, and lets them switch mid-project. This is the headline differentiator. Lead with it everywhere.
+
+---
+
+## SECTION 11 — SEED DATA
+
+Seed the following on first deploy:
+
+1. **4 domains** (Data Engineering = available, other 3 = coming soon)
+2. **3 tracks for Data Engineering** (Beginner/Intermediate/Advanced)
+3. **All 120 projects** from Section 6 with at minimum: title, slug, shortDescription, techStack, difficultyLevel, estimatedMinutes, learningObjectives, orderIndex, isPremium
+4. **For the first 5 projects (beginner)**: create real `projectSteps` (5–10 steps each), `projectHints` (3 hints per project), and `projectSolutions` with real working Python/SQL code
+5. **3 sample theory notes** attached to the beginner track
+6. **DuckDB WASM seed datasets**: employees (50 rows), orders (200 rows), products (30 rows), events (500 rows) — loaded as DuckDB WASM initialization SQL
+7. **1 demo user** (for testing): `demo@zeroforge.dev` with free tier, 2 projects in progress
+
+---
+
+## SECTION 12 — ENVIRONMENT VARIABLES REQUIRED
+
+```bash
+# Auth
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+CLERK_WEBHOOK_SECRET=
+
+# Database
+DATABASE_URL=              # Neon PostgreSQL connection string
+
+# AI
+ANTHROPIC_API_KEY=         # Claude API key
+
+# Payments
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_PRO_MONTHLY_PRICE_ID=
+STRIPE_PRO_ANNUAL_PRICE_ID=
+
+# Rate Limiting
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# Email
+RESEND_API_KEY=
+
+# App
+NEXT_PUBLIC_APP_URL=https://zeroforge.dev   # [CUSTOMIZE]
+```
+
+---
+
+## SECTION 13 — MVP PHASE BREAKDOWN (Build in this order)
+
+### Phase 1 — Foundation (Build first)
+- [ ] Project scaffolding: Next.js + TypeScript + Tailwind + shadcn/ui
+- [ ] Database: Drizzle schema + Neon connection + migrations
+- [ ] Auth: Clerk integration + webhook to sync users to DB
+- [ ] Seed data: domains, tracks, first 10 projects with steps/hints/solutions
+- [ ] Landing page (static, no dynamic data yet)
+- [ ] Pricing page
+
+### Phase 2 — Core Learning Experience (Build second)
+- [ ] Track pages (domain landing, beginner/intermediate/advanced track pages with project grid)
+- [ ] Project Workspace page: full two-panel layout with Monaco editors
+- [ ] Python execution via Piston API
+- [ ] SQL execution via DuckDB WASM
+- [ ] Guided mode: step navigation, instructions, expected output
+- [ ] Hint system (progressive reveal)
+- [ ] Reveal Answer (with confirmation)
+- [ ] Auto-save code to userCodeSessions every 30 seconds
+- [ ] User progress tracking (start/complete steps, track completion %)
+
+### Phase 3 — AI Tutor & Subscriptions (Build third)
+- [ ] AI Tutor chat panel with Claude API streaming
+- [ ] Rate limiting with Upstash Redis
+- [ ] Mode switcher (Guided / Hint / Independent) with DB persistence
+- [ ] Stripe checkout integration (Pro Monthly + Pro Annual)
+- [ ] Stripe webhook handler
+- [ ] Access control enforcement (free vs pro locks)
+- [ ] Upgrade prompt flows
+
+### Phase 4 — Dashboard, Certificates, Community (Build fourth)
+- [ ] User dashboard with progress, stats, streak
+- [ ] XP system + activity heatmap
+- [ ] Certificate generation on track completion
+- [ ] Public certificate page
+- [ ] LinkedIn share integration
+- [ ] Discussion threads per project (basic, no real-time)
+- [ ] Email: welcome email via Resend, certificate delivery email
+
+### Phase 5 — Python & SQL Mastery Sections (Build fifth)
+- [ ] Python Mastery section with modules and lessons
+- [ ] SQL Mastery section with DuckDB WASM interactive exercises
+- [ ] "Theory → Try It Now" flow for notes
+
+### Phase 6 — Polish & Coming Soon (Build last)
+- [ ] Coming Soon pages for AI Engineering, Data Science, MLOps with waitlist email capture
+- [ ] Search across projects (basic — filter by title/tag)
+- [ ] Admin panel (content management: create/edit projects)
+- [ ] Performance: image optimization, code splitting, lazy loading editors
+- [ ] SEO: meta tags, OG images, sitemap
+
+---
+
+## SECTION 14 — ACCEPTANCE CRITERIA
+
+The MVP is complete when:
+
+1. A new user can sign up, land on the dashboard, and start the first project within 60 seconds — no downloads, no setup.
+2. The project workspace loads fully in < 3 seconds (editor, instructions, output panel visible).
+3. Python code executes and returns output within 5 seconds of clicking "Run."
+4. SQL queries execute against DuckDB WASM and return tabular results within 2 seconds.
+5. The AI tutor responds within 3 seconds (first token) and streams the full response.
+6. Switching between Guided / Hint / Independent modes persists across page refreshes.
+7. A free user attempting to access project 11 sees the upgrade lock overlay (not the project content).
+8. A user who completes all 10 beginner free projects gets an upgrade prompt to continue.
+9. Completing a full track triggers the certificate flow with confetti + LinkedIn share.
+10. Stripe checkout processes a Pro subscription and immediately unlocks Pro content.
+11. All 120 project cards render correctly in their track pages with title, badge, tech stack, and status.
+12. The landing page renders correctly on desktop (1440px) and tablet (1024px).
+13. No console errors on any page in production.
+14. All environment variables are loaded from `.env.local` — zero hardcoded secrets.
+
+---
+
+## SECTION 15 — CONSTRAINTS AND GUARDRAILS
+
+- Do NOT use `any` type in TypeScript — strict mode must pass
+- Do NOT implement a mobile-first layout — desktop/tablet is the priority
+- Do NOT use localStorage to store user code — always persist to DB
+- Do NOT make the AI tutor available on free tier for more than 15 messages/day per user
+- Do NOT reveal solution code to free users for premium projects — lock the Reveal Answer button with an upgrade prompt
+- Do NOT add features outside this specification during the MVP build — ship a tight, complete MVP first
+- Do NOT use real user data in the demo/seed content
+- ALWAYS validate Stripe webhook signatures before processing
+- ALWAYS validate Clerk session before any authenticated API route
+- ALWAYS sanitize and render markdown with a trusted library (e.g., react-markdown + remark-gfm + rehype-highlight) — never dangerouslySetInnerHTML with raw user content
+- Code execution sandboxing: never execute user Python code on the main Next.js server — always route through Piston API or a sandboxed worker
+
+---
+
+## APPENDIX A — KEY UX MICRO-INTERACTIONS
+
+1. **Step completion check**: after the user runs code, compare output to `expectedOutput`. If it matches: show a green "✓ Step Complete" banner and unlock the "Next Step" button. If it doesn't match: show a gentle "Not quite — check your output" banner with a hint nudge.
+
+2. **Streak animation**: when the user's daily streak increments, flash a small fire 🔥 emoji with the streak number in the top nav.
+
+3. **Project card hover state**: on hover, elevate the card (box-shadow) and show a "Start →" / "Continue →" button overlay.
+
+4. **Mode selector tooltip**: on hover over each mode button, show a small tooltip explaining the mode in one sentence.
+
+5. **AI Tutor "thinking" state**: while waiting for the first token from Claude, show a typing indicator (three animated dots) in the tutor chat.
+
+6. **Confetti on completion**: use `canvas-confetti` library when a project or track is completed.
+
+7. **Code copy button**: on every code block (in notes, instructions, solutions), show a clipboard copy icon that shows "Copied!" for 2 seconds on click.
+
+---
+
+## APPENDIX B — SUGGESTED FOLDER STRUCTURE
+
+```
+/
+├── app/
+│   ├── (auth)/
+│   │   ├── sign-in/
+│   │   └── sign-up/
+│   ├── (dashboard)/
+│   │   ├── dashboard/
+│   │   ├── domains/
+│   │   │   └── [domain]/
+│   │   │       └── [track]/
+│   │   │           └── [project]/
+│   │   ├── python-mastery/
+│   │   ├── sql-mastery/
+│   │   ├── certificates/
+│   │   └── profile/
+│   ├── (marketing)/
+│   │   ├── page.tsx          (landing page)
+│   │   ├── pricing/
+│   │   └── domains/
+│   ├── api/
+│   │   ├── ai/tutor/
+│   │   ├── webhooks/
+│   │   │   ├── clerk/
+│   │   │   └── stripe/
+│   │   ├── projects/
+│   │   ├── progress/
+│   │   └── certificates/
+│   ├── certificate/[uid]/    (public)
+│   └── admin/
+├── components/
+│   ├── ui/                   (shadcn components)
+│   ├── workspace/            (editor, panels, modes)
+│   ├── project/              (project cards, track pages)
+│   ├── ai-tutor/             (chat interface)
+│   ├── dashboard/            (progress, stats)
+│   └── marketing/            (landing page sections)
+├── lib/
+│   ├── db/                   (drizzle schema, queries)
+│   ├── auth/                 (clerk helpers)
+│   ├── stripe/               (stripe client, helpers)
+│   ├── ai/                   (anthropic client, prompts)
+│   └── utils/
+├── hooks/                    (custom React hooks)
+├── types/                    (shared TypeScript types)
+└── drizzle.config.ts
+```
+
+---
+
+*End of ZeroForge Master Builder Prompt v1.0*
+*Built for: Replit / Cursor / Claude Code*
+*Founder: Biniyam F. | findbene@gmail.com*
+*Date: April 2026*
