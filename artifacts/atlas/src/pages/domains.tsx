@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { useListDomains } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Code2, Database, Brain, Sparkles, LineChart, Lock } from "lucide-react";
+import { Code2, Database, Brain, Sparkles, LineChart, Bell } from "lucide-react";
+import { WaitlistDialog } from "@/components/WaitlistDialog";
 
 const iconMap: Record<string, any> = {
   "data-engineering": Database,
@@ -17,6 +19,7 @@ const iconMap: Record<string, any> = {
 
 export default function Domains() {
   const { data: domains, isLoading, error } = useListDomains();
+  const [waitlistDomain, setWaitlistDomain] = useState<{ slug: string; name: string } | null>(null);
 
   if (error) {
     return <div className="p-8 text-center text-destructive">Failed to load domains</div>;
@@ -92,8 +95,12 @@ export default function Domains() {
                       <Button className="w-full">Explore Path</Button>
                     </Link>
                   ) : (
-                    <Button variant="outline" className="w-full" disabled>
-                      <Lock className="mr-2 h-4 w-4" /> Waitlist
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setWaitlistDomain({ slug: domain.slug, name: domain.name })}
+                    >
+                      <Bell className="mr-2 h-4 w-4" /> Join Waitlist
                     </Button>
                   )}
                 </CardFooter>
@@ -102,6 +109,13 @@ export default function Domains() {
           })}
         </div>
       )}
+
+      <WaitlistDialog
+        open={waitlistDomain !== null}
+        onOpenChange={(open) => { if (!open) setWaitlistDomain(null); }}
+        domainSlug={waitlistDomain?.slug ?? ""}
+        domainName={waitlistDomain?.name ?? ""}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   bio: text("bio"),
   role: userRoleEnum("role").default('learner').notNull(),
   subscriptionTier: subscriptionTierEnum("subscription_tier").default('free').notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
   timezone: text("timezone").default('UTC').notNull(),
   revealsUsedTotal: integer("reveals_used_total").default(0).notNull(),
   lastActiveAt: timestamp("last_active_at"),

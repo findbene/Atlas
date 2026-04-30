@@ -8,6 +8,7 @@ import billingRouter from "./billing";
 import executeRouter from "./execute";
 import leaderboardRouter from "./leaderboard";
 import modulesRouter from "./modules";
+import waitlistRouter from "./waitlist";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(billingRouter);
 router.use(executeRouter);
 router.use(leaderboardRouter);
 router.use(modulesRouter);
+router.use(waitlistRouter);
 
 export default router;

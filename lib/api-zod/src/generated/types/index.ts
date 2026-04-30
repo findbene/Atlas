@@ -30,6 +30,8 @@ export * from "./gradingResult";
 export * from "./gradingResultStatus";
 export * from "./healthStatus";
 export * from "./hintRequestBody";
+export * from "./joinWaitlistBody";
+export * from "./joinWaitlistResponse";
 export * from "./leaderboardEntry";
 export * from "./lesson";
 export * from "./lessonCompletion";

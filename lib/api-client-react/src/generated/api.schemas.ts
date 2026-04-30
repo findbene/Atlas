@@ -18,6 +18,19 @@ export interface WebhookResponse {
   received: boolean;
 }
 
+export interface JoinWaitlistBody {
+  /** User email address */
+  email: string;
+  /** Slug of the domain the user is interested in */
+  domainInterest?: string | null;
+}
+
+export interface JoinWaitlistResponse {
+  success: boolean;
+  alreadyOnWaitlist: boolean;
+  message: string;
+}
+
 export type DomainStatus = (typeof DomainStatus)[keyof typeof DomainStatus];
 
 export const DomainStatus = {

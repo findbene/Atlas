@@ -531,6 +531,23 @@ export const CreateBillingPortalResponse = zod.object({
 });
 
 /**
+ * @summary Join the waitlist for a coming-soon domain
+ */
+export const JoinWaitlistBody = zod.object({
+  email: zod.string().email().describe("User email address"),
+  domainInterest: zod
+    .string()
+    .nullish()
+    .describe("Slug of the domain the user is interested in"),
+});
+
+export const JoinWaitlistResponse = zod.object({
+  success: zod.boolean(),
+  alreadyOnWaitlist: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
  * @summary Stripe webhook handler
  */
 export const StripeWebhookBody = zod.object({}).passthrough();

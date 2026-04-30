@@ -10,6 +10,7 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { WebhookHandlers } from "./lib/webhookHandlers";
 
 const app: Express = express();
 
@@ -31,6 +32,36 @@ app.use(
       },
     },
   }),
+);
+
+// Stripe webhook MUST be registered BEFORE express.json() so the raw body
+// (Buffer) is available for signature verification.
+app.post(
+  "/api/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const signature = req.headers["stripe-signature"];
+    if (!signature) {
+      res.status(400).json({ error: "Missing stripe-signature header" });
+      return;
+    }
+    try {
+      const sig = Array.isArray(signature) ? signature[0]! : signature;
+      if (!Buffer.isBuffer(req.body)) {
+        req.log.error(
+          "STRIPE WEBHOOK ERROR: req.body is not a Buffer. " +
+            "Ensure this route is registered BEFORE app.use(express.json()).",
+        );
+        res.status(500).json({ error: "Webhook processing error" });
+        return;
+      }
+      await WebhookHandlers.processWebhook(req.body, sig);
+      res.status(200).json({ received: true });
+    } catch (err) {
+      req.log.error({ err }, "Stripe webhook error");
+      res.status(400).json({ error: "Webhook processing error" });
+    }
+  },
 );
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
