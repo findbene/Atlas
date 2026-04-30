@@ -43,7 +43,7 @@ router.get("/modules", async (req, res) => {
 
 router.get("/modules/:moduleId", async (req, res) => {
   try {
-    const { moduleId } = req.params;
+    const { moduleId } = req.params as { moduleId: string };
     const module = await db.query.masteryModules.findFirst({ where: eq(masteryModules.id, moduleId) });
     if (!module) {
       res.status(404).json({ error: "Module not found" });
@@ -90,7 +90,7 @@ router.post("/user/modules/:moduleId/lessons/:lessonId/complete", requireAuth, a
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const { lessonId } = req.params;
+    const { lessonId } = req.params as { lessonId: string };
     const lesson = await db.query.masteryLessons.findFirst({ where: eq(masteryLessons.id, lessonId) });
     if (!lesson) {
       res.status(404).json({ error: "Lesson not found" });

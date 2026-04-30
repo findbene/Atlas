@@ -76,7 +76,11 @@ export default function Dashboard() {
             <h2 className="font-semibold">Level Progress</h2>
             <span className="text-sm text-muted-foreground">Level {stats.level}</span>
           </div>
-          <XpBar current={stats.totalXp % (stats.xpToNextLevel + stats.totalXp % 100 || 100)} next={stats.xpToNextLevel} level={stats.level} />
+          <XpBar
+            current={stats.totalXp % Math.max(stats.xpToNextLevel ?? 100, 1)}
+            next={stats.xpToNextLevel ?? 100}
+            level={stats.level}
+          />
           {stats.weeklyXp && stats.weeklyXp.length > 0 && (
             <div className="mt-4 h-32">
               <ResponsiveContainer width="100%" height="100%">

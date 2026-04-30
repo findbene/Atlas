@@ -108,7 +108,7 @@ export function Navbar() {
                     <span>Lvl 1</span>
                   </div>
                 </div>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton />
               </div>
             )}
           </nav>

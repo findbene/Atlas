@@ -87,9 +87,11 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
             {messages.map((msg, i) => (
               <div key={i} className={`${msg.role === "user" ? "ml-4" : "mr-4"}`}>
                 <div className={`rounded-lg p-3 text-sm ${msg.role === "user" ? "bg-primary/10 text-foreground ml-auto" : "bg-muted text-foreground"}`}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-invert prose-sm max-w-none">
-                    {msg.content || "..."}
-                  </ReactMarkdown>
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content || "..."}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             ))}
@@ -118,7 +120,9 @@ export default function ProjectWorkspace() {
   const slug = params.slug ?? "";
   const { data: project, isLoading } = useGetProject(slug);
   const [enrolled, setEnrolled] = useState(false);
-  const { data: progress } = useGetUserProjectProgress(project?.id ?? "", { enabled: !!project?.id && enrolled });
+  const { data: progress } = useGetUserProjectProgress(project?.id ?? "", {
+    query: { enabled: !!project?.id && enrolled } as any,
+  });
   const enrollMutation = useEnrollProject();
   const submitMutation = useSubmitStep();
   const executeMutation = useExecutePython();

@@ -32,19 +32,12 @@ export default function Profile() {
             <h1 className="text-2xl font-bold">{user?.fullName ?? "Anonymous"}</h1>
             <p className="text-muted-foreground text-sm mt-0.5">{user?.emailAddresses?.[0]?.emailAddress}</p>
             <div className="flex flex-wrap gap-2 mt-3">
-              {stats?.tier === "pro" ? (
-                <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Pro Member</Badge>
-              ) : (
-                <Badge variant="outline" className="text-muted-foreground">Free Plan</Badge>
-              )}
               {stats && <Badge variant="outline" className="text-blue-400 border-blue-400/30">Level {stats.level}</Badge>}
             </div>
           </div>
-          {stats?.tier !== "pro" && (
-            <Link href="/upgrade">
-              <Button>Upgrade to Pro</Button>
-            </Link>
-          )}
+          <Link href="/upgrade">
+            <Button>Upgrade to Pro</Button>
+          </Link>
         </div>
       </div>
 
@@ -70,8 +63,8 @@ export default function Profile() {
             <span className="font-medium">XP Progress</span>
             <span className="text-muted-foreground">{stats.totalXp.toLocaleString()} XP total</span>
           </div>
-          <Progress value={Math.min(((stats.totalXp % Math.max(stats.xpToNextLevel, 1)) / Math.max(stats.xpToNextLevel, 1)) * 100, 100)} className="h-2.5" />
-          <p className="text-xs text-muted-foreground mt-2">{stats.xpToNextLevel} XP to Level {stats.level + 1}</p>
+          <Progress value={Math.min(((stats.totalXp % Math.max(stats.xpToNextLevel ?? 100, 1)) / Math.max(stats.xpToNextLevel ?? 100, 1)) * 100, 100)} className="h-2.5" />
+          <p className="text-xs text-muted-foreground mt-2">{stats.xpToNextLevel ?? 100} XP to Level {stats.level + 1}</p>
         </div>
       )}
 

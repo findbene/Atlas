@@ -157,7 +157,7 @@ router.post("/user/projects/:projectId/enroll", requireAuth, async (req, res) =>
       res.status(404).json({ error: "User not found" });
       return;
     }
-    const { projectId } = req.params;
+    const { projectId } = req.params as { projectId: string };
     const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId) });
     if (!project) {
       res.status(404).json({ error: "Project not found" });
@@ -194,7 +194,7 @@ router.get("/user/projects/:projectId/progress", requireAuth, async (req, res) =
       res.status(404).json({ error: "User not found" });
       return;
     }
-    const { projectId } = req.params;
+    const { projectId } = req.params as { projectId: string };
     const progress = await db.query.userProgress.findFirst({
       where: and(eq(userProgress.userId, user.id), eq(userProgress.projectId, projectId)),
     });
@@ -277,7 +277,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       res.status(404).json({ error: "User not found" });
       return;
     }
-    const { projectId, stepId } = req.params;
+    const { projectId, stepId } = req.params as { projectId: string; stepId: string };
     const { submission, submissionType } = req.body;
 
     const step = await db.query.projectSteps.findFirst({ where: eq(projectSteps.id, stepId) });
@@ -400,7 +400,7 @@ router.post("/user/projects/:projectId/steps/:stepId/hint", requireAuth, async (
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const { stepId } = req.params;
+    const { stepId } = req.params as { stepId: string };
     const { hintIndex = 0 } = req.body;
     const step = await db.query.projectSteps.findFirst({ where: eq(projectSteps.id, stepId) });
     const hints = ["Try reviewing the instructions again.", "Think about the expected output.", "Check your syntax carefully."];
