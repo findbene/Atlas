@@ -14,15 +14,20 @@ export default function Pricing() {
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
-  const handleUpgrade = async (planId: string) => {
+  const handleUpgrade = async (plan: { id: string; stripePriceIdMonthly?: string | null; stripePriceIdAnnual?: string | null }) => {
     if (!isSignedIn) {
       navigate("/sign-up");
       return;
     }
-    setLoadingPlanId(planId);
+    const priceId = billing === "annual" ? plan.stripePriceIdAnnual : plan.stripePriceIdMonthly;
+    if (!priceId) {
+      setLoadingPlanId(null);
+      return;
+    }
+    setLoadingPlanId(plan.id);
     try {
       const result = await checkoutMutation.mutateAsync({
-        data: { planId, billingPeriod: billing },
+        data: { priceId, billingInterval: billing },
       });
       if (result.url) window.location.href = result.url;
     } catch {
@@ -44,14 +49,16 @@ export default function Pricing() {
             Start free. Upgrade when you're ready to go deep.
           </p>
 
-          <div className="inline-flex mt-8 rounded-lg border border-border p-1 bg-card">
+          <div role="group" aria-label="Billing period" className="inline-flex mt-8 rounded-lg border border-border p-1 bg-card">
             <button
+              aria-pressed={billing === "monthly"}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${billing === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setBilling("monthly")}
             >
               Monthly
             </button>
             <button
+              aria-pressed={billing === "annual"}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${billing === "annual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setBilling("annual")}
             >
@@ -151,7 +158,7 @@ export default function Pricing() {
 
                 <Button
                   className="w-full"
-                  onClick={() => handleUpgrade(proPlan.id)}
+                  onClick={() => handleUpgrade(proPlan)}
                   disabled={loadingPlanId === proPlan.id}
                 >
                   <Zap className="w-4 h-4 mr-2" />
