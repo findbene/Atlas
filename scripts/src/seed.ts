@@ -27,20 +27,47 @@ async function seed() {
   if (!deDomain) { console.error("Could not create/find domain"); process.exit(1); }
   console.log(`Domain: ${deDomain.title} (${deDomain.id})`);
 
-  // --- AI / MLOps Domain (placeholder, coming soon) ---
-  await db.insert(domains).values({
-    slug: "ai-mlops",
-    title: "AI / MLOps",
-    tagline: "Ship production ML systems",
-    description: "Master the engineering disciplines behind production AI: training pipelines, feature stores, model serving, evaluation, and the operations that keep ML systems reliable in the wild.",
-    iconName: "Brain",
-    colorHex: "#A855F7",
-    isAvailable: false,
-    comingSoon: true,
-    totalProjects: 0,
-    orderIndex: 2,
-  }).onConflictDoNothing();
-  console.log("Domain: AI / MLOps (coming soon)");
+  // --- Coming-soon domain placeholders ---
+  // Infrastructure for future curriculums. Inserting the domain row gives us
+  // a stable slug, icon, color, and waitlist surface before any content ships.
+  const comingSoonDomains = [
+    {
+      slug: "ai-mlops",
+      title: "AI / MLOps",
+      tagline: "Ship production ML systems",
+      description: "Master the engineering disciplines behind production AI: training pipelines, feature stores, model serving, evaluation, and the operations that keep ML systems reliable in the wild.",
+      iconName: "Brain",
+      colorHex: "#A855F7",
+      orderIndex: 2,
+    },
+    {
+      slug: "ai-engineering",
+      title: "AI Engineering",
+      tagline: "Build with LLMs in production",
+      description: "Master the engineering craft of building real applications on top of LLMs: prompt design, RAG systems, agents, evals, fine-tuning, and the production patterns that separate demos from products.",
+      iconName: "Sparkles",
+      colorHex: "#F59E0B",
+      orderIndex: 3,
+    },
+    {
+      slug: "data-science",
+      title: "Data Science",
+      tagline: "Extract insight, ship models",
+      description: "From statistics and experimentation to feature engineering, predictive modeling, and shipping insights that move the business — the full data science workflow taught project-by-project.",
+      iconName: "LineChart",
+      colorHex: "#10B981",
+      orderIndex: 4,
+    },
+  ];
+  for (const d of comingSoonDomains) {
+    await db.insert(domains).values({
+      ...d,
+      isAvailable: false,
+      comingSoon: true,
+      totalProjects: 0,
+    }).onConflictDoNothing();
+    console.log(`Domain: ${d.title} (coming soon)`);
+  }
 
   // --- Track: Data Engineering Core ---
   const [trackBase] = await db.insert(tracks).values({
