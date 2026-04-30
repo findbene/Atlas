@@ -10,6 +10,7 @@ const iconMap: Record<string, any> = {
   "data-engineering": Database,
   "python-mastery": Code2,
   "ai-engineering": Brain,
+  "ai-mlops": Brain,
   "mlops": Brain,
 };
 

@@ -1,12 +1,20 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { useParams, Link } from "wouter";
-import { useGetProject, useGetUserProjectProgress, useEnrollProject, useSubmitStep, useExecutePython } from "@workspace/api-client-react";
+import {
+  useGetProject,
+  useGetUserProjectProgress,
+  getGetUserProjectProgressQueryKey,
+  useEnrollProject,
+  useSubmitStep,
+  useExecutePython,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, Lock, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import confetti from "canvas-confetti";
@@ -31,11 +39,21 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
-      const res = await fetch("/api/ai/chat", {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ message: userMsg, contextType: "project", contextId: projectId, stepId, currentCode }),
       });
+      if (!res.ok) {
+        assistantContent = `Sorry — the AI tutor is unavailable right now (HTTP ${res.status}).`;
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+          return updated;
+        });
+        return;
+      }
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       if (!reader) return;
@@ -59,6 +77,12 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
           }
         }
       }
+    } catch (err) {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", content: "Sorry — couldn't reach the AI tutor. Check your connection and try again." };
+        return updated;
+      });
     } finally {
       setIsStreaming(false);
     }
@@ -115,11 +139,30 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
   );
 }
 
+type StepCompletion = { stepId: string; status: string };
+type GradingResult = {
+  status: "passed" | "failed";
+  feedback?: string;
+  xpEarned?: number;
+  isFirstPass?: boolean;
+  projectComplete?: boolean;
+};
+
+const CODE_STEP_TYPES = new Set(["code_python", "code_sql"]);
+const TEXT_STEP_TYPES = new Set(["short_answer", "concept_check", "true_false", "multiple_choice"]);
+
+function submissionTypeForStep(stepType: string | undefined): "code" | "text" {
+  if (stepType && CODE_STEP_TYPES.has(stepType)) return "code";
+  return "text";
+}
+
 export default function ProjectWorkspace() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
+  const queryClient = useQueryClient();
   const { data: project, isLoading } = useGetProject(slug);
   const [enrolled, setEnrolled] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
   const { data: progress } = useGetUserProjectProgress(project?.id ?? "", {
     query: { enabled: !!project?.id && enrolled } as any,
   });
@@ -129,63 +172,132 @@ export default function ProjectWorkspace() {
 
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [code, setCode] = useState("");
+  const [textAnswer, setTextAnswer] = useState("");
   const [output, setOutput] = useState<{ stdout: string; stderr: string; exitCode: number } | null>(null);
-  const [gradingResult, setGradingResult] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"editor" | "output">("editor");
+  const [gradingResult, setGradingResult] = useState<GradingResult | null>(null);
   const [showAi, setShowAi] = useState(false);
   const [showHint, setShowHint] = useState(false);
 
-  const steps = project?.steps ?? [];
+  const steps = (project?.steps ?? []) as Array<any>;
   const currentStep = steps[currentStepIdx];
-  const isCodeStep = currentStep?.type === "code_python" || currentStep?.type === "code_sql";
-  const completedStepIds = new Set((progress?.stepCompletions ?? []).filter((c: any) => c.status === "passed").map((c: any) => c.stepId));
+  const isCodeStep = CODE_STEP_TYPES.has(currentStep?.type ?? "");
+  const isTextStep = TEXT_STEP_TYPES.has(currentStep?.type ?? "");
+  const completedStepIds = new Set(
+    ((progress?.stepCompletions ?? []) as StepCompletion[])
+      .filter(c => c.status === "passed")
+      .map(c => c.stepId)
+  );
 
+  // Auto-enroll when the project loads. Reset enrollment state on project
+  // change. Surface real errors (e.g. premium gating) instead of swallowing
+  // them as success.
   useEffect(() => {
-    if (project?.id) {
-      enrollMutation.mutate({ projectId: project.id } as any, {
+    if (!project?.id) return;
+    setEnrolled(false);
+    setEnrollError(null);
+    enrollMutation.mutate(
+      { projectId: project.id },
+      {
         onSuccess: () => setEnrolled(true),
-        onError: () => setEnrolled(true),
-      });
-    }
+        onError: (err: any) => {
+          const status = err?.status ?? err?.response?.status;
+          // 409/already-enrolled and similar idempotent failures: still let
+          // progress load.
+          if (status === 409) {
+            setEnrolled(true);
+            return;
+          }
+          setEnrollError(
+            err?.response?.data?.message ??
+              err?.message ??
+              "Couldn't enroll in this project."
+          );
+        },
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id]);
 
+  // Reset editor and grading state whenever the active step changes.
   useEffect(() => {
-    if (currentStep?.starterCode) {
-      setCode(currentStep.starterCode);
-    }
-  }, [currentStepIdx, currentStep?.starterCode]);
+    setCode(currentStep?.starterCode ?? "");
+    setTextAnswer("");
+    setGradingResult(null);
+    setOutput(null);
+    setShowHint(false);
+    setActiveTab("editor");
+  }, [currentStepIdx, currentStep?.id, currentStep?.starterCode]);
+
+  function goToStep(idx: number) {
+    const clamped = Math.max(0, Math.min(steps.length - 1, idx));
+    setCurrentStepIdx(clamped);
+  }
 
   async function runCode() {
     if (!code) return;
     setOutput(null);
-    executeMutation.mutate({ code, language: "python" } as any, {
-      onSuccess: (result: any) => setOutput(result),
-      onError: () => setOutput({ stdout: "", stderr: "Execution failed", exitCode: 1 }),
-    });
+    setActiveTab("output");
+    executeMutation.mutate(
+      { data: { code, language: "python" } },
+      {
+        onSuccess: (result: any) =>
+          setOutput({
+            stdout: result?.stdout ?? "",
+            stderr: result?.stderr ?? "",
+            exitCode: result?.exitCode ?? 0,
+          }),
+        onError: (err: any) =>
+          setOutput({
+            stdout: "",
+            stderr: err?.message ?? "Failed to reach the code execution service.",
+            exitCode: 1,
+          }),
+      }
+    );
   }
 
   async function submitStep() {
     if (!project?.id || !currentStep) return;
-    const submission = isCodeStep ? code : code;
-    submitMutation.mutate({
-      projectId: project.id,
-      stepId: currentStep.id,
-      submission,
-      submissionType: isCodeStep ? "code" : "text",
-    } as any, {
-      onSuccess: (result: any) => {
-        setGradingResult(result);
-        if (result.status === "passed" && result.isFirstPass) {
-          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-        }
-        if (result.status === "passed" && !result.projectComplete && currentStepIdx < steps.length - 1) {
-          setTimeout(() => {
-            setCurrentStepIdx(prev => prev + 1);
-            setGradingResult(null);
-            setOutput(null);
-          }, 1500);
-        }
+    const submission = isCodeStep ? code : textAnswer;
+    if (!submission.trim()) {
+      setGradingResult({
+        status: "failed",
+        feedback: isCodeStep ? "Write some code before submitting." : "Enter your answer before submitting.",
+      });
+      return;
+    }
+    submitMutation.mutate(
+      {
+        projectId: project.id,
+        stepId: currentStep.id,
+        data: { submission, submissionType: submissionTypeForStep(currentStep.type) },
       },
-    });
+      {
+        onSuccess: (result: any) => {
+          const r = result as GradingResult;
+          setGradingResult(r);
+          // Refresh progress so the step badge in the nav updates.
+          if (project?.id) {
+            queryClient.invalidateQueries({
+              queryKey: getGetUserProjectProgressQueryKey(project.id),
+            });
+          }
+          if (r.status === "passed" && r.isFirstPass) {
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+          }
+          if (r.status === "passed" && !r.projectComplete && currentStepIdx < steps.length - 1) {
+            setTimeout(() => goToStep(currentStepIdx + 1), 1500);
+          }
+        },
+        onError: (err: any) => {
+          setGradingResult({
+            status: "failed",
+            feedback: err?.message ?? "Couldn't submit your answer. Please try again.",
+          });
+        },
+      }
+    );
   }
 
   if (isLoading) {
@@ -205,6 +317,8 @@ export default function ProjectWorkspace() {
     );
   }
 
+  const enrollPending = enrollMutation.isPending && !enrolled;
+
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
       {/* Header */}
@@ -217,6 +331,14 @@ export default function ProjectWorkspace() {
         </Link>
         <span className="text-muted-foreground">/</span>
         <span className="font-semibold text-sm truncate">{project.title}</span>
+        {enrollPending && (
+          <span className="text-xs text-muted-foreground italic">Enrolling…</span>
+        )}
+        {enrollError && (
+          <span className="text-xs text-red-400 italic" title={enrollError}>
+            {enrollError}
+          </span>
+        )}
         <Badge variant="outline" className="ml-auto text-xs">{project.difficulty}</Badge>
         <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">+{project.xpReward} XP</Badge>
         <Button
@@ -238,21 +360,22 @@ export default function ProjectWorkspace() {
             <div className="h-full flex flex-col">
               {/* Step Nav */}
               <div className="border-b border-border px-4 py-2 flex items-center gap-2 shrink-0 bg-muted/20">
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setCurrentStepIdx(prev => Math.max(0, prev - 1)); setGradingResult(null); setOutput(null); }} disabled={currentStepIdx === 0}>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => goToStep(currentStepIdx - 1)} disabled={currentStepIdx === 0}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex gap-1.5 flex-1 justify-center overflow-x-auto">
                   {steps.map((s: any, i: number) => (
                     <button
                       key={s.id}
-                      onClick={() => { setCurrentStepIdx(i); setGradingResult(null); setOutput(null); }}
-                      className={`h-6 w-6 rounded-full text-xs font-medium transition-colors flex items-center justify-center ${i === currentStepIdx ? "bg-primary text-primary-foreground" : completedStepIds.has(s.id) ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                      onClick={() => goToStep(i)}
+                      className={`h-6 w-6 rounded-full text-xs font-medium transition-colors flex items-center justify-center shrink-0 ${i === currentStepIdx ? "bg-primary text-primary-foreground" : completedStepIds.has(s.id) ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                      aria-label={`Step ${i + 1}${completedStepIds.has(s.id) ? " (completed)" : ""}`}
                     >
                       {completedStepIds.has(s.id) ? <CheckCircle className="h-3 w-3" /> : i + 1}
                     </button>
                   ))}
                 </div>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setCurrentStepIdx(prev => Math.min(steps.length - 1, prev + 1)); setGradingResult(null); setOutput(null); }} disabled={currentStepIdx >= steps.length - 1}>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => goToStep(currentStepIdx + 1)} disabled={currentStepIdx >= steps.length - 1}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -283,9 +406,9 @@ export default function ProjectWorkspace() {
                       <div className={`p-4 rounded-lg border ${gradingResult.status === "passed" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-red-500/10 border-red-500/30 text-red-300"}`}>
                         <div className="flex items-center gap-2 font-semibold mb-1">
                           {gradingResult.status === "passed" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                          {gradingResult.status === "passed" ? `Passed! +${gradingResult.xpEarned} XP` : "Try again"}
+                          {gradingResult.status === "passed" ? `Passed!${gradingResult.xpEarned ? ` +${gradingResult.xpEarned} XP` : ""}` : "Try again"}
                         </div>
-                        <p className="text-sm">{gradingResult.feedback}</p>
+                        {gradingResult.feedback && <p className="text-sm">{gradingResult.feedback}</p>}
                         {gradingResult.projectComplete && (
                           <div className="mt-2 font-bold text-emerald-300">Project Complete! Excellent work!</div>
                         )}
@@ -304,67 +427,98 @@ export default function ProjectWorkspace() {
           {/* Editor/Console Panel */}
           <ResizablePanel defaultSize={showAi ? 40 : 60} minSize={30}>
             <div className="h-full flex flex-col">
-              <Tabs defaultValue="editor" className="flex flex-col h-full">
-                <div className="border-b border-border px-2 pt-1 shrink-0 flex items-center justify-between">
-                  <TabsList className="h-8 bg-transparent gap-1">
-                    <TabsTrigger value="editor" className="h-7 text-xs">Editor</TabsTrigger>
-                    <TabsTrigger value="output" className="h-7 text-xs">Output</TabsTrigger>
-                  </TabsList>
-                  <div className="flex items-center gap-1 pr-2">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setCode(currentStep?.starterCode ?? "")}>
-                      <RotateCcw className="h-3 w-3 mr-1" />
-                      Reset
-                    </Button>
-                    {isCodeStep && (
-                      <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={runCode} disabled={executeMutation.isPending}>
+              {isCodeStep ? (
+                <Tabs value={activeTab} onValueChange={v => setActiveTab(v as "editor" | "output")} className="flex flex-col h-full">
+                  <div className="border-b border-border px-2 pt-1 shrink-0 flex items-center justify-between">
+                    <TabsList className="h-8 bg-transparent gap-1">
+                      <TabsTrigger value="editor" className="h-7 text-xs">Editor</TabsTrigger>
+                      <TabsTrigger value="output" className="h-7 text-xs">Output</TabsTrigger>
+                    </TabsList>
+                    <div className="flex items-center gap-1 pr-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setCode(currentStep?.starterCode ?? "")}
+                        disabled={!currentStep?.starterCode}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        Reset
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
+                        onClick={runCode}
+                        disabled={executeMutation.isPending || !code}
+                      >
                         <Play className="h-3 w-3 mr-1" />
                         {executeMutation.isPending ? "Running..." : "Run"}
                       </Button>
-                    )}
+                      <Button size="sm" className="h-7 text-xs" onClick={submitStep} disabled={submitMutation.isPending}>
+                        {submitMutation.isPending ? "Grading..." : "Submit"}
+                      </Button>
+                    </div>
+                  </div>
+                  <TabsContent value="editor" className="flex-1 m-0 overflow-hidden">
+                    <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading editor...</div>}>
+                      <MonacoEditor
+                        height="100%"
+                        language={currentStep?.type === "code_sql" ? "sql" : "python"}
+                        theme="vs-dark"
+                        value={code}
+                        onChange={v => setCode(v ?? "")}
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: "on",
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          padding: { top: 12 },
+                          fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+                        }}
+                      />
+                    </Suspense>
+                  </TabsContent>
+                  <TabsContent value="output" className="flex-1 m-0 overflow-hidden bg-[#0D1117]">
+                    <ScrollArea className="h-full p-3">
+                      {executeMutation.isPending ? (
+                        <div className="text-muted-foreground text-sm">Running...</div>
+                      ) : output ? (
+                        <div className="font-mono text-sm space-y-2">
+                          {output.stdout && <pre className="text-green-400 whitespace-pre-wrap">{output.stdout}</pre>}
+                          {output.stderr && <pre className="text-red-400 whitespace-pre-wrap">{output.stderr}</pre>}
+                          {!output.stdout && !output.stderr && <span className="text-muted-foreground">No output</span>}
+                          <div className={`text-xs mt-2 ${output.exitCode === 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            Exit code: {output.exitCode}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground text-sm">Run your code to see output here.</div>
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                // Non-code step: textarea answer panel
+                <div className="flex flex-col h-full">
+                  <div className="border-b border-border px-3 py-2 shrink-0 flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {isTextStep ? "Your Answer" : "Submission"}
+                    </span>
                     <Button size="sm" className="h-7 text-xs" onClick={submitStep} disabled={submitMutation.isPending}>
                       {submitMutation.isPending ? "Grading..." : "Submit"}
                     </Button>
                   </div>
-                </div>
-                <TabsContent value="editor" className="flex-1 m-0 overflow-hidden">
-                  <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading editor...</div>}>
-                    <MonacoEditor
-                      height="100%"
-                      language={currentStep?.type === "code_sql" ? "sql" : "python"}
-                      theme="vs-dark"
-                      value={code}
-                      onChange={v => setCode(v ?? "")}
-                      options={{
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        lineNumbers: "on",
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
-                        padding: { top: 12 },
-                        fontFamily: "Menlo, Monaco, 'Courier New', monospace",
-                      }}
+                  <div className="flex-1 p-4 overflow-auto">
+                    <textarea
+                      value={textAnswer}
+                      onChange={e => setTextAnswer(e.target.value)}
+                      placeholder="Type your answer here..."
+                      className="w-full h-full min-h-[200px] bg-background border border-border rounded-lg p-3 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
                     />
-                  </Suspense>
-                </TabsContent>
-                <TabsContent value="output" className="flex-1 m-0 overflow-hidden bg-[#0D1117]">
-                  <ScrollArea className="h-full p-3">
-                    {executeMutation.isPending ? (
-                      <div className="text-muted-foreground text-sm">Running...</div>
-                    ) : output ? (
-                      <div className="font-mono text-sm space-y-2">
-                        {output.stdout && <pre className="text-green-400 whitespace-pre-wrap">{output.stdout}</pre>}
-                        {output.stderr && <pre className="text-red-400 whitespace-pre-wrap">{output.stderr}</pre>}
-                        {!output.stdout && !output.stderr && <span className="text-muted-foreground">No output</span>}
-                        <div className={`text-xs mt-2 ${output.exitCode === 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          Exit code: {output.exitCode}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-muted-foreground text-sm">Run your code to see output here.</div>
-                    )}
-                  </ScrollArea>
-                </TabsContent>
-              </Tabs>
+                  </div>
+                </div>
+              )}
             </div>
           </ResizablePanel>
 

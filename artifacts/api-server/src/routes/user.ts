@@ -210,9 +210,12 @@ router.get("/user/projects/:projectId/progress", requireAuth, async (req, res) =
     const completions = progress ? await db.query.userStepCompletions.findMany({
       where: and(eq(userStepCompletions.userId, user.id), eq(userStepCompletions.projectId, projectId)),
     }) : [];
+    // Map stepNumber -> step.id so we can return the real step id (the
+    // completion row only stores stepNumber, not stepId).
+    const stepIdByNumber = new Map(steps.map(s => [s.stepNumber, s.id]));
     const stepCompletions = completions.map(c => ({
       id: c.id,
-      stepId: c.id,
+      stepId: stepIdByNumber.get(c.stepNumber) ?? "",
       userProjectId: progress?.id ?? "",
       status: c.passed ? "passed" : "failed",
       attempt: c.attemptCount,
@@ -280,8 +283,19 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
     const { projectId, stepId } = req.params as { projectId: string; stepId: string };
     const { submission, submissionType } = req.body;
 
+    // Require an active enrollment. This transitively enforces premium gating
+    // (the enroll route rejects non-pro users on premium projects), so a free
+    // user can't skip enrollment and POST submissions directly.
+    const enrollment = await db.query.userProgress.findFirst({
+      where: and(eq(userProgress.userId, user.id), eq(userProgress.projectId, projectId)),
+    });
+    if (!enrollment) {
+      res.status(403).json({ error: "Forbidden", message: "You must enroll in this project before submitting." });
+      return;
+    }
+
     const step = await db.query.projectSteps.findFirst({ where: eq(projectSteps.id, stepId) });
-    if (!step) {
+    if (!step || step.projectId !== projectId) {
       res.status(404).json({ error: "Step not found" });
       return;
     }

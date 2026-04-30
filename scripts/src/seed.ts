@@ -27,6 +27,21 @@ async function seed() {
   if (!deDomain) { console.error("Could not create/find domain"); process.exit(1); }
   console.log(`Domain: ${deDomain.title} (${deDomain.id})`);
 
+  // --- AI / MLOps Domain (placeholder, coming soon) ---
+  await db.insert(domains).values({
+    slug: "ai-mlops",
+    title: "AI / MLOps",
+    tagline: "Ship production ML systems",
+    description: "Master the engineering disciplines behind production AI: training pipelines, feature stores, model serving, evaluation, and the operations that keep ML systems reliable in the wild.",
+    iconName: "Brain",
+    colorHex: "#A855F7",
+    isAvailable: false,
+    comingSoon: true,
+    totalProjects: 0,
+    orderIndex: 2,
+  }).onConflictDoNothing();
+  console.log("Domain: AI / MLOps (coming soon)");
+
   // --- Track: Data Engineering Core ---
   const [trackBase] = await db.insert(tracks).values({
     domainId: deDomain.id,
