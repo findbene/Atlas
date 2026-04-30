@@ -189,19 +189,20 @@ export class WebhookHandlers {
       }
     }
 
+    // Verify signature + sync stripe.* tables. Throws on bad signature or sync failure;
+    // letting it throw causes Stripe to retry the delivery.
     const sync = await getStripeSync();
     await sync.processWebhook(payload, signature);
 
-    // Mirror the freshly-synced state into our own tables.
+    // Mirror the freshly-synced state into our own tables. If reconcile throws,
+    // we deliberately propagate so Stripe retries and we don't mark the event
+    // processed below — preventing a permanent drop of the app-side state update.
     const customerId = customerIdFromEvent(payload);
     if (customerId) {
-      try {
-        await reconcileCustomer(customerId);
-      } catch (err) {
-        logger.error({ err, customerId }, "Failed to reconcile customer after webhook");
-      }
+      await reconcileCustomer(customerId);
     }
 
+    // Only mark the event processed AFTER both sync and reconcile have succeeded.
     if (eventId) {
       await db
         .insert(processedWebhookEvents)

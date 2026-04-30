@@ -1,5 +1,10 @@
 import Stripe from "stripe";
 
+type StripeSettings = {
+  secret?: string;
+  publishable?: string;
+};
+
 async function getStripeCredentials(): Promise<{ secretKey: string }> {
   const hostname = process.env["REPLIT_CONNECTORS_HOSTNAME"];
   const xReplitToken = process.env["REPL_IDENTITY"]
@@ -14,28 +19,33 @@ async function getStripeCredentials(): Promise<{ secretKey: string }> {
     );
   }
 
-  const resp = await fetch(
-    `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=stripe`,
-    {
-      headers: { Accept: "application/json", X_REPLIT_TOKEN: xReplitToken },
-      signal: AbortSignal.timeout(10_000),
-    },
-  );
+  const isProduction = process.env["REPLIT_DEPLOYMENT"] === "1";
+  const targetEnvironment = isProduction ? "production" : "development";
+
+  const url = new URL(`https://${hostname}/api/v2/connection`);
+  url.searchParams.set("include_secrets", "true");
+  url.searchParams.set("connector_names", "stripe");
+  url.searchParams.set("environment", targetEnvironment);
+
+  const resp = await fetch(url.toString(), {
+    headers: { Accept: "application/json", X_REPLIT_TOKEN: xReplitToken },
+    signal: AbortSignal.timeout(10_000),
+  });
 
   if (!resp.ok) {
     throw new Error(`Failed to fetch Stripe credentials: ${resp.status} ${resp.statusText}`);
   }
 
-  const data = (await resp.json()) as { items?: Array<{ settings?: { secret_key?: string } }> };
+  const data = (await resp.json()) as { items?: Array<{ settings?: StripeSettings }> };
   const settings = data.items?.[0]?.settings;
 
-  if (!settings?.secret_key) {
+  if (!settings?.secret) {
     throw new Error(
-      "Stripe integration not connected or missing secret key. Connect Stripe via the Integrations tab first.",
+      `Stripe ${targetEnvironment} connection not found or missing secret key. Connect Stripe via the Integrations tab first.`,
     );
   }
 
-  return { secretKey: settings.secret_key };
+  return { secretKey: settings.secret };
 }
 
 export async function getUncachableStripeClient(): Promise<Stripe> {
