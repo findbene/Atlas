@@ -3,13 +3,35 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Atlas - Project-based technical learning platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: domains
+    description: Learning domain operations
+  - name: projects
+    description: Project catalog operations
+  - name: user-projects
+    description: User project enrollment and progress
+  - name: steps
+    description: Project step and grading operations
+  - name: modules
+    description: Learning module operations
+  - name: lessons
+    description: Lesson operations
+  - name: ai-tutor
+    description: AI tutor chat operations
+  - name: billing
+    description: Stripe billing and subscription operations
+  - name: webhooks
+    description: Webhook endpoints
+  - name: users
+    description: User profile operations
+  - name: leaderboard
+    description: Leaderboard and progress statistics
 paths:
   /healthz:
     get:
@@ -24,7 +46,553 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /domains:
+    get:
+      operationId: listDomains
+      tags: [domains]
+      summary: List all learning domains
+      responses:
+        "200":
+          description: List of domains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Domain"
+
+  /domains/{slug}:
+    get:
+      operationId: getDomain
+      tags: [domains]
+      summary: Get domain details with project summary
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Domain detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainDetail"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects with optional filters
+      parameters:
+        - name: domainSlug
+          in: query
+          schema:
+            type: string
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced, expert]
+        - name: tier
+          in: query
+          schema:
+            type: string
+            enum: [free, pro]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProjects"
+
+  /projects/{slug}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project details including steps
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project detail with steps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /user/projects:
+    get:
+      operationId: listUserProjects
+      tags: [user-projects]
+      summary: List authenticated user's enrolled projects
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: User's project enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProjectSummary"
+
+  /user/projects/{projectId}/enroll:
+    post:
+      operationId: enrollProject
+      tags: [user-projects]
+      summary: Enroll in a project
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Enrollment created or existing enrollment returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProject"
+        "403":
+          description: Project requires Pro subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /user/projects/{projectId}/progress:
+    get:
+      operationId: getUserProjectProgress
+      tags: [user-projects]
+      summary: Get detailed progress for a user project
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User project progress with step completions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProjectProgress"
+
+  /user/projects/{projectId}/steps/{stepId}/submit:
+    post:
+      operationId: submitStep
+      tags: [steps]
+      summary: Submit a step for grading
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: stepId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitStepBody"
+      responses:
+        "200":
+          description: Grading result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GradingResult"
+        "404":
+          description: Step not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /user/projects/{projectId}/steps/{stepId}/hint:
+    post:
+      operationId: requestStepHint
+      tags: [steps]
+      summary: Request a hint for a step
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: stepId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HintRequestBody"
+      responses:
+        "200":
+          description: AI-generated hint (streaming SSE)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /modules:
+    get:
+      operationId: listModules
+      tags: [modules]
+      summary: List learning modules
+      parameters:
+        - name: domainSlug
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [python_mastery, sql_mastery, concepts]
+      responses:
+        "200":
+          description: List of modules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Module"
+
+  /modules/{moduleId}:
+    get:
+      operationId: getModule
+      tags: [modules]
+      summary: Get module with lessons
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Module detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleDetail"
+
+  /user/modules/{moduleId}/lessons/{lessonId}/complete:
+    post:
+      operationId: completeLesson
+      tags: [lessons]
+      summary: Mark a lesson as complete
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson completion recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonCompletion"
+
+  /ai/chat:
+    post:
+      operationId: aiChat
+      tags: [ai-tutor]
+      summary: Stream AI tutor response (SSE)
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiChatBody"
+      responses:
+        "200":
+          description: Streaming AI response
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /ai/chat/history:
+    get:
+      operationId: getAiChatHistory
+      tags: [ai-tutor]
+      summary: Get AI chat history for a context
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: contextType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [project, module, general]
+        - name: contextId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chat history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiChatMessage"
+
+  /billing/plans:
+    get:
+      operationId: listBillingPlans
+      tags: [billing]
+      summary: List available subscription plans
+      responses:
+        "200":
+          description: Available plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BillingPlan"
+
+  /billing/subscription:
+    get:
+      operationId: getSubscription
+      tags: [billing]
+      summary: Get user's current subscription
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Current subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /billing/checkout:
+    post:
+      operationId: createCheckout
+      tags: [billing]
+      summary: Create a Stripe checkout session
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckoutBody"
+      responses:
+        "200":
+          description: Checkout session URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+
+  /billing/portal:
+    post:
+      operationId: createBillingPortal
+      tags: [billing]
+      summary: Create a Stripe billing portal session
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalResponse"
+
+  /webhooks/stripe:
+    post:
+      operationId: stripeWebhook
+      tags: [webhooks]
+      summary: Stripe webhook handler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResponse"
+
+  /user/profile:
+    get:
+      operationId: getUserProfile
+      tags: [users]
+      summary: Get authenticated user's profile
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    patch:
+      operationId: updateUserProfile
+      tags: [users]
+      summary: Update user profile
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserProfileBody"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /user/stats:
+    get:
+      operationId: getUserStats
+      tags: [users]
+      summary: Get user learning statistics and XP
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: User statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStats"
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get global XP leaderboard
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [all_time, monthly, weekly]
+            default: all_time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  /execute/python:
+    post:
+      operationId: executePython
+      tags: [steps]
+      summary: Execute Python code via Piston API
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteCodeBody"
+      responses:
+        "200":
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteCodeResult"
+
 components:
+  securitySchemes:
+    clerkAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -33,3 +601,703 @@ components:
           type: string
       required:
         - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    WebhookResponse:
+      type: object
+      properties:
+        received:
+          type: boolean
+      required:
+        - received
+
+    Domain:
+      type: object
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+        status:
+          type: string
+          enum: [active, coming_soon, waitlist]
+        projectCount:
+          type: integer
+        enrolledCount:
+          type: integer
+      required:
+        - id
+        - slug
+        - name
+        - description
+        - icon
+        - color
+        - status
+        - projectCount
+        - enrolledCount
+
+    DomainDetail:
+      allOf:
+        - $ref: "#/components/schemas/Domain"
+        - type: object
+          properties:
+            projects:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProjectSummary"
+
+    ProjectSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+        tier:
+          type: string
+          enum: [free, pro]
+        xpReward:
+          type: integer
+        estimatedHours:
+          type: number
+        stepCount:
+          type: integer
+        enrolledCount:
+          type: integer
+        completionRate:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+        position:
+          type: integer
+      required:
+        - id
+        - slug
+        - title
+        - description
+        - difficulty
+        - tier
+        - xpReward
+        - estimatedHours
+        - stepCount
+        - enrolledCount
+        - completionRate
+        - tags
+        - position
+
+    PaginatedProjects:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectSummary"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean
+      required:
+        - data
+        - total
+        - page
+        - limit
+        - hasMore
+
+    ProjectStep:
+      type: object
+      properties:
+        id:
+          type: string
+        position:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [code_python, code_sql, multiple_choice, true_false, short_answer, file_upload, diagram, concept_check, reflection]
+        starterCode:
+          type: string
+        expectedOutput:
+          type: string
+        hints:
+          type: array
+          items:
+            type: string
+        xpReward:
+          type: integer
+        isLocked:
+          type: boolean
+      required:
+        - id
+        - position
+        - title
+        - description
+        - type
+        - xpReward
+        - isLocked
+
+    ProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProjectSummary"
+        - type: object
+          properties:
+            longDescription:
+              type: string
+            learningObjectives:
+              type: array
+              items:
+                type: string
+            prerequisites:
+              type: array
+              items:
+                type: string
+            steps:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProjectStep"
+            domainSlug:
+              type: string
+            domainName:
+              type: string
+
+    UserProject:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        userId:
+          type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, completed, abandoned]
+        currentStepPosition:
+          type: integer
+        earnedXp:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - userId
+        - status
+        - currentStepPosition
+        - earnedXp
+
+    UserProjectSummary:
+      allOf:
+        - $ref: "#/components/schemas/UserProject"
+        - type: object
+          properties:
+            project:
+              $ref: "#/components/schemas/ProjectSummary"
+
+    UserProjectProgress:
+      allOf:
+        - $ref: "#/components/schemas/UserProject"
+        - type: object
+          properties:
+            project:
+              $ref: "#/components/schemas/ProjectDetail"
+            stepCompletions:
+              type: array
+              items:
+                $ref: "#/components/schemas/StepCompletion"
+            progressPercent:
+              type: number
+
+    StepCompletion:
+      type: object
+      properties:
+        id:
+          type: string
+        stepId:
+          type: string
+        userProjectId:
+          type: string
+        status:
+          type: string
+          enum: [pending, passed, failed, skipped]
+        attempt:
+          type: integer
+        submission:
+          type: string
+        feedback:
+          type: string
+        xpEarned:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - stepId
+        - userProjectId
+        - status
+        - attempt
+
+    SubmitStepBody:
+      type: object
+      properties:
+        submission:
+          type: string
+          description: Code, answer, or other submission content
+        submissionType:
+          type: string
+          enum: [code, text, choice, file]
+      required:
+        - submission
+        - submissionType
+
+    GradingResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [passed, failed]
+        feedback:
+          type: string
+        xpEarned:
+          type: integer
+        attempt:
+          type: integer
+        isFirstPass:
+          type: boolean
+        nextStepId:
+          type: string
+        projectComplete:
+          type: boolean
+        stdout:
+          type: string
+        stderr:
+          type: string
+        executionTimeMs:
+          type: integer
+      required:
+        - status
+        - feedback
+        - xpEarned
+        - attempt
+
+    HintRequestBody:
+      type: object
+      properties:
+        currentCode:
+          type: string
+        errorMessage:
+          type: string
+        hintIndex:
+          type: integer
+      required:
+        - hintIndex
+
+    Module:
+      type: object
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [python_mastery, sql_mastery, concepts]
+        domainSlug:
+          type: string
+        lessonCount:
+          type: integer
+        estimatedHours:
+          type: number
+        tier:
+          type: string
+          enum: [free, pro]
+        position:
+          type: integer
+      required:
+        - id
+        - slug
+        - title
+        - description
+        - type
+        - lessonCount
+        - estimatedHours
+        - tier
+        - position
+
+    Lesson:
+      type: object
+      properties:
+        id:
+          type: string
+        moduleId:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [reading, video, interactive, quiz]
+        position:
+          type: integer
+        estimatedMinutes:
+          type: integer
+        xpReward:
+          type: integer
+      required:
+        - id
+        - moduleId
+        - title
+        - content
+        - type
+        - position
+        - estimatedMinutes
+        - xpReward
+
+    ModuleDetail:
+      allOf:
+        - $ref: "#/components/schemas/Module"
+        - type: object
+          properties:
+            lessons:
+              type: array
+              items:
+                $ref: "#/components/schemas/Lesson"
+            learningObjectives:
+              type: array
+              items:
+                type: string
+
+    LessonCompletion:
+      type: object
+      properties:
+        lessonId:
+          type: string
+        userId:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+        xpEarned:
+          type: integer
+      required:
+        - lessonId
+        - userId
+        - completedAt
+        - xpEarned
+
+    AiChatBody:
+      type: object
+      properties:
+        message:
+          type: string
+        contextType:
+          type: string
+          enum: [project, module, general]
+        contextId:
+          type: string
+        conversationId:
+          type: string
+        currentCode:
+          type: string
+        stepId:
+          type: string
+      required:
+        - message
+        - contextType
+
+    AiChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        conversationId:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+
+    BillingPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        monthlyPrice:
+          type: number
+        annualPrice:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        tier:
+          type: string
+          enum: [free, pro]
+        stripePriceIdMonthly:
+          type: string
+        stripePriceIdAnnual:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - monthlyPrice
+        - annualPrice
+        - features
+        - tier
+
+    Subscription:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [free, pro]
+        status:
+          type: string
+          enum: [active, canceled, past_due, trialing, none]
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        cancelAtPeriodEnd:
+          type: boolean
+        stripeCustomerId:
+          type: string
+      required:
+        - tier
+        - status
+
+    CreateCheckoutBody:
+      type: object
+      properties:
+        priceId:
+          type: string
+        billingInterval:
+          type: string
+          enum: [monthly, annual]
+        successUrl:
+          type: string
+        cancelUrl:
+          type: string
+      required:
+        - priceId
+        - billingInterval
+
+    CheckoutResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    PortalResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        clerkId:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+        tier:
+          type: string
+          enum: [free, pro]
+        totalXp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clerkId
+        - email
+        - tier
+        - totalXp
+        - level
+        - streak
+
+    UpdateUserProfileBody:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+
+    UserStats:
+      type: object
+      properties:
+        totalXp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        projectsCompleted:
+          type: integer
+        projectsInProgress:
+          type: integer
+        lessonsCompleted:
+          type: integer
+        stepsCompleted:
+          type: integer
+        rank:
+          type: integer
+        xpToNextLevel:
+          type: integer
+        weeklyXp:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              xp:
+                type: integer
+      required:
+        - totalXp
+        - level
+        - streak
+        - projectsCompleted
+        - projectsInProgress
+        - lessonsCompleted
+        - stepsCompleted
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        totalXp:
+          type: integer
+        level:
+          type: integer
+        projectsCompleted:
+          type: integer
+      required:
+        - rank
+        - userId
+        - displayName
+        - totalXp
+        - level
+        - projectsCompleted
+
+    ExecuteCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+        language:
+          type: string
+          enum: [python]
+        stdin:
+          type: string
+        timeoutSeconds:
+          type: integer
+          default: 10
+      required:
+        - code
+        - language
+
+    ExecuteCodeResult:
+      type: object
+      properties:
+        stdout:
+          type: string
+        stderr:
+          type: string
+        exitCode:
+          type: integer
+        executionTimeMs:
+          type: integer
+        timedOut:
+          type: boolean
+      required:
+        - stdout
+        - stderr
+        - exitCode
+        - timedOut

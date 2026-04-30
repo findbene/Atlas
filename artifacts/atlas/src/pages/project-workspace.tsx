@@ -1,0 +1,384 @@
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
+import { useParams, Link } from "wouter";
+import { useGetProject, useGetUserProjectProgress, useEnrollProject, useSubmitStep, useExecutePython } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, Lock, RotateCcw } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import confetti from "canvas-confetti";
+
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+
+interface AiMessage { role: "user" | "assistant"; content: string; }
+
+function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; stepId: string; currentCode: string }) {
+  const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  async function sendMessage() {
+    if (!input.trim() || isStreaming) return;
+    const userMsg = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setIsStreaming(true);
+    let assistantContent = "";
+    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg, contextType: "project", contextId: projectId, stepId, currentCode }),
+      });
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) return;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        for (const line of chunk.split("\n")) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(data);
+              assistantContent += parsed.content ?? "";
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                return updated;
+              });
+            } catch {}
+          }
+        }
+      }
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  return (
+    <div className="flex flex-col h-full bg-card/50 border-l border-border">
+      <div className="p-3 border-b border-border flex items-center gap-2">
+        <Bot className="h-4 w-4 text-blue-400" />
+        <span className="text-sm font-medium">Atlas AI</span>
+        <span className="text-xs text-muted-foreground ml-auto">Claude-powered</span>
+      </div>
+      <ScrollArea className="flex-1 p-3" ref={scrollRef as any}>
+        {messages.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm space-y-2">
+            <Bot className="h-8 w-8 mx-auto opacity-50" />
+            <p>Ask me anything about this project.</p>
+            <p className="text-xs">I'll guide you without giving away the answer.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((msg, i) => (
+              <div key={i} className={`${msg.role === "user" ? "ml-4" : "mr-4"}`}>
+                <div className={`rounded-lg p-3 text-sm ${msg.role === "user" ? "bg-primary/10 text-foreground ml-auto" : "bg-muted text-foreground"}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-invert prose-sm max-w-none">
+                    {msg.content || "..."}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+      <div className="p-3 border-t border-border flex gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+          placeholder="Ask a question..."
+          className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          disabled={isStreaming}
+        />
+        <Button size="sm" onClick={sendMessage} disabled={isStreaming || !input.trim()}>
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function ProjectWorkspace() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug ?? "";
+  const { data: project, isLoading } = useGetProject(slug);
+  const [enrolled, setEnrolled] = useState(false);
+  const { data: progress } = useGetUserProjectProgress(project?.id ?? "", { enabled: !!project?.id && enrolled });
+  const enrollMutation = useEnrollProject();
+  const submitMutation = useSubmitStep();
+  const executeMutation = useExecutePython();
+
+  const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const [code, setCode] = useState("");
+  const [output, setOutput] = useState<{ stdout: string; stderr: string; exitCode: number } | null>(null);
+  const [gradingResult, setGradingResult] = useState<any>(null);
+  const [showAi, setShowAi] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+
+  const steps = project?.steps ?? [];
+  const currentStep = steps[currentStepIdx];
+  const isCodeStep = currentStep?.type === "code_python" || currentStep?.type === "code_sql";
+  const completedStepIds = new Set((progress?.stepCompletions ?? []).filter((c: any) => c.status === "passed").map((c: any) => c.stepId));
+
+  useEffect(() => {
+    if (project?.id) {
+      enrollMutation.mutate({ projectId: project.id } as any, {
+        onSuccess: () => setEnrolled(true),
+        onError: () => setEnrolled(true),
+      });
+    }
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (currentStep?.starterCode) {
+      setCode(currentStep.starterCode);
+    }
+  }, [currentStepIdx, currentStep?.starterCode]);
+
+  async function runCode() {
+    if (!code) return;
+    setOutput(null);
+    executeMutation.mutate({ code, language: "python" } as any, {
+      onSuccess: (result: any) => setOutput(result),
+      onError: () => setOutput({ stdout: "", stderr: "Execution failed", exitCode: 1 }),
+    });
+  }
+
+  async function submitStep() {
+    if (!project?.id || !currentStep) return;
+    const submission = isCodeStep ? code : code;
+    submitMutation.mutate({
+      projectId: project.id,
+      stepId: currentStep.id,
+      submission,
+      submissionType: isCodeStep ? "code" : "text",
+    } as any, {
+      onSuccess: (result: any) => {
+        setGradingResult(result);
+        if (result.status === "passed" && result.isFirstPass) {
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+        }
+        if (result.status === "passed" && !result.projectComplete && currentStepIdx < steps.length - 1) {
+          setTimeout(() => {
+            setCurrentStepIdx(prev => prev + 1);
+            setGradingResult(null);
+            setOutput(null);
+          }, 1500);
+        }
+      },
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="animate-pulse text-muted-foreground">Loading project...</div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
+        <p className="text-muted-foreground">Project not found.</p>
+        <Link href="/domains/data-engineering"><Button variant="outline">Browse Projects</Button></Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+      {/* Header */}
+      <div className="border-b border-border px-4 py-2.5 flex items-center gap-3 shrink-0 bg-card/80">
+        <Link href={`/domains/${project.domainSlug}`}>
+          <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            {project.domainName}
+          </Button>
+        </Link>
+        <span className="text-muted-foreground">/</span>
+        <span className="font-semibold text-sm truncate">{project.title}</span>
+        <Badge variant="outline" className="ml-auto text-xs">{project.difficulty}</Badge>
+        <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">+{project.xpReward} XP</Badge>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`text-xs ${showAi ? "text-blue-400" : "text-muted-foreground"}`}
+          onClick={() => setShowAi(v => !v)}
+        >
+          <Bot className="h-4 w-4 mr-1" />
+          AI Tutor
+        </Button>
+      </div>
+
+      {/* Main layout */}
+      <div className="flex-1 flex overflow-hidden">
+        <ResizablePanelGroup direction="horizontal">
+          {/* Instruction Panel */}
+          <ResizablePanel defaultSize={40} minSize={25}>
+            <div className="h-full flex flex-col">
+              {/* Step Nav */}
+              <div className="border-b border-border px-4 py-2 flex items-center gap-2 shrink-0 bg-muted/20">
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setCurrentStepIdx(prev => Math.max(0, prev - 1)); setGradingResult(null); setOutput(null); }} disabled={currentStepIdx === 0}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex gap-1.5 flex-1 justify-center overflow-x-auto">
+                  {steps.map((s: any, i: number) => (
+                    <button
+                      key={s.id}
+                      onClick={() => { setCurrentStepIdx(i); setGradingResult(null); setOutput(null); }}
+                      className={`h-6 w-6 rounded-full text-xs font-medium transition-colors flex items-center justify-center ${i === currentStepIdx ? "bg-primary text-primary-foreground" : completedStepIds.has(s.id) ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                    >
+                      {completedStepIds.has(s.id) ? <CheckCircle className="h-3 w-3" /> : i + 1}
+                    </button>
+                  ))}
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setCurrentStepIdx(prev => Math.min(steps.length - 1, prev + 1)); setGradingResult(null); setOutput(null); }} disabled={currentStepIdx >= steps.length - 1}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <ScrollArea className="flex-1 p-4">
+                {currentStep ? (
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step {currentStepIdx + 1} of {steps.length}</span>
+                      <h2 className="text-lg font-bold mt-1">{currentStep.title}</h2>
+                    </div>
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentStep.description}</ReactMarkdown>
+                    </div>
+                    {currentStep.hints && currentStep.hints.length > 0 && (
+                      <div>
+                        <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 -ml-2" onClick={() => setShowHint(v => !v)}>
+                          <Lightbulb className="h-4 w-4 mr-1" />
+                          {showHint ? "Hide hint" : "Show hint"}
+                        </Button>
+                        {showHint && (
+                          <div className="mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-200">
+                            {currentStep.hints[0]}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {gradingResult && (
+                      <div className={`p-4 rounded-lg border ${gradingResult.status === "passed" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-red-500/10 border-red-500/30 text-red-300"}`}>
+                        <div className="flex items-center gap-2 font-semibold mb-1">
+                          {gradingResult.status === "passed" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                          {gradingResult.status === "passed" ? `Passed! +${gradingResult.xpEarned} XP` : "Try again"}
+                        </div>
+                        <p className="text-sm">{gradingResult.feedback}</p>
+                        {gradingResult.projectComplete && (
+                          <div className="mt-2 font-bold text-emerald-300">Project Complete! Excellent work!</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No steps found.</p>
+                )}
+              </ScrollArea>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle />
+
+          {/* Editor/Console Panel */}
+          <ResizablePanel defaultSize={showAi ? 40 : 60} minSize={30}>
+            <div className="h-full flex flex-col">
+              <Tabs defaultValue="editor" className="flex flex-col h-full">
+                <div className="border-b border-border px-2 pt-1 shrink-0 flex items-center justify-between">
+                  <TabsList className="h-8 bg-transparent gap-1">
+                    <TabsTrigger value="editor" className="h-7 text-xs">Editor</TabsTrigger>
+                    <TabsTrigger value="output" className="h-7 text-xs">Output</TabsTrigger>
+                  </TabsList>
+                  <div className="flex items-center gap-1 pr-2">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setCode(currentStep?.starterCode ?? "")}>
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Reset
+                    </Button>
+                    {isCodeStep && (
+                      <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={runCode} disabled={executeMutation.isPending}>
+                        <Play className="h-3 w-3 mr-1" />
+                        {executeMutation.isPending ? "Running..." : "Run"}
+                      </Button>
+                    )}
+                    <Button size="sm" className="h-7 text-xs" onClick={submitStep} disabled={submitMutation.isPending}>
+                      {submitMutation.isPending ? "Grading..." : "Submit"}
+                    </Button>
+                  </div>
+                </div>
+                <TabsContent value="editor" className="flex-1 m-0 overflow-hidden">
+                  <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading editor...</div>}>
+                    <MonacoEditor
+                      height="100%"
+                      language={currentStep?.type === "code_sql" ? "sql" : "python"}
+                      theme="vs-dark"
+                      value={code}
+                      onChange={v => setCode(v ?? "")}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: "on",
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        padding: { top: 12 },
+                        fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+                      }}
+                    />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent value="output" className="flex-1 m-0 overflow-hidden bg-[#0D1117]">
+                  <ScrollArea className="h-full p-3">
+                    {executeMutation.isPending ? (
+                      <div className="text-muted-foreground text-sm">Running...</div>
+                    ) : output ? (
+                      <div className="font-mono text-sm space-y-2">
+                        {output.stdout && <pre className="text-green-400 whitespace-pre-wrap">{output.stdout}</pre>}
+                        {output.stderr && <pre className="text-red-400 whitespace-pre-wrap">{output.stderr}</pre>}
+                        {!output.stdout && !output.stderr && <span className="text-muted-foreground">No output</span>}
+                        <div className={`text-xs mt-2 ${output.exitCode === 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          Exit code: {output.exitCode}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground text-sm">Run your code to see output here.</div>
+                    )}
+                  </ScrollArea>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </ResizablePanel>
+
+          {/* AI Tutor Panel */}
+          {showAi && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={25} minSize={20}>
+                <AiTutorPanel
+                  projectId={project.id}
+                  stepId={currentStep?.id ?? ""}
+                  currentCode={code}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </div>
+    </div>
+  );
+}
