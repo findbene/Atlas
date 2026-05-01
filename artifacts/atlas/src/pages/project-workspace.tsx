@@ -6,8 +6,13 @@ import {
   getGetUserProjectProgressQueryKey,
   useEnrollProject,
   useSubmitStep,
-  useExecutePython,
 } from "@workspace/api-client-react";
+import {
+  runPython,
+  loadPyodideOnce,
+  subscribePyodideStatus,
+  type PyodideStatus,
+} from "@/lib/pyodideRunner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -168,7 +173,6 @@ export default function ProjectWorkspace() {
   });
   const enrollMutation = useEnrollProject();
   const submitMutation = useSubmitStep();
-  const executeMutation = useExecutePython();
 
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [code, setCode] = useState("");
@@ -178,10 +182,26 @@ export default function ProjectWorkspace() {
   const [gradingResult, setGradingResult] = useState<GradingResult | null>(null);
   const [showAi, setShowAi] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [pyStatus, setPyStatus] = useState<PyodideStatus>("idle");
 
   const steps = (project?.steps ?? []) as Array<any>;
   const currentStep = steps[currentStepIdx];
   const isCodeStep = CODE_STEP_TYPES.has(currentStep?.type ?? "");
+
+  useEffect(() => {
+    const unsubscribe = subscribePyodideStatus(setPyStatus);
+    return unsubscribe;
+  }, []);
+
+  // Kick off Pyodide download in the background as soon as the workspace mounts
+  // for a code-based step, so the first "Run" feels instant.
+  useEffect(() => {
+    if (!isCodeStep) return;
+    void loadPyodideOnce().catch(() => {
+      // Status listener already flips to "error"; runCode will surface details.
+    });
+  }, [isCodeStep]);
   const isTextStep = TEXT_STEP_TYPES.has(currentStep?.type ?? "");
   const completedStepIds = new Set(
     ((progress?.stepCompletions ?? []) as StepCompletion[])
@@ -235,26 +255,28 @@ export default function ProjectWorkspace() {
   }
 
   async function runCode() {
-    if (!code) return;
+    if (!code || isRunning) return;
     setOutput(null);
     setActiveTab("output");
-    executeMutation.mutate(
-      { data: { code, language: "python" } },
-      {
-        onSuccess: (result: any) =>
-          setOutput({
-            stdout: result?.stdout ?? "",
-            stderr: result?.stderr ?? "",
-            exitCode: result?.exitCode ?? 0,
-          }),
-        onError: (err: any) =>
-          setOutput({
-            stdout: "",
-            stderr: err?.message ?? "Failed to reach the code execution service.",
-            exitCode: 1,
-          }),
-      }
-    );
+    setIsRunning(true);
+    try {
+      const result = await runPython(code);
+      setOutput({
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+      });
+    } catch (err: any) {
+      setOutput({
+        stdout: "",
+        stderr:
+          err?.message ??
+          "Couldn't start the Python runtime. Check your network connection and try again.",
+        exitCode: 1,
+      });
+    } finally {
+      setIsRunning(false);
+    }
   }
 
   async function submitStep() {
@@ -464,10 +486,15 @@ export default function ProjectWorkspace() {
                         size="sm"
                         className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
                         onClick={runCode}
-                        disabled={executeMutation.isPending || !code}
+                        disabled={isRunning || pyStatus === "loading" || !code}
+                        title={pyStatus === "loading" ? "Loading Python runtime..." : undefined}
                       >
                         <Play className="h-3 w-3 mr-1" />
-                        {executeMutation.isPending ? "Running..." : "Run"}
+                        {isRunning
+                          ? "Running..."
+                          : pyStatus === "loading"
+                            ? "Loading runtime…"
+                            : "Run"}
                       </Button>
                       <Button size="sm" className="h-7 text-xs" onClick={submitStep} disabled={submitMutation.isPending}>
                         {submitMutation.isPending ? "Grading..." : "Submit"}
@@ -496,8 +523,12 @@ export default function ProjectWorkspace() {
                   </TabsContent>
                   <TabsContent value="output" className="flex-1 m-0 overflow-hidden bg-[#0D1117]">
                     <ScrollArea className="h-full p-3">
-                      {executeMutation.isPending ? (
-                        <div className="text-muted-foreground text-sm">Running...</div>
+                      {isRunning ? (
+                        <div className="text-muted-foreground text-sm">
+                          {pyStatus === "loading"
+                            ? "Loading Python runtime (first run only, ~10MB)…"
+                            : "Running…"}
+                        </div>
                       ) : output ? (
                         <div className="font-mono text-sm space-y-2">
                           {output.stdout && <pre className="text-green-400 whitespace-pre-wrap">{output.stdout}</pre>}

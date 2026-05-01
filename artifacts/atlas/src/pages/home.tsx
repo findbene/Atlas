@@ -1,8 +1,13 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Code2, Database, Terminal, Zap } from "lucide-react";
+import { useUser } from "@clerk/react";
 
 export default function Home() {
+  const { isSignedIn } = useUser();
+  const primaryHref = isSignedIn ? "/dashboard" : "/sign-up";
+  const primaryLabel = isSignedIn ? "Go to Dashboard" : "Start Building Free";
+  const footerLabel = isSignedIn ? "Open Your Dashboard" : "Create Your Free Account";
   return (
     <div className="flex flex-col min-h-[100dvh]">
       {/* Hero Section */}
@@ -19,8 +24,8 @@ export default function Home() {
             The project-first technical learning platform for ambitious engineers. Master Data Engineering, AI, and MLOps through hands-on execution in a professional browser-based IDE.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-            <Button asChild size="lg" className="w-full sm:w-auto h-12 px-8 text-base"><Link href="/sign-up">
-                Start Building Free
+            <Button asChild size="lg" className="w-full sm:w-auto h-12 px-8 text-base"><Link href={primaryHref}>
+                {primaryLabel}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link></Button>
             <Button asChild size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 text-base"><Link href="/domains">
@@ -78,8 +83,8 @@ export default function Home() {
           <Zap className="h-12 w-12 text-primary mx-auto mb-6" />
           <h2 className="text-3xl md:text-4xl font-bold">Ready to level up your engineering career?</h2>
           <p className="text-muted-foreground text-lg">Join thousands of engineers building real systems on Atlas.</p>
-          <Button asChild size="lg" className="h-12 px-8 text-base mt-4"><Link href="/sign-up">
-              Create Your Free Account
+          <Button asChild size="lg" className="h-12 px-8 text-base mt-4"><Link href={primaryHref}>
+              {footerLabel}
             </Link></Button>
         </div>
       </section>
