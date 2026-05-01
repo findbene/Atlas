@@ -125,6 +125,24 @@ export interface ProjectStep {
   isLocked: boolean;
 }
 
+/**
+ * Career-readiness signals demonstrated by completing this project.
+ */
+export interface JobOutcomes {
+  /** Real-world job titles this project maps to. */
+  roles: string[];
+  /** Concrete skills suitable for a Skills section on a resume. */
+  skillsForResume: string[];
+  /** Action-oriented resume bullet points based on the project work. */
+  resumeBullets: string[];
+  /** Common interview questions this project prepares the learner to answer. */
+  interviewQuestions: string[];
+  /** Short paragraph explaining how this project becomes a portfolio piece. */
+  portfolioReadiness?: string;
+  /** Why this skill matters in the 2026+ data engineering job market. */
+  marketSignal?: string;
+}
+
 export type ProjectDetail = ProjectSummary & {
   longDescription?: string;
   learningObjectives?: string[];
@@ -132,6 +150,7 @@ export type ProjectDetail = ProjectSummary & {
   steps?: ProjectStep[];
   domainSlug?: string;
   domainName?: string;
+  jobOutcomes?: JobOutcomes;
 };
 
 export type UserProjectStatus =

@@ -1,12 +1,17 @@
 import { Link, useLocation } from "wouter";
-import { useAuth, UserButton } from "@clerk/react";
+import { useAuth, UserButton, useClerk } from "@clerk/react";
 import { Button } from "./ui/button";
-import { Flame, Trophy, Menu } from "lucide-react";
+import { Flame, Trophy, Menu, LogOut } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 
 export function Navbar() {
   const { isSignedIn } = useAuth();
+  const { signOut } = useClerk();
   const [location] = useLocation();
+
+  async function handleSignOut() {
+    await signOut({ redirectUrl: "/" });
+  }
 
   const isHome = location === "/";
 
@@ -72,6 +77,19 @@ export function Navbar() {
                   <Link href="/leaderboard">Leaderboard</Link>
                   <Link href="/certificates">Certificates</Link>
                   <Link href="/profile">Profile</Link>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 text-left text-red-400 hover:text-red-300"
+                  >
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </button>
+                </>
+              )}
+              {!isSignedIn && (
+                <>
+                  <Link href="/sign-in">Sign in</Link>
+                  <Link href="/sign-up">Get Started</Link>
                 </>
               )}
             </div>

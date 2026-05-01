@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { pythonMasteryModules } from "./seed-mastery-python";
 import { sqlMasteryModules } from "./seed-mastery-sql";
 import { extraProjects } from "./seed-projects-extra";
+import { jobOutcomesBySlug } from "./seed-job-outcomes";
 
 function slugify(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -423,6 +424,7 @@ async function seed() {
       totalSteps: pd.steps.length,
       tags: pd.tags,
       xpReward: pd.xpReward,
+      jobOutcomes: jobOutcomesBySlug[pd.slug] ?? null,
     }).returning();
 
     console.log(`  Created: ${pd.title} (${proj.id})`);
@@ -465,6 +467,7 @@ async function seed() {
         totalSteps: pd.steps.length,
         tags: pd.tags,
         xpReward: pd.xpReward,
+        jobOutcomes: jobOutcomesBySlug[pd.slug] ?? null,
       }).where(eq(projects.id, existing.id));
       projId = existing.id;
       console.log(`  Upgraded stub → full: ${pd.title}`);
@@ -486,6 +489,7 @@ async function seed() {
         totalSteps: pd.steps.length,
         tags: pd.tags,
         xpReward: pd.xpReward,
+        jobOutcomes: jobOutcomesBySlug[pd.slug] ?? null,
       }).returning();
       projId = proj.id;
       console.log(`  Created extra: ${pd.title} (${proj.id})`);
@@ -561,9 +565,23 @@ async function seed() {
       totalSteps: 0,
       tags: sp.tags as unknown as string[],
       xpReward: sp.xp,
+      jobOutcomes: jobOutcomesBySlug[sp.slug] ?? null,
     });
     console.log(`  Stub: ${sp.title}`);
   }
+
+  // --- Backfill jobOutcomes on every project (idempotent) ---
+  // Older seed runs predate the jobOutcomes column; this guarantees every
+  // project row carries career-readiness metadata regardless of seed order.
+  let backfilled = 0;
+  for (const [slug, outcomes] of Object.entries(jobOutcomesBySlug)) {
+    const existing = await db.query.projects.findFirst({ where: eq(projects.slug, slug) });
+    if (!existing) continue;
+    if (existing.jobOutcomes && JSON.stringify(existing.jobOutcomes) === JSON.stringify(outcomes)) continue;
+    await db.update(projects).set({ jobOutcomes: outcomes }).where(eq(projects.id, existing.id));
+    backfilled += 1;
+  }
+  if (backfilled > 0) console.log(`  Backfilled jobOutcomes on ${backfilled} project(s)`);
 
   // --- Mastery Sections ---
   let pythonSection = await db.query.masterySections.findFirst({ where: eq(masterySections.slug, "python-mastery") });

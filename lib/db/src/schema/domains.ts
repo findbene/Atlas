@@ -66,6 +66,7 @@ export const projects = pgTable("projects", {
   xpReward: integer("xp_reward").default(100).notNull(),
   enrolledCount: integer("enrolled_count").default(0).notNull(),
   completionRate: integer("completion_rate").default(0).notNull(),
+  jobOutcomes: jsonb("job_outcomes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [

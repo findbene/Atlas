@@ -175,6 +175,43 @@ export const GetProjectResponse = zod
         .optional(),
       domainSlug: zod.string().optional(),
       domainName: zod.string().optional(),
+      jobOutcomes: zod
+        .object({
+          roles: zod
+            .array(zod.string())
+            .describe("Real-world job titles this project maps to."),
+          skillsForResume: zod
+            .array(zod.string())
+            .describe(
+              "Concrete skills suitable for a Skills section on a resume.",
+            ),
+          resumeBullets: zod
+            .array(zod.string())
+            .describe(
+              "Action-oriented resume bullet points based on the project work.",
+            ),
+          interviewQuestions: zod
+            .array(zod.string())
+            .describe(
+              "Common interview questions this project prepares the learner to answer.",
+            ),
+          portfolioReadiness: zod
+            .string()
+            .optional()
+            .describe(
+              "Short paragraph explaining how this project becomes a portfolio piece.",
+            ),
+          marketSignal: zod
+            .string()
+            .optional()
+            .describe(
+              "Why this skill matters in the 2026+ data engineering job market.",
+            ),
+        })
+        .optional()
+        .describe(
+          "Career-readiness signals demonstrated by completing this project.",
+        ),
     }),
   );
 
@@ -312,6 +349,43 @@ export const GetUserProjectProgressResponse = zod
               .optional(),
             domainSlug: zod.string().optional(),
             domainName: zod.string().optional(),
+            jobOutcomes: zod
+              .object({
+                roles: zod
+                  .array(zod.string())
+                  .describe("Real-world job titles this project maps to."),
+                skillsForResume: zod
+                  .array(zod.string())
+                  .describe(
+                    "Concrete skills suitable for a Skills section on a resume.",
+                  ),
+                resumeBullets: zod
+                  .array(zod.string())
+                  .describe(
+                    "Action-oriented resume bullet points based on the project work.",
+                  ),
+                interviewQuestions: zod
+                  .array(zod.string())
+                  .describe(
+                    "Common interview questions this project prepares the learner to answer.",
+                  ),
+                portfolioReadiness: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Short paragraph explaining how this project becomes a portfolio piece.",
+                  ),
+                marketSignal: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Why this skill matters in the 2026+ data engineering job market.",
+                  ),
+              })
+              .optional()
+              .describe(
+                "Career-readiness signals demonstrated by completing this project.",
+              ),
           }),
         )
         .optional(),

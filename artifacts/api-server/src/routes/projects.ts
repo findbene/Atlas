@@ -91,6 +91,7 @@ router.get("/projects/:slug", async (req, res) => {
       prerequisites: project.prerequisites ?? [],
       domainSlug: domain?.slug ?? "data-engineering",
       domainName: domain?.title ?? "Data Engineering",
+      jobOutcomes: project.jobOutcomes ?? undefined,
       steps: steps.map(s => ({
         id: s.id,
         position: s.stepNumber,

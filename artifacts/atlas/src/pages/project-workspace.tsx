@@ -19,10 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import confetti from "canvas-confetti";
+import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
@@ -378,6 +379,24 @@ export default function ProjectWorkspace() {
         )}
         <Badge variant="outline" className="ml-auto text-xs">{project.difficulty}</Badge>
         <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">+{project.xpReward} XP</Badge>
+        <JobOutcomesPanel
+          title={project.title}
+          jobOutcomes={(project as any).jobOutcomes}
+          learningObjectives={project.learningObjectives ?? []}
+          prerequisites={project.prerequisites ?? []}
+          longDescription={project.longDescription}
+          trigger={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-amber-300 hover:text-amber-200"
+              data-testid="open-career-impact"
+            >
+              <Award className="h-4 w-4 mr-1" />
+              Career Impact
+            </Button>
+          }
+        />
         <Button
           variant="ghost"
           size="sm"
