@@ -44,28 +44,28 @@ export default function Dashboard() {
             <Star className="h-4 w-4 text-amber-400" />
             Total XP
           </div>
-          <p className="text-2xl font-bold">{statsLoading ? "—" : (stats?.totalXp ?? 0).toLocaleString()}</p>
+          {statsLoading ? <div className="h-8 w-20 bg-muted rounded animate-pulse" /> : <p className="text-2xl font-bold">{(stats?.totalXp ?? 0).toLocaleString()}</p>}
         </div>
         <div className="bg-card border border-border rounded-xl p-4 space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Flame className="h-4 w-4 text-orange-400" />
             Day Streak
           </div>
-          <p className="text-2xl font-bold">{statsLoading ? "—" : stats?.streak ?? 0}</p>
+          {statsLoading ? <div className="h-8 w-16 bg-muted rounded animate-pulse" /> : <p className="text-2xl font-bold">{stats?.streak ?? 0}</p>}
         </div>
         <div className="bg-card border border-border rounded-xl p-4 space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <BookOpen className="h-4 w-4 text-blue-400" />
             Completed
           </div>
-          <p className="text-2xl font-bold">{statsLoading ? "—" : stats?.projectsCompleted ?? 0}</p>
+          {statsLoading ? <div className="h-8 w-16 bg-muted rounded animate-pulse" /> : <p className="text-2xl font-bold">{stats?.projectsCompleted ?? 0}</p>}
         </div>
         <div className="bg-card border border-border rounded-xl p-4 space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Trophy className="h-4 w-4 text-purple-400" />
             Rank
           </div>
-          <p className="text-2xl font-bold">#{statsLoading ? "—" : stats?.rank ?? "—"}</p>
+          {statsLoading ? <div className="h-8 w-16 bg-muted rounded animate-pulse" /> : <p className="text-2xl font-bold">#{stats?.rank ?? "—"}</p>}
         </div>
       </div>
 

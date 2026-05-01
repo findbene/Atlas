@@ -1,6 +1,9 @@
 import { db } from "@workspace/db";
 import { domains, tracks, projects, projectSteps, masterySections, masteryModules, masteryLessons } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { pythonMasteryModules } from "./seed-mastery-python";
+import { sqlMasteryModules } from "./seed-mastery-sql";
+import { extraProjects } from "./seed-projects-extra";
 
 function slugify(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -441,13 +444,76 @@ async function seed() {
     console.log(`    + ${pd.steps.length} steps`);
   }
 
-  // --- Stub Projects 11-40 ---
+  // --- Extra full projects (positions 11-15) ---
+  // These may already exist as bare stubs from a previous seed; in that case
+  // we upgrade them in place: refresh the metadata and backfill the step content.
+  for (const pd of extraProjects) {
+    const existing = await db.query.projects.findFirst({ where: eq(projects.slug, pd.slug) });
+    let projId: string;
+    if (existing) {
+      await db.update(projects).set({
+        title: pd.title,
+        shortDescription: pd.shortDescription,
+        fullDescription: pd.fullDescription,
+        difficultyLevel: pd.difficulty,
+        estimatedMinutes: pd.estimatedMinutes,
+        techStack: pd.techStack,
+        learningObjectives: pd.learningObjectives,
+        orderIndex: pd.position,
+        isPremium: pd.isPremium,
+        language: pd.language,
+        totalSteps: pd.steps.length,
+        tags: pd.tags,
+        xpReward: pd.xpReward,
+      }).where(eq(projects.id, existing.id));
+      projId = existing.id;
+      console.log(`  Upgraded stub → full: ${pd.title}`);
+    } else {
+      const [proj] = await db.insert(projects).values({
+        trackId: deTrack.id,
+        domainId: deDomain.id,
+        slug: pd.slug,
+        title: pd.title,
+        shortDescription: pd.shortDescription,
+        fullDescription: pd.fullDescription,
+        difficultyLevel: pd.difficulty,
+        estimatedMinutes: pd.estimatedMinutes,
+        techStack: pd.techStack,
+        learningObjectives: pd.learningObjectives,
+        orderIndex: pd.position,
+        isPremium: pd.isPremium,
+        language: pd.language,
+        totalSteps: pd.steps.length,
+        tags: pd.tags,
+        xpReward: pd.xpReward,
+      }).returning();
+      projId = proj.id;
+      console.log(`  Created extra: ${pd.title} (${proj.id})`);
+    }
+
+    for (const step of pd.steps) {
+      const existingStep = await db.query.projectSteps.findFirst({
+        where: and(eq(projectSteps.projectId, projId), eq(projectSteps.stepNumber, step.stepNumber)),
+      });
+      if (existingStep) continue;
+      await db.insert(projectSteps).values({
+        projectId: projId,
+        stepNumber: step.stepNumber,
+        title: step.title,
+        instructionMd: step.instruction,
+        starterCode: step.starterCode ?? null,
+        validationHint: step.validationHint ?? null,
+        validationType: "self_attest",
+        validationConfig: {},
+        xpReward: step.xpReward,
+        type: "code_python",
+      });
+    }
+    console.log(`    + ${pd.steps.length} steps ensured`);
+  }
+
+  // --- Stub Projects 16-40 ---
   const stubProjects = [
-    { slug: "stream-processing-flink", title: "Stream Processing with Apache Flink", desc: "Stateful stream processing at scale.", pos: 11, diff: "advanced", mins: 600, xp: 700, premium: true, tech: ["Apache Flink", "Java"], tags: ["flink", "streaming"] },
-    { slug: "data-catalog-implementation", title: "Building a Data Catalog", desc: "Track data assets, lineage, and ownership.", pos: 12, diff: "intermediate", mins: 420, xp: 500, premium: true, tech: ["Python", "PostgreSQL"], tags: ["metadata", "lineage"] },
-    { slug: "real-time-dashboard", title: "Real-Time Analytics Dashboard", desc: "Live dashboard with sub-second queries.", pos: 13, diff: "advanced", mins: 540, xp: 650, premium: true, tech: ["Redis", "Kafka"], tags: ["kafka", "redis", "dashboard"] },
-    { slug: "data-mesh-design", title: "Data Mesh Architecture", desc: "Domain-oriented data product design.", pos: 14, diff: "advanced", mins: 720, xp: 900, premium: true, tech: ["Architecture"], tags: ["data-mesh"] },
-    { slug: "column-store-engine", title: "Build a Column-Store Engine", desc: "Implement columnar storage from scratch.", pos: 15, diff: "advanced", mins: 900, xp: 1000, premium: true, tech: ["Python"], tags: ["columnar", "storage"] },
     { slug: "iceberg-table-format", title: "Apache Iceberg Table Format", desc: "ACID transactions on S3 with Iceberg.", pos: 16, diff: "advanced", mins: 480, xp: 600, premium: true, tech: ["Apache Iceberg", "Spark"], tags: ["iceberg", "acid"] },
     { slug: "debezium-cdc", title: "CDC with Debezium", desc: "Capture database changes with Debezium.", pos: 17, diff: "advanced", mins: 480, xp: 600, premium: true, tech: ["Debezium", "Kafka"], tags: ["cdc", "debezium"] },
     { slug: "mlflow-pipeline", title: "ML Pipeline with MLflow", desc: "Track experiments and serve models.", pos: 18, diff: "intermediate", mins: 420, xp: 550, premium: true, tech: ["MLflow", "Python"], tags: ["mlflow", "ml-ops"] },
@@ -524,40 +590,8 @@ async function seed() {
     console.log("Created SQL Mastery section");
   }
 
-  // --- Python Modules ---
-  const pythonMods = [
-    {
-      slug: "python-fundamentals",
-      title: "Python Fundamentals for Data Engineers",
-      description: "Master Python data types, control flow, functions, and file I/O patterns used in real data pipelines.",
-      orderIndex: 1,
-      isPremium: false,
-      lessonCount: 12,
-      estimatedHours: 4,
-      difficultyLevel: "beginner",
-      learningObjectives: ["Understand Python data types", "Write functions and classes", "Handle files and exceptions", "Use list comprehensions and generators"],
-      lessons: [
-        { slug: "python-data-types", title: "Python Data Types & Collections", content: "# Python Data Types\n\nIn data engineering, you'll work with these core types constantly.\n\n## Lists vs Tuples\n- **Lists** are mutable, ordered — use for data you'll modify\n- **Tuples** are immutable, faster — use for fixed records\n\n## Dictionaries\nPerfect for JSON records:\n```python\nrecord = {'user_id': 42, 'event': 'click', 'ts': '2024-01-01'}\n```\n\n## Sets\nFor deduplication:\n```python\nunique_ids = set(df['user_id'].tolist())\n```", type: "reading", orderIndex: 1, mins: 15, xp: 25 },
-        { slug: "control-flow", title: "Control Flow & Iteration", content: "# Control Flow in Data Pipelines\n\n## List Comprehensions (Pythonic)\n```python\n# Filter and transform in one line\nclean = [r for r in records if r.get('user_id')]\n```\n\n## Generators for Large Data\n```python\ndef parse_lines(file):\n    for line in file:\n        yield json.loads(line)  # Lazy evaluation\n```\nGenerators don't load everything into memory — critical for large files!", type: "reading", orderIndex: 2, mins: 20, xp: 25 },
-        { slug: "functions-decorators", title: "Functions & Decorators", content: "# Functions in Data Engineering\n\n## Decorators for Cross-Cutting Concerns\n```python\nimport time\nfrom functools import wraps\n\ndef timed(fn):\n    @wraps(fn)\n    def wrapper(*args, **kwargs):\n        t0 = time.time()\n        result = fn(*args, **kwargs)\n        print(f'{fn.__name__}: {time.time()-t0:.2f}s')\n        return result\n    return wrapper\n\n@timed\ndef load_file(path): ...\n```\n\nDecorators add behavior without modifying the original function.", type: "reading", orderIndex: 3, mins: 20, xp: 30 },
-      ],
-    },
-    {
-      slug: "python-advanced-patterns",
-      title: "Advanced Python Patterns",
-      description: "Generators, context managers, async/await, and design patterns for production data engineering code.",
-      orderIndex: 2,
-      isPremium: true,
-      lessonCount: 10,
-      estimatedHours: 3,
-      difficultyLevel: "intermediate",
-      learningObjectives: ["Write memory-efficient generators", "Use context managers", "Understand async I/O", "Apply pipeline design patterns"],
-      lessons: [
-        { slug: "generators", title: "Generators & Iterators", content: "# Generators for Large Data\n\nProcess data without loading it all into RAM:\n\n```python\ndef read_csv_chunks(filepath, chunk_size=10_000):\n    import csv\n    with open(filepath) as f:\n        reader = csv.DictReader(f)\n        chunk = []\n        for row in reader:\n            chunk.append(row)\n            if len(chunk) == chunk_size:\n                yield chunk\n                chunk = []\n        if chunk:\n            yield chunk  # Last partial chunk\n\n# Process 100M rows without OOM\nfor chunk in read_csv_chunks('huge_file.csv'):\n    load_to_db(chunk)\n```", type: "reading", orderIndex: 1, mins: 20, xp: 35 },
-        { slug: "context-managers", title: "Context Managers", content: "# Context Managers\n\nManage resources (DB connections, file handles) safely:\n\n```python\nfrom contextlib import contextmanager\n\n@contextmanager\ndef db_transaction(conn):\n    try:\n        yield conn\n        conn.commit()\n    except Exception:\n        conn.rollback()\n        raise\n    finally:\n        conn.close()\n\n# Usage — connection always cleaned up\nwith db_transaction(get_connection()) as conn:\n    insert_data(conn, records)\n```", type: "reading", orderIndex: 2, mins: 20, xp: 35 },
-      ],
-    },
-  ];
+  // --- Python Modules (sourced from seed-mastery-python.ts) ---
+  const pythonMods = pythonMasteryModules;
 
   for (const mod of pythonMods) {
     let existingMod = await db.query.masteryModules.findFirst({ where: eq(masteryModules.slug, mod.slug) });
@@ -593,54 +627,8 @@ async function seed() {
     }
   }
 
-  // --- SQL Modules ---
-  const sqlMods = [
-    {
-      slug: "sql-foundations",
-      title: "SQL Foundations",
-      description: "SELECT, WHERE, GROUP BY, JOINs, and aggregations — the building blocks of all SQL queries.",
-      orderIndex: 1,
-      isPremium: false,
-      lessonCount: 10,
-      estimatedHours: 3,
-      difficultyLevel: "beginner",
-      learningObjectives: ["Write complex SELECT queries", "Master all JOIN types", "Group and aggregate data", "Filter with WHERE and HAVING"],
-      lessons: [
-        { slug: "select-filtering", title: "SELECT & Filtering", content: "# SELECT Fundamentals\n\n```sql\nSELECT user_id, email, created_at\nFROM users\nWHERE is_active = TRUE\n  AND created_at >= '2024-01-01'\nORDER BY created_at DESC;\n```\n\n**Tips:**\n- Use `IS NULL` not `= NULL`\n- `LIMIT` before you run heavy queries\n- `EXPLAIN` to see what the DB will do", type: "reading", orderIndex: 1, mins: 15, xp: 20 },
-        { slug: "joins", title: "JOINs Demystified", content: "# SQL Joins\n\n```sql\n-- INNER JOIN: only matching rows from both tables\nSELECT u.email, o.total\nFROM users u\nINNER JOIN orders o ON u.id = o.user_id;\n\n-- LEFT JOIN: all users, even with no orders\nSELECT u.email, COUNT(o.id) as orders\nFROM users u\nLEFT JOIN orders o ON u.id = o.user_id\nGROUP BY u.email;\n```\n\n**Key:** INNER = intersection, LEFT = keep all left rows", type: "reading", orderIndex: 2, mins: 25, xp: 25 },
-        { slug: "aggregations", title: "Aggregations & GROUP BY", content: "# Aggregations\n\n```sql\nSELECT\n    DATE_TRUNC('month', event_ts) as month,\n    COUNT(*) as events,\n    COUNT(DISTINCT user_id) as unique_users,\n    SUM(revenue) as total_revenue\nFROM events\nGROUP BY 1\nHAVING COUNT(*) > 100  -- Filter AFTER grouping\nORDER BY 1 DESC;\n```\n\n**Remember:** `WHERE` filters before grouping, `HAVING` filters after.", type: "reading", orderIndex: 3, mins: 20, xp: 25 },
-      ],
-    },
-    {
-      slug: "advanced-sql",
-      title: "Advanced SQL Queries",
-      description: "CTEs, window functions, and performance optimization for complex analytical SQL.",
-      orderIndex: 2,
-      isPremium: true,
-      lessonCount: 10,
-      estimatedHours: 3,
-      difficultyLevel: "intermediate",
-      learningObjectives: ["Write CTEs for readable queries", "Use window functions", "Optimize query performance", "Understand execution plans"],
-      lessons: [
-        { slug: "ctes", title: "CTEs & Readable Queries", content: "# Common Table Expressions\n\nCTEs make complex queries readable and maintainable:\n\n```sql\nWITH revenue_by_user AS (\n    SELECT user_id, SUM(amount) as total\n    FROM orders\n    GROUP BY user_id\n),\nhigh_value AS (\n    SELECT user_id, total\n    FROM revenue_by_user\n    WHERE total > 1000\n)\nSELECT u.email, h.total\nFROM high_value h\nJOIN users u ON h.user_id = u.id\nORDER BY h.total DESC;\n```", type: "reading", orderIndex: 1, mins: 25, xp: 35 },
-        { slug: "window-functions", title: "Window Functions", content: "# Window Functions\n\nThe most powerful SQL feature for analytics:\n\n```sql\nSELECT\n    order_id,\n    user_id,\n    revenue,\n    SUM(revenue) OVER (PARTITION BY user_id ORDER BY order_date) as running_total,\n    RANK() OVER (PARTITION BY user_id ORDER BY revenue DESC) as rank_in_user,\n    LAG(revenue) OVER (PARTITION BY user_id ORDER BY order_date) as prev_revenue\nFROM orders;\n```\n\n`PARTITION BY` = group, `ORDER BY` = sort within group", type: "reading", orderIndex: 2, mins: 30, xp: 40 },
-      ],
-    },
-    {
-      slug: "sql-for-analytics",
-      title: "SQL for Analytics Engineering",
-      description: "Cohort analysis, funnel analysis, time-series, and advanced aggregation patterns used in analytics.",
-      orderIndex: 3,
-      isPremium: true,
-      lessonCount: 8,
-      estimatedHours: 3,
-      difficultyLevel: "intermediate",
-      learningObjectives: ["Build cohort retention analysis", "Write funnel queries", "Time-series aggregations", "Create pivot tables"],
-      lessons: [
-        { slug: "cohort-analysis", title: "Cohort Retention Analysis", content: "# Cohort Analysis\n\nMeasure how many users return month-over-month:\n\n```sql\nWITH cohorts AS (\n    SELECT user_id,\n           DATE_TRUNC('month', MIN(created_at)) as cohort_month\n    FROM users GROUP BY user_id\n),\nactivity AS (\n    SELECT user_id,\n           DATE_TRUNC('month', event_ts) as active_month\n    FROM events GROUP BY 1, 2\n)\nSELECT\n    c.cohort_month,\n    DATE_DIFF('month', c.cohort_month, a.active_month) as month_number,\n    COUNT(DISTINCT a.user_id) / COUNT(DISTINCT c.user_id)::float as retention\nFROM cohorts c\nLEFT JOIN activity a USING (user_id)\nGROUP BY 1, 2\nORDER BY 1, 2;\n```", type: "reading", orderIndex: 1, mins: 30, xp: 40 },
-      ],
-    },
-  ];
+  // --- SQL Modules (sourced from seed-mastery-sql.ts) ---
+  const sqlMods = sqlMasteryModules;
 
   for (const mod of sqlMods) {
     let existingMod = await db.query.masteryModules.findFirst({ where: eq(masteryModules.slug, mod.slug) });

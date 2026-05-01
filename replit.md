@@ -68,3 +68,27 @@ CREATE TYPE stripe.subscription_status AS ENUM ('trialing','active','canceled','
 before starting the api-server.
 
 Environment: secret/publishable/webhook keys come from the Replit Stripe connector. `REPLIT_DEPLOYMENT` selects between development/production environments.
+
+### AI Tutor (Anthropic)
+
+Streamed Claude responses at `POST /api/ai/chat` (SSE) in `artifacts/api-server/src/routes/ai.ts`. Uses the Replit AI Integrations Anthropic proxy via `AI_INTEGRATIONS_ANTHROPIC_BASE_URL` + `AI_INTEGRATIONS_ANTHROPIC_API_KEY`. Free tier → `claude-haiku-4-5`, Pro tier → `claude-sonnet-4-5`.
+
+### Transactional Email (Resend)
+
+`artifacts/api-server/src/lib/email.ts` fetches Resend credentials from the Replit Resend connector (`REPLIT_CONNECTORS_HOSTNAME` + `REPL_IDENTITY`), caches them in-process, and exposes `sendEmail()` + `renderWaitlistConfirmationEmail()`. Wired fire-and-forget into `POST /api/waitlist` so route always returns 200; failures are logged via `req.log.warn`.
+
+Free-email domains (gmail / outlook / yahoo / icloud / etc.) cannot be used as the FROM address — Resend rejects them at the API layer. The lib auto-falls-back to `onboarding@resend.dev` (Resend's sandbox sender) so dev works out of the box. **For production**, verify a custom domain (e.g. `mail.atlasprojects.dev`) in the Resend dashboard and update the connection's `from_email`.
+
+Resend test API keys can only deliver to the account owner's verified email until a domain is verified or the account is upgraded.
+
+### Curriculum Seed Data
+
+`scripts/src/seed.ts` is the authoritative seed entrypoint, idempotent. Companion modules:
+
+- `scripts/src/seed-mastery-python.ts` — 12 Python Mastery modules (fundamentals → LangChain).
+- `scripts/src/seed-mastery-sql.ts` — 6 SQL Mastery modules (foundations → DB design).
+- `scripts/src/seed-projects-extra.ts` — full step content for projects 11-15 (Flink, Data Catalog, Real-Time Dashboard, Data Mesh, Column-Store).
+
+The seed handles in-place upgrades for projects that previously existed only as stubs (refreshes metadata + backfills steps).
+
+Run with `pnpm --filter @workspace/scripts run seed`.

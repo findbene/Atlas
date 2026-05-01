@@ -302,8 +302,25 @@ export default function ProjectWorkspace() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <div className="animate-pulse text-muted-foreground">Loading project...</div>
+      <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+        <div className="border-b border-border px-4 py-2.5 flex items-center gap-3 shrink-0 bg-card/80">
+          <div className="h-7 w-32 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-px bg-border" />
+          <div className="h-5 w-48 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="flex-1 flex">
+          <div className="w-72 border-r border-border p-4 space-y-3 hidden md:block">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+          <div className="flex-1 p-6 space-y-3">
+            <div className="h-7 w-2/3 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-full bg-muted rounded animate-pulse" />
+            <div className="h-4 w-5/6 bg-muted rounded animate-pulse" />
+            <div className="h-64 bg-muted rounded-lg animate-pulse mt-6" />
+          </div>
+        </div>
       </div>
     );
   }
