@@ -35,9 +35,7 @@ export default function Profile() {
               {stats && <Badge variant="outline" className="text-blue-400 border-blue-400/30">Level {stats.level}</Badge>}
             </div>
           </div>
-          <Link href="/upgrade">
-            <Button>Upgrade to Pro</Button>
-          </Link>
+          <Button asChild><Link href="/upgrade">Upgrade to Pro</Link></Button>
         </div>
       </div>
 
@@ -97,9 +95,7 @@ export default function Profile() {
           {completed.length === 0 ? (
             <div className="text-sm text-muted-foreground space-y-2">
               <p>No projects completed yet.</p>
-              <Link href="/domains/data-engineering">
-                <Button size="sm" variant="outline" className="mt-2">Start a Project</Button>
-              </Link>
+              <Button asChild size="sm" variant="outline" className="mt-2"><Link href="/domains/data-engineering">Start a Project</Link></Button>
             </div>
           ) : (
             <div className="space-y-2">

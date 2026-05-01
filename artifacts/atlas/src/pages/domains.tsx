@@ -91,9 +91,7 @@ export default function Domains() {
                 </CardContent>
                 <CardFooter>
                   {isActive ? (
-                    <Link href={`/domains/${domain.slug}`} className="w-full">
-                      <Button className="w-full">Explore Path</Button>
-                    </Link>
+                    <Button asChild className="w-full"><Link href={`/domains/${domain.slug}`} className="w-full">Explore Path</Link></Button>
                   ) : (
                     <Button
                       variant="outline"

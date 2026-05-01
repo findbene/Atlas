@@ -85,16 +85,12 @@ export function Navbar() {
           <nav className="flex items-center gap-2">
             {!isSignedIn ? (
               <>
-                <Link href="/sign-in">
-                  <Button variant="ghost" size="sm">
+                <Button asChild variant="ghost" size="sm"><Link href="/sign-in">
                     Sign in
-                  </Button>
-                </Link>
-                <Link href="/sign-up">
-                  <Button size="sm">
+                  </Link></Button>
+                <Button asChild size="sm"><Link href="/sign-up">
                     Get Started
-                  </Button>
-                </Link>
+                  </Link></Button>
               </>
             ) : (
               <div className="flex items-center gap-4">

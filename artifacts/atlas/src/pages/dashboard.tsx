@@ -109,9 +109,7 @@ export default function Dashboard() {
               <Code2 className="h-4 w-4 text-blue-400" />
               In Progress
             </h2>
-            <Link href="/domains/data-engineering">
-              <Button variant="ghost" size="sm" className="text-muted-foreground">View all</Button>
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link href="/domains/data-engineering">View all</Link></Button>
           </div>
           {projectsLoading ? (
             <div className="space-y-3">
@@ -120,9 +118,7 @@ export default function Dashboard() {
           ) : inProgress.length === 0 ? (
             <div className="text-center py-6">
               <p className="text-muted-foreground text-sm mb-3">No projects in progress yet.</p>
-              <Link href="/domains/data-engineering">
-                <Button size="sm">Start a Project</Button>
-              </Link>
+              <Button asChild size="sm"><Link href="/domains/data-engineering">Start a Project</Link></Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -148,9 +144,7 @@ export default function Dashboard() {
               <Trophy className="h-4 w-4 text-amber-400" />
               Leaderboard
             </h2>
-            <Link href="/leaderboard">
-              <Button variant="ghost" size="sm" className="text-muted-foreground">Full board</Button>
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link href="/leaderboard">Full board</Link></Button>
           </div>
           {leaderboard && leaderboard.length > 0 ? (
             <div className="space-y-2">
@@ -179,12 +173,10 @@ export default function Dashboard() {
           <h3 className="font-semibold mb-1">Ready to build something?</h3>
           <p className="text-sm text-muted-foreground">Start with the Data Engineering track — 40 real-world projects await.</p>
         </div>
-        <Link href="/domains/data-engineering">
-          <Button>
+        <Button asChild><Link href="/domains/data-engineering">
             Browse Projects
             <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        </Link>
+          </Link></Button>
       </div>
     </div>
   );

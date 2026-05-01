@@ -312,7 +312,7 @@ export default function ProjectWorkspace() {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
         <p className="text-muted-foreground">Project not found.</p>
-        <Link href="/domains/data-engineering"><Button variant="outline">Browse Projects</Button></Link>
+        <Button asChild variant="outline"><Link href="/domains/data-engineering">Browse Projects</Link></Button>
       </div>
     );
   }
@@ -323,12 +323,10 @@ export default function ProjectWorkspace() {
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
       {/* Header */}
       <div className="border-b border-border px-4 py-2.5 flex items-center gap-3 shrink-0 bg-card/80">
-        <Link href={`/domains/${project.domainSlug}`}>
-          <Button variant="ghost" size="sm" className="text-muted-foreground -ml-2">
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground -ml-2"><Link href={`/domains/${project.domainSlug}`}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             {project.domainName}
-          </Button>
-        </Link>
+          </Link></Button>
         <span className="text-muted-foreground">/</span>
         <span className="font-semibold text-sm truncate">{project.title}</span>
         {enrollPending && (

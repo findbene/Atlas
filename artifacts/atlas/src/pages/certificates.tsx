@@ -62,9 +62,7 @@ export default function Certificates() {
             </div>
             <span>{completed.length} / 10 projects completed</span>
           </div>
-          <Link href="/domains/data-engineering">
-            <Button>Continue Learning</Button>
-          </Link>
+          <Button asChild><Link href="/domains/data-engineering">Continue Learning</Link></Button>
         </div>
       )}
 

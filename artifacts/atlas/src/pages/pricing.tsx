@@ -105,11 +105,9 @@ export default function Pricing() {
                   ))}
                 </ul>
 
-                <Link to={isSignedIn ? "/dashboard" : "/sign-up"}>
-                  <Button variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full"><Link to={isSignedIn ? "/dashboard" : "/sign-up"}>
                     {isSignedIn ? "Go to Dashboard" : "Get Started Free"}
-                  </Button>
-                </Link>
+                  </Link></Button>
               </div>
             )}
 

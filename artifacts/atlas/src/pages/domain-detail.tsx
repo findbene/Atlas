@@ -42,11 +42,9 @@ export default function DomainDetail() {
     return (
       <div className="container max-w-6xl mx-auto py-12 px-6 text-center">
         <p className="text-muted-foreground">Domain not found.</p>
-        <Link href="/domains">
-          <Button className="mt-4" variant="outline">
+        <Button asChild className="mt-4" variant="outline"><Link href="/domains">
             Back to Domains
-          </Button>
-        </Link>
+          </Link></Button>
       </div>
     );
   }
@@ -63,16 +61,14 @@ export default function DomainDetail() {
     <div className="min-h-screen">
       <div className="bg-gradient-to-b from-muted/30 to-transparent border-b border-border">
         <div className="container max-w-6xl mx-auto px-6 py-12">
-          <Link href="/domains">
-            <Button
+          <Button asChild
               variant="ghost"
               size="sm"
               className="mb-6 text-muted-foreground hover:text-foreground -ml-2"
-            >
+            ><Link href="/domains">
               <ArrowLeft className="h-4 w-4 mr-2" />
               All Domains
-            </Button>
-          </Link>
+            </Link></Button>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-3">
