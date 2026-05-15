@@ -20,7 +20,24 @@ import {
   GitBranch,
   BarChart3,
   Star,
+  Brain,
+  Cpu,
+  Wrench,
+  LineChart,
+  Cloud,
+  type LucideIcon,
 } from "lucide-react";
+
+const DOMAIN_ICONS: Record<string, LucideIcon> = {
+  Database,
+  Brain,
+  BarChart: LineChart,
+  BarChart3: LineChart,
+  Cpu,
+  Cloud,
+  Code2,
+  Terminal,
+};
 import { useUser } from "@clerk/react";
 import { useListDomains } from "@workspace/api-client-react";
 
@@ -204,6 +221,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {(domains ?? []).slice(0, 6).map((d: any) => {
               const isComingSoon = d.status === "coming_soon" || (d.projectCount ?? 0) === 0;
+              const Icon = DOMAIN_ICONS[d.icon as string] ?? Wrench;
               return (
                 <Link key={d.id} href={`/domains/${d.slug}`}>
                   <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 cursor-pointer transition-all hover:border-primary/40 hover:-translate-y-0.5 h-full">
@@ -211,13 +229,13 @@ export default function Home() {
                     <div className="relative flex items-start justify-between">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div
-                          className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0"
+                          className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
                           style={{
                             background: `linear-gradient(135deg, ${d.color ?? "#3B82F6"}33, ${d.color ?? "#3B82F6"}10)`,
                             color: d.color ?? "#3B82F6",
                           }}
                         >
-                          {(d.name ?? "?")[0]}
+                          <Icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-semibold text-base truncate">{d.name}</h3>

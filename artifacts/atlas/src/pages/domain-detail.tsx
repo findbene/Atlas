@@ -11,8 +11,28 @@ import {
   Users,
   LayoutGrid,
   GitBranch,
+  Database,
+  Brain,
+  LineChart,
+  Cpu,
+  Cloud,
+  Code2,
+  Terminal,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import { RoadmapView } from "@/components/RoadmapView";
+
+const DOMAIN_ICONS: Record<string, LucideIcon> = {
+  Database,
+  Brain,
+  BarChart: LineChart,
+  BarChart3: LineChart,
+  Cpu,
+  Cloud,
+  Code2,
+  Terminal,
+};
 
 type ViewMode = "roadmap" | "list";
 
@@ -72,21 +92,21 @@ export default function DomainDetail() {
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <div
-                  className="h-12 w-12 rounded-xl flex items-center justify-center text-2xl"
-                  style={{
-                    background: `${domain.color}20`,
-                    border: `1px solid ${domain.color}40`,
-                  }}
-                >
-                  {domain.icon === "Database"
-                    ? "🗄️"
-                    : domain.icon === "Brain"
-                      ? "🧠"
-                      : domain.icon === "BarChart"
-                        ? "📊"
-                        : "🔧"}
-                </div>
+                {(() => {
+                  const Icon = DOMAIN_ICONS[domain.icon as string] ?? Wrench;
+                  return (
+                    <div
+                      className="h-12 w-12 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: `${domain.color}20`,
+                        border: `1px solid ${domain.color}40`,
+                        color: domain.color,
+                      }}
+                    >
+                      <Icon className="h-6 w-6" />
+                    </div>
+                  );
+                })()}
                 <h1 className="text-3xl font-bold">{domain.name}</h1>
               </div>
               <p className="text-muted-foreground max-w-2xl">
