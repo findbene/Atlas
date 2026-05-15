@@ -24,6 +24,7 @@ import {
   Zap,
   Target,
   Rocket,
+  Briefcase,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/EditProfileDialog";
 
@@ -153,6 +154,21 @@ export default function Profile() {
 
   const completed =
     (projects as any[])?.filter((p: any) => p.status === "completed") ?? [];
+
+  // Aggregate career roles unlocked from completed projects
+  const roleCounts = new Map<string, { count: number; projectSlugs: string[] }>();
+  for (const up of completed) {
+    const uniqueRoles = new Set<string>(up.project?.jobOutcomes?.roles ?? []);
+    for (const role of uniqueRoles) {
+      const entry = roleCounts.get(role) ?? { count: 0, projectSlugs: [] };
+      entry.count += 1;
+      if (up.project?.slug) entry.projectSlugs.push(up.project.slug);
+      roleCounts.set(role, entry);
+    }
+  }
+  const rolesUnlocked = Array.from(roleCounts.entries())
+    .map(([role, info]) => ({ role, ...info }))
+    .sort((a, b) => b.count - a.count);
   const inProgress =
     (projects as any[])?.filter((p: any) => p.status === "in_progress") ?? [];
   // API already orders by lastUpdatedAt server-side; show top 5
@@ -380,6 +396,43 @@ export default function Profile() {
               </div>
             )}
           </div>
+
+          {rolesUnlocked.length > 0 && (
+            <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/[0.06] to-card p-5">
+              <h3 className="font-semibold mb-1 flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-amber-400" />
+                Career Roles Unlocked
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({rolesUnlocked.length})
+                </span>
+              </h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Roles you've built portfolio evidence for
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {rolesUnlocked.slice(0, 12).map((r) => (
+                  <div
+                    key={r.role}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs"
+                    title={`${r.count} project${r.count > 1 ? "s" : ""} completed for this role`}
+                  >
+                    <span className="font-medium text-amber-200">{r.role}</span>
+                    <span className="rounded-full bg-amber-500/20 text-amber-300 font-mono px-1.5 text-[10px]">
+                      ×{r.count}
+                    </span>
+                  </div>
+                ))}
+                {rolesUnlocked.length > 12 && (
+                  <div
+                    className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground"
+                    title={rolesUnlocked.slice(12).map((r) => r.role).join(", ")}
+                  >
+                    +{rolesUnlocked.length - 12} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
