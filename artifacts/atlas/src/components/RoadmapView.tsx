@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Lock, Clock, CheckCircle2, Sparkles } from "lucide-react";
+import { Lock, Clock, CheckCircle2, Sparkles, Award, Briefcase } from "lucide-react";
+import { JobOutcomesPanel, type JobOutcomes } from "@/components/JobOutcomesPanel";
 
 type Project = {
   id: string;
@@ -14,6 +15,7 @@ type Project = {
   stepCount: number;
   tags: string[];
   position: number;
+  jobOutcomes?: JobOutcomes;
 };
 
 type RoadmapViewProps = {
@@ -210,41 +212,74 @@ function ProjectNode({
   meta: (typeof PHASE_META)[string];
 }) {
   const isPro = project.tier === "pro";
+  const roles = project.jobOutcomes?.roles ?? [];
+  const topRole = roles[0];
 
   return (
-    <Link to={`/projects/${project.slug}`}>
-      <div className="group relative bg-card hover:bg-card/80 border border-border hover:border-primary/40 rounded-xl p-3 md:p-4 transition-all cursor-pointer h-full flex flex-col">
-        {/* Number badge */}
-        <div className="flex items-center justify-between mb-2">
-          <div
-            className={`relative h-8 w-8 md:h-10 md:w-10 rounded-full ${meta.nodeBg} flex items-center justify-center text-white text-xs md:text-sm font-bold shadow-lg ring-2 ring-offset-2 ring-offset-background ${meta.ring} z-10`}
-          >
-            {project.position}
+    <div className="group relative bg-card hover:bg-card/80 border border-border hover:border-primary/40 rounded-xl p-3 md:p-4 transition-all h-full flex flex-col">
+      <Link to={`/projects/${project.slug}`}>
+        <div className="cursor-pointer">
+          {/* Number badge */}
+          <div className="flex items-center justify-between mb-2">
+            <div
+              className={`relative h-8 w-8 md:h-10 md:w-10 rounded-full ${meta.nodeBg} flex items-center justify-center text-white text-xs md:text-sm font-bold shadow-lg ring-2 ring-offset-2 ring-offset-background ${meta.ring} z-10`}
+            >
+              {project.position}
+            </div>
+            {isPro ? (
+              <div className="text-amber-400/80" title="Pro">
+                <Lock className="w-3 h-3" />
+              </div>
+            ) : (
+              <div className="text-emerald-400/60" title="Free">
+                <CheckCircle2 className="w-3 h-3" />
+              </div>
+            )}
           </div>
-          {isPro ? (
-            <div className="text-amber-400/80" title="Pro">
-              <Lock className="w-3 h-3" />
-            </div>
-          ) : (
-            <div className="text-emerald-400/60" title="Free">
-              <CheckCircle2 className="w-3 h-3" />
-            </div>
+
+          <h4 className="text-xs md:text-sm font-semibold text-foreground line-clamp-2 leading-tight mb-1.5 group-hover:text-primary transition-colors min-h-[2.5em]">
+            {project.title}
+          </h4>
+
+          {topRole && (
+            <p
+              className="flex items-center gap-1 text-[10px] md:text-[11px] text-blue-300/80 line-clamp-1 mb-2"
+              title={`Career roles: ${roles.join(", ")}`}
+            >
+              <Briefcase className="w-2.5 h-2.5 shrink-0" />
+              <span className="truncate">{topRole}</span>
+            </p>
           )}
         </div>
+      </Link>
 
-        <h4 className="text-xs md:text-sm font-semibold text-foreground line-clamp-2 leading-tight mb-2 group-hover:text-primary transition-colors min-h-[2.5em]">
-          {project.title}
-        </h4>
-
-        <div className="flex items-center justify-between text-[10px] md:text-xs text-muted-foreground mt-auto">
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {project.estimatedHours}h
-          </span>
+      <div className="flex items-center justify-between text-[10px] md:text-xs text-muted-foreground mt-auto">
+        <span className="flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          {project.estimatedHours}h
+        </span>
+        <div className="flex items-center gap-2">
+          {project.jobOutcomes && (
+            <JobOutcomesPanel
+              title={project.title}
+              jobOutcomes={project.jobOutcomes}
+              trigger={
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-0.5 text-amber-300/90 hover:text-amber-200 transition-colors"
+                  title="Career impact"
+                  data-testid={`roadmap-career-${project.slug}`}
+                >
+                  <Award className="w-3 h-3" />
+                </button>
+              }
+            />
+          )}
           <span className="text-amber-400 font-mono">+{project.xpReward}</span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
