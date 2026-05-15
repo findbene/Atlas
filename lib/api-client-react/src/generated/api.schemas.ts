@@ -69,6 +69,24 @@ export const ProjectSummaryTier = {
   pro: "pro",
 } as const;
 
+/**
+ * Career-readiness signals demonstrated by completing this project.
+ */
+export interface JobOutcomes {
+  /** Real-world job titles this project maps to. */
+  roles: string[];
+  /** Concrete skills suitable for a Skills section on a resume. */
+  skillsForResume: string[];
+  /** Action-oriented resume bullet points based on the project work. */
+  resumeBullets: string[];
+  /** Common interview questions this project prepares the learner to answer. */
+  interviewQuestions: string[];
+  /** Short paragraph explaining how this project becomes a portfolio piece. */
+  portfolioReadiness?: string;
+  /** Why this skill matters in the 2026+ data engineering job market. */
+  marketSignal?: string;
+}
+
 export interface ProjectSummary {
   id: string;
   slug: string;
@@ -83,6 +101,7 @@ export interface ProjectSummary {
   completionRate: number;
   tags: string[];
   position: number;
+  jobOutcomes?: JobOutcomes;
 }
 
 export type DomainDetail = Domain & {
@@ -123,24 +142,6 @@ export interface ProjectStep {
   hints?: string[];
   xpReward: number;
   isLocked: boolean;
-}
-
-/**
- * Career-readiness signals demonstrated by completing this project.
- */
-export interface JobOutcomes {
-  /** Real-world job titles this project maps to. */
-  roles: string[];
-  /** Concrete skills suitable for a Skills section on a resume. */
-  skillsForResume: string[];
-  /** Action-oriented resume bullet points based on the project work. */
-  resumeBullets: string[];
-  /** Common interview questions this project prepares the learner to answer. */
-  interviewQuestions: string[];
-  /** Short paragraph explaining how this project becomes a portfolio piece. */
-  portfolioReadiness?: string;
-  /** Why this skill matters in the 2026+ data engineering job market. */
-  marketSignal?: string;
 }
 
 export type ProjectDetail = ProjectSummary & {

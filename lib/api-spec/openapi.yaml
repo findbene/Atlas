@@ -745,6 +745,8 @@ components:
             type: string
         position:
           type: integer
+        jobOutcomes:
+          $ref: "#/components/schemas/JobOutcomes"
       required:
         - id
         - slug

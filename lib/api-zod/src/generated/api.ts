@@ -73,6 +73,43 @@ export const GetDomainResponse = zod
             completionRate: zod.number(),
             tags: zod.array(zod.string()),
             position: zod.number(),
+            jobOutcomes: zod
+              .object({
+                roles: zod
+                  .array(zod.string())
+                  .describe("Real-world job titles this project maps to."),
+                skillsForResume: zod
+                  .array(zod.string())
+                  .describe(
+                    "Concrete skills suitable for a Skills section on a resume.",
+                  ),
+                resumeBullets: zod
+                  .array(zod.string())
+                  .describe(
+                    "Action-oriented resume bullet points based on the project work.",
+                  ),
+                interviewQuestions: zod
+                  .array(zod.string())
+                  .describe(
+                    "Common interview questions this project prepares the learner to answer.",
+                  ),
+                portfolioReadiness: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Short paragraph explaining how this project becomes a portfolio piece.",
+                  ),
+                marketSignal: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Why this skill matters in the 2026+ data engineering job market.",
+                  ),
+              })
+              .optional()
+              .describe(
+                "Career-readiness signals demonstrated by completing this project.",
+              ),
           }),
         )
         .optional(),
@@ -111,6 +148,43 @@ export const ListProjectsResponse = zod.object({
       completionRate: zod.number(),
       tags: zod.array(zod.string()),
       position: zod.number(),
+      jobOutcomes: zod
+        .object({
+          roles: zod
+            .array(zod.string())
+            .describe("Real-world job titles this project maps to."),
+          skillsForResume: zod
+            .array(zod.string())
+            .describe(
+              "Concrete skills suitable for a Skills section on a resume.",
+            ),
+          resumeBullets: zod
+            .array(zod.string())
+            .describe(
+              "Action-oriented resume bullet points based on the project work.",
+            ),
+          interviewQuestions: zod
+            .array(zod.string())
+            .describe(
+              "Common interview questions this project prepares the learner to answer.",
+            ),
+          portfolioReadiness: zod
+            .string()
+            .optional()
+            .describe(
+              "Short paragraph explaining how this project becomes a portfolio piece.",
+            ),
+          marketSignal: zod
+            .string()
+            .optional()
+            .describe(
+              "Why this skill matters in the 2026+ data engineering job market.",
+            ),
+        })
+        .optional()
+        .describe(
+          "Career-readiness signals demonstrated by completing this project.",
+        ),
     }),
   ),
   total: zod.number(),
@@ -141,6 +215,43 @@ export const GetProjectResponse = zod
     completionRate: zod.number(),
     tags: zod.array(zod.string()),
     position: zod.number(),
+    jobOutcomes: zod
+      .object({
+        roles: zod
+          .array(zod.string())
+          .describe("Real-world job titles this project maps to."),
+        skillsForResume: zod
+          .array(zod.string())
+          .describe(
+            "Concrete skills suitable for a Skills section on a resume.",
+          ),
+        resumeBullets: zod
+          .array(zod.string())
+          .describe(
+            "Action-oriented resume bullet points based on the project work.",
+          ),
+        interviewQuestions: zod
+          .array(zod.string())
+          .describe(
+            "Common interview questions this project prepares the learner to answer.",
+          ),
+        portfolioReadiness: zod
+          .string()
+          .optional()
+          .describe(
+            "Short paragraph explaining how this project becomes a portfolio piece.",
+          ),
+        marketSignal: zod
+          .string()
+          .optional()
+          .describe(
+            "Why this skill matters in the 2026+ data engineering job market.",
+          ),
+      })
+      .optional()
+      .describe(
+        "Career-readiness signals demonstrated by completing this project.",
+      ),
   })
   .and(
     zod.object({
@@ -251,6 +362,43 @@ export const ListUserProjectsResponseItem = zod
           completionRate: zod.number(),
           tags: zod.array(zod.string()),
           position: zod.number(),
+          jobOutcomes: zod
+            .object({
+              roles: zod
+                .array(zod.string())
+                .describe("Real-world job titles this project maps to."),
+              skillsForResume: zod
+                .array(zod.string())
+                .describe(
+                  "Concrete skills suitable for a Skills section on a resume.",
+                ),
+              resumeBullets: zod
+                .array(zod.string())
+                .describe(
+                  "Action-oriented resume bullet points based on the project work.",
+                ),
+              interviewQuestions: zod
+                .array(zod.string())
+                .describe(
+                  "Common interview questions this project prepares the learner to answer.",
+                ),
+              portfolioReadiness: zod
+                .string()
+                .optional()
+                .describe(
+                  "Short paragraph explaining how this project becomes a portfolio piece.",
+                ),
+              marketSignal: zod
+                .string()
+                .optional()
+                .describe(
+                  "Why this skill matters in the 2026+ data engineering job market.",
+                ),
+            })
+            .optional()
+            .describe(
+              "Career-readiness signals demonstrated by completing this project.",
+            ),
         })
         .optional(),
     }),
@@ -315,6 +463,43 @@ export const GetUserProjectProgressResponse = zod
           completionRate: zod.number(),
           tags: zod.array(zod.string()),
           position: zod.number(),
+          jobOutcomes: zod
+            .object({
+              roles: zod
+                .array(zod.string())
+                .describe("Real-world job titles this project maps to."),
+              skillsForResume: zod
+                .array(zod.string())
+                .describe(
+                  "Concrete skills suitable for a Skills section on a resume.",
+                ),
+              resumeBullets: zod
+                .array(zod.string())
+                .describe(
+                  "Action-oriented resume bullet points based on the project work.",
+                ),
+              interviewQuestions: zod
+                .array(zod.string())
+                .describe(
+                  "Common interview questions this project prepares the learner to answer.",
+                ),
+              portfolioReadiness: zod
+                .string()
+                .optional()
+                .describe(
+                  "Short paragraph explaining how this project becomes a portfolio piece.",
+                ),
+              marketSignal: zod
+                .string()
+                .optional()
+                .describe(
+                  "Why this skill matters in the 2026+ data engineering job market.",
+                ),
+            })
+            .optional()
+            .describe(
+              "Career-readiness signals demonstrated by completing this project.",
+            ),
         })
         .and(
           zod.object({

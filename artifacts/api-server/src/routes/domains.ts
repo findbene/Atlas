@@ -60,6 +60,7 @@ router.get("/domains/:slug", async (req, res) => {
       completionRate: p.completionRate,
       tags: p.tags ?? [],
       position: p.orderIndex,
+      jobOutcomes: p.jobOutcomes ?? undefined,
     }));
     res.json({
       id: domain.id,

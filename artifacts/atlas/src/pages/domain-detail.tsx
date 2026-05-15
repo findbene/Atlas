@@ -19,9 +19,12 @@ import {
   Code2,
   Terminal,
   Wrench,
+  Award,
+  Briefcase,
   type LucideIcon,
 } from "lucide-react";
 import { RoadmapView } from "@/components/RoadmapView";
+import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 
 const DOMAIN_ICONS: Record<string, LucideIcon> = {
   Database,
@@ -182,29 +185,61 @@ export default function DomainDetail() {
           <RoadmapView projects={projects as any} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project: any) => (
-              <Link key={project.id} href={`/projects/${project.slug}`}>
-                <div className="group bg-card border border-border hover:border-primary/40 rounded-xl p-5 transition-all duration-200 cursor-pointer h-full flex flex-col">
-                  <div className="flex items-start justify-between mb-3">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${difficultyColor[project.difficulty] ?? ""}`}
-                    >
-                      {project.difficulty}
-                    </Badge>
-                    {project.tier === "pro" && (
-                      <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">
-                        <Lock className="h-3 w-3 mr-1" />
-                        Pro
-                      </Badge>
-                    )}
-                  </div>
-                  <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                    #{project.position} {project.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
-                    {project.description}
-                  </p>
+            {projects.map((project: any) => {
+              const roles: string[] = project.jobOutcomes?.roles ?? [];
+              return (
+                <div
+                  key={project.id}
+                  className="group bg-card border border-border hover:border-primary/40 rounded-xl p-5 transition-all duration-200 h-full flex flex-col"
+                >
+                  <Link href={`/projects/${project.slug}`}>
+                    <div className="cursor-pointer">
+                      <div className="flex items-start justify-between mb-3">
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${difficultyColor[project.difficulty] ?? ""}`}
+                        >
+                          {project.difficulty}
+                        </Badge>
+                        {project.tier === "pro" && (
+                          <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">
+                            <Lock className="h-3 w-3 mr-1" />
+                            Pro
+                          </Badge>
+                        )}
+                      </div>
+                      <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                        #{project.position} {project.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {project.description}
+                      </p>
+                    </div>
+                  </Link>
+
+                  {roles.length > 0 && (
+                    <div className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <Briefcase className="h-3.5 w-3.5 mt-0.5 text-blue-400 shrink-0" />
+                      <div className="flex flex-wrap gap-1">
+                        {roles.slice(0, 2).map((r) => (
+                          <span
+                            key={r}
+                            className="text-[11px] bg-blue-500/10 text-blue-300 border border-blue-500/20 px-1.5 py-0.5 rounded"
+                          >
+                            {r}
+                          </span>
+                        ))}
+                        {roles.length > 2 && (
+                          <span className="text-[11px] text-muted-foreground">
+                            +{roles.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex-1" />
+
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground">
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1">
@@ -217,19 +252,39 @@ export default function DomainDetail() {
                       +{project.xpReward} XP
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {(project.tags ?? []).slice(0, 3).map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+
+                  <div className="flex items-center justify-between gap-2 mt-3">
+                    <div className="flex flex-wrap gap-1.5 min-w-0">
+                      {(project.tags ?? []).slice(0, 3).map((tag: string) => (
+                        <span
+                          key={tag}
+                          className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    {project.jobOutcomes && (
+                      <JobOutcomesPanel
+                        title={project.title}
+                        jobOutcomes={project.jobOutcomes}
+                        trigger={
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-amber-300 hover:text-amber-200 transition-colors"
+                            data-testid={`career-impact-${project.slug}`}
+                          >
+                            <Award className="h-3.5 w-3.5" />
+                            Career impact
+                          </button>
+                        }
+                      />
+                    )}
                   </div>
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

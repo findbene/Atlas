@@ -47,6 +47,7 @@ router.get("/projects", async (req, res) => {
       completionRate: p.completionRate,
       tags: p.tags ?? [],
       position: p.orderIndex,
+      jobOutcomes: p.jobOutcomes ?? undefined,
     }));
 
     res.json({ data: result, total, page: pageNum, limit: limitNum, hasMore: offset + limitNum < total + limitNum });
