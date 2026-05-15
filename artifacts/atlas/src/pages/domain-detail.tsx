@@ -121,10 +121,15 @@ export default function DomainDetail() {
                 <Star className="h-4 w-4" />
                 <span>{domain.projectCount} projects</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                <span>{domain.enrolledCount} learners</span>
-              </div>
+              {domain.enrolledCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  <span>
+                    {domain.enrolledCount.toLocaleString()} learner
+                    {domain.enrolledCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

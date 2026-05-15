@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, userProgress, userXp, userStreaks, xpTransactions, projects, projectSteps, userStepCompletions } from "@workspace/db";
-import { eq, and, desc, asc, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, ne } from "drizzle-orm";
 import { requireAuth, getCurrentUser, getOrCreateUser } from "../lib/auth";
 import { getAuth } from "@clerk/express";
+import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 
 const router = Router();
 
@@ -368,15 +369,52 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       const totalSteps = project?.totalSteps ?? 1;
       const isLastStep = step.stepNumber >= totalSteps;
       const completionPercent = Math.round((step.stepNumber / totalSteps) * 100);
-
+      // Use a conditional UPDATE so two concurrent last-step submissions cannot
+      // both observe "not completed" and both trigger the completion email.
+      // Only the row that actually transitions status from non-completed → completed
+      // returns a row, and only that request fires the side effects.
+      let didTransitionToCompleted = false;
       if (progress) {
-        await db.update(userProgress).set({
-          currentStep: isLastStep ? step.stepNumber : nextStep,
-          status: isLastStep ? "completed" : "in_progress",
-          completionPercent,
-          completedAt: isLastStep ? new Date() : null,
-          lastUpdatedAt: new Date(),
-        }).where(eq(userProgress.id, progress.id));
+        if (isLastStep) {
+          const updatedRows = await db.update(userProgress).set({
+            currentStep: step.stepNumber,
+            status: "completed",
+            completionPercent,
+            completedAt: progress.completedAt ?? new Date(),
+            lastUpdatedAt: new Date(),
+          }).where(and(
+            eq(userProgress.id, progress.id),
+            ne(userProgress.status, "completed"),
+          )).returning({ id: userProgress.id });
+          didTransitionToCompleted = updatedRows.length > 0;
+          if (!didTransitionToCompleted) {
+            // Already completed previously — keep lastUpdatedAt fresh but don't re-trigger side effects.
+            await db.update(userProgress)
+              .set({ lastUpdatedAt: new Date() })
+              .where(eq(userProgress.id, progress.id));
+          }
+        } else {
+          await db.update(userProgress).set({
+            currentStep: nextStep,
+            status: "in_progress",
+            completionPercent,
+            completedAt: null,
+            lastUpdatedAt: new Date(),
+          }).where(eq(userProgress.id, progress.id));
+        }
+      }
+
+      // Fire-and-forget completion email — only on the actual transition to completed.
+      if (didTransitionToCompleted && project && user.email) {
+        const { subject, html, text } = renderProjectCompletionEmail({
+          userName: user.name,
+          projectTitle: project.title,
+          projectSlug: project.slug,
+          jobOutcomes: project.jobOutcomes as any,
+        });
+        void sendEmail({ to: user.email, subject, html, text }).catch((err) => {
+          req.log.warn({ err, projectId, userId: user.id }, "Completion email failed");
+        });
       }
 
       // Award XP

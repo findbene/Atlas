@@ -100,6 +100,87 @@ function escapeHtml(input: string): string {
     .replace(/'/g, "&#39;");
 }
 
+export function renderProjectCompletionEmail(opts: {
+  userName?: string | null;
+  projectTitle: string;
+  projectSlug?: string | null;
+  jobOutcomes?: {
+    roles?: string[];
+    skillsForResume?: string[];
+    resumeBullets?: string[];
+  } | null;
+  appUrl?: string;
+}): { subject: string; html: string; text: string } {
+  const appUrl = opts.appUrl ?? "https://atlasprojects.dev";
+  const safeName = opts.userName ? opts.userName.replace(/[\r\n]/g, " ").slice(0, 80) : "";
+  const greetingText = safeName ? `Nice work, ${safeName}!` : `Nice work!`;
+  const greetingHtml = safeName ? `Nice work, ${escapeHtml(safeName)}!` : `Nice work!`;
+  const safeTitle = opts.projectTitle.replace(/[\r\n]/g, " ").slice(0, 200);
+  const subject = `🎉 Career impact: you completed ${safeTitle}`;
+  const roles = opts.jobOutcomes?.roles ?? [];
+  const skills = opts.jobOutcomes?.skillsForResume ?? [];
+  const bullets = opts.jobOutcomes?.resumeBullets ?? [];
+
+  const dedupedRoles = Array.from(new Set(roles));
+  const dedupedSkills = Array.from(new Set(skills));
+
+  const profileUrl = `${appUrl}/profile`;
+  const certsUrl = `${appUrl}/certificates`;
+  const projectUrl = opts.projectSlug
+    ? `${appUrl}/projects/${encodeURIComponent(opts.projectSlug)}`
+    : appUrl;
+
+  const rolesHtml = dedupedRoles.length
+    ? `<p style="font-size:14px;margin:0 0 8px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Roles you're now portfolio-ready for</p>
+       <p style="margin:0 0 20px">${dedupedRoles.map(r => `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:9999px;padding:4px 12px;margin:0 6px 6px 0;font-size:13px;font-weight:600">${escapeHtml(r)}</span>`).join("")}</p>`
+    : "";
+
+  const skillsHtml = dedupedSkills.length
+    ? `<p style="font-size:14px;margin:0 0 8px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Skills for your resume</p>
+       <p style="margin:0 0 20px">${dedupedSkills.slice(0, 12).map(s => `<span style="display:inline-block;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;padding:3px 10px;margin:0 6px 6px 0;font-size:13px">${escapeHtml(s)}</span>`).join("")}</p>`
+    : "";
+
+  const bulletsHtml = bullets.length
+    ? `<p style="font-size:14px;margin:0 0 10px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Resume bullets you can write today</p>
+       <ul style="margin:0 0 20px;padding-left:0;list-style:none">${bullets.slice(0, 5).map(b => `<li style="border-left:3px solid #10b981;padding:6px 0 6px 12px;margin:0 0 8px;font-size:14px;color:#1f2937">${escapeHtml(b)}</li>`).join("")}</ul>`
+    : "";
+
+  const text = [
+    greetingText,
+    ``,
+    `You completed "${safeTitle}" on Atlas. That's a real, shippable project on your portfolio.`,
+    ``,
+    dedupedRoles.length ? `Roles you're now portfolio-ready for: ${dedupedRoles.join(", ")}` : "",
+    dedupedSkills.length ? `Skills for your resume: ${dedupedSkills.slice(0, 12).join(", ")}` : "",
+    bullets.length ? `\nResume bullets:\n${bullets.slice(0, 5).map(b => `• ${b}`).join("\n")}` : "",
+    ``,
+    `View your career-impact summary: ${profileUrl}`,
+    `Get your certificate: ${certsUrl}`,
+    ``,
+    `— The Atlas team`,
+  ].filter(Boolean).join("\n");
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.55;color:#1f2937;max-width:600px;margin:0 auto;padding:24px;background:#fafafa">
+  <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:32px">
+    <p style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#92400e;font-weight:700;margin:0 0 8px">🎉 Project complete</p>
+    <h1 style="font-size:24px;margin:0 0 8px;line-height:1.2">${greetingHtml}</h1>
+    <p style="font-size:16px;margin:0 0 24px;color:#374151">You finished <strong>${escapeHtml(safeTitle)}</strong> — that's a real, shippable project on your portfolio.</p>
+    ${rolesHtml}
+    ${skillsHtml}
+    ${bulletsHtml}
+    <div style="margin:28px 0 8px">
+      <a href="${profileUrl}" style="background:#2563eb;color:white;padding:11px 20px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;margin-right:8px">View career impact</a>
+      <a href="${certsUrl}" style="background:white;color:#2563eb;border:1px solid #2563eb;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">Get your certificate</a>
+    </div>
+    <p style="font-size:13px;color:#6b7280;margin:24px 0 0">Keep building — <a href="${projectUrl}" style="color:#2563eb">pick your next project</a>.</p>
+  </div>
+  <p style="font-size:12px;color:#9ca3af;text-align:center;margin:16px 0 0">— The Atlas team</p>
+</body></html>`;
+
+  return { subject, html, text };
+}
+
 export function renderWaitlistConfirmationEmail(opts: {
   email: string;
   domainInterest?: string | null;
