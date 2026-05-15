@@ -3,8 +3,9 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useListUserProjects, useGetUserStats, useGetLeaderboard } from "@workspace/api-client-react";
-import { Flame, Trophy, BookOpen, Code2, Star, Clock, ChevronRight, TrendingUp } from "lucide-react";
+import { Flame, Trophy, BookOpen, Code2, Star, Clock, ChevronRight, TrendingUp, Award, Briefcase } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 
 function XpBar({ current, next, level }: { current: number; next: number; level: number }) {
   const pct = Math.min((current / next) * 100, 100);
@@ -122,17 +123,51 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {inProgress.slice(0, 3).map((up: any) => (
-                <Link key={up.id} href={`/projects/${up.project.slug}`}>
-                  <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer border border-transparent hover:border-border">
-                    <div>
-                      <p className="font-medium text-sm line-clamp-1">{up.project.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Step {up.currentStepPosition} of {up.project.stepCount}</p>
+              {inProgress.slice(0, 3).map((up: any) => {
+                const topRole = up.project.jobOutcomes?.roles?.[0];
+                return (
+                  <div
+                    key={up.id}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border"
+                  >
+                    <Link href={`/projects/${up.project.slug}`} className="flex-1 min-w-0">
+                      <div className="cursor-pointer">
+                        <p className="font-medium text-sm line-clamp-1">{up.project.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Step {up.currentStepPosition} of {up.project.stepCount}
+                          {topRole && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-blue-300/80">
+                              <Briefcase className="h-3 w-3" />
+                              {topRole}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {up.project.jobOutcomes && (
+                        <JobOutcomesPanel
+                          title={up.project.title}
+                          jobOutcomes={up.project.jobOutcomes}
+                          trigger={
+                            <button
+                              type="button"
+                              className="p-1.5 rounded-md text-amber-300/80 hover:text-amber-200 hover:bg-amber-500/10 transition-colors"
+                              title="Career impact"
+                              data-testid={`dashboard-career-${up.project.slug}`}
+                            >
+                              <Award className="h-3.5 w-3.5" />
+                            </button>
+                          }
+                        />
+                      )}
+                      <Link href={`/projects/${up.project.slug}`} aria-label={`Open ${up.project.title}`}>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Link>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

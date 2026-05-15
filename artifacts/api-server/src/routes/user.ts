@@ -140,6 +140,7 @@ router.get("/user/projects", requireAuth, async (req, res) => {
           completionRate: project.completionRate,
           tags: project.tags ?? [],
           position: project.orderIndex,
+          jobOutcomes: project.jobOutcomes ?? undefined,
         },
       };
     }));
