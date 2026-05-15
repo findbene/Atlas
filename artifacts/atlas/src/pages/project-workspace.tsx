@@ -185,6 +185,8 @@ export default function ProjectWorkspace() {
   const [showHint, setShowHint] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [pyStatus, setPyStatus] = useState<PyodideStatus>("idle");
+  const celebratedRef = useRef(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const steps = (project?.steps ?? []) as Array<any>;
   const currentStep = steps[currentStepIdx];
@@ -309,6 +311,10 @@ export default function ProjectWorkspace() {
           if (r.status === "passed" && r.isFirstPass) {
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
           }
+          if (r.status === "passed" && r.projectComplete && !celebratedRef.current) {
+            celebratedRef.current = true;
+            setShowCelebration(true);
+          }
           if (r.status === "passed" && !r.projectComplete && currentStepIdx < steps.length - 1) {
             setTimeout(() => goToStep(currentStepIdx + 1), 1500);
           }
@@ -381,7 +387,7 @@ export default function ProjectWorkspace() {
         <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">+{project.xpReward} XP</Badge>
         <JobOutcomesPanel
           title={project.title}
-          jobOutcomes={(project as any).jobOutcomes}
+          jobOutcomes={project.jobOutcomes}
           learningObjectives={project.learningObjectives ?? []}
           prerequisites={project.prerequisites ?? []}
           longDescription={project.longDescription}
@@ -465,8 +471,47 @@ export default function ProjectWorkspace() {
                           {gradingResult.status === "passed" ? `Passed!${gradingResult.xpEarned ? ` +${gradingResult.xpEarned} XP` : ""}` : "Try again"}
                         </div>
                         {gradingResult.feedback && <p className="text-sm">{gradingResult.feedback}</p>}
-                        {gradingResult.projectComplete && (
-                          <div className="mt-2 font-bold text-emerald-300">Project Complete! Excellent work!</div>
+                        {gradingResult.projectComplete && showCelebration && (
+                          <div className="mt-3 pt-3 border-t border-emerald-500/20">
+                            <div className="font-bold text-emerald-300 mb-2">
+                              🎉 Project Complete! Excellent work!
+                            </div>
+                            {project?.jobOutcomes && (
+                              <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3 mt-3">
+                                <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2 flex items-center gap-1.5">
+                                  <Award className="h-3.5 w-3.5" /> What you just unlocked
+                                </div>
+                                {project.jobOutcomes.roles && project.jobOutcomes.roles.length > 0 && (
+                                  <div className="text-sm text-foreground/90 mb-2">
+                                    <span className="text-muted-foreground">Roles you're now closer to:</span>{" "}
+                                    <span className="font-medium">
+                                      {project.jobOutcomes.roles.slice(0, 3).join(" · ")}
+                                    </span>
+                                  </div>
+                                )}
+                                {project.jobOutcomes.resumeBullets?.[0] && (
+                                  <div className="text-sm text-foreground/80 italic border-l-2 border-amber-500/40 pl-2 mb-3">
+                                    "{project.jobOutcomes.resumeBullets[0]}"
+                                  </div>
+                                )}
+                                <JobOutcomesPanel
+                                  title={project.title}
+                                  jobOutcomes={project.jobOutcomes}
+                                  trigger={
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10 hover:text-amber-100 h-7 text-xs"
+                                      data-testid="completion-career-impact"
+                                    >
+                                      <Award className="h-3 w-3 mr-1" />
+                                      View full Career Impact
+                                    </Button>
+                                  }
+                                />
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
