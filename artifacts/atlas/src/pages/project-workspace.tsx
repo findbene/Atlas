@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award } from "lucide-react";
+import { ArrowLeft, Play, Send, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import confetti from "canvas-confetti";
@@ -33,7 +33,60 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  // Hydrate persisted conversation for this project on mount / project change.
+  useEffect(() => {
+    let cancelled = false;
+    // Abort any in-flight stream from the previous project so its late chunks
+    // don't append into the new project's message list.
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setIsStreaming(false);
+    setHistoryLoaded(false);
+    setMessages([]);
+    if (!projectId) {
+      setHistoryLoaded(true);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.BASE_URL}api/ai/chat/history?projectId=${encodeURIComponent(projectId)}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) return;
+        const rows = (await res.json()) as Array<{ role: string; content: string }>;
+        if (cancelled) return;
+        setMessages(
+          rows
+            .filter(r => r.role === "user" || r.role === "assistant")
+            .map(r => ({ role: r.role as "user" | "assistant", content: r.content })),
+        );
+      } catch {
+        /* best-effort */
+      } finally {
+        if (!cancelled) setHistoryLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  async function clearHistory() {
+    if (!projectId || isStreaming) return;
+    if (!window.confirm("Clear this project's tutor conversation? This cannot be undone.")) return;
+    try {
+      await fetch(
+        `${import.meta.env.BASE_URL}api/ai/chat/history?projectId=${encodeURIComponent(projectId)}`,
+        { method: "DELETE", credentials: "include" },
+      );
+      setMessages([]);
+    } catch {
+      /* no-op */
+    }
+  }
 
   async function sendMessage() {
     if (!input.trim() || isStreaming) return;
@@ -44,11 +97,14 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
     let assistantContent = "";
     setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}api/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({ message: userMsg, contextType: "project", contextId: projectId, stepId, currentCode }),
       });
       if (!res.ok) {
@@ -84,12 +140,18 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
         }
       }
     } catch (err) {
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1] = { role: "assistant", content: "Sorry — couldn't reach the AI tutor. Check your connection and try again." };
-        return updated;
-      });
+      if ((err as { name?: string })?.name === "AbortError") {
+        // User switched projects — drop the partial assistant bubble silently.
+        setMessages(prev => prev.slice(0, -1));
+      } else {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: "Sorry — couldn't reach the AI tutor. Check your connection and try again." };
+          return updated;
+        });
+      }
     } finally {
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
       setIsStreaming(false);
     }
   }
@@ -104,9 +166,23 @@ function AiTutorPanel({ projectId, stepId, currentCode }: { projectId: string; s
         <Bot className="h-4 w-4 text-blue-400" />
         <span className="text-sm font-medium">Atlas AI</span>
         <span className="text-xs text-muted-foreground ml-auto">Claude-powered</span>
+        {messages.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={clearHistory}
+            disabled={isStreaming}
+            title="Clear conversation"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        )}
       </div>
       <ScrollArea className="flex-1 p-3" ref={scrollRef as any}>
-        {messages.length === 0 ? (
+        {!historyLoaded ? (
+          <div className="text-center py-8 text-muted-foreground text-xs">Loading conversation…</div>
+        ) : messages.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm space-y-2">
             <Bot className="h-8 w-8 mx-auto opacity-50" />
             <p>Ask me anything about this project.</p>
