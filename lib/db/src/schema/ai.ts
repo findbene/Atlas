@@ -1,12 +1,12 @@
 import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { projects } from "./domains";
+import { projects, projectSteps } from "./domains";
 
 export const aiTutorMessages = pgTable("ai_tutor_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
-  stepId: uuid("step_id"),
+  stepId: uuid("step_id").references(() => projectSteps.id, { onDelete: "set null" }),
   role: text("role").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

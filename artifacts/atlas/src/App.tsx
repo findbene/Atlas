@@ -22,6 +22,8 @@ import Profile from "@/pages/profile";
 import Leaderboard from "@/pages/leaderboard";
 import Certificates from "@/pages/certificates";
 import CertificatePrint from "@/pages/certificate-print";
+import Conversations from "@/pages/conversations";
+import TutorPage from "@/pages/tutor";
 import Upgrade from "@/pages/upgrade";
 import PythonMastery from "@/pages/python-mastery";
 import SqlMastery from "@/pages/sql-mastery";
@@ -163,6 +165,8 @@ function ClerkProviderWithRoutes() {
               <Route path="/sql-mastery"><ProtectedRoute component={SqlMastery} /></Route>
               <Route path="/certificates"><ProtectedRoute component={Certificates} /></Route>
               <Route path="/certificates/:slug/print"><ProtectedRoute component={CertificatePrint} /></Route>
+              <Route path="/conversations"><ProtectedRoute component={Conversations} /></Route>
+              <Route path="/tutor"><ProtectedRoute component={TutorPage} /></Route>
               <Route path="/profile"><ProtectedRoute component={Profile} /></Route>
               <Route path="/upgrade"><ProtectedRoute component={Upgrade} /></Route>
               <Route path="/leaderboard"><ProtectedRoute component={Leaderboard} /></Route>

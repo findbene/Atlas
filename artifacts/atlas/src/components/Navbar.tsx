@@ -51,6 +51,12 @@ export function Navbar() {
                 >
                   Leaderboard
                 </Link>
+                <Link
+                  href="/conversations"
+                  className="transition-colors hover:text-foreground/80 text-foreground/60"
+                >
+                  Tutor
+                </Link>
               </>
             )}
           </nav>
@@ -75,6 +81,7 @@ export function Navbar() {
                 <>
                   <Link href="/dashboard">Dashboard</Link>
                   <Link href="/leaderboard">Leaderboard</Link>
+                  <Link href="/conversations">Tutor</Link>
                   <Link href="/certificates">Certificates</Link>
                   <Link href="/profile">Profile</Link>
                   <button
