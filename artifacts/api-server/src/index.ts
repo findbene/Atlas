@@ -2,6 +2,7 @@ import { runMigrations } from "stripe-replit-sync";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { getStripeSync } from "./lib/stripeClient";
+import { startBackgroundJobs } from "./lib/backgroundJobs";
 
 const rawPort = process.env["PORT"];
 
@@ -66,4 +67,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  // Periodic AI tutor history retention sweep — kept out of the hot path
+  // so /api/ai/chat completion isn't gated on a write-path COUNT.
+  startBackgroundJobs();
 });

@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   timezone: text("timezone").default('UTC').notNull(),
   revealsUsedTotal: integer("reveals_used_total").default(0).notNull(),
   lastActiveAt: timestamp("last_active_at"),
+  aiTutorLastReadAt: timestamp("ai_tutor_last_read_at", { withTimezone: true }),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),

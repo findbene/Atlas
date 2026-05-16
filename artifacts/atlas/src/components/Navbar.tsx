@@ -1,13 +1,51 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth, UserButton, useClerk } from "@clerk/react";
 import { Button } from "./ui/button";
 import { Flame, Trophy, Menu, LogOut } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 
+function useTutorUnread(isSignedIn: boolean | undefined): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!isSignedIn) {
+      setCount(0);
+      return;
+    }
+    let cancelled = false;
+    async function fetchOnce() {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}api/ai/chat/unread`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { count?: number };
+        if (!cancelled) setCount(data.count ?? 0);
+      } catch {
+        /* best-effort */
+      }
+    }
+    void fetchOnce();
+    // Poll every 60s. Cheap COUNT-only query, indexed on (user_id, created_at).
+    const interval = setInterval(fetchOnce, 60_000);
+    // Also refresh when the tab becomes visible again so the badge updates
+    // immediately when the user comes back from another tab.
+    function onVis() { if (document.visibilityState === "visible") void fetchOnce(); }
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [isSignedIn]);
+  return count;
+}
+
 export function Navbar() {
   const { isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const [location] = useLocation();
+  const unread = useTutorUnread(isSignedIn);
 
   async function handleSignOut() {
     await signOut({ redirectUrl: "/" });
@@ -53,9 +91,17 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/conversations"
-                  className="transition-colors hover:text-foreground/80 text-foreground/60"
+                  className="relative transition-colors hover:text-foreground/80 text-foreground/60"
                 >
                   Tutor
+                  {unread > 0 && (
+                    <span
+                      className="ml-1.5 inline-flex items-center justify-center rounded-full bg-blue-500 text-[10px] font-medium text-white px-1.5 min-w-[1.125rem] h-[1.125rem] leading-none"
+                      aria-label={`${unread} unread tutor message${unread === 1 ? "" : "s"}`}
+                    >
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
                 </Link>
               </>
             )}
@@ -81,7 +127,14 @@ export function Navbar() {
                 <>
                   <Link href="/dashboard">Dashboard</Link>
                   <Link href="/leaderboard">Leaderboard</Link>
-                  <Link href="/conversations">Tutor</Link>
+                  <Link href="/conversations" className="flex items-center gap-2">
+                    Tutor
+                    {unread > 0 && (
+                      <span className="inline-flex items-center justify-center rounded-full bg-blue-500 text-[10px] font-medium text-white px-1.5 min-w-[1.125rem] h-[1.125rem] leading-none">
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+                  </Link>
                   <Link href="/certificates">Certificates</Link>
                   <Link href="/profile">Profile</Link>
                   <button

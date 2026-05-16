@@ -35,6 +35,15 @@ export function AiTutorPanel({
 
   const isGeneral = !projectId;
 
+  // Opening the tutor panel counts as "seeing" any pending tutor activity —
+  // clear the navbar's unread badge. Best-effort, fire once per mount.
+  useEffect(() => {
+    void fetch(`${import.meta.env.BASE_URL}api/ai/chat/mark-read`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => { /* best-effort */ });
+  }, []);
+
   // Build the history-fetch URL — projectId-scoped, or ?general=true for the
   // standalone (non-project) thread, so general chat doesn't mix with project chats.
   const historyQuery = isGeneral

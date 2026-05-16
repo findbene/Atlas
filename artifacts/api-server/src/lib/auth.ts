@@ -96,6 +96,16 @@ export async function getOrCreateUser(clerkId: string, email: string, name?: str
   return created!;
 }
 
+/**
+ * Drop the cached row for a Clerk user so the next request reloads it from
+ * the DB. Call this after any write that mutates a column other code paths
+ * read from the cache (e.g. aiTutorLastReadAt). Without this, in-process
+ * reads after a write keep returning the pre-write value until restart.
+ */
+export function invalidateUserCache(clerkId: string): void {
+  userCache.delete(clerkId);
+}
+
 export async function getCurrentUser(req: Request) {
   // Fast path: requireAuth populated req.localUser already.
   const cached = (req as Request & { localUser?: typeof users.$inferSelect }).localUser;

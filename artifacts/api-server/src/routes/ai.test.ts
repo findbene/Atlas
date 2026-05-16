@@ -1,0 +1,294 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import express from "express";
+import request from "supertest";
+
+// --- Module mocks ---------------------------------------------------------
+// Mock the auth module so requireAuth is a passthrough and getCurrentUser
+// returns a stable test user. This must be hoisted (vi.mock is) so the route
+// module under test sees the mocked exports at import time.
+vi.mock("../lib/auth", () => ({
+  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  getCurrentUser: vi.fn().mockResolvedValue({
+    id: "00000000-0000-0000-0000-000000000001",
+    subscriptionTier: "free",
+    aiTutorLastReadAt: null,
+  }),
+}));
+
+// Mock the DB. We expose `mockExecute`, `mockFindMany`, etc. on the export so
+// individual tests can re-stub return values per case.
+const mockExecute = vi.fn();
+const mockFindMany = vi.fn();
+vi.mock("@workspace/db", () => ({
+  db: {
+    execute: (...args: unknown[]) => mockExecute(...args),
+    query: {
+      aiTutorMessages: {
+        findMany: (...args: unknown[]) => mockFindMany(...args),
+      },
+    },
+    insert: vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) })),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })) })),
+    delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+  },
+  // Drizzle table objects are referenced (not introspected) by the routes,
+  // so opaque sentinels are sufficient for these tests.
+  aiTutorMessages: { userId: "userId", projectId: "projectId" },
+  projects: {},
+  projectSteps: {},
+  users: { id: "id" },
+}));
+
+// Drizzle helpers are imported by the route module; pass them through as
+// no-op identity functions so the WHERE-builder calls don't throw.
+vi.mock("drizzle-orm", async () => {
+  const actual = await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
+  return {
+    ...actual,
+    eq: (...a: unknown[]) => ({ _op: "eq", a }),
+    and: (...a: unknown[]) => ({ _op: "and", a }),
+    desc: (a: unknown) => ({ _op: "desc", a }),
+  };
+});
+
+// Build the test app fresh per suite so middleware doesn't leak between cases.
+async function buildApp() {
+  // Use dynamic import so vi.mock above is fully wired before the route
+  // module evaluates.
+  const aiRouter = (await import("./ai")).default;
+  const app = express();
+  app.use(express.json());
+  // Route handlers reference req.log; provide a no-op shim.
+  app.use((req, _res, next) => {
+    (req as unknown as { log: { warn: () => void; error: () => void; info: () => void } }).log = {
+      warn: () => {},
+      error: () => {},
+      info: () => {},
+    };
+    next();
+  });
+  app.use(aiRouter);
+  return app;
+}
+
+beforeEach(() => {
+  mockExecute.mockReset();
+  mockFindMany.mockReset();
+});
+
+describe("GET /ai/chat/conversations", () => {
+  it("returns one row per project, with truncated snippet and ISO timestamps", async () => {
+    const lastAt = new Date("2026-05-15T12:34:56.000Z");
+    mockExecute.mockResolvedValueOnce({
+      rows: [
+        {
+          project_id: "p1",
+          project_slug: "etl-basics",
+          project_title: "ETL Basics",
+          message_count: 4,
+          last_message_at: lastAt,
+          last_role: "assistant",
+          last_content: "x".repeat(250),
+        },
+      ],
+    });
+
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/conversations");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({
+      projectId: "p1",
+      projectSlug: "etl-basics",
+      projectTitle: "ETL Basics",
+      messageCount: 4,
+      lastRole: "assistant",
+      lastMessageAt: "2026-05-15T12:34:56.000Z",
+    });
+    // Snippet is truncated to 200 chars + ellipsis (long-content branch).
+    expect(res.body[0].lastSnippet.length).toBe(201);
+    expect(res.body[0].lastSnippet.endsWith("…")).toBe(true);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 500 on DB failure", async () => {
+    mockExecute.mockRejectedValueOnce(new Error("boom"));
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/conversations");
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("GET /ai/chat/history scoping", () => {
+  it("project mode passes a project-scoped where clause to findMany", async () => {
+    mockFindMany.mockResolvedValueOnce([]);
+    const app = await buildApp();
+    const projectId = "11111111-1111-1111-1111-111111111111";
+    const res = await request(app).get(`/ai/chat/history?projectId=${projectId}`);
+    expect(res.status).toBe(200);
+
+    const args = mockFindMany.mock.calls[0]?.[0] as { where: { _op: string; a: unknown[] } };
+    // Built via and(eq(userId), eq(projectId))
+    expect(args.where._op).toBe("and");
+    expect(args.where.a).toHaveLength(2);
+    const [userClause, projectClause] = args.where.a as Array<{ _op: string; a: unknown[] }>;
+    expect(userClause._op).toBe("eq");
+    expect(projectClause._op).toBe("eq");
+    // Second arg of the project eq() is the user-supplied projectId
+    expect(projectClause.a[1]).toBe(projectId);
+  });
+
+  it("general=true mode emits an IS NULL clause (no projectId equality)", async () => {
+    mockFindMany.mockResolvedValueOnce([]);
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/history?general=true");
+    expect(res.status).toBe(200);
+
+    const args = mockFindMany.mock.calls[0]?.[0] as { where: { _op: string; a: unknown[] } };
+    expect(args.where._op).toBe("and");
+    // Second clause should not be an eq() — IS NULL is built via raw sql tag.
+    const [, second] = args.where.a as Array<{ _op?: string }>;
+    expect(second._op).toBeUndefined();
+  });
+
+  it("rejects an invalid projectId format and falls back to all-user history", async () => {
+    mockFindMany.mockResolvedValueOnce([]);
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/history?projectId=not-a-uuid");
+    expect(res.status).toBe(200);
+
+    const args = mockFindMany.mock.calls[0]?.[0] as { where: { _op: string } };
+    // No project filter → just the bare userId eq() clause (no AND wrapper).
+    expect(args.where._op).toBe("eq");
+  });
+
+  it("returns history rows in chronological order (server reverses DESC fetch)", async () => {
+    const ts1 = new Date("2026-05-15T10:00:00.000Z");
+    const ts2 = new Date("2026-05-15T11:00:00.000Z");
+    // findMany returns DESC-ordered rows; the route reverses to chronological.
+    mockFindMany.mockResolvedValueOnce([
+      { id: "m2", role: "assistant", content: "second", projectId: null, stepId: null, createdAt: ts2 },
+      { id: "m1", role: "user",      content: "first",  projectId: null, stepId: null, createdAt: ts1 },
+    ]);
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/history?general=true");
+    expect(res.status).toBe(200);
+    expect(res.body.map((r: { id: string }) => r.id)).toEqual(["m1", "m2"]);
+  });
+});
+
+describe("GET /ai/chat/unread", () => {
+  it("returns the assistant-message count newer than aiTutorLastReadAt", async () => {
+    const lastAt = new Date("2026-05-15T12:00:00.000Z");
+    mockExecute.mockResolvedValueOnce({ rows: [{ c: 3, last_at: lastAt }] });
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/unread");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ count: 3, lastAt: "2026-05-15T12:00:00.000Z" });
+  });
+
+  it("returns count: 0 + lastAt: null when no rows", async () => {
+    mockExecute.mockResolvedValueOnce({ rows: [{ c: 0, last_at: null }] });
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/unread");
+    expect(res.body).toEqual({ count: 0, lastAt: null });
+  });
+});
+
+describe("GET /ai/chat/search", () => {
+  it("short-circuits queries shorter than 2 chars without hitting the DB", async () => {
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/search?q=a");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ query: "a", results: [] });
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it("returns shaped results, converting Postgres sentinels to safe <mark> tags", async () => {
+    const ts = new Date("2026-05-15T09:00:00.000Z");
+    mockExecute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "m1",
+          role: "assistant",
+          created_at: ts,
+          project_id: "p1",
+          project_slug: "etl-basics",
+          project_title: "ETL Basics",
+          snippet: "Use [[ATL_MK_OPEN]]airflow[[ATL_MK_CLOSE]] operators",
+          rank: 0.42,
+        },
+      ],
+    });
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/search?q=airflow");
+    expect(res.status).toBe(200);
+    expect(res.body.results[0]).toMatchObject({
+      id: "m1",
+      role: "assistant",
+      snippet: "Use <mark>airflow</mark> operators",
+      projectId: "p1",
+      projectSlug: "etl-basics",
+      projectTitle: "ETL Basics",
+      createdAt: "2026-05-15T09:00:00.000Z",
+    });
+  });
+
+  it("escapes HTML/script payloads in snippets so dangerouslySetInnerHTML is safe", async () => {
+    // Simulates a message containing an XSS payload that ts_headline copied
+    // verbatim into the snippet around the matched terms.
+    mockExecute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "m2",
+          role: "assistant",
+          created_at: new Date("2026-05-15T10:00:00.000Z"),
+          project_id: null,
+          project_slug: null,
+          project_title: null,
+          snippet:
+            `<script>alert('xss')</script> [[ATL_MK_OPEN]]hello[[ATL_MK_CLOSE]] <img src=x onerror="bad()"> "quoted" 'tick' & amp`,
+          rank: 0.1,
+        },
+      ],
+    });
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/search?q=hello");
+    expect(res.status).toBe(200);
+    const snippet = res.body.results[0].snippet as string;
+    // Real <mark> tags are emitted from the sentinels.
+    expect(snippet).toContain("<mark>hello</mark>");
+    // No raw script / event handlers / quotes survive.
+    expect(snippet).not.toMatch(/<script/);
+    expect(snippet).not.toMatch(/<img/);
+    // onerror= text may survive, but it's defanged because the surrounding
+    // quote got HTML-escaped. Assert no raw `onerror="` (which would be a
+    // live attribute when injected as HTML).
+    expect(snippet).not.toMatch(/onerror="/);
+    // Payload chars are HTML-entity escaped.
+    expect(snippet).toContain("&lt;script&gt;");
+    expect(snippet).toContain("&quot;");
+    expect(snippet).toContain("&#39;");
+    expect(snippet).toContain("&amp;");
+  });
+});
+
+describe("/ai/chat/unread freshness", () => {
+  it("queries aiTutorLastReadAt directly from the DB (not the cached user row)", async () => {
+    // Simulate a stale cached user (lastReadAt = null) but a fresh DB row.
+    // The route should still report 0 unread because its CTE reads the DB
+    // directly, not the cached value.
+    mockExecute.mockResolvedValueOnce({ rows: [{ c: 0, last_at: null }] });
+    const app = await buildApp();
+    const res = await request(app).get("/ai/chat/unread");
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(0);
+    // The SQL string interpolated by drizzle's sql tag should reference the
+    // users table — proves we're not relying solely on the cached row.
+    const sqlObj = mockExecute.mock.calls[0]?.[0] as { queryChunks?: unknown[] };
+    const flattened = JSON.stringify(sqlObj);
+    expect(flattened).toMatch(/users/);
+    expect(flattened).toMatch(/ai_tutor_last_read_at/);
+  });
+});
