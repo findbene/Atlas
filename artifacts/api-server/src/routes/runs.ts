@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { userCodeRuns, projects } from "@workspace/db";
+import { userCodeRuns, projects, projectSteps } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth, getCurrentUser } from "../lib/auth";
 
@@ -32,7 +32,7 @@ router.post("/runs", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Invalid projectId" });
       return;
     }
-    const stepIdValidated =
+    const candidateStepId =
       typeof stepId === "string" && UUID_RE.test(stepId) ? stepId : null;
     if (typeof code !== "string" || code.length === 0) {
       res.status(400).json({ error: "Missing code" });
@@ -48,6 +48,20 @@ router.post("/runs", requireAuth, async (req, res) => {
     if (!exists) {
       res.status(404).json({ error: "Project not found" });
       return;
+    }
+
+    // If a stepId was supplied, confirm it actually belongs to projectId.
+    // This prevents callers from logging runs against another project's step
+    // (which would otherwise be FK-valid but semantically wrong, and would
+    // pollute the per-step history shown to other users on their own
+    // projects/steps).
+    let stepIdValidated: string | null = candidateStepId;
+    if (candidateStepId) {
+      const stepOwner = await db.query.projectSteps.findFirst({
+        where: and(eq(projectSteps.id, candidateStepId), eq(projectSteps.projectId, projectId)),
+        columns: { id: true },
+      });
+      if (!stepOwner) stepIdValidated = null;
     }
 
     await db.insert(userCodeRuns).values({
