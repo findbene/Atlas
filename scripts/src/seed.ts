@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { pythonMasteryModules } from "./seed-mastery-python";
 import { sqlMasteryModules } from "./seed-mastery-sql";
 import { extraProjects } from "./seed-projects-extra";
+import { projects2026 } from "./seed-projects-2026";
 import { jobOutcomesBySlug } from "./seed-job-outcomes";
 
 function slugify(title: string): string {
@@ -446,10 +447,10 @@ async function seed() {
     console.log(`    + ${pd.steps.length} steps`);
   }
 
-  // --- Extra full projects (positions 11-15) ---
+  // --- Extra full projects (positions 11-15 + projects2026) ---
   // These may already exist as bare stubs from a previous seed; in that case
   // we upgrade them in place: refresh the metadata and backfill the step content.
-  for (const pd of extraProjects) {
+  for (const pd of [...extraProjects, ...projects2026]) {
     const existing = await db.query.projects.findFirst({ where: eq(projects.slug, pd.slug) });
     let projId: string;
     if (existing) {

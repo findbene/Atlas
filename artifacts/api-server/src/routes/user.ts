@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, userProgress, userXp, userStreaks, xpTransactions, projects, projectSteps, userStepCompletions } from "@workspace/db";
-import { eq, and, desc, asc, isNull, ne } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, ne, sql } from "drizzle-orm";
 import { requireAuth, getCurrentUser, getOrCreateUser } from "../lib/auth";
 import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
@@ -106,6 +106,62 @@ router.get("/user/stats", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to get user stats");
     res.status(500).json({ error: "Failed to get user stats" });
+  }
+});
+
+/**
+ * Daily activity for the streak heatmap. Returns one row per day for the
+ * last `days` calendar days (default 84 = 12 weeks), counting the user's
+ * step completions on that day. Days with zero activity are filled in so
+ * the client can render a stable grid without holes.
+ *
+ * Date math is done in the user's IANA timezone (default UTC) — same as the
+ * streak bump — so the heatmap aligns with the streak counter.
+ */
+router.get("/user/activity", requireAuth, async (req, res) => {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const rawDays = Number.parseInt(String(req.query.days ?? "84"), 10);
+    const days = Number.isFinite(rawDays) ? Math.max(7, Math.min(rawDays, 365)) : 84;
+    const tzRaw = typeof req.query.tz === "string" ? req.query.tz : "UTC";
+    // Allow-list IANA-ish chars only; fall back to UTC for anything weird.
+    const tz = /^[A-Za-z0-9._+/-]{1,40}$/.test(tzRaw) ? tzRaw : "UTC";
+
+    // GROUP BY the user-local calendar date. We aggregate inside Postgres so
+    // late-night-in-LA submissions land in the right bucket.
+    const result = await db.execute(sql`
+      SELECT to_char(date_trunc('day', completed_at AT TIME ZONE ${tz}), 'YYYY-MM-DD') AS date,
+             COUNT(*)::int AS count
+      FROM user_step_completions
+      WHERE user_id = ${user.id}
+        AND completed_at >= NOW() - (${days}::int || ' days')::interval
+      GROUP BY 1
+      ORDER BY 1
+    `);
+    const counts = new Map<string, number>();
+    for (const row of result.rows as Array<{ date: string; count: number }>) {
+      counts.set(row.date, Number(row.count));
+    }
+    // Fill the requested window densely so the client renders a stable grid.
+    const out: Array<{ date: string; count: number }> = [];
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86_400_000);
+      const key = fmt.format(d);
+      out.push({ date: key, count: counts.get(key) ?? 0 });
+    }
+    res.json({ days, timezone: tz, activity: out });
+  } catch (err) {
+    req.log.error({ err }, "Failed to load activity");
+    res.status(500).json({ error: "Failed to load activity" });
   }
 });
 

@@ -7,6 +7,7 @@ import { useListUserProjects, useGetUserStats, useGetLeaderboard } from "@worksp
 import { Flame, Trophy, BookOpen, Code2, Star, Clock, ChevronRight, TrendingUp, Award, Briefcase, PlayCircle } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
+import { StreakHeatmap } from "@/components/StreakHeatmap";
 
 function XpBar({ current, next, level }: { current: number; next: number; level: number }) {
   const pct = Math.min((current / next) * 100, 100);
@@ -146,6 +147,14 @@ export default function Dashboard() {
           {statsLoading ? <div className="h-8 w-16 bg-muted rounded animate-pulse" /> : <p className="text-2xl font-bold">#{stats?.rank ?? "—"}</p>}
         </div>
       </div>
+
+      {/* Streak heatmap + daily goal */}
+      {stats && (
+        <StreakHeatmap
+          currentStreak={stats.streak ?? 0}
+          longestStreak={(stats as any).longestStreak ?? 0}
+        />
+      )}
 
       {/* XP Level Progress */}
       {stats && (
