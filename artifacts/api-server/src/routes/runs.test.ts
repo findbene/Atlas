@@ -170,6 +170,17 @@ describe("GET /runs", () => {
     expect(res.status).toBe(400);
   });
 
+  it("scopes the query to the current user when projectId is supplied", async () => {
+    userCodeRunsFindMany.mockResolvedValueOnce([]);
+    const app = await buildApp();
+    const res = await request(app).get(`/runs?projectId=${PROJECT_ID}`);
+    expect(res.status).toBe(200);
+    const args = userCodeRunsFindMany.mock.calls[0][0] as { where: unknown };
+    const stringified = JSON.stringify(args.where);
+    expect(stringified).toContain("userId");
+    expect(stringified).toContain("projectId");
+  });
+
   it("scopes the query to the current user when stepId is supplied", async () => {
     const sample = [{
       id: RUN_ID,

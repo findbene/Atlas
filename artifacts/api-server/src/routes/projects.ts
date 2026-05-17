@@ -138,7 +138,12 @@ router.get("/projects/:slug/solution", requireAuth, async (req, res) => {
       where: and(eq(userStepCompletions.userId, user.id), eq(userStepCompletions.projectId, project.id)),
       limit: 1,
     });
-    if (!progress || (progress.currentStep <= 1 && attempts.length === 0)) {
+    // Engagement gate: pass if EITHER they're past step 1 OR they've recorded
+    // at least one step completion. A missing progress row alone shouldn't
+    // disqualify a user who has completions (can happen if progress was
+    // cleared but completions were retained).
+    const pastStepOne = !!progress && progress.currentStep > 1;
+    if (!pastStepOne && attempts.length === 0) {
       res.status(403).json({
         error: "Try the project first",
         message: "Attempt at least one step before viewing the reference solution.",

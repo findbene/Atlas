@@ -117,6 +117,20 @@ describe("GET /projects/:slug/solution", () => {
     expect(projectSolutionsFindFirst).not.toHaveBeenCalled();
   });
 
+  it("allows Pro users with completions even when the progress row is missing", async () => {
+    currentUser.subscriptionTier = "pro";
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    stepCompletionsFindMany.mockResolvedValueOnce([{ id: "x" }]);
+    projectSolutionsFindFirst.mockResolvedValueOnce({
+      solutionCode: "print('ok')",
+      solutionExplanationMd: "ok",
+      videoExplanationUrl: null,
+    });
+    const app = await buildApp();
+    const res = await request(app).get("/projects/ingest-pipeline/solution");
+    expect(res.status).toBe(200);
+  });
+
   it("returns 403 for Pro users still on step 1 with no completions", async () => {
     currentUser.subscriptionTier = "pro";
     userProgressFindFirst.mockResolvedValueOnce({ currentStep: 1 });
