@@ -10,6 +10,7 @@ import leaderboardRouter from "./leaderboard";
 import modulesRouter from "./modules";
 import waitlistRouter from "./waitlist";
 import runsRouter from "./runs";
+import publicProfileRouter from "./public-profile";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(leaderboardRouter);
 router.use(modulesRouter);
 router.use(waitlistRouter);
 router.use(runsRouter);
+router.use(publicProfileRouter);
 
 export default router;

@@ -25,6 +25,14 @@ export interface AiTutorPanelProps {
   emptyStateTitle?: string;
   emptyStateSubtitle?: string;
   className?: string;
+  /**
+   * When this string changes to a non-empty value, the panel prefills the
+   * input box with it (does NOT auto-send — the user must click Send so they
+   * can edit the prompt first). The component uses a ref to track the last
+   * applied value so re-renders with the same string don't overwrite user
+   * edits.
+   */
+  seedInput?: string;
 }
 
 // Small three-dot typing indicator used while the model is "thinking" but
@@ -47,9 +55,17 @@ export function AiTutorPanel({
   emptyStateTitle = "Ask me anything about this project.",
   emptyStateSubtitle = "I'll guide you without giving away the answer.",
   className = "bg-card/50 border-l border-border",
+  seedInput,
 }: AiTutorPanelProps) {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
+  const lastSeedRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (seedInput && seedInput !== lastSeedRef.current) {
+      lastSeedRef.current = seedInput;
+      setInput(seedInput);
+    }
+  }, [seedInput]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);

@@ -27,6 +27,7 @@ import TutorPage from "@/pages/tutor";
 import Upgrade from "@/pages/upgrade";
 import PythonMastery from "@/pages/python-mastery";
 import SqlMastery from "@/pages/sql-mastery";
+import PublicProfile from "@/pages/public-profile";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
@@ -156,6 +157,7 @@ function ClerkProviderWithRoutes() {
               <Route path="/pricing" component={Pricing} />
               <Route path="/domains" component={Domains} />
               <Route path="/domains/:slug" component={DomainDetail} />
+              <Route path="/u/:username" component={PublicProfile} />
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
 

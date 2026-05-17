@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { projects, projectSteps, projectHints, domains, projectSolutions } from "@workspace/db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql, or, ilike } from "drizzle-orm";
 import { requireAuth, getCurrentUser } from "../lib/auth";
 import { userProgress, userStepCompletions } from "@workspace/db";
 
@@ -9,7 +9,8 @@ const router = Router();
 
 router.get("/projects", async (req, res) => {
   try {
-    const { domainSlug, difficulty, tier, page = "1", limit = "20" } = req.query as Record<string, string>;
+    const { domainSlug, difficulty, tier, language, search, page = "1", limit = "20" } =
+      req.query as Record<string, string>;
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
@@ -20,19 +21,42 @@ router.get("/projects", async (req, res) => {
       domainId = domain?.id;
     }
 
+    // Clamp search to a safe length and escape ILIKE wildcards so users can't
+    // accidentally pattern-match everything by typing `%`.
+    const searchTrim = typeof search === "string" ? search.trim().slice(0, 80) : "";
+    const searchEsc = searchTrim
+      ? `%${searchTrim.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")}%`
+      : null;
+
     const allProjects = await db.query.projects.findMany({
       where: (p, { and, eq, isNull }) => and(
         isNull(p.deletedAt),
         domainId ? eq(p.domainId, domainId) : undefined,
         difficulty ? eq(p.difficultyLevel, difficulty as any) : undefined,
         tier === "free" ? eq(p.isPremium, false) : tier === "pro" ? eq(p.isPremium, true) : undefined,
+        language === "python" || language === "sql" ? eq(p.language, language as any) : undefined,
+        searchEsc
+          ? or(ilike(p.title, searchEsc), ilike(p.shortDescription, searchEsc))
+          : undefined,
       ),
       orderBy: (p, { asc }) => [asc(p.orderIndex)],
       limit: limitNum,
       offset,
     });
 
-    const total = allProjects.length;
+    // Correct total — previously this returned the page length, which broke
+    // `hasMore` for everything past page 1. Run a small COUNT(*) in parallel
+    // with the page query semantics above.
+    const totalRow = await db.execute(sql`
+      SELECT COUNT(*)::int AS c FROM projects p
+      WHERE p.deleted_at IS NULL
+        ${domainId ? sql`AND p.domain_id = ${domainId}` : sql``}
+        ${difficulty ? sql`AND p.difficulty_level = ${difficulty}` : sql``}
+        ${tier === "free" ? sql`AND p.is_premium = false` : tier === "pro" ? sql`AND p.is_premium = true` : sql``}
+        ${language === "python" || language === "sql" ? sql`AND p.language = ${language}` : sql``}
+        ${searchEsc ? sql`AND (p.title ILIKE ${searchEsc} OR p.short_description ILIKE ${searchEsc})` : sql``}
+    `);
+    const total = (totalRow.rows[0] as { c: number } | undefined)?.c ?? allProjects.length;
     const result = allProjects.map(p => ({
       id: p.id,
       slug: p.slug,
@@ -50,7 +74,7 @@ router.get("/projects", async (req, res) => {
       jobOutcomes: p.jobOutcomes ?? undefined,
     }));
 
-    res.json({ data: result, total, page: pageNum, limit: limitNum, hasMore: offset + limitNum < total + limitNum });
+    res.json({ data: result, total, page: pageNum, limit: limitNum, hasMore: offset + result.length < total });
   } catch (err) {
     req.log.error({ err }, "Failed to list projects");
     res.status(500).json({ error: "Failed to list projects" });

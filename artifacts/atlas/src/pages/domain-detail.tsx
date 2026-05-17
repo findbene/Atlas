@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "wouter";
 import { useGetDomain } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Search, X } from "lucide-react";
 import {
   ArrowLeft,
   Clock,
@@ -44,6 +46,11 @@ export default function DomainDetail() {
   const slug = params.slug ?? "";
   const { data: domain, isLoading, error } = useGetDomain(slug);
   const [view, setView] = useState<ViewMode>("roadmap");
+  // List-view filters. Roadmap intentionally ignores them — that visualisation
+  // depends on the full project graph to draw the prerequisite arrows.
+  const [search, setSearch] = useState("");
+  const [language, setLanguage] = useState<"all" | "python" | "sql">("all");
+  const [difficultyFilter, setDifficultyFilter] = useState<"all" | "beginner" | "intermediate" | "advanced">("all");
 
   if (isLoading) {
     return (
@@ -79,6 +86,20 @@ export default function DomainDetail() {
   };
 
   const projects = domain.projects ?? [];
+  const searchLower = search.trim().toLowerCase();
+  const filteredProjects = useMemo(() => {
+    if (!searchLower && language === "all" && difficultyFilter === "all") return projects;
+    return (projects as any[]).filter((p) => {
+      if (difficultyFilter !== "all" && p.difficulty !== difficultyFilter) return false;
+      if (language !== "all" && p.language && p.language !== language) return false;
+      if (searchLower) {
+        const hay = `${p.title ?? ""} ${p.description ?? ""} ${(p.tags ?? []).join(" ")}`.toLowerCase();
+        if (!hay.includes(searchLower)) return false;
+      }
+      return true;
+    });
+  }, [projects, searchLower, language, difficultyFilter]);
+  const visibleProjects = view === "list" ? filteredProjects : projects;
 
   return (
     <div className="min-h-screen">
@@ -180,6 +201,65 @@ export default function DomainDetail() {
           </div>
         </div>
 
+        {view === "list" && projects.length > 0 && (
+          <div className="mb-6 flex flex-wrap items-center gap-3" data-testid="catalog-filters">
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search projects…"
+                className="pl-9 pr-9"
+                data-testid="catalog-search"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="inline-flex rounded-lg border border-border p-1 bg-card text-xs">
+              {(["all", "python", "sql"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  aria-pressed={language === lang}
+                  className={`px-3 py-1.5 font-medium rounded-md transition-all capitalize ${
+                    language === lang
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  data-testid={`filter-lang-${lang}`}
+                >
+                  {lang === "all" ? "All languages" : lang}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-lg border border-border p-1 bg-card text-xs">
+              {(["all", "beginner", "intermediate", "advanced"] as const).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDifficultyFilter(d)}
+                  aria-pressed={difficultyFilter === d}
+                  className={`px-3 py-1.5 font-medium rounded-md transition-all capitalize ${
+                    difficultyFilter === d
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  data-testid={`filter-diff-${d}`}
+                >
+                  {d === "all" ? "Any level" : d}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="text-muted-foreground">
@@ -188,9 +268,15 @@ export default function DomainDetail() {
           </div>
         ) : view === "roadmap" ? (
           <RoadmapView projects={projects as any} />
+        ) : visibleProjects.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+            <p className="text-muted-foreground">
+              No projects match your filters. Try clearing them or broadening the search.
+            </p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project: any) => {
+            {visibleProjects.map((project: any) => {
               const roles: string[] = project.jobOutcomes?.roles ?? [];
               return (
                 <div

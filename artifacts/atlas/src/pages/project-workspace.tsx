@@ -20,7 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ArrowLeft, Play, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award, History, Eye, Lock, Sparkles } from "lucide-react";
+import { ArrowLeft, Play, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award, History, Eye, Lock, Sparkles, GitCompare, MessageCircleQuestion } from "lucide-react";
+import { diffLines } from "diff";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ReactMarkdown from "react-markdown";
@@ -86,6 +87,12 @@ export default function ProjectWorkspace() {
   const [pyStatus, setPyStatus] = useState<PyodideStatus>("idle");
   const celebratedRef = useRef(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  // Set when the user clicks "compare with current" inside the history sheet.
+  const [diffRunId, setDiffRunId] = useState<string | null>(null);
+  // Bumped whenever the user clicks "Ask tutor about this error". The
+  // increment makes the seed value unique per click so the panel re-applies it
+  // even if the underlying error text hasn't changed.
+  const [tutorSeed, setTutorSeed] = useState<string>("");
 
   const steps = (project?.steps ?? []) as Array<any>;
   const currentStep = steps[currentStepIdx];
@@ -588,14 +595,45 @@ export default function ProjectWorkspace() {
                                     {(r.stderr || r.stdout).slice(0, 400)}
                                   </pre>
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs w-full"
-                                  onClick={() => { setCode(r.code); setHistoryOpen(false); setActiveTab("editor"); }}
-                                >
-                                  Use this code
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs flex-1"
+                                    onClick={() => { setCode(r.code); setHistoryOpen(false); setActiveTab("editor"); }}
+                                  >
+                                    Use this code
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs px-2"
+                                    onClick={() => setDiffRunId(diffRunId === r.id ? null : r.id)}
+                                    title="Compare with current editor"
+                                    aria-label={`Compare run ${r.id} with current editor`}
+                                    data-testid={`diff-toggle-${r.id}`}
+                                  >
+                                    <GitCompare className="h-3 w-3 mr-1" />
+                                    {diffRunId === r.id ? "Hide diff" : "Diff"}
+                                  </Button>
+                                </div>
+                                {diffRunId === r.id && (
+                                  <pre className="mt-2 text-[11px] bg-background border border-border rounded p-2 overflow-x-auto max-h-64 whitespace-pre-wrap font-mono">
+                                    {diffLines(r.code, code).map((part, i) => (
+                                      <span
+                                        key={i}
+                                        className={
+                                          part.added ? "bg-emerald-900/40 text-emerald-300"
+                                          : part.removed ? "bg-red-900/40 text-red-300"
+                                          : "text-muted-foreground"
+                                        }
+                                      >
+                                        {part.added ? "+ " : part.removed ? "- " : "  "}
+                                        {part.value.replace(/\n(?!$)/g, m => m + (part.added ? "+ " : part.removed ? "- " : "  "))}
+                                      </span>
+                                    ))}
+                                  </pre>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -652,6 +690,28 @@ export default function ProjectWorkspace() {
                           <div className={`text-xs mt-2 ${output.exitCode === 0 ? "text-emerald-400" : "text-red-400"}`}>
                             Exit code: {output.exitCode}
                           </div>
+                          {output.stderr && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="mt-2 h-7 text-xs border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+                              data-testid="ask-tutor-about-error"
+                              onClick={() => {
+                                // Truncate stderr so we don't blast the tutor
+                                // chat with a 10kB traceback.
+                                const trimmed = output.stderr.slice(0, 1200);
+                                const prompt =
+                                  `I got this error running my code. Help me understand what's wrong without giving away the full answer.\n\n\`\`\`\n${trimmed}\n\`\`\``;
+                                setShowAi(true);
+                                // Append a zero-width marker so each click is a
+                                // distinct string and the panel re-applies it.
+                                setTutorSeed(prompt + "\u200B".repeat((tutorSeed.match(/\u200B/g)?.length ?? 0) + 1));
+                              }}
+                            >
+                              <MessageCircleQuestion className="h-3 w-3 mr-1" />
+                              Ask tutor about this error
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         <div className="text-muted-foreground text-sm">Run your code to see output here.</div>
@@ -750,6 +810,7 @@ export default function ProjectWorkspace() {
                   projectId={project.id}
                   stepId={currentStep?.id ?? ""}
                   currentCode={code}
+                  seedInput={tutorSeed}
                 />
               </ResizablePanel>
             </>

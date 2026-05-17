@@ -5,6 +5,7 @@ import { eq, and, desc, asc, isNull, ne } from "drizzle-orm";
 import { requireAuth, getCurrentUser, getOrCreateUser } from "../lib/auth";
 import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
+import { bumpStreak } from "../lib/streak";
 
 const router = Router();
 
@@ -90,6 +91,10 @@ router.get("/user/stats", requireAuth, async (req, res) => {
       totalXp: xpRecord?.totalXp ?? 0,
       level: xpRecord?.level ?? 1,
       streak: streakRecord?.currentStreak ?? 0,
+      longestStreak: streakRecord?.longestStreak ?? 0,
+      lastActivityDate: streakRecord?.lastActivityDate
+        ? (streakRecord.lastActivityDate as unknown as string)
+        : null,
       projectsCompleted: completed,
       projectsInProgress: inProgress,
       lessonsCompleted: 0,
@@ -415,6 +420,15 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
         void sendEmail({ to: user.email, subject, html, text }).catch((err) => {
           req.log.warn({ err, projectId, userId: user.id }, "Completion email failed");
         });
+      }
+
+      // Bump the day-streak. Best-effort: failures here must not block the
+      // grading response. We intentionally fire this for every passing
+      // submission — the helper is idempotent within a calendar day.
+      try {
+        await bumpStreak(user.id, user.timezone ?? "UTC");
+      } catch (err) {
+        req.log.warn({ err, userId: user.id }, "Failed to bump streak");
       }
 
       // Award XP
