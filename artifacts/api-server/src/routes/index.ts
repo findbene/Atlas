@@ -11,6 +11,7 @@ import modulesRouter from "./modules";
 import waitlistRouter from "./waitlist";
 import runsRouter from "./runs";
 import publicProfileRouter from "./public-profile";
+import certVerifyRouter from "./cert-verify";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(modulesRouter);
 router.use(waitlistRouter);
 router.use(runsRouter);
 router.use(publicProfileRouter);
+router.use(certVerifyRouter);
 
 export default router;

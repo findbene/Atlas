@@ -29,6 +29,7 @@ import remarkGfm from "remark-gfm";
 import confetti from "canvas-confetti";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 import { AiTutorPanel } from "@/components/AiTutorPanel";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
@@ -67,6 +68,7 @@ export default function ProjectWorkspace() {
   const slug = params.slug ?? "";
   const queryClient = useQueryClient();
   const { data: project, isLoading } = useGetProject(slug);
+  const isMobile = useIsMobile();
   const [enrolled, setEnrolled] = useState(false);
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const { data: progress } = useGetUserProjectProgress(project?.id ?? "", {
@@ -353,8 +355,8 @@ export default function ProjectWorkspace() {
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
-      {/* Header */}
-      <div className="border-b border-border px-4 py-2.5 flex items-center gap-3 shrink-0 bg-card/80">
+      {/* Header — wraps on mobile so chips don't overflow */}
+      <div className="border-b border-border px-4 py-2.5 flex items-center gap-2 sm:gap-3 shrink-0 bg-card/80 flex-wrap">
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground -ml-2"><Link href={`/domains/${project.domainSlug}`}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             {project.domainName}
@@ -400,11 +402,11 @@ export default function ProjectWorkspace() {
         </Button>
       </div>
 
-      {/* Main layout */}
+      {/* Main layout — vertical stack on mobile, horizontal split on md+ */}
       <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup direction="horizontal">
+        <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"}>
           {/* Instruction Panel */}
-          <ResizablePanel defaultSize={40} minSize={25}>
+          <ResizablePanel defaultSize={isMobile ? 45 : 40} minSize={isMobile ? 20 : 25}>
             <div className="h-full flex flex-col">
               {/* Step Nav */}
               <div className="border-b border-border px-4 py-2 flex items-center gap-2 shrink-0 bg-muted/20">

@@ -30,6 +30,9 @@ import Upgrade from "@/pages/upgrade";
 import PythonMastery from "@/pages/python-mastery";
 import SqlMastery from "@/pages/sql-mastery";
 import PublicProfile from "@/pages/public-profile";
+import Verify from "@/pages/verify";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { PageTransition } from "@/components/PageTransition";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
 
@@ -175,12 +178,14 @@ function ClerkProviderWithRoutes() {
           <Navbar />
           <OnboardingTour />
           <main className="flex-1 flex flex-col">
+            <PageTransition>
             <Switch>
               <Route path="/" component={Home} />
               <Route path="/pricing" component={Pricing} />
               <Route path="/domains" component={Domains} />
               <Route path="/domains/:slug" component={DomainDetail} />
               <Route path="/u/:username" component={PublicProfile} />
+              <Route path="/verify/:certId" component={Verify} />
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
 
@@ -198,6 +203,7 @@ function ClerkProviderWithRoutes() {
               
               <Route component={NotFound} />
             </Switch>
+            </PageTransition>
           </main>
         </div>
         </ThemeProvider>
@@ -212,6 +218,7 @@ function App() {
       <TooltipProvider>
         <ClerkProviderWithRoutes />
         <Toaster />
+        <InstallPrompt />
       </TooltipProvider>
     </WouterRouter>
   );

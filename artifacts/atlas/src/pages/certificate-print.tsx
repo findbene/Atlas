@@ -63,7 +63,12 @@ export default function CertificatePrint() {
     new Set<string>(project?.jobOutcomes?.skillsForResume ?? []),
   );
   const recipient = user?.fullName ?? user?.username ?? "Atlas Learner";
-  const certId = `ATL-${(item.id ?? slug ?? "").toString().slice(0, 8).toUpperCase()}`;
+  const fullCertId = (item.id ?? "").toString();
+  const certId = `ATL-${fullCertId.slice(0, 8).toUpperCase()}`;
+  const verifyUrl =
+    typeof window !== "undefined" && fullCertId
+      ? `${window.location.origin}/verify/${fullCertId}`
+      : "";
 
   return (
     <div className="min-h-screen bg-neutral-100 print:bg-white py-10 px-4 print:p-0">
@@ -161,6 +166,11 @@ export default function CertificatePrint() {
                 Certificate ID
               </p>
               <p className="mt-1 font-mono">{certId}</p>
+              {verifyUrl && (
+                <p className="mt-1 text-[10px] text-neutral-500 break-all">
+                  Verify at {verifyUrl.replace(/^https?:\/\//, "")}
+                </p>
+              )}
             </div>
           </div>
         </div>

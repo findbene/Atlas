@@ -30,6 +30,7 @@ import {
 import { useUser } from "@clerk/react";
 import { useListDomains } from "@workspace/api-client-react";
 import { Reveal, Stagger, AuroraBg, GlowButton } from "@/components/cinematic";
+import { CountUp } from "@/components/CountUp";
 
 const DOMAIN_ICONS: Record<string, LucideIcon> = {
   Database,
@@ -78,7 +79,7 @@ export default function Home() {
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-balance leading-[1.05]">
               Stop watching tutorials.
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 animate-gradient">
+              <span className="hero-shimmer inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 animate-gradient">
                 Start shipping systems.
               </span>
             </h1>
@@ -119,15 +120,19 @@ export default function Home() {
           {/* Social proof bar */}
           <Stagger className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             {[
-              { value: "40+", label: "Hands-on projects" },
-              { value: "6", label: "Engineering domains" },
-              { value: "AI", label: "Tutor on every step" },
-              { value: "0", label: "Local setup needed" },
+              { kind: "num" as const, to: 40, suffix: "+", label: "Hands-on projects" },
+              { kind: "num" as const, to: 6, suffix: "", label: "Engineering domains" },
+              { kind: "text" as const, value: "AI", label: "Tutor on every step" },
+              { kind: "num" as const, to: 0, suffix: "", label: "Local setup needed" },
             ].map((s) => (
               <Reveal key={s.label}>
                 <div className="text-center">
                   <p className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {s.value}
+                    {s.kind === "num" ? (
+                      <CountUp to={s.to} suffix={s.suffix} />
+                    ) : (
+                      s.value
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
                 </div>

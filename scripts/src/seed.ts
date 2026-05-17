@@ -5,6 +5,7 @@ import { pythonMasteryModules } from "./seed-mastery-python";
 import { sqlMasteryModules } from "./seed-mastery-sql";
 import { extraProjects } from "./seed-projects-extra";
 import { projects2026 } from "./seed-projects-2026";
+import { crossDomainProjects } from "./seed-projects-cross-domain";
 import { jobOutcomesBySlug } from "./seed-job-outcomes";
 
 function slugify(title: string): string {
@@ -569,6 +570,149 @@ async function seed() {
       jobOutcomes: jobOutcomesBySlug[sp.slug] ?? null,
     });
     console.log(`  Stub: ${sp.title}`);
+  }
+
+  // --- Cross-domain curriculum (ai-mlops, ai-engineering, data-science) ---
+  // Promotes these domains from "coming soon" to "available" by seeding a
+  // default track + a handful of fully-fleshed projects authored in
+  // seed-projects-cross-domain.ts. Idempotent: upgrades existing rows.
+  const xDomainTrackSpec: Record<string, { title: string; description: string; difficultyLevel: "beginner" | "intermediate" | "advanced"; estimatedHours: number }> = {
+    "ai-mlops": {
+      title: "MLOps Foundations",
+      description: "Production-grade MLOps: feature stores, model serving, monitoring, and reliable deployment patterns.",
+      difficultyLevel: "intermediate",
+      estimatedHours: 40,
+    },
+    "ai-engineering": {
+      title: "AI Engineering Essentials",
+      description: "Build real applications on LLMs: RAG, evals, and the production patterns that separate demos from products.",
+      difficultyLevel: "intermediate",
+      estimatedHours: 35,
+    },
+    "data-science": {
+      title: "Applied Data Science",
+      description: "Statistical reasoning and causal inference for shipping insights that move the business.",
+      difficultyLevel: "intermediate",
+      estimatedHours: 35,
+    },
+  };
+
+  const xDomainTrackBySlug = new Map<string, { trackId: string; domainId: string }>();
+  for (const domainSlug of Object.keys(xDomainTrackSpec)) {
+    const dom = await db.query.domains.findFirst({ where: eq(domains.slug, domainSlug) });
+    if (!dom) continue;
+    const projectsForDomain = crossDomainProjects.filter(p => p.domainSlug === domainSlug);
+    // Flip the coming-soon flag now that we have real content
+    await db.update(domains).set({
+      isAvailable: true,
+      comingSoon: false,
+      totalProjects: projectsForDomain.length,
+    }).where(eq(domains.id, dom.id));
+
+    const spec = xDomainTrackSpec[domainSlug]!;
+    const trackSlug = `${domainSlug}-core`;
+    let existingTrack = await db.query.tracks.findFirst({
+      where: and(eq(tracks.domainId, dom.id), eq(tracks.slug, trackSlug)),
+    });
+    if (!existingTrack) {
+      [existingTrack] = await db.insert(tracks).values({
+        domainId: dom.id,
+        slug: trackSlug,
+        title: spec.title,
+        description: spec.description,
+        difficultyLevel: spec.difficultyLevel,
+        estimatedHours: spec.estimatedHours,
+        projectCount: projectsForDomain.length,
+        orderIndex: 1,
+        prerequisites: [],
+        isPremium: false,
+      }).returning();
+      console.log(`Track: ${spec.title} (${existingTrack!.id})`);
+    } else {
+      await db.update(tracks).set({ projectCount: projectsForDomain.length }).where(eq(tracks.id, existingTrack.id));
+    }
+    xDomainTrackBySlug.set(domainSlug, { trackId: existingTrack!.id, domainId: dom.id });
+  }
+
+  for (const pd of crossDomainProjects) {
+    const wiring = xDomainTrackBySlug.get(pd.domainSlug);
+    if (!wiring) continue;
+    const existing = await db.query.projects.findFirst({ where: eq(projects.slug, pd.slug) });
+    let projId: string;
+    if (existing) {
+      await db.update(projects).set({
+        trackId: wiring.trackId,
+        domainId: wiring.domainId,
+        title: pd.title,
+        shortDescription: pd.shortDescription,
+        fullDescription: pd.fullDescription,
+        difficultyLevel: pd.difficulty,
+        estimatedMinutes: pd.estimatedMinutes,
+        techStack: pd.techStack,
+        learningObjectives: pd.learningObjectives,
+        orderIndex: pd.position,
+        isPremium: pd.isPremium,
+        language: pd.language,
+        totalSteps: pd.steps.length,
+        tags: pd.tags,
+        xpReward: pd.xpReward,
+        jobOutcomes: jobOutcomesBySlug[pd.slug] ?? null,
+      }).where(eq(projects.id, existing.id));
+      projId = existing.id;
+      console.log(`  Upgraded cross-domain: ${pd.title}`);
+    } else {
+      const [proj] = await db.insert(projects).values({
+        trackId: wiring.trackId,
+        domainId: wiring.domainId,
+        slug: pd.slug,
+        title: pd.title,
+        shortDescription: pd.shortDescription,
+        fullDescription: pd.fullDescription,
+        difficultyLevel: pd.difficulty,
+        estimatedMinutes: pd.estimatedMinutes,
+        techStack: pd.techStack,
+        learningObjectives: pd.learningObjectives,
+        orderIndex: pd.position,
+        isPremium: pd.isPremium,
+        language: pd.language,
+        totalSteps: pd.steps.length,
+        tags: pd.tags,
+        xpReward: pd.xpReward,
+        jobOutcomes: jobOutcomesBySlug[pd.slug] ?? null,
+      }).returning();
+      projId = proj.id;
+      console.log(`  Created cross-domain: ${pd.title} (${proj.id})`);
+    }
+
+    for (const step of pd.steps) {
+      const existingStep = await db.query.projectSteps.findFirst({
+        where: and(eq(projectSteps.projectId, projId), eq(projectSteps.stepNumber, step.stepNumber)),
+      });
+      if (existingStep) {
+        // True upsert: refresh content so authoring edits propagate on reseed.
+        await db.update(projectSteps).set({
+          title: step.title,
+          instructionMd: step.instruction,
+          starterCode: step.starterCode ?? null,
+          validationHint: step.validationHint ?? null,
+          xpReward: step.xpReward,
+        }).where(eq(projectSteps.id, existingStep.id));
+      } else {
+        await db.insert(projectSteps).values({
+          projectId: projId,
+          stepNumber: step.stepNumber,
+          title: step.title,
+          instructionMd: step.instruction,
+          starterCode: step.starterCode ?? null,
+          validationHint: step.validationHint ?? null,
+          validationType: "self_attest",
+          validationConfig: {},
+          xpReward: step.xpReward,
+          type: "code_python",
+        });
+      }
+    }
+    console.log(`    + ${pd.steps.length} steps upserted`);
   }
 
   // --- Backfill jobOutcomes on every project (idempotent) ---

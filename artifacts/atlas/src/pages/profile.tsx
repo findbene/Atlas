@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "@/hooks/use-toast";
 import { useUser } from "@clerk/react";
 import {
   useGetUserProfile,
@@ -58,18 +59,23 @@ function StatCard({
   );
 }
 
-function Badges({
-  totalXp,
-  streak,
-  completed,
-  level,
-}: {
+interface BadgeDef {
+  key: string;
+  label: string;
+  desc: string;
+  icon: React.ReactNode;
+  unlocked: boolean;
+}
+
+function buildBadgeCatalog(opts: {
   totalXp: number;
   streak: number;
+  longestStreak: number;
   completed: number;
   level: number;
-}) {
-  const items = [
+}): BadgeDef[] {
+  const { totalXp, streak, longestStreak, completed, level } = opts;
+  return [
     {
       key: "first-step",
       label: "First Steps",
@@ -82,7 +88,14 @@ function Badges({
       label: "On Fire",
       desc: "3-day streak",
       icon: <Flame className="h-5 w-5 text-orange-400" />,
-      unlocked: streak >= 3,
+      unlocked: streak >= 3 || longestStreak >= 3,
+    },
+    {
+      key: "streak-7",
+      label: "Unstoppable",
+      desc: "7-day streak",
+      icon: <Flame className="h-5 w-5 text-red-400" />,
+      unlocked: streak >= 7 || longestStreak >= 7,
     },
     {
       key: "first-project",
@@ -99,6 +112,13 @@ function Badges({
       unlocked: completed >= 5,
     },
     {
+      key: "xp-1000",
+      label: "Grinder",
+      desc: "Earned 1,000 XP",
+      icon: <Zap className="h-5 w-5 text-yellow-400" />,
+      unlocked: totalXp >= 1000,
+    },
+    {
       key: "level-5",
       label: "Rising Star",
       desc: "Reached level 5",
@@ -113,32 +133,117 @@ function Badges({
       unlocked: level >= 10,
     },
   ];
+}
+
+const SEEN_BADGES_KEY = "atlas.seenBadges.v1";
+
+interface SeenBadgesState {
+  initialized: boolean;
+  seen: string[];
+}
+
+function useNewBadgeToast(items: BadgeDef[], userId: string | undefined): void {
+  useEffect(() => {
+    if (!userId) return;
+    const storageKey = `${SEEN_BADGES_KEY}.${userId}`;
+    let state: SeenBadgesState = { initialized: false, seen: [] };
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<SeenBadgesState> | string[];
+        if (Array.isArray(parsed)) {
+          // Legacy schema (array only) — treat as initialized to preserve
+          // intent that pre-existing unlocks should not re-toast.
+          state = { initialized: true, seen: parsed };
+        } else {
+          state = {
+            initialized: Boolean(parsed.initialized),
+            seen: Array.isArray(parsed.seen) ? parsed.seen : [],
+          };
+        }
+      }
+    } catch {/* fall through with default state */}
+
+    const seen = new Set(state.seen);
+    const unlockedNow = items.filter(b => b.unlocked).map(b => b.key);
+
+    // First load EVER for this user primes baseline silently. Subsequent
+    // renders are considered initialized, so the first transition
+    // locked→unlocked after that point WILL toast — fixing the bug where
+    // a user with zero badges never saw their first-unlock notification.
+    if (!state.initialized) {
+      const next: SeenBadgesState = { initialized: true, seen: unlockedNow };
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {/* no-op */}
+      return;
+    }
+
+    const newlyUnlocked = unlockedNow.filter(k => !seen.has(k));
+    if (newlyUnlocked.length === 0) return;
+
+    for (const key of newlyUnlocked) {
+      const badge = items.find(b => b.key === key);
+      if (!badge) continue;
+      toast({
+        title: `🏆 ${badge.label} unlocked`,
+        description: badge.desc,
+      });
+    }
+    // Persist as a monotonic union so transient lock/unlock state changes
+    // (e.g. a stat refetch returning a stale value) don't re-toast.
+    const unionSeen = Array.from(new Set([...state.seen, ...unlockedNow]));
+    const next: SeenBadgesState = { initialized: true, seen: unionSeen };
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {/* no-op */}
+  }, [items, userId]);
+}
+
+function Badges({
+  totalXp,
+  streak,
+  longestStreak,
+  completed,
+  level,
+}: {
+  totalXp: number;
+  streak: number;
+  longestStreak: number;
+  completed: number;
+  level: number;
+}) {
+  const items = buildBadgeCatalog({ totalXp, streak, longestStreak, completed, level });
+  const earnedCount = items.filter(b => b.unlocked).length;
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {items.map((b) => (
-        <div
-          key={b.key}
-          className={`relative rounded-xl border p-3.5 transition-all ${
-            b.unlocked
-              ? "border-border bg-card hover:border-border/80"
-              : "border-border/30 bg-muted/20 opacity-50"
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            <div
-              className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                b.unlocked ? "bg-muted/60" : "bg-muted/20"
-              }`}
-            >
-              {b.icon}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{b.label}</p>
-              <p className="truncate text-xs text-muted-foreground">{b.desc}</p>
+    <div>
+      <p className="text-xs text-muted-foreground mb-3" data-testid="badges-earned-count">
+        {earnedCount} of {items.length} earned
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {items.map((b) => (
+          <div
+            key={b.key}
+            data-testid={`badge-${b.key}`}
+            data-unlocked={b.unlocked ? "true" : "false"}
+            className={`relative rounded-xl border p-3.5 transition-all ${
+              b.unlocked
+                ? "border-border bg-card hover:border-border/80"
+                : "border-border/30 bg-muted/20 opacity-50"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                  b.unlocked ? "bg-muted/60" : "bg-muted/20"
+                }`}
+              >
+                {b.icon}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{b.label}</p>
+                <p className="truncate text-xs text-muted-foreground">{b.desc}</p>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -150,10 +255,19 @@ export default function Profile() {
   const { data: projects } = useListUserProjects();
   const [editOpen, setEditOpen] = useState(false);
 
-  if (!isLoaded) return null;
-
   const completed =
     (projects as any[])?.filter((p: any) => p.status === "completed") ?? [];
+
+  const badgeItems = buildBadgeCatalog({
+    totalXp: stats?.totalXp ?? 0,
+    streak: stats?.streak ?? 0,
+    longestStreak: (stats as { longestStreak?: number } | undefined)?.longestStreak ?? 0,
+    completed: completed.length,
+    level: stats?.level ?? 1,
+  });
+  useNewBadgeToast(badgeItems, user?.id);
+
+  if (!isLoaded) return null;
 
   // Aggregate career roles unlocked from completed projects
   const roleCounts = new Map<string, { count: number; projectSlugs: string[] }>();
@@ -344,6 +458,7 @@ export default function Profile() {
           <Badges
             totalXp={stats?.totalXp ?? 0}
             streak={stats?.streak ?? 0}
+            longestStreak={(stats as { longestStreak?: number } | undefined)?.longestStreak ?? 0}
             completed={completed.length}
             level={stats?.level ?? 1}
           />
