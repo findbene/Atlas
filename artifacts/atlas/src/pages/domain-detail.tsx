@@ -105,7 +105,7 @@ export default function DomainDetail() {
   };
 
   const projects = projectsList;
-  const visibleProjects = view === "list" ? filteredProjects : projects;
+  const visibleProjects = filteredProjects;
 
   return (
     <div className="min-h-screen">
@@ -207,7 +207,7 @@ export default function DomainDetail() {
           </div>
         </div>
 
-        {view === "list" && projects.length > 0 && (
+        {projects.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-3" data-testid="catalog-filters">
             <div className="relative flex-1 min-w-[220px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -276,8 +276,6 @@ export default function DomainDetail() {
               ctaHref="/domains"
             />
           </div>
-        ) : view === "roadmap" ? (
-          <RoadmapView projects={projects as any} />
         ) : visibleProjects.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-6">
             <EmptyState
@@ -299,6 +297,8 @@ export default function DomainDetail() {
               }
             />
           </div>
+        ) : view === "roadmap" ? (
+          <RoadmapView projects={visibleProjects as any} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {visibleProjects.map((project: any) => {
