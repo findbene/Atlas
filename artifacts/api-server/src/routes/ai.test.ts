@@ -4,8 +4,10 @@ import request from "supertest";
 
 // --- Module mocks ---------------------------------------------------------
 // Mock the auth module so requireAuth is a passthrough and getCurrentUser
-// returns a stable test user. This must be hoisted (vi.mock is) so the route
-// module under test sees the mocked exports at import time.
+// returns a stable test user. invalidateUserCache is exposed as a spy so the
+// /ai/chat finalize test can assert that the cache is invalidated after
+// updating aiTutorLastReadAt.
+const invalidateUserCacheSpy = vi.fn();
 vi.mock("../lib/auth", () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   getCurrentUser: vi.fn().mockResolvedValue({
@@ -13,12 +15,57 @@ vi.mock("../lib/auth", () => ({
     subscriptionTier: "free",
     aiTutorLastReadAt: null,
   }),
+  invalidateUserCache: (...args: unknown[]) => invalidateUserCacheSpy(...args),
+}));
+
+// getAuth is called inside /ai/chat to derive the clerkId for cache
+// invalidation. Mock it to return a stable userId.
+vi.mock("@clerk/express", () => ({
+  getAuth: vi.fn(() => ({ userId: "clerk_test_user_finalize" })),
+}));
+
+// Mock the Anthropic SDK. The default export is the Anthropic class; we make
+// it a constructor returning an object whose messages.stream returns an
+// async-iterable yielding a predictable text stream. Per-test overrides set
+// `anthropicStreamFactory` to customize behavior.
+let anthropicStreamFactory: () => AsyncIterable<unknown> = () => ({
+  async *[Symbol.asyncIterator]() {
+    yield { type: "content_block_delta", delta: { type: "text_delta", text: "Hello " } };
+    yield { type: "content_block_delta", delta: { type: "text_delta", text: "world." } };
+  },
+});
+vi.mock("@anthropic-ai/sdk", () => ({
+  default: class MockAnthropic {
+    messages = {
+      stream: () => anthropicStreamFactory(),
+    };
+  },
 }));
 
 // Mock the DB. We expose `mockExecute`, `mockFindMany`, etc. on the export so
 // individual tests can re-stub return values per case.
 const mockExecute = vi.fn();
 const mockFindMany = vi.fn();
+// Captured spies for the assistant-finalize path. `insertReturning` lets a
+// test override the value returned by `.returning(...)`. `updateSet`
+// captures every `db.update(...).set(payload)` payload so the test can
+// inspect what was written for `aiTutorLastReadAt`.
+const insertReturning = vi.fn(() =>
+  Promise.resolve([{ createdAt: new Date("2026-05-15T12:00:00.000Z") }]),
+);
+const updateSet = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }));
+// `values(...)` returns a thenable so `await db.insert(t).values(v)` works,
+// but it also exposes `.returning(...)` so `await db.insert(t).values(v).returning(...)`
+// works too. This is how drizzle's builder behaves in real code.
+function insertChainFactory() {
+  const valuesResult: PromiseLike<unknown> & { returning: typeof insertReturning } = {
+    then(onFulfilled?, onRejected?) {
+      return Promise.resolve(undefined).then(onFulfilled, onRejected);
+    },
+    returning: insertReturning,
+  };
+  return { values: vi.fn(() => valuesResult) };
+}
 vi.mock("@workspace/db", () => ({
   db: {
     execute: (...args: unknown[]) => mockExecute(...args),
@@ -26,9 +73,11 @@ vi.mock("@workspace/db", () => ({
       aiTutorMessages: {
         findMany: (...args: unknown[]) => mockFindMany(...args),
       },
+      projects: { findFirst: vi.fn().mockResolvedValue(null) },
+      projectSteps: { findFirst: vi.fn().mockResolvedValue(null) },
     },
-    insert: vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) })),
-    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })) })),
+    insert: vi.fn(() => insertChainFactory()),
+    update: vi.fn(() => ({ set: updateSet })),
     delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
   },
   // Drizzle table objects are referenced (not introspected) by the routes,
@@ -74,6 +123,18 @@ async function buildApp() {
 beforeEach(() => {
   mockExecute.mockReset();
   mockFindMany.mockReset();
+  invalidateUserCacheSpy.mockReset();
+  updateSet.mockClear();
+  insertReturning.mockClear();
+  insertReturning.mockImplementation(() =>
+    Promise.resolve([{ createdAt: new Date("2026-05-15T12:00:00.000Z") }]),
+  );
+  anthropicStreamFactory = () => ({
+    async *[Symbol.asyncIterator]() {
+      yield { type: "content_block_delta", delta: { type: "text_delta", text: "Hello " } };
+      yield { type: "content_block_delta", delta: { type: "text_delta", text: "world." } };
+    },
+  });
 });
 
 describe("GET /ai/chat/conversations", () => {
@@ -271,6 +332,55 @@ describe("GET /ai/chat/search", () => {
     expect(snippet).toContain("&quot;");
     expect(snippet).toContain("&#39;");
     expect(snippet).toContain("&amp;");
+  });
+});
+
+describe("POST /ai/chat finalize path", () => {
+  it("sets aiTutorLastReadAt to the inserted assistant message's createdAt and invalidates the user cache", async () => {
+    const assistantCreatedAt = new Date("2026-05-15T13:37:00.000Z");
+    insertReturning.mockImplementationOnce(() =>
+      Promise.resolve([{ createdAt: assistantCreatedAt }]),
+    );
+
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/ai/chat")
+      .send({ message: "explain joins", contextType: "general" });
+
+    expect(res.status).toBe(200);
+    // The SSE response ends with [DONE] after the mocked stream completes.
+    expect(res.text).toContain("[DONE]");
+
+    // The update spy should have been called with the assistant insert's
+    // createdAt, NOT a value close to Date.now(). This is the key invariant:
+    // using wall-clock time would let a racing assistant message be marked
+    // read before it was even persisted.
+    expect(updateSet).toHaveBeenCalled();
+    const setPayloads = (updateSet.mock.calls as unknown as Array<[{ aiTutorLastReadAt?: Date }]>).map(c => c[0]);
+    const lastReadCall = setPayloads.find(p => p.aiTutorLastReadAt instanceof Date);
+    expect(lastReadCall).toBeDefined();
+    expect(lastReadCall!.aiTutorLastReadAt!.getTime()).toBe(assistantCreatedAt.getTime());
+
+    // The user-cache invalidation should fire with the Clerk userId from
+    // getAuth so subsequent /ai/chat/unread calls see the fresh value.
+    expect(invalidateUserCacheSpy).toHaveBeenCalledWith("clerk_test_user_finalize");
+  });
+
+  it("does NOT set lastReadAt or invalidate the cache when the model yields no content", async () => {
+    // Empty stream — assistantBuffer stays empty, no assistant row is inserted,
+    // and lastReadAt should not be touched.
+    anthropicStreamFactory = () => ({ async *[Symbol.asyncIterator]() { /* no chunks */ } });
+
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/ai/chat")
+      .send({ message: "anything", contextType: "general" });
+
+    expect(res.status).toBe(200);
+    // No update should target aiTutorLastReadAt.
+    const setPayloads = (updateSet.mock.calls as unknown as Array<[{ aiTutorLastReadAt?: Date }]>).map(c => c[0]);
+    expect(setPayloads.find(p => p.aiTutorLastReadAt instanceof Date)).toBeUndefined();
+    expect(invalidateUserCacheSpy).not.toHaveBeenCalled();
   });
 });
 

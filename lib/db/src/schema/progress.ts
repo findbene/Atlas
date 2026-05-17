@@ -103,6 +103,23 @@ export const auditLogs = pgTable("audit_logs", {
   index('audit_action_idx').on(t.action),
 ]);
 
+// Per-step code run history. Keeps the last N runs (pruned by the api-server's
+// background sweep) so learners can revisit prior attempts. Ok/stdout/stderr
+// are captured client-side from the Pyodide runner — see project-workspace.tsx.
+export const userCodeRuns = pgTable("user_code_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  stepId: uuid("step_id"),
+  code: text("code").notNull(),
+  stdout: text("stdout").default('').notNull(),
+  stderr: text("stderr").default('').notNull(),
+  ok: boolean("ok").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index('user_code_runs_user_step_idx').on(t.userId, t.stepId, t.createdAt),
+]);
+
 export const insertUserProgressSchema = createInsertSchema(userProgress).omit({ id: true });
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;

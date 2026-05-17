@@ -6,6 +6,7 @@ import {
   getGetUserProjectProgressQueryKey,
   useEnrollProject,
   useSubmitStep,
+  useGetUserProfile,
 } from "@workspace/api-client-react";
 import {
   runPython,
@@ -19,7 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ArrowLeft, Play, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award } from "lucide-react";
+import { ArrowLeft, Play, Bot, ChevronLeft, ChevronRight, CheckCircle, XCircle, Lightbulb, RotateCcw, Award, History, Eye, Lock, Sparkles } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import confetti from "canvas-confetti";
@@ -30,6 +33,18 @@ const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 
 type StepCompletion = { stepId: string; status: string };
+type RunRow = { id: string; code: string; stdout: string; stderr: string; ok: boolean; createdAt: string };
+type SolutionPayload = { solutionCode: string | null; explanationMd: string; videoUrl: string | null };
+
+function formatRunAge(iso: string): string {
+  const d = new Date(iso);
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 type GradingResult = {
   status: "passed" | "failed";
   feedback?: string;
@@ -134,7 +149,67 @@ export default function ProjectWorkspace() {
     setOutput(null);
     setShowHint(false);
     setActiveTab("editor");
+    setRunHistory(null);
+    setRunHistoryVersion(0);
   }, [currentStepIdx, currentStep?.id, currentStep?.starterCode]);
+
+  // Recent code-runs panel state. Lazily fetched the first time the user
+  // opens the sheet, and re-fetched whenever a new run is recorded
+  // (via runHistoryVersion bump).
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [runHistory, setRunHistory] = useState<RunRow[] | null>(null);
+  const [runHistoryVersion, setRunHistoryVersion] = useState(0);
+  useEffect(() => {
+    if (!historyOpen || !currentStep?.id) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.BASE_URL}api/runs?stepId=${encodeURIComponent(currentStep.id)}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) return;
+        const rows = (await res.json()) as RunRow[];
+        if (!cancelled) setRunHistory(rows);
+      } catch { /* best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, [historyOpen, currentStep?.id, runHistoryVersion]);
+
+  // Reference-solution dialog state. The data is fetched on-demand (only when
+  // the user opens the dialog) so we never download a solution they don't
+  // ask to see. The server enforces Pro gating + an engagement check.
+  const [solutionOpen, setSolutionOpen] = useState(false);
+  const [solutionData, setSolutionData] = useState<SolutionPayload | null>(null);
+  const [solutionError, setSolutionError] = useState<{ status: number; message: string } | null>(null);
+  const [solutionLoading, setSolutionLoading] = useState(false);
+  const { data: userProfile } = useGetUserProfile();
+  const isPro = (userProfile as { tier?: string } | undefined)?.tier === "pro";
+  async function loadSolution() {
+    if (!project?.slug) return;
+    setSolutionLoading(true);
+    setSolutionError(null);
+    setSolutionData(null);
+    try {
+      const res = await fetch(
+        `${import.meta.env.BASE_URL}api/projects/${encodeURIComponent(project.slug)}/solution`,
+        { credentials: "include" },
+      );
+      if (res.ok) {
+        setSolutionData((await res.json()) as SolutionPayload);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setSolutionError({
+          status: res.status,
+          message: body?.message ?? body?.error ?? `Failed (HTTP ${res.status})`,
+        });
+      }
+    } catch (err: any) {
+      setSolutionError({ status: 0, message: err?.message ?? "Network error" });
+    } finally {
+      setSolutionLoading(false);
+    }
+  }
 
   function goToStep(idx: number) {
     const clamped = Math.max(0, Math.min(steps.length - 1, idx));
@@ -146,23 +221,43 @@ export default function ProjectWorkspace() {
     setOutput(null);
     setActiveTab("output");
     setIsRunning(true);
+    let runStdout = "";
+    let runStderr = "";
+    let runExitCode = 1;
     try {
       const result = await runPython(code);
-      setOutput({
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-      });
+      runStdout = result.stdout;
+      runStderr = result.stderr;
+      runExitCode = result.exitCode;
+      setOutput({ stdout: runStdout, stderr: runStderr, exitCode: runExitCode });
     } catch (err: any) {
-      setOutput({
-        stdout: "",
-        stderr:
-          err?.message ??
-          "Couldn't start the Python runtime. Check your network connection and try again.",
-        exitCode: 1,
-      });
+      runStderr =
+        err?.message ??
+        "Couldn't start the Python runtime. Check your network connection and try again.";
+      setOutput({ stdout: "", stderr: runStderr, exitCode: 1 });
     } finally {
       setIsRunning(false);
+      // Fire-and-forget — recording the run shouldn't block the UI or surface
+      // errors. The server caps payload sizes and prunes old rows in the
+      // background, so we can safely record every attempt.
+      if (project?.id && code) {
+        void fetch(`${import.meta.env.BASE_URL}api/runs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            projectId: project.id,
+            stepId: currentStep?.id ?? null,
+            code,
+            stdout: runStdout,
+            stderr: runStderr,
+            ok: runExitCode === 0,
+          }),
+        }).then(() => {
+          // Refetch the history list so the new run shows up if the panel is open.
+          setRunHistoryVersion(v => v + 1);
+        }).catch(() => { /* best-effort */ });
+      }
     }
   }
 
@@ -444,6 +539,78 @@ export default function ProjectWorkspace() {
                             ? "Loading runtime…"
                             : "Run"}
                       </Button>
+                      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+                        <SheetTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            title="Recent code runs"
+                            aria-label="Recent code runs"
+                          >
+                            <History className="h-3 w-3 mr-1" />
+                            History
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                          <SheetHeader>
+                            <SheetTitle>Recent runs</SheetTitle>
+                            <SheetDescription>
+                              Your last 20 attempts on this step. Click "Use this code" to restore
+                              the editor.
+                            </SheetDescription>
+                          </SheetHeader>
+                          <div className="mt-4 space-y-3">
+                            {runHistory === null ? (
+                              <div className="text-xs text-muted-foreground">Loading…</div>
+                            ) : runHistory.length === 0 ? (
+                              <div className="text-xs text-muted-foreground">
+                                No runs yet — hit Run to record your first attempt.
+                              </div>
+                            ) : runHistory.map(r => (
+                              <div
+                                key={r.id}
+                                className="rounded-lg border border-border bg-card p-3 space-y-2"
+                                data-testid={`run-row-${r.id}`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`text-xs font-medium inline-flex items-center gap-1 ${r.ok ? "text-emerald-400" : "text-red-400"}`}>
+                                    {r.ok ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                    {r.ok ? "Passed" : "Errored"}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">{formatRunAge(r.createdAt)}</span>
+                                </div>
+                                <pre className="text-[11px] bg-background border border-border rounded p-2 overflow-x-auto max-h-32 whitespace-pre-wrap">
+                                  {r.code.slice(0, 600)}{r.code.length > 600 ? "\n…" : ""}
+                                </pre>
+                                {(r.stdout || r.stderr) && (
+                                  <pre className={`text-[11px] rounded p-2 overflow-x-auto max-h-24 whitespace-pre-wrap ${r.stderr ? "bg-red-950/30 text-red-300" : "bg-emerald-950/20 text-emerald-300"}`}>
+                                    {(r.stderr || r.stdout).slice(0, 400)}
+                                  </pre>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs w-full"
+                                  onClick={() => { setCode(r.code); setHistoryOpen(false); setActiveTab("editor"); }}
+                                >
+                                  Use this code
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => { setSolutionOpen(true); void loadSolution(); }}
+                        title={isPro ? "Reveal reference solution" : "Pro: reveal reference solution"}
+                      >
+                        {isPro ? <Eye className="h-3 w-3 mr-1" /> : <Lock className="h-3 w-3 mr-1" />}
+                        Solution
+                      </Button>
                       <Button size="sm" className="h-7 text-xs" onClick={submitStep} disabled={submitMutation.isPending}>
                         {submitMutation.isPending ? "Grading..." : "Submit"}
                       </Button>
@@ -515,6 +682,64 @@ export default function ProjectWorkspace() {
               )}
             </div>
           </ResizablePanel>
+
+          {/* Reference Solution Dialog. Server enforces Pro tier + engagement
+              gate; the client just renders whatever the API returns or the
+              appropriate upsell/error message based on HTTP status. */}
+          <Dialog open={solutionOpen} onOpenChange={setSolutionOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  Reference Solution
+                </DialogTitle>
+                <DialogDescription>
+                  This is one valid implementation — your own approach may differ and still be correct.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-2">
+                {solutionLoading ? (
+                  <div className="text-sm text-muted-foreground py-8 text-center">Loading…</div>
+                ) : solutionError ? (
+                  <div className="space-y-3">
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                      {solutionError.status === 402 ? (
+                        <>
+                          <p className="font-medium text-amber-200 mb-1">Pro feature</p>
+                          <p className="text-amber-100/80">{solutionError.message}</p>
+                          <Button asChild size="sm" className="mt-3 bg-amber-500 hover:bg-amber-600 text-amber-950">
+                            <Link href="/upgrade">Upgrade to Pro</Link>
+                          </Button>
+                        </>
+                      ) : solutionError.status === 403 ? (
+                        <>
+                          <p className="font-medium text-amber-200 mb-1">Try the project first</p>
+                          <p className="text-amber-100/80">{solutionError.message}</p>
+                        </>
+                      ) : (
+                        <p className="text-amber-100/80">{solutionError.message}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : solutionData ? (
+                  <div className="space-y-3">
+                    {solutionData.solutionCode && (
+                      <pre className="text-xs bg-[#0D1117] border border-border rounded p-3 overflow-x-auto whitespace-pre-wrap">
+                        {solutionData.solutionCode}
+                      </pre>
+                    )}
+                    {solutionData.explanationMd && (
+                      <div className="prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {solutionData.explanationMd}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* AI Tutor Panel */}
           {showAi && (

@@ -1,9 +1,10 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useListUserProjects, useGetUserStats, useGetLeaderboard } from "@workspace/api-client-react";
-import { Flame, Trophy, BookOpen, Code2, Star, Clock, ChevronRight, TrendingUp, Award, Briefcase } from "lucide-react";
+import { Flame, Trophy, BookOpen, Code2, Star, Clock, ChevronRight, TrendingUp, Award, Briefcase, PlayCircle } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 
@@ -20,11 +21,51 @@ function XpBar({ current, next, level }: { current: number; next: number; level:
   );
 }
 
+interface ResumePayload {
+  projectId: string;
+  projectSlug: string;
+  projectTitle: string;
+  shortDescription: string;
+  currentStep: number;
+  totalSteps: number;
+  completionPercent: number;
+  lastUpdatedAt: string;
+}
+
+// Fetches the user's most recently-touched in-progress project. 204 = nothing
+// in progress (no banner). Re-fetched whenever the user lands on the dashboard
+// so the banner stays fresh after they navigate away and back.
+function useResumeProject(enabled: boolean) {
+  const [data, setData] = useState<ResumePayload | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}api/projects/resume`, {
+          credentials: "include",
+        });
+        if (cancelled) return;
+        if (res.status === 204 || !res.ok) {
+          setData(null);
+          return;
+        }
+        setData((await res.json()) as ResumePayload);
+      } catch {
+        if (!cancelled) setData(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+  return data;
+}
+
 export default function Dashboard() {
   const { isLoaded, userId } = useAuth();
   const { data: userProjects, isLoading: projectsLoading } = useListUserProjects();
   const { data: stats, isLoading: statsLoading } = useGetUserStats();
   const { data: leaderboard } = useGetLeaderboard({ limit: 5 });
+  const resume = useResumeProject(Boolean(isLoaded && userId));
 
   if (!isLoaded || !userId) return null;
 
@@ -37,6 +78,42 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
         <p className="text-muted-foreground">Track your progress, keep your streak, climb the leaderboard.</p>
       </div>
+
+      {/* Resume banner — only renders when the API reports an in-progress
+          project. Click anywhere on the card to jump straight back in. */}
+      {resume && (
+        <Link href={`/projects/${resume.projectSlug}`}>
+          <div
+            className="group bg-gradient-to-r from-blue-600/15 via-blue-600/10 to-purple-600/10 border border-blue-500/30 hover:border-blue-400/60 rounded-xl p-5 transition-colors cursor-pointer"
+            data-testid="resume-banner"
+          >
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <PlayCircle className="h-5 w-5 text-blue-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs uppercase tracking-wider text-blue-300/80 mb-0.5">
+                  Resume where you left off
+                </p>
+                <p className="font-medium truncate">{resume.projectTitle}</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <Progress
+                    value={Math.max(
+                      0,
+                      Math.min(100, Math.round((resume.currentStep / Math.max(resume.totalSteps, 1)) * 100)),
+                    )}
+                    className="h-1.5 flex-1 max-w-xs"
+                  />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    Step {resume.currentStep} of {resume.totalSteps}
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-blue-300 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </div>
+          </div>
+        </Link>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -142,6 +219,26 @@ export default function Dashboard() {
                             </span>
                           )}
                         </p>
+                        {/* Per-project progress bar — % derived client-side from
+                            currentStepPosition / stepCount so no extra fetch. */}
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <Progress
+                            value={Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                Math.round(((up.currentStepPosition ?? 0) / Math.max(up.project.stepCount ?? 1, 1)) * 100),
+                              ),
+                            )}
+                            className="h-1 flex-1"
+                          />
+                          <span className="text-[10px] tabular-nums text-muted-foreground">
+                            {Math.min(
+                              100,
+                              Math.round(((up.currentStepPosition ?? 0) / Math.max(up.project.stepCount ?? 1, 1)) * 100),
+                            )}%
+                          </span>
+                        </div>
                       </div>
                     </Link>
                     <div className="flex items-center gap-1 shrink-0 ml-2">

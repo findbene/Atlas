@@ -9,6 +9,7 @@ import executeRouter from "./execute";
 import leaderboardRouter from "./leaderboard";
 import modulesRouter from "./modules";
 import waitlistRouter from "./waitlist";
+import runsRouter from "./runs";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(executeRouter);
 router.use(leaderboardRouter);
 router.use(modulesRouter);
 router.use(waitlistRouter);
+router.use(runsRouter);
 
 export default router;
