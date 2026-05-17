@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth, UserButton, useClerk } from "@clerk/react";
+import { useGetUserStats } from "@workspace/api-client-react";
 import { Button } from "./ui/button";
 import { Flame, Trophy, Menu, LogOut } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
@@ -47,6 +48,9 @@ export function Navbar() {
   const { signOut } = useClerk();
   const [location] = useLocation();
   const unread = useTutorUnread(isSignedIn);
+  const { data: stats } = useGetUserStats();
+  const streak = isSignedIn ? stats?.streak ?? 0 : 0;
+  const level = isSignedIn ? stats?.level ?? 1 : 1;
 
   async function handleSignOut() {
     await signOut({ redirectUrl: "/" });
@@ -175,13 +179,21 @@ export function Navbar() {
             ) : (
               <div className="flex items-center gap-4">
                 <div className="hidden md:flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div
+                    className="flex items-center gap-1.5 text-muted-foreground"
+                    data-testid="navbar-streak"
+                    title={`${streak}-day streak`}
+                  >
                     <Flame className="h-4 w-4 text-orange-500" />
-                    <span>0</span>
+                    <span>{streak}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div
+                    className="flex items-center gap-1.5 text-muted-foreground"
+                    data-testid="navbar-level"
+                    title={`Level ${level}`}
+                  >
                     <Trophy className="h-4 w-4 text-yellow-500" />
-                    <span>Lvl 1</span>
+                    <span>Lvl {level}</span>
                   </div>
                 </div>
                 <UserButton />
