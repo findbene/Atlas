@@ -4,6 +4,7 @@ import { useAuth, UserButton, useClerk } from "@clerk/react";
 import { Button } from "./ui/button";
 import { Flame, Trophy, Menu, LogOut } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { ThemeToggle } from "./ThemeToggle";
 
 function useTutorUnread(isSignedIn: boolean | undefined): number {
   const [count, setCount] = useState(0);
@@ -54,7 +55,7 @@ export function Navbar() {
   const isHome = location === "/";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 glass">
       <div className="container flex h-14 max-w-screen-2xl items-center">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
@@ -161,6 +162,7 @@ export function Navbar() {
             {/* Optional Search */}
           </div>
           <nav className="flex items-center gap-2">
+            <ThemeToggle />
             {!isSignedIn ? (
               <>
                 <Button asChild variant="ghost" size="sm"><Link href="/sign-in">

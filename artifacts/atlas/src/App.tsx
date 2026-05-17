@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { OnboardingTour } from '@/components/OnboardingTour';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -168,8 +170,10 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
-        <div className="min-h-screen flex flex-col bg-background text-foreground dark">
+        <ThemeProvider>
+        <div className="min-h-screen flex flex-col bg-background text-foreground">
           <Navbar />
+          <OnboardingTour />
           <main className="flex-1 flex flex-col">
             <Switch>
               <Route path="/" component={Home} />
@@ -196,6 +200,7 @@ function ClerkProviderWithRoutes() {
             </Switch>
           </main>
         </div>
+        </ThemeProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );

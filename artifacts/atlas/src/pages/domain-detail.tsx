@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { RoadmapView } from "@/components/RoadmapView";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
+import { EmptyState } from "@/components/EmptyState";
+import { Inbox, FilterX } from "lucide-react";
 
 const DOMAIN_ICONS: Record<string, LucideIcon> = {
   Database,
@@ -265,18 +267,37 @@ export default function DomainDetail() {
         )}
 
         {projects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="text-muted-foreground">
-              No projects available yet. Check back soon!
-            </p>
+          <div className="rounded-2xl border border-dashed border-border p-6">
+            <EmptyState
+              icon={Inbox}
+              title="No projects available yet"
+              description="This domain is being authored. Check back soon, or explore one of our active tracks in the meantime."
+              ctaLabel="Browse all Domains"
+              ctaHref="/domains"
+            />
           </div>
         ) : view === "roadmap" ? (
           <RoadmapView projects={projects as any} />
         ) : visibleProjects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="text-muted-foreground">
-              No projects match your filters. Try clearing them or broadening the search.
-            </p>
+          <div className="rounded-2xl border border-dashed border-border p-6">
+            <EmptyState
+              icon={FilterX}
+              title="No projects match your filters"
+              description="Try clearing the search box or broadening the difficulty/language filters."
+              ctaSlot={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearch("");
+                    setLanguage("all");
+                    setDifficultyFilter("all");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              }
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

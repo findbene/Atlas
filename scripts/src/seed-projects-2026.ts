@@ -160,6 +160,85 @@ export const projects2026: ProjectData[] = [
     ],
   },
   {
+    slug: "dbt-macros-mastery",
+    title: "dbt Macros: Reusable SQL at Scale",
+    shortDescription:
+      "Master Jinja-powered dbt macros — the abstraction layer that turns 50-line SQL queries into 5-line model files. Build reusable, testable, and composable transformations.",
+    fullDescription:
+      "Macros are dbt's superpower: they let you write a `dim_currency_conversion` once and call it from 40 models. You'll write a `pivot()` macro that beats the built-in version, a `surrogate_key()` that handles NULLs correctly across warehouses, and a date-spine generator. Then you'll learn the patterns that separate junior dbt developers from analytics engineers: dispatch, packages, and macro testing.",
+    difficulty: "advanced",
+    estimatedMinutes: 480,
+    position: 22,
+    isPremium: true,
+    language: "sql",
+    xpReward: 650,
+    tags: ["dbt", "jinja", "analytics-engineering", "warehouse"],
+    learningObjectives: [
+      "Write Jinja macros that generate valid SQL",
+      "Use `dispatch` to write warehouse-portable macros",
+      "Test macros with dbt's unit-test framework",
+      "Recognise when a macro is the right abstraction (and when it isn't)",
+    ],
+    techStack: ["dbt", "Jinja2", "PostgreSQL", "Snowflake"],
+    steps: [
+      {
+        stepNumber: 1,
+        title: "Your first macro: surrogate_key",
+        instruction:
+          "## Why surrogate keys?\n\nNatural keys are a trap. A customer's email looks like a great primary key — until someone changes their email. Dimensional modelling fixes this with **surrogate keys**: deterministic hashes of the columns that uniquely identify a row.\n\nThe gotcha is NULLs. `MD5(NULL || 'x')` is NULL in most SQL dialects, so two rows with one NULL column will collide on key. The fix: `COALESCE` every column to a sentinel string first.\n\n## Task\n\nSimulate a Jinja macro in Python. Implement `surrogate_key(*columns)` that, given column names, returns the SQL string:\n\n`md5(cast(coalesce(cast(col1 as varchar), '_dbt_null_') as varchar) || '||' || cast(coalesce(cast(col2 as varchar), '_dbt_null_') as varchar))`\n\n- Use `'||'` as the separator (not just `||` — collisions like `'ab' + 'c'` vs `'a' + 'bc'`).\n- Wrap every column in `cast(... as varchar)` BEFORE the COALESCE, then again outside.",
+        starterCode:
+          "SEP = \"||\"\nNULL_SENTINEL = \"_dbt_null_\"\n\ndef surrogate_key(*columns):\n    if not columns:\n        raise ValueError('need at least one column')\n    # TODO: build per-column expressions and join them with f\" || '{SEP}' || \"\n    pass\n\nassert surrogate_key('email') == \"md5(cast(coalesce(cast(email as varchar), '_dbt_null_') as varchar))\"\nexpected = (\n    \"md5(cast(coalesce(cast(first_name as varchar), '_dbt_null_') as varchar) || '||' || \"\n    \"cast(coalesce(cast(last_name as varchar), '_dbt_null_') as varchar))\"\n)\nassert surrogate_key('first_name', 'last_name') == expected\ntry:\n    surrogate_key()\n    raise AssertionError('expected ValueError')\nexcept ValueError:\n    pass\nprint('ok')\n",
+        validationHint:
+          "parts = [f\"cast(coalesce(cast({c} as varchar), '{NULL_SENTINEL}') as varchar)\" for c in columns]; inner = f\" || '{SEP}' || \".join(parts); return f\"md5({inner})\"",
+        xpReward: 100,
+      },
+      {
+        stepNumber: 2,
+        title: "Dispatch: warehouse-portable macros",
+        instruction:
+          "## The problem dispatch solves\n\nNot every warehouse has the same functions. Postgres has `date_trunc('week', d)`, BigQuery has `date_trunc(d, week)`. If your macro hard-codes one, your project is locked to one warehouse.\n\ndbt solves this with **dispatch**: you write a default implementation and per-adapter overrides. dbt picks the right one at compile time.\n\n## Task\n\nSimulate dispatch. Implement `dispatch(macro_name: str, adapter: str, implementations: dict)`:\n\n- `implementations` is a dict like `{ 'default': fn, 'bigquery': fn, 'snowflake': fn }`.\n- Return the most specific implementation for `adapter`, falling back to `'default'`.\n- Raise `KeyError` if no `'default'` exists.",
+        starterCode:
+          "def dispatch(macro_name, adapter, implementations):\n    # TODO: prefer implementations[adapter] over implementations['default']\n    # raise KeyError if neither is present\n    pass\n\nimpls = {'default': lambda x: f\"date_trunc('week', {x})\",\n         'bigquery': lambda x: f\"date_trunc({x}, week)\"}\n\nassert dispatch('week_trunc', 'postgres', impls)('order_date') == \"date_trunc('week', order_date)\"\nassert dispatch('week_trunc', 'bigquery', impls)('order_date') == \"date_trunc(order_date, week)\"\ntry:\n    dispatch('x', 'pg', {'snowflake': lambda x: x})\n    raise AssertionError('expected KeyError')\nexcept KeyError:\n    pass\nprint('ok')\n",
+        validationHint:
+          "if adapter in implementations: return implementations[adapter]; if 'default' in implementations: return implementations['default']; raise KeyError(macro_name)",
+        xpReward: 125,
+      },
+      {
+        stepNumber: 3,
+        title: "Pivot macro: rows → columns",
+        instruction:
+          "## Why pivot in SQL is painful\n\nPivot is the most common request and the most painful SQL pattern. The structure is always the same — `SUM(CASE WHEN col = 'X' THEN val END) AS x` — repeated N times. Perfect macro material.\n\n## Task\n\nImplement `pivot(column: str, values: list[str], agg: str = 'sum', value_col: str = 'amount')` returning a SQL fragment:\n\n```\nsum(case when status = 'paid' then amount end) as paid,\nsum(case when status = 'refunded' then amount end) as refunded\n```\n\n- One line per value, comma-separated\n- Lowercase the alias and replace spaces with underscores (so `'Net Profit'` → `net_profit`)\n- Raise `ValueError` if `values` is empty",
+        starterCode:
+          "import re\n\ndef pivot(column, values, agg='sum', value_col='amount'):\n    if not values:\n        raise ValueError('need at least one value')\n    parts = []\n    for v in values:\n        alias = re.sub(r'[^a-z0-9_]+', '_', v.lower()).strip('_')\n        # TODO: parts.append(f\"{agg}(case when {column} = '{v}' then {value_col} end) as {alias}\")\n        pass\n    return ',\\n'.join(parts)\n\nresult = pivot('status', ['paid', 'refunded'])\nassert \"sum(case when status = 'paid' then amount end) as paid\" in result\nassert result.count(',') == 1\nassert pivot('region', ['North America', 'EMEA']).count('north_america') == 1\nprint('ok')\n",
+        validationHint:
+          "parts.append(f\"{agg}(case when {column} = '{v}' then {value_col} end) as {alias}\")",
+        xpReward: 150,
+      },
+      {
+        stepNumber: 4,
+        title: "Date spine generator",
+        instruction:
+          "## Why you need a date spine\n\nReporting on revenue 'per day' breaks when a day has zero sales — the row is missing, the chart has gaps, the WoW metric is wrong. The fix: LEFT JOIN your fact table onto a date spine (one row per calendar day in the period).\n\nMost macros build it with `generate_series` (Postgres) or a recursive CTE (everywhere else).\n\n## Task\n\nImplement `date_spine(start_date: str, end_date: str, granularity: str = 'day')` returning the Postgres SQL:\n\n```\nselect generate_series('2026-01-01'::date, '2026-01-31'::date, '1 day'::interval)::date as date_day\n```\n\nMap granularity → interval:\n- `'day'` → `'1 day'`, alias `date_day`\n- `'week'` → `'1 week'`, alias `date_week`\n- `'month'` → `'1 month'`, alias `date_month`\n\nRaise `ValueError` for any other granularity.",
+        starterCode:
+          "GRANULARITIES = {'day': '1 day', 'week': '1 week', 'month': '1 month'}\n\ndef date_spine(start_date, end_date, granularity='day'):\n    if granularity not in GRANULARITIES:\n        raise ValueError(f'unsupported granularity: {granularity}')\n    interval = GRANULARITIES[granularity]\n    alias = f'date_{granularity}'\n    # TODO: f\"select generate_series('{start_date}'::date, '{end_date}'::date, '{interval}'::interval)::date as {alias}\"\n    pass\n\nout = date_spine('2026-01-01', '2026-01-31')\nassert \"generate_series('2026-01-01'::date, '2026-01-31'::date, '1 day'::interval)\" in out\nassert 'as date_day' in out\nassert 'date_week' in date_spine('2026-01-01', '2026-03-31', 'week')\ntry:\n    date_spine('a', 'b', 'hour')\n    raise AssertionError('expected ValueError')\nexcept ValueError:\n    pass\nprint('ok')\n",
+        validationHint:
+          "return f\"select generate_series('{start_date}'::date, '{end_date}'::date, '{interval}'::interval)::date as {alias}\"",
+        xpReward: 125,
+      },
+      {
+        stepNumber: 5,
+        title: "Macro testing: catch the regressions",
+        instruction:
+          "## Why test macros?\n\nMacros are deployed once and called 40 times. A bug in `surrogate_key` corrupts every dim table. dbt 1.8+ ships unit-testing — you give the macro example inputs and expected SQL output, dbt runs them in CI.\n\nThe pattern: render the macro, then **normalise whitespace** (collapse all runs of whitespace into single spaces) before comparing. Otherwise a stray newline fails the test even when the SQL is correct.\n\n## Task\n\nImplement `assert_macro_renders(macro_fn, args: list, expected: str)` that:\n- calls `macro_fn(*args)` to get the rendered SQL\n- normalises whitespace on BOTH the actual output AND the expected output (collapse runs of whitespace, then `.strip()`)\n- raises `AssertionError(f'expected: {expected_norm!r}\\\\ngot: {actual_norm!r}')` on mismatch\n- returns `True` on success",
+        starterCode:
+          "import re\n\ndef normalise(sql):\n    return re.sub(r'\\s+', ' ', sql).strip()\n\ndef assert_macro_renders(macro_fn, args, expected):\n    actual = macro_fn(*args)\n    a, e = normalise(actual), normalise(expected)\n    if a != e:\n        # TODO: raise AssertionError(f'expected: {e!r}\\\\ngot: {a!r}')\n        pass\n    return True\n\ndef week_trunc(col):\n    return f\"\"\"\n      date_trunc(\n        'week',\n        {col}\n      )\n    \"\"\"\n\nassert assert_macro_renders(week_trunc, ['order_date'], \"date_trunc('week', order_date)\") is True\ntry:\n    assert_macro_renders(week_trunc, ['x'], \"date_trunc('month', x)\")\n    raise AssertionError('expected mismatch')\nexcept AssertionError as e:\n    assert 'expected' in str(e) and 'got' in str(e)\nprint('ok')\n",
+        validationHint:
+          "raise AssertionError(f'expected: {e!r}\\\\ngot: {a!r}'). Normalisation is the trick — multiline SQL fails strict equality.",
+        xpReward: 150,
+      },
+    ],
+  },
+  {
     slug: "debezium-cdc",
     title: "Change Data Capture with Debezium",
     shortDescription:

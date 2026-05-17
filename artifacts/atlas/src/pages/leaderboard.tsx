@@ -1,5 +1,6 @@
 import { useGetLeaderboard, useGetUserStats } from "@workspace/api-client-react";
 import { Trophy, Star } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
@@ -77,10 +78,13 @@ export default function Leaderboard() {
               </div>
             ))}
             {(!leaderboard || (leaderboard as any[]).length === 0) && (
-              <div className="py-12 text-center text-muted-foreground">
-                <Trophy className="h-12 w-12 mx-auto opacity-20 mb-3" />
-                <p>No rankings yet. Complete projects to earn XP and appear here.</p>
-              </div>
+              <EmptyState
+                icon={Trophy}
+                title="No rankings yet"
+                description="Complete project steps to earn XP and become the first on the leaderboard."
+                ctaLabel="Browse Projects"
+                ctaHref="/domains/data-engineering"
+              />
             )}
           </div>
         )}

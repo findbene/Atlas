@@ -209,6 +209,43 @@
 }
 
 @layer utilities {
+  /* ---- Liquid-glass design system ----
+   * `.glass` is the translucent panel base; `.glass-card` adds a soft border
+   * and elevation. Both work in light + dark because they consume
+   * --background / --border tokens. */
+  .glass {
+    background: color-mix(in oklab, hsl(var(--card)) 70%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid color-mix(in oklab, hsl(var(--border)) 70%, transparent);
+  }
+  .glass-card {
+    background: color-mix(in oklab, hsl(var(--card)) 78%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid color-mix(in oklab, hsl(var(--border)) 75%, transparent);
+    box-shadow:
+      0 1px 0 0 color-mix(in oklab, white 8%, transparent) inset,
+      0 20px 50px -20px rgba(0, 0, 0, 0.5);
+  }
+  /* Slow shimmer for hero gradient text. */
+  @keyframes atlas-gradient-pan {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  .animate-gradient {
+    background-size: 200% auto;
+    animation: atlas-gradient-pan 8s ease-in-out infinite;
+  }
+  /* Subtle card hover lift used across cinematic pages. */
+  .hover-lift {
+    transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px -20px rgba(0,0,0,.45);
+  }
+
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
