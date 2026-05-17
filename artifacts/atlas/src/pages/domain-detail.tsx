@@ -52,6 +52,23 @@ export default function DomainDetail() {
   const [language, setLanguage] = useState<"all" | "python" | "sql">("all");
   const [difficultyFilter, setDifficultyFilter] = useState<"all" | "beginner" | "intermediate" | "advanced">("all");
 
+  // Derived list filter. MUST sit above any early returns or React throws
+  // "Rendered more hooks than during the previous render" when loading flips.
+  const projectsList = (domain?.projects ?? []) as any[];
+  const searchLower = search.trim().toLowerCase();
+  const filteredProjects = useMemo(() => {
+    if (!searchLower && language === "all" && difficultyFilter === "all") return projectsList;
+    return projectsList.filter((p) => {
+      if (difficultyFilter !== "all" && p.difficulty !== difficultyFilter) return false;
+      if (language !== "all" && p.language && p.language !== language) return false;
+      if (searchLower) {
+        const hay = `${p.title ?? ""} ${p.description ?? ""} ${(p.tags ?? []).join(" ")}`.toLowerCase();
+        if (!hay.includes(searchLower)) return false;
+      }
+      return true;
+    });
+  }, [projectsList, searchLower, language, difficultyFilter]);
+
   if (isLoading) {
     return (
       <div className="container max-w-6xl mx-auto py-12 px-6">
@@ -85,20 +102,7 @@ export default function DomainDetail() {
     advanced: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   };
 
-  const projects = domain.projects ?? [];
-  const searchLower = search.trim().toLowerCase();
-  const filteredProjects = useMemo(() => {
-    if (!searchLower && language === "all" && difficultyFilter === "all") return projects;
-    return (projects as any[]).filter((p) => {
-      if (difficultyFilter !== "all" && p.difficulty !== difficultyFilter) return false;
-      if (language !== "all" && p.language && p.language !== language) return false;
-      if (searchLower) {
-        const hay = `${p.title ?? ""} ${p.description ?? ""} ${(p.tags ?? []).join(" ")}`.toLowerCase();
-        if (!hay.includes(searchLower)) return false;
-      }
-      return true;
-    });
-  }, [projects, searchLower, language, difficultyFilter]);
+  const projects = projectsList;
   const visibleProjects = view === "list" ? filteredProjects : projects;
 
   return (

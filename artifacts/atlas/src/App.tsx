@@ -71,6 +71,25 @@ const clerkAppearance = {
     cardBox: "bg-card rounded-2xl w-[440px] max-w-full overflow-hidden border border-border",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    // ---- UserButton popover ----
+    // The shadcn Clerk theme leaves the popover transparent on our background,
+    // which makes the action labels and icons invisible. Pin explicit colors
+    // that match our card so name/email/avatar AND the Manage account / Sign
+    // out actions all stay readable.
+    userButtonAvatarBox: "h-9 w-9 ring-2 ring-border hover:ring-primary/60 transition",
+    userButtonPopoverCard:
+      "!bg-card !border !border-border !shadow-xl !rounded-xl !text-foreground",
+    userButtonPopoverMain: "!bg-card",
+    userButtonPopoverActions: "!bg-card",
+    userButtonPopoverActionButton:
+      "!text-foreground hover:!bg-muted/60 !transition-colors",
+    userButtonPopoverActionButtonText: "!text-foreground !font-medium",
+    userButtonPopoverActionButtonIcon: "!text-primary",
+    userButtonPopoverFooter: "!bg-card !border-t !border-border",
+    userPreview: "!bg-card",
+    userPreviewMainIdentifier: "!text-foreground !font-semibold",
+    userPreviewSecondaryIdentifier: "!text-muted-foreground !text-xs",
+    userPreviewAvatarContainer: "!ring-2 !ring-border",
   },
 };
 

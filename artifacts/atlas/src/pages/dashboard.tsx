@@ -8,6 +8,8 @@ import { Flame, Trophy, BookOpen, Code2, Star, Clock, ChevronRight, TrendingUp, 
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 import { StreakHeatmap } from "@/components/StreakHeatmap";
+import { EmptyState } from "@/components/EmptyState";
+import { Rocket, Trophy as TrophyIcon } from "lucide-react";
 
 function XpBar({ current, next, level }: { current: number; next: number; level: number }) {
   const pct = Math.min((current / next) * 100, 100);
@@ -203,10 +205,14 @@ export default function Dashboard() {
               {[1,2].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}
             </div>
           ) : inProgress.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-muted-foreground text-sm mb-3">No projects in progress yet.</p>
-              <Button asChild size="sm"><Link href="/domains/data-engineering">Start a Project</Link></Button>
-            </div>
+            <EmptyState
+              compact
+              icon={Rocket}
+              title="No projects in progress yet"
+              description="Pick a real-world Data Engineering project and ship your first commit."
+              ctaLabel="Start a Project"
+              ctaHref="/domains/data-engineering"
+            />
           ) : (
             <div className="space-y-3">
               {inProgress.slice(0, 3).map((up: any) => {
@@ -303,7 +309,12 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm text-center py-4">No rankings yet. Start learning to get on the board!</p>
+            <EmptyState
+              compact
+              icon={TrophyIcon}
+              title="No rankings yet"
+              description="Earn XP by completing project steps to land on the leaderboard."
+            />
           )}
         </div>
       </div>

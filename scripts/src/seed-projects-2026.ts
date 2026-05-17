@@ -82,6 +82,84 @@ export const projects2026: ProjectData[] = [
     ],
   },
   {
+    slug: "vector-database-search",
+    title: "Vector Database for Semantic Search",
+    shortDescription:
+      "Build production-grade semantic search with pgvector — embeddings, ANN indexes, and hybrid keyword/vector ranking against a real Postgres.",
+    fullDescription:
+      "Every modern search box and RAG pipeline rides on the same primitives: embed text, store the vectors in a database that can do approximate nearest-neighbour lookups, and combine the score with keyword relevance. You'll build the math (cosine similarity from scratch), reason about HNSW vs IVFFlat index trade-offs, decide between flat-L2 and normalised cosine, and design a hybrid ranker that beats either signal alone.",
+    difficulty: "advanced",
+    estimatedMinutes: 540,
+    position: 21,
+    isPremium: true,
+    language: "python",
+    xpReward: 700,
+    tags: ["pgvector", "embeddings", "ann", "semantic-search"],
+    learningObjectives: [
+      "Compute cosine similarity correctly (and know when L2 is faster)",
+      "Choose between HNSW and IVFFlat for your workload",
+      "Design a hybrid keyword + vector ranker",
+      "Reason about index build-time vs query-time trade-offs",
+    ],
+    techStack: ["pgvector", "PostgreSQL", "Python", "OpenAI embeddings"],
+    steps: [
+      {
+        stepNumber: 1,
+        title: "Cosine similarity from scratch",
+        instruction:
+          "## Why cosine, not Euclidean?\n\nEmbedding models output vectors whose **direction** carries the semantics; the **magnitude** is mostly noise from token frequency. That's why cosine similarity is the default — it ignores magnitude.\n\nFormally: `cos(a, b) = (a · b) / (|a| * |b|)` — the dot product divided by the product of L2 norms.\n\nA classic trick: if you **normalise** vectors at write-time (divide each by its L2 norm), then cosine similarity reduces to a plain dot product — which is much faster.\n\n## Task\n\nImplement `cosine_similarity(a, b)` from scratch (no numpy). Return a float in `[-1, 1]`. Raise `ValueError` if either vector is the zero vector.",
+        starterCode:
+          "from math import sqrt\n\ndef cosine_similarity(a, b):\n    if len(a) != len(b):\n        raise ValueError('dim mismatch')\n    # TODO: compute dot, norm_a, norm_b; raise on zero vector; return dot / (na * nb)\n    pass\n\nassert abs(cosine_similarity([1, 0], [1, 0]) - 1.0) < 1e-9\nassert abs(cosine_similarity([1, 0], [0, 1])) < 1e-9\nassert abs(cosine_similarity([1, 1], [-1, -1]) + 1.0) < 1e-9\ntry:\n    cosine_similarity([0, 0], [1, 0])\n    raise AssertionError('expected ValueError')\nexcept ValueError:\n    pass\nprint('ok')\n",
+        validationHint:
+          "dot = sum(x*y for x, y in zip(a, b)); na = sqrt(sum(x*x for x in a)); nb = sqrt(sum(y*y for y in b)); if na == 0 or nb == 0: raise ValueError('zero vector'); return dot / (na * nb)",
+        xpReward: 100,
+      },
+      {
+        stepNumber: 2,
+        title: "Pre-normalise for free speedups",
+        instruction:
+          "## The dot-product equivalence\n\nIf `|a| = |b| = 1`, then `cos(a, b) = a · b`. The norm computation is the slow part of cosine similarity — eliminate it.\n\nIn production: normalise embeddings *once at insert time*, then index them with the `vector_ip_ops` (inner product) operator class in pgvector. Queries become a single dot product.\n\n## Task\n\nImplement `l2_normalize(v)` returning a new list whose L2 norm is 1.0 (raise `ValueError` for the zero vector). Then implement `fast_cosine(na, nb)` that assumes both inputs are already normalised and returns the dot product.",
+        starterCode:
+          "from math import sqrt\n\ndef l2_normalize(v):\n    n = sqrt(sum(x*x for x in v))\n    if n == 0:\n        raise ValueError('zero vector')\n    # TODO: return [x / n for x in v]\n    pass\n\ndef fast_cosine(na, nb):\n    # TODO: assume both unit-length; return dot product\n    pass\n\nu = l2_normalize([3, 4])\nassert abs(sum(x*x for x in u) - 1.0) < 1e-9\nassert abs(fast_cosine(u, u) - 1.0) < 1e-9\nassert abs(fast_cosine(l2_normalize([1, 0]), l2_normalize([0, 1]))) < 1e-9\nprint('ok')\n",
+        validationHint:
+          "l2_normalize: return [x / n for x in v]. fast_cosine: return sum(x*y for x, y in zip(na, nb)).",
+        xpReward: 125,
+      },
+      {
+        stepNumber: 3,
+        title: "HNSW vs IVFFlat: pick the right index",
+        instruction:
+          "## The two pgvector indexes\n\npgvector ships two ANN indexes; they make opposite trade-offs:\n\n| | HNSW | IVFFlat |\n|---|---|---|\n| **Build time** | slow (10x–100x) | fast |\n| **Recall** | very high | tunable, lower at small `nprobe` |\n| **Memory** | high (graph) | low |\n| **Update cost** | high | low |\n| **Best for** | small/medium, low-update | large, write-heavy |\n\nA rule of thumb:\n\n- < 1M vectors and few updates → **HNSW**\n- ≥ 10M vectors or heavy writes → **IVFFlat** (with `lists ≈ sqrt(N)`)\n\n## Task\n\nImplement `recommend_index(n_vectors: int, writes_per_min: int) -> str` returning `'hnsw'`, `'ivfflat'`, or `'flat'`:\n- < 10_000 vectors → `'flat'` (no index — pg can scan)\n- ≥ 10M vectors OR > 1000 writes/min → `'ivfflat'`\n- otherwise → `'hnsw'`",
+        starterCode:
+          "def recommend_index(n_vectors, writes_per_min):\n    # TODO: implement the decision table\n    pass\n\nassert recommend_index(500, 0) == 'flat'\nassert recommend_index(100_000, 10) == 'hnsw'\nassert recommend_index(50_000_000, 0) == 'ivfflat'\nassert recommend_index(100_000, 5000) == 'ivfflat'\nprint('ok')\n",
+        validationHint:
+          "if n_vectors < 10_000: return 'flat'; if n_vectors >= 10_000_000 or writes_per_min > 1000: return 'ivfflat'; return 'hnsw'",
+        xpReward: 125,
+      },
+      {
+        stepNumber: 4,
+        title: "IVFFlat: how many lists?",
+        instruction:
+          "## Tuning IVFFlat\n\nIVFFlat clusters vectors into `lists` partitions. Queries probe `nprobe` of them and scan their members.\n\n- `lists` too small → each list is huge → slow queries\n- `lists` too big → centroid lookup itself dominates → also slow\n- The pgvector docs recommend: `lists ≈ rows / 1000` for `rows < 1M`, and `lists ≈ sqrt(rows)` for larger tables\n\nAt query time, `nprobe` controls the speed/recall trade-off. Start at `nprobe = sqrt(lists)`, increase for higher recall.\n\n## Task\n\nImplement `ivfflat_params(rows: int) -> dict` returning `{'lists': int, 'nprobe': int}` using the rules above. Round `lists` to the nearest integer (no fractional lists). Ensure `lists >= 1`.",
+        starterCode:
+          "from math import sqrt\n\ndef ivfflat_params(rows):\n    if rows < 1_000_000:\n        lists = max(1, round(rows / 1000))\n    else:\n        lists = max(1, round(sqrt(rows)))\n    # TODO: nprobe = max(1, round(sqrt(lists)))\n    nprobe = 1\n    return {'lists': lists, 'nprobe': nprobe}\n\nassert ivfflat_params(100_000) == {'lists': 100, 'nprobe': 10}\nassert ivfflat_params(4_000_000) == {'lists': 2000, 'nprobe': 45}\nassert ivfflat_params(500)['lists'] == 1\nprint('ok')\n",
+        validationHint: "nprobe = max(1, round(sqrt(lists)))",
+        xpReward: 150,
+      },
+      {
+        stepNumber: 5,
+        title: "Hybrid keyword + vector ranking",
+        instruction:
+          "## Why hybrid wins\n\nVector search captures *semantic* similarity but misses *exact* matches (acronyms, product codes, names). Keyword search (BM25) is the opposite. Combine them with **reciprocal rank fusion** — RRF — which is simple, parameter-light, and beats most learned rankers in benchmarks:\n\n```\nrrf_score(doc) = sum over rankers of 1 / (k + rank(doc))\n```\n\nwhere `k = 60` (a magic constant from the original paper) and `rank` is 1-indexed.\n\n## Task\n\nImplement `rrf(rankings: list[list[str]], k: int = 60) -> list[tuple[str, float]]`:\n- `rankings` is a list of ranked lists of doc ids (one per ranker)\n- return docs sorted by descending RRF score\n- a doc missing from a ranker contributes 0 for that ranker",
+        starterCode:
+          "def rrf(rankings, k=60):\n    scores = {}\n    for ranking in rankings:\n        for rank, doc_id in enumerate(ranking, start=1):\n            # TODO: scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)\n            pass\n    return sorted(scores.items(), key=lambda kv: kv[1], reverse=True)\n\nkw = ['A', 'B', 'C']\nvec = ['B', 'D', 'A']\nresult = rrf([kw, vec], k=60)\ntop = [d for d, _ in result]\nassert top[0] == 'B', top  # ranked #2 by kw and #1 by vec\nassert 'D' in top\nassert abs(dict(result)['B'] - (1/62 + 1/61)) < 1e-12\nprint('ok')\n",
+        validationHint:
+          "scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank). RRF rewards docs that appear high on multiple rankers.",
+        xpReward: 200,
+      },
+    ],
+  },
+  {
     slug: "debezium-cdc",
     title: "Change Data Capture with Debezium",
     shortDescription:
