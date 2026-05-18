@@ -132,17 +132,42 @@ let runChain: Promise<unknown> = Promise.resolve();
 
 export async function runPython(
   code: string,
-  opts: { timeoutMs?: number } = {}
+  opts: { timeoutMs?: number; resetGlobals?: boolean } = {}
 ): Promise<ExecResult> {
   const timeoutMs = opts.timeoutMs ?? 15000;
-  const next = runChain.then(() => runPythonInner(code, timeoutMs));
+  // Reset between runs by default so a previous run's variables don't leak
+  // into the next attempt (causing false-positive validations). REPL-style
+  // callers that want persistence can opt out with `resetGlobals: false`.
+  const resetGlobals = opts.resetGlobals !== false;
+  const next = runChain.then(() => runPythonInner(code, timeoutMs, resetGlobals));
   // Don't let one failure poison the chain.
   runChain = next.catch(() => undefined);
   return next;
 }
 
-async function runPythonInner(code: string, timeoutMs: number): Promise<ExecResult> {
+/**
+ * Clear user-defined names from the Python global namespace without throwing
+ * away the interpreter (avoids the ~10MB reload). Names starting with `_` are
+ * preserved (Python internals like `__name__`, `__builtins__`). Best-effort —
+ * a failure here is logged but does not block the next run.
+ */
+async function resetPyodideGlobalsInner(py: import("pyodide").PyodideInterface): Promise<void> {
+  try {
+    await py.runPythonAsync(
+      "for _k in [k for k in list(globals().keys()) if not k.startswith('_')]:\n" +
+      "    del globals()[_k]\n"
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("Pyodide global reset failed (non-fatal)", err);
+  }
+}
+
+async function runPythonInner(code: string, timeoutMs: number, resetGlobals: boolean): Promise<ExecResult> {
   const py = await loadPyodideOnce();
+  if (resetGlobals) {
+    await resetPyodideGlobalsInner(py);
+  }
 
   // Pre-load any packages we can detect from the import lines.
   const pkgs = detectImports(code);

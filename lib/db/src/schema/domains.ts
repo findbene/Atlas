@@ -67,6 +67,10 @@ export const projects = pgTable("projects", {
   enrolledCount: integer("enrolled_count").default(0).notNull(),
   completionRate: integer("completion_rate").default(0).notNull(),
   jobOutcomes: jsonb("job_outcomes"),
+  // Phase 2: how this project's code is actually executed for the learner.
+  // Shape validated by `executionProfileSchema` in @workspace/execution-core.
+  // Null on legacy rows; the runtime falls back to DEFAULT_SIMULATED_PROFILE.
+  executionProfile: jsonb("execution_profile"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [
@@ -90,6 +94,13 @@ export const projectSteps = pgTable("project_steps", {
   xpReward: integer("xp_reward").default(25).notNull(),
   starterCode: text("starter_code"),
   type: text("type").default('code_python').notNull(),
+  // Phase 2: generic expected outputs (rows, stdout, files, metrics) used by
+  // `validateExpected` in @workspace/execution-core for richer grading.
+  expectedOutputs: jsonb("expected_outputs"),
+  // Phase 2: SQL/DuckDB dataset refs to register before the step runs.
+  datasetRefs: jsonb("dataset_refs"),
+  // Phase 2: optional per-step override of the project's executionProfile.
+  executionOverride: jsonb("execution_override"),
 }, (t) => [
   uniqueIndex('project_step_idx').on(t.projectId, t.stepNumber),
 ]);

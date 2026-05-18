@@ -131,6 +131,39 @@ export const ProjectStepType = {
   reflection: "reflection",
 } as const;
 
+/**
+ * Phase 2: generic expected outputs used by validateExpected in
+@workspace/execution-core. Free-form JSONB; shape is constrained
+client-side by expectedOutputsSchema (rows, stdout, files, metrics).
+
+ */
+export type ProjectStepExpectedOutputs = { [key: string]: unknown } | null;
+
+export type ExecutionProfileMode =
+  (typeof ExecutionProfileMode)[keyof typeof ExecutionProfileMode];
+
+export const ExecutionProfileMode = {
+  simulated: "simulated",
+  replay: "replay",
+  local_container: "local_container",
+  byo_cloud: "byo_cloud",
+  managed_sandbox: "managed_sandbox",
+} as const;
+
+/**
+ * How a project's code is actually executed. Validated client-side by
+executionProfileSchema in @workspace/execution-core.
+
+ */
+export interface ExecutionProfile {
+  mode: ExecutionProfileMode;
+  honestyLabel: string;
+  supportedPlatforms?: string[];
+  requiredServices?: string[];
+  estimatedCost?: string;
+  cleanupSteps?: string[];
+}
+
 export interface ProjectStep {
   id: string;
   position: number;
@@ -142,6 +175,14 @@ export interface ProjectStep {
   hints?: string[];
   xpReward: number;
   isLocked: boolean;
+  /** Phase 2: generic expected outputs used by validateExpected in
+@workspace/execution-core. Free-form JSONB; shape is constrained
+client-side by expectedOutputsSchema (rows, stdout, files, metrics).
+ */
+  expectedOutputs?: ProjectStepExpectedOutputs;
+  /** Sample dataset names to register before running this step (e.g. SQL/DuckDB). */
+  datasetRefs?: string[] | null;
+  executionOverride?: ExecutionProfile | null;
 }
 
 export type ProjectDetail = ProjectSummary & {
@@ -152,6 +193,7 @@ export type ProjectDetail = ProjectSummary & {
   domainSlug?: string;
   domainName?: string;
   jobOutcomes?: JobOutcomes;
+  executionProfile?: ExecutionProfile | null;
 };
 
 export type UserProjectStatus =

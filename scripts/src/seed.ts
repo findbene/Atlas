@@ -728,6 +728,85 @@ async function seed() {
   }
   if (backfilled > 0) console.log(`  Backfilled jobOutcomes on ${backfilled} project(s)`);
 
+  // --- Phase 2: backfill executionProfile on every project (idempotent) ---
+  // All current projects run in-browser (Pyodide for python, DuckDB-WASM for
+  // sql), so the default profile is `simulated`. Future cloud-backed projects
+  // will set their own profile explicitly in their seed entries.
+  const SIMULATED_PROFILE = {
+    mode: "simulated",
+    honestyLabel: "In-Browser Simulation",
+    supportedPlatforms: ["local"],
+    estimatedCost: "Free",
+  };
+  const projectsMissingProfile = await db.query.projects.findMany({});
+  let profileBackfilled = 0;
+  for (const p of projectsMissingProfile) {
+    if (p.executionProfile != null) continue;
+    await db.update(projects).set({ executionProfile: SIMULATED_PROFILE }).where(eq(projects.id, p.id));
+    profileBackfilled += 1;
+  }
+  if (profileBackfilled > 0) console.log(`  Backfilled executionProfile on ${profileBackfilled} project(s)`);
+
+  // --- Phase 2: SQL POC step on dbt-data-models ---
+  // Adds (idempotently) a real DuckDB-WASM SQL step so the new execution
+  // pipeline has a learner-visible demonstration. Does NOT modify the
+  // existing step content. Dataset CSV lives at artifacts/atlas/public/datasets/orders.csv.
+  const dbtProject = await db.query.projects.findFirst({ where: eq(projects.slug, "dbt-data-models") });
+  if (dbtProject) {
+    const existingPoc = await db.query.projectSteps.findFirst({
+      where: and(eq(projectSteps.projectId, dbtProject.id), eq(projectSteps.stepNumber, 2)),
+    });
+    const pocPayload = {
+      projectId: dbtProject.id,
+      stepNumber: 2,
+      title: "Run Real SQL against DuckDB",
+      instructionMd:
+        "## Your First Real SQL Query in Atlas\n\n" +
+        "Up to this point you've been writing SQL as Python strings. This step actually **executes** your SQL — in your browser — using DuckDB-WASM.\n\n" +
+        "An `orders` table has been pre-loaded for you with columns: `order_id`, `customer_id`, `amount`, `status`.\n\n" +
+        "**Task:** Write a query that returns the number of orders per status, ordered alphabetically by status. The result must have exactly two columns: `status` and `n`.",
+      starterCode:
+        "-- Count orders per status, ordered by status ascending.\n" +
+        "-- Expected columns: status, n\n" +
+        "SELECT\n" +
+        "  status,\n" +
+        "  COUNT(*) AS n\n" +
+        "FROM orders\n" +
+        "-- TODO: add GROUP BY and ORDER BY\n",
+      validationType: "self_attest" as const,
+      validationConfig: {},
+      validationHint: "GROUP BY status, then ORDER BY status.",
+      xpReward: 200,
+      type: "code_sql",
+      expectedOutputs: {
+        rows: [
+          { status: "cancelled", n: 2 },
+          { status: "pending", n: 2 },
+          { status: "shipped", n: 3 },
+        ],
+        orderSensitive: true,
+      },
+      datasetRefs: ["orders"],
+    };
+    if (!existingPoc) {
+      await db.insert(projectSteps).values(pocPayload);
+      console.log(`  + Added Phase 2 SQL POC step to "${dbtProject.title}"`);
+    } else {
+      // Keep it in sync if seed re-runs and the payload changes.
+      await db.update(projectSteps).set({
+        expectedOutputs: pocPayload.expectedOutputs,
+        datasetRefs: pocPayload.datasetRefs,
+        type: pocPayload.type,
+        starterCode: pocPayload.starterCode,
+        instructionMd: pocPayload.instructionMd,
+        title: pocPayload.title,
+        validationHint: pocPayload.validationHint,
+        xpReward: pocPayload.xpReward,
+      }).where(eq(projectSteps.id, existingPoc.id));
+    }
+  }
+
+
   // --- Mastery Sections ---
   let pythonSection = await db.query.masterySections.findFirst({ where: eq(masterySections.slug, "python-mastery") });
   if (!pythonSection) {

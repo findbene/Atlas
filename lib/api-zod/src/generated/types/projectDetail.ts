@@ -5,6 +5,7 @@
  * Atlas - Project-based technical learning platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExecutionProfile } from "./executionProfile";
 import type { JobOutcomes } from "./jobOutcomes";
 import type { ProjectStep } from "./projectStep";
 import type { ProjectSummary } from "./projectSummary";
@@ -17,4 +18,5 @@ export type ProjectDetail = ProjectSummary & {
   domainSlug?: string;
   domainName?: string;
   jobOutcomes?: JobOutcomes;
+  executionProfile?: ExecutionProfile | null;
 };

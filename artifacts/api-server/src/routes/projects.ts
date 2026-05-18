@@ -232,6 +232,7 @@ router.get("/projects/:slug", async (req, res) => {
       domainSlug: domain?.slug ?? "data-engineering",
       domainName: domain?.title ?? "Data Engineering",
       jobOutcomes: project.jobOutcomes ?? undefined,
+      executionProfile: project.executionProfile ?? undefined,
       steps: steps.map(s => ({
         id: s.id,
         position: s.stepNumber,
@@ -243,6 +244,9 @@ router.get("/projects/:slug", async (req, res) => {
         hints: [],
         xpReward: s.xpReward,
         isLocked: false,
+        expectedOutputs: s.expectedOutputs ?? undefined,
+        datasetRefs: s.datasetRefs ?? undefined,
+        executionOverride: s.executionOverride ?? undefined,
       })),
     });
   } catch (err) {

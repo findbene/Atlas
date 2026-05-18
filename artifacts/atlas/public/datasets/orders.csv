@@ -1,0 +1,8 @@
+order_id,customer_id,amount,status
+1,101,49.99,shipped
+2,102,12.50,pending
+3,103,89.00,shipped
+4,101,15.00,cancelled
+5,104,29.99,shipped
+6,102,75.00,pending
+7,103,5.00,cancelled

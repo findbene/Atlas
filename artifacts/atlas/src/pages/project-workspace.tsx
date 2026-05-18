@@ -14,6 +14,16 @@ import {
   subscribePyodideStatus,
   type PyodideStatus,
 } from "@/lib/pyodideRunner";
+import { runViaRegistry } from "@/lib/executionRegistry";
+import { ExecutionModeChip } from "@/components/ExecutionModeChip";
+import {
+  parseExecutionProfile,
+  validateExpected,
+  expectedOutputsSchema,
+  FeatureDisabledError,
+  type RunResult,
+  type ExpectedOutputs,
+} from "@workspace/execution-core";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +66,7 @@ type GradingResult = {
 };
 
 const CODE_STEP_TYPES = new Set(["code_python", "code_sql"]);
+const SQL_STEP_TYPES = new Set(["code_sql"]);
 const TEXT_STEP_TYPES = new Set(["short_answer", "concept_check", "true_false", "multiple_choice"]);
 
 function submissionTypeForStep(stepType: string | undefined): "code" | "text" {
@@ -80,7 +91,13 @@ export default function ProjectWorkspace() {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [code, setCode] = useState("");
   const [textAnswer, setTextAnswer] = useState("");
-  const [output, setOutput] = useState<{ stdout: string; stderr: string; exitCode: number } | null>(null);
+  const [output, setOutput] = useState<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    columns?: string[];
+    rows?: Array<Array<string | number | boolean | null>>;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<"editor" | "output">("editor");
   const [gradingResult, setGradingResult] = useState<GradingResult | null>(null);
   const [showAi, setShowAi] = useState(false);
@@ -99,6 +116,11 @@ export default function ProjectWorkspace() {
   const steps = (project?.steps ?? []) as Array<any>;
   const currentStep = steps[currentStepIdx];
   const isCodeStep = CODE_STEP_TYPES.has(currentStep?.type ?? "");
+  const isSqlStep = SQL_STEP_TYPES.has(currentStep?.type ?? "");
+  // Python-only flag: SQL runs via DuckDB-WASM and must not be gated on
+  // Pyodide download progress or block the Run button while Pyodide loads.
+  const isPythonStep = isCodeStep && !isSqlStep;
+  const executionProfile = parseExecutionProfile((project as any)?.executionProfile);
 
   useEffect(() => {
     const unsubscribe = subscribePyodideStatus(setPyStatus);
@@ -108,11 +130,11 @@ export default function ProjectWorkspace() {
   // Kick off Pyodide download in the background as soon as the workspace mounts
   // for a code-based step, so the first "Run" feels instant.
   useEffect(() => {
-    if (!isCodeStep) return;
+    if (!isPythonStep) return;
     void loadPyodideOnce().catch(() => {
       // Status listener already flips to "error"; runCode will surface details.
     });
-  }, [isCodeStep]);
+  }, [isPythonStep]);
   const isTextStep = TEXT_STEP_TYPES.has(currentStep?.type ?? "");
   const completedStepIds = new Set(
     ((progress?.stepCompletions ?? []) as StepCompletion[])
@@ -234,15 +256,63 @@ export default function ProjectWorkspace() {
     let runStderr = "";
     let runExitCode = 1;
     try {
-      const result = await runPython(code);
-      runStdout = result.stdout;
-      runStderr = result.stderr;
-      runExitCode = result.exitCode;
-      setOutput({ stdout: runStdout, stderr: runStderr, exitCode: runExitCode });
+      if (isSqlStep) {
+        // Route SQL through the new execution registry. The DuckDB-WASM
+        // adapter loads any datasets the step declares, runs the query, and
+        // returns columns/rows we render in the output panel. If the step
+        // has expectedOutputs, validateExpected gives instant educational
+        // feedback alongside the raw result.
+        const result: RunResult = await runViaRegistry(
+          {
+            language: "sql",
+            code,
+            datasetRefs: (currentStep?.datasetRefs as string[] | undefined) ?? undefined,
+          },
+          {
+            projectProfile: (project as any)?.executionProfile,
+            stepOverride: currentStep?.executionOverride,
+          },
+        );
+        runExitCode = result.ok ? 0 : 1;
+        runStderr = result.ok ? "" : result.error ?? "Query failed.";
+        // For SQL we surface a short stdout summary line and the tabular rows.
+        runStdout = result.ok
+          ? `${result.rows?.length ?? 0} row(s) in ${result.durationMs}ms`
+          : "";
+        setOutput({
+          stdout: runStdout,
+          stderr: runStderr,
+          exitCode: runExitCode,
+          columns: result.columns,
+          rows: result.rows,
+        });
+        // Optional inline validation against expectedOutputs.
+        const parsedExpected = expectedOutputsSchema.safeParse(currentStep?.expectedOutputs);
+        if (parsedExpected.success) {
+          const outcome = validateExpected({
+            expected: parsedExpected.data as ExpectedOutputs,
+            result,
+          });
+          setGradingResult({
+            status: outcome.passed ? "passed" : "failed",
+            feedback: outcome.summary + (outcome.feedback ? `\n\n${outcome.feedback}` : ""),
+          });
+        }
+      } else {
+        const result = await runPython(code);
+        runStdout = result.stdout;
+        runStderr = result.stderr;
+        runExitCode = result.exitCode;
+        setOutput({ stdout: runStdout, stderr: runStderr, exitCode: runExitCode });
+      }
     } catch (err: any) {
-      runStderr =
-        err?.message ??
-        "Couldn't start the Python runtime. Check your network connection and try again.";
+      if (err instanceof FeatureDisabledError) {
+        runStderr = err.message;
+      } else {
+        runStderr =
+          err?.message ??
+          "Couldn't start the runtime. Check your network connection and try again.";
+      }
       setOutput({ stdout: "", stderr: runStderr, exitCode: 1 });
     } finally {
       setIsRunning(false);
@@ -371,7 +441,8 @@ export default function ProjectWorkspace() {
             {enrollError}
           </span>
         )}
-        <Badge variant="outline" className="ml-auto text-xs">{project.difficulty}</Badge>
+        <ExecutionModeChip profile={executionProfile} className="ml-auto" />
+        <Badge variant="outline" className="text-xs">{project.difficulty}</Badge>
         <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">+{project.xpReward} XP</Badge>
         <JobOutcomesPanel
           title={project.title}
@@ -538,13 +609,13 @@ export default function ProjectWorkspace() {
                         size="sm"
                         className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
                         onClick={runCode}
-                        disabled={isRunning || pyStatus === "loading" || !code}
-                        title={pyStatus === "loading" ? "Loading Python runtime..." : undefined}
+                        disabled={isRunning || (isPythonStep && pyStatus === "loading") || !code}
+                        title={isPythonStep && pyStatus === "loading" ? "Loading Python runtime..." : undefined}
                       >
                         <Play className="h-3 w-3 mr-1" />
                         {isRunning
                           ? "Running..."
-                          : pyStatus === "loading"
+                          : isPythonStep && pyStatus === "loading"
                             ? "Loading runtime…"
                             : "Run"}
                       </Button>
@@ -688,7 +759,40 @@ export default function ProjectWorkspace() {
                         <div className="font-mono text-sm space-y-2">
                           {output.stdout && <pre className="text-green-400 whitespace-pre-wrap">{output.stdout}</pre>}
                           {output.stderr && <pre className="text-red-400 whitespace-pre-wrap">{output.stderr}</pre>}
-                          {!output.stdout && !output.stderr && <span className="text-muted-foreground">No output</span>}
+                          {output.columns && output.rows && (
+                            <div className="rounded-md border border-border/60 overflow-auto max-h-[40vh]" data-testid="sql-result-table">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/40 sticky top-0">
+                                  <tr>
+                                    {output.columns.map((c) => (
+                                      <th key={c} className="text-left px-2 py-1 font-medium text-foreground/80 border-b border-border/60">{c}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {output.rows.length === 0 ? (
+                                    <tr><td colSpan={output.columns.length} className="px-2 py-2 text-muted-foreground italic">No rows returned</td></tr>
+                                  ) : (
+                                    output.rows.slice(0, 100).map((row, i) => (
+                                      <tr key={i} className="even:bg-muted/10">
+                                        {row.map((cell, j) => (
+                                          <td key={j} className="px-2 py-1 text-foreground/90 border-b border-border/30 font-mono">
+                                            {cell === null ? <span className="text-muted-foreground italic">null</span> : String(cell)}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                              {output.rows.length > 100 && (
+                                <div className="px-2 py-1 text-xs text-muted-foreground bg-muted/20 border-t border-border/40">
+                                  Showing first 100 of {output.rows.length} rows
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {!output.stdout && !output.stderr && !output.columns && <span className="text-muted-foreground">No output</span>}
                           <div className={`text-xs mt-2 ${output.exitCode === 0 ? "text-emerald-400" : "text-red-400"}`}>
                             Exit code: {output.exitCode}
                           </div>

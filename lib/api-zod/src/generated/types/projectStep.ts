@@ -5,6 +5,8 @@
  * Atlas - Project-based technical learning platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExecutionProfile } from "./executionProfile";
+import type { ProjectStepExpectedOutputs } from "./projectStepExpectedOutputs";
 import type { ProjectStepType } from "./projectStepType";
 
 export interface ProjectStep {
@@ -18,4 +20,12 @@ export interface ProjectStep {
   hints?: string[];
   xpReward: number;
   isLocked: boolean;
+  /** Phase 2: generic expected outputs used by validateExpected in
+@workspace/execution-core. Free-form JSONB; shape is constrained
+client-side by expectedOutputsSchema (rows, stdout, files, metrics).
+ */
+  expectedOutputs?: ProjectStepExpectedOutputs;
+  /** Sample dataset names to register before running this step (e.g. SQL/DuckDB). */
+  datasetRefs?: string[] | null;
+  executionOverride?: ExecutionProfile | null;
 }

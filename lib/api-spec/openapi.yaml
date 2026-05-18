@@ -810,6 +810,23 @@ components:
           type: integer
         isLocked:
           type: boolean
+        expectedOutputs:
+          type: object
+          description: |
+            Phase 2: generic expected outputs used by validateExpected in
+            @workspace/execution-core. Free-form JSONB; shape is constrained
+            client-side by expectedOutputsSchema (rows, stdout, files, metrics).
+          additionalProperties: true
+          nullable: true
+        datasetRefs:
+          type: array
+          description: Sample dataset names to register before running this step (e.g. SQL/DuckDB).
+          items:
+            type: string
+          nullable: true
+        executionOverride:
+          $ref: "#/components/schemas/ExecutionProfile"
+          nullable: true
       required:
         - id
         - position
@@ -818,6 +835,35 @@ components:
         - type
         - xpReward
         - isLocked
+
+    ExecutionProfile:
+      type: object
+      description: |
+        How a project's code is actually executed. Validated client-side by
+        executionProfileSchema in @workspace/execution-core.
+      properties:
+        mode:
+          type: string
+          enum: [simulated, replay, local_container, byo_cloud, managed_sandbox]
+        honestyLabel:
+          type: string
+        supportedPlatforms:
+          type: array
+          items:
+            type: string
+        requiredServices:
+          type: array
+          items:
+            type: string
+        estimatedCost:
+          type: string
+        cleanupSteps:
+          type: array
+          items:
+            type: string
+      required:
+        - mode
+        - honestyLabel
 
     ProjectDetail:
       allOf:
@@ -844,6 +890,9 @@ components:
               type: string
             jobOutcomes:
               $ref: "#/components/schemas/JobOutcomes"
+            executionProfile:
+              $ref: "#/components/schemas/ExecutionProfile"
+              nullable: true
 
     JobOutcomes:
       type: object

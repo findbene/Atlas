@@ -281,6 +281,37 @@ export const GetProjectResponse = zod
             hints: zod.array(zod.string()).optional(),
             xpReward: zod.number(),
             isLocked: zod.boolean(),
+            expectedOutputs: zod
+              .record(zod.string(), zod.unknown())
+              .nullish()
+              .describe(
+                "Phase 2: generic expected outputs used by validateExpected in\n@workspace\/execution-core. Free-form JSONB; shape is constrained\nclient-side by expectedOutputsSchema (rows, stdout, files, metrics).\n",
+              ),
+            datasetRefs: zod
+              .array(zod.string())
+              .nullish()
+              .describe(
+                "Sample dataset names to register before running this step (e.g. SQL\/DuckDB).",
+              ),
+            executionOverride: zod
+              .object({
+                mode: zod.enum([
+                  "simulated",
+                  "replay",
+                  "local_container",
+                  "byo_cloud",
+                  "managed_sandbox",
+                ]),
+                honestyLabel: zod.string(),
+                supportedPlatforms: zod.array(zod.string()).optional(),
+                requiredServices: zod.array(zod.string()).optional(),
+                estimatedCost: zod.string().optional(),
+                cleanupSteps: zod.array(zod.string()).optional(),
+              })
+              .nullish()
+              .describe(
+                "How a project's code is actually executed. Validated client-side by\nexecutionProfileSchema in @workspace\/execution-core.\n",
+              ),
           }),
         )
         .optional(),
@@ -322,6 +353,25 @@ export const GetProjectResponse = zod
         .optional()
         .describe(
           "Career-readiness signals demonstrated by completing this project.",
+        ),
+      executionProfile: zod
+        .object({
+          mode: zod.enum([
+            "simulated",
+            "replay",
+            "local_container",
+            "byo_cloud",
+            "managed_sandbox",
+          ]),
+          honestyLabel: zod.string(),
+          supportedPlatforms: zod.array(zod.string()).optional(),
+          requiredServices: zod.array(zod.string()).optional(),
+          estimatedCost: zod.string().optional(),
+          cleanupSteps: zod.array(zod.string()).optional(),
+        })
+        .nullish()
+        .describe(
+          "How a project's code is actually executed. Validated client-side by\nexecutionProfileSchema in @workspace\/execution-core.\n",
         ),
     }),
   );
@@ -529,6 +579,37 @@ export const GetUserProjectProgressResponse = zod
                   hints: zod.array(zod.string()).optional(),
                   xpReward: zod.number(),
                   isLocked: zod.boolean(),
+                  expectedOutputs: zod
+                    .record(zod.string(), zod.unknown())
+                    .nullish()
+                    .describe(
+                      "Phase 2: generic expected outputs used by validateExpected in\n@workspace\/execution-core. Free-form JSONB; shape is constrained\nclient-side by expectedOutputsSchema (rows, stdout, files, metrics).\n",
+                    ),
+                  datasetRefs: zod
+                    .array(zod.string())
+                    .nullish()
+                    .describe(
+                      "Sample dataset names to register before running this step (e.g. SQL\/DuckDB).",
+                    ),
+                  executionOverride: zod
+                    .object({
+                      mode: zod.enum([
+                        "simulated",
+                        "replay",
+                        "local_container",
+                        "byo_cloud",
+                        "managed_sandbox",
+                      ]),
+                      honestyLabel: zod.string(),
+                      supportedPlatforms: zod.array(zod.string()).optional(),
+                      requiredServices: zod.array(zod.string()).optional(),
+                      estimatedCost: zod.string().optional(),
+                      cleanupSteps: zod.array(zod.string()).optional(),
+                    })
+                    .nullish()
+                    .describe(
+                      "How a project's code is actually executed. Validated client-side by\nexecutionProfileSchema in @workspace\/execution-core.\n",
+                    ),
                 }),
               )
               .optional(),
@@ -570,6 +651,25 @@ export const GetUserProjectProgressResponse = zod
               .optional()
               .describe(
                 "Career-readiness signals demonstrated by completing this project.",
+              ),
+            executionProfile: zod
+              .object({
+                mode: zod.enum([
+                  "simulated",
+                  "replay",
+                  "local_container",
+                  "byo_cloud",
+                  "managed_sandbox",
+                ]),
+                honestyLabel: zod.string(),
+                supportedPlatforms: zod.array(zod.string()).optional(),
+                requiredServices: zod.array(zod.string()).optional(),
+                estimatedCost: zod.string().optional(),
+                cleanupSteps: zod.array(zod.string()).optional(),
+              })
+              .nullish()
+              .describe(
+                "How a project's code is actually executed. Validated client-side by\nexecutionProfileSchema in @workspace\/execution-core.\n",
               ),
           }),
         )
