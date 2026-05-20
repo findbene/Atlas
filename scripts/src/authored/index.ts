@@ -28,6 +28,15 @@ import { cloudDataEngineerIcebergCompactionRewrite } from "./cloud-data-engineer
 import { cloudDataEngineerHudiMorCdcMerge } from "./cloud-data-engineer__hudi-mor-cdc-merge";
 import { analyticsEngineerSnowflakeStreamTaskPipeline } from "./analytics-engineer__snowflake-stream-task-pipeline";
 import { analyticsEngineerDbtCiStateModified } from "./analytics-engineer__dbt-ci-state-modified";
+// Phase 10 batch-2 revise upgrades (already registered below).
+// Phase 11 batch-3 revise upgrades (skeleton rebuilds + carry-overs).
+import { aiEngineerLlmEvalHarness } from "./ai-engineer__llm-eval-harness";
+import { aiEngineerModelServingCanary } from "./ai-engineer__model-serving-canary";
+import { cloudDataEngineerDeltaLakeLakehouse } from "./cloud-data-engineer__delta-lake-lakehouse";
+import { cloudDataEngineerSnowflakeDataWarehouse } from "./cloud-data-engineer__snowflake-data-warehouse";
+import { dataEngineeringAirflowEtlDag } from "./data-engineering__airflow-etl-dag";
+import { dataEngineeringApiToWarehouseIngestion } from "./data-engineering__api-to-warehouse-ingestion";
+import { dataEngineeringDataQualityFramework } from "./data-engineering__data-quality-framework";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -83,6 +92,14 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   dataScientistAbTestFromScratch,
   dataEngineeringColumnStoreEngine,
   dataEngineeringDataMeshDesign,
+  // Phase 11 batch-3 revise upgrades (skeleton rebuilds + carry-overs).
+  aiEngineerLlmEvalHarness,
+  aiEngineerModelServingCanary,
+  cloudDataEngineerDeltaLakeLakehouse,
+  cloudDataEngineerSnowflakeDataWarehouse,
+  dataEngineeringAirflowEtlDag,
+  dataEngineeringApiToWarehouseIngestion,
+  dataEngineeringDataQualityFramework,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

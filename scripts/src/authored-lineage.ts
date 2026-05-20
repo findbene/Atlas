@@ -47,6 +47,16 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   "data-scientist-ab-test-from-scratch":            "data-scientist",
   "data-engineering-column-store-engine":           "data-engineering",
   "data-engineering-data-mesh-design":              "data-engineering",
+  // Phase 11 batch-3 (synthetic candidates, source='phase11_revise').
+  // 2 already-5-step ai-engineer revise upgrades P10 diversity-capped out
+  // + 2 cloud-DE skeleton rebuilds + 3 DE skeleton rebuilds. Cap = 7.
+  "ai-engineer-llm-eval-harness":                   "ai-engineer",
+  "ai-engineer-model-serving-canary":               "ai-engineer",
+  "cloud-data-engineer-delta-lake-lakehouse":       "cloud-data-engineer",
+  "cloud-data-engineer-snowflake-data-warehouse":   "cloud-data-engineer",
+  "data-engineering-airflow-etl-dag":               "data-engineering",
+  "data-engineering-api-to-warehouse-ingestion":    "data-engineering",
+  "data-engineering-data-quality-framework":        "data-engineering",
 };
 
 /**
@@ -89,6 +99,14 @@ export const REVISE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-scientist-ab-test-from-scratch":            "3338abcb-8b49-4fb3-9eff-203263415369",
   "data-engineering-column-store-engine":           "41d1a898-798e-44cc-bf54-4dbc03bf9084",
   "data-engineering-data-mesh-design":              "c4fb285a-971f-4aa5-b98e-c6ed60a92933",
+  // Phase 11 batch-3 (source='phase11_revise').
+  "ai-engineer-llm-eval-harness":                   "b6a7c1e2-5d34-4f88-9012-1a2b3c4d5e6f",
+  "ai-engineer-model-serving-canary":               "c7b8d2f3-6e45-4a99-9123-2b3c4d5e6f70",
+  "cloud-data-engineer-delta-lake-lakehouse":       "d8c9e3a4-7f56-4b00-9234-3c4d5e6f7081",
+  "cloud-data-engineer-snowflake-data-warehouse":   "e9d0f4b5-8067-4c11-9345-4d5e6f708192",
+  "data-engineering-airflow-etl-dag":               "f0e1a5c6-9178-4d22-9456-5e6f70819203",
+  "data-engineering-api-to-warehouse-ingestion":    "a1f2b6d7-0289-4e33-9567-6f7081920314",
+  "data-engineering-data-quality-framework":        "b2031ce8-139a-4f44-9678-708192031425",
 };
 
 /** Phase 10 legacy slug → upgraded slug. Used by the batch-2 backfill to
@@ -101,6 +119,19 @@ export const PHASE10_LEGACY_SLUG_MAP: Record<string, string> = {
   "ds-ab-test-from-scratch":     "data-scientist-ab-test-from-scratch",
   "column-store-engine":         "data-engineering-column-store-engine",
   "data-mesh-design":            "data-engineering-data-mesh-design",
+};
+
+/** Phase 11 legacy slug → upgraded slug. Same convention as PHASE10 map:
+ *  the legacy slug (no course prefix) is deleted by the Phase-11 backfill
+ *  after the upgraded course-prefixed slug is promoted. */
+export const PHASE11_LEGACY_SLUG_MAP: Record<string, string> = {
+  "ai-eng-llm-eval-harness":     "ai-engineer-llm-eval-harness",
+  "mlops-model-serving-canary":  "ai-engineer-model-serving-canary",
+  "delta-lake-lakehouse":        "cloud-data-engineer-delta-lake-lakehouse",
+  "snowflake-data-warehouse":    "cloud-data-engineer-snowflake-data-warehouse",
+  "airflow-etl-dag":             "data-engineering-airflow-etl-dag",
+  "api-to-warehouse-ingestion":  "data-engineering-api-to-warehouse-ingestion",
+  "data-quality-framework":      "data-engineering-data-quality-framework",
 };
 
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
@@ -159,6 +190,14 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   "data-scientist-ab-test-from-scratch":            "3338abcb-8b49-4fb3-9eff-203263415369",
   "data-engineering-column-store-engine":           "41d1a898-798e-44cc-bf54-4dbc03bf9084",
   "data-engineering-data-mesh-design":              "c4fb285a-971f-4aa5-b98e-c6ed60a92933",
+  // Phase 11 batch-3 (synthetic candidates, source='phase11_revise').
+  "ai-engineer-llm-eval-harness":                   "b6a7c1e2-5d34-4f88-9012-1a2b3c4d5e6f",
+  "ai-engineer-model-serving-canary":               "c7b8d2f3-6e45-4a99-9123-2b3c4d5e6f70",
+  "cloud-data-engineer-delta-lake-lakehouse":       "d8c9e3a4-7f56-4b00-9234-3c4d5e6f7081",
+  "cloud-data-engineer-snowflake-data-warehouse":   "e9d0f4b5-8067-4c11-9345-4d5e6f708192",
+  "data-engineering-airflow-etl-dag":               "f0e1a5c6-9178-4d22-9456-5e6f70819203",
+  "data-engineering-api-to-warehouse-ingestion":    "a1f2b6d7-0289-4e33-9567-6f7081920314",
+  "data-engineering-data-quality-framework":        "b2031ce8-139a-4f44-9678-708192031425",
 };
 
 /**

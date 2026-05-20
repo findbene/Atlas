@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, customType, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, customType, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -102,6 +102,15 @@ export const projects = pgTable("projects", {
   // them, WITHOUT deleting the row — admin/reporting routes still see them.
   // Reversible by a single SQL UPDATE; no data loss.
   learnerVisible: boolean("learner_visible").default(true).notNull(),
+  // Phase 11 — points an archived/hidden legacy row at the authored slug
+  // that supersedes it. Nullable: NULL = "no decision yet" (default for the
+  // 22 P10 archive rows until P11+ explicitly populates them). Plain TEXT
+  // (no FK) deliberately: an archived row may be superseded by a project
+  // that hasn't been authored yet, and FK ordering would force a circular
+  // dependency at backfill time. The accompanying CHECK forbids
+  // self-reference; existence + visibility of the referent is enforced by
+  // the backfill script + the admin route surface, not the DB.
+  replaceCandidateSlug: text("replace_candidate_slug"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [
@@ -114,6 +123,8 @@ export const projects = pgTable("projects", {
   // Phase 10 — learner catalog reads filter on this; small index helps the
   // hot `WHERE learner_visible = true` path.
   index('projects_learner_visible_idx').on(t.learnerVisible),
+  // Phase 11 — no self-reference: a project can never be its own replacement.
+  check('projects_replace_candidate_no_self', sql`replace_candidate_slug IS NULL OR replace_candidate_slug <> slug`),
 ]);
 
 export const projectSteps = pgTable("project_steps", {

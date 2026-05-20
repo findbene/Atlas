@@ -1,0 +1,63 @@
+Phase 11 approved with safeguards.
+
+The plan is accepted.
+
+Approved decisions:
+1. Batch size 7 is approved.
+2. The selected cohort is approved:
+   - 2 AI Engineer carry-overs
+   - 2 Cloud Data Engineer skeleton rebuilds
+   - 3 Data Engineering skeleton rebuilds
+3. projects.replace_candidate_slug is approved.
+4. The KPI target of pedagogy audit improving from 34/65 to at least 39/65 is approved.
+5. The /projects redirect and phase-note cleanup are accepted.
+
+Required safeguards before implementation:
+
+1. Keep the plan 9-course-native.
+   Even though Phase 11 upgrades only selected courses, reports must still show all 9 courses.
+
+2. Do not promote weak skeletons unless the rebuilt authored project scores >=70.
+   If any project fails, stop and diagnose instead of forcing it through.
+
+3. For replace_candidate_slug:
+   - do not point a project to itself
+   - ensure the replacement slug exists
+   - ensure archived/thin stubs remain hidden from learners
+   - ensure admin/reporting can still see the relationship
+
+4. For Cloud Data Engineer projects:
+   Because these started as 1-step skeletons, treat them as rebuilds, not light revisions.
+   They must include serious cloud/data engineering realism, not shallow cloud descriptions.
+
+5. Keep all invariants frozen:
+   - rubric v1.0.1 unchanged
+   - candidateId required
+   - source_candidate_id required for authored projects
+   - anchor drift within ±1
+   - learner_visible filtering unchanged
+   - no row deletes
+   - no runtime mapToCourse
+
+6. Final report must include:
+   - 9-course inventory
+   - selected 7 projects
+   - score before/after
+   - all upgraded project scores
+   - replace_candidate_slug mappings
+   - hidden/archive counts
+   - pedagogy audit result
+   - anchor drift result
+   - typecheck/tests
+   - architect review
+   - known gaps before Phase 12
+
+Do not:
+- mass-author beyond the approved 7
+- change rubric weights
+- implement cloud credentials
+- redesign Atlas Studio
+- touch Stripe
+- delete archived projects
+
+Proceed with Phase 11.
