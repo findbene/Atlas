@@ -72,6 +72,10 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
       inverseMismatches: 0,
       duplicateCandidatePromotions: 0,
     },
+    // Phase 10 — archive visibility. Hidden projects stay in the DB but
+    // are filtered from learner-facing routes (`learnerVisible=false`).
+    hiddenCount: 0,
+    hiddenSlugs: [] as string[],
   };
 
   for (const p of projectRows) {
@@ -94,6 +98,10 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
     }
     const overall = card?.overall ?? 0;
     summary.scoreHistogram[Math.min(4, Math.floor(overall / 20))]++;
+    if (p.learnerVisible === false) {
+      summary.hiddenCount++;
+      summary.hiddenSlugs.push(p.slug);
+    }
     summary.lineage.push({
       slug: p.slug,
       course: (p.course as AtlasCourseSlug | null) ?? null,

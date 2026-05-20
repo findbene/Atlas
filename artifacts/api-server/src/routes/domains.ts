@@ -43,7 +43,7 @@ router.get("/domains/:slug", async (req, res) => {
       orderBy: (t, { asc }) => [asc(t.orderIndex)],
     });
     const allProjects = await db.query.projects.findMany({
-      where: eq(projects.domainId, domain.id),
+      where: (p, { and, eq }) => and(eq(p.domainId, domain.id), eq(p.learnerVisible, true)),
       orderBy: (p, { asc }) => [asc(p.orderIndex)],
     });
     const projectList = allProjects.map(p => ({

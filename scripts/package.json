@@ -19,6 +19,7 @@
     "backfill:upgrade-candidates": "tsx ./src/backfill-upgrade-candidates.ts",
     "backfill:revise-candidates": "tsx ./src/backfill-revise-candidates.ts",
     "triage:legacy": "tsx ./src/triage-legacy.ts",
+    "archive:thin-stubs": "tsx ./src/archive-thin-stubs.ts",
     "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

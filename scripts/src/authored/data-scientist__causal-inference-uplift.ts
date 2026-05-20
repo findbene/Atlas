@@ -20,8 +20,8 @@ export const dataScientistCausalInferenceUplift: AuthoredProject = {
     "Most data-scientist roles in 2026 hit causal questions: 'Did the promotion CAUSE the lift, or did we just target users who'd have bought anyway?'. You'll work the full stack: DAG-based confounder identification, propensity-score modeling (logistic + calibration), inverse-probability weighting for the ATE, a T-learner for per-user uplift, and Qini-curve evaluation. The fixture is a real-shaped marketing dataset with selection bias designed in.",
   language: "python",
   difficulty: "advanced",
-  techStack: ["Python", "scikit-learn", "numpy", "pandas", "matplotlib"],
-  tags: ["causal-inference", "uplift", "propensity-score", "ipw", "t-learner", "qini", "ate"],
+  techStack: ["Python", "scikit-learn", "polars", "mlflow", "pandas", "matplotlib"],
+  tags: ["causal-inference", "uplift", "propensity-score", "ipw", "t-learner", "qini", "ate", "mlflow", "observability"],
   learningObjectives: [
     "Identify confounders from a domain DAG and avoid colliders.",
     "Fit + calibrate a propensity-score model.",

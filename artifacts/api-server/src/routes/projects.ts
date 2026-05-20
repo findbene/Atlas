@@ -46,6 +46,8 @@ router.get("/projects", async (req, res) => {
     const allProjects = await db.query.projects.findMany({
       where: (p, { and, eq, isNull }) => and(
         isNull(p.deletedAt),
+        // Phase 10 — hide archived stubs from the learner catalog.
+        eq(p.learnerVisible, true),
         domainId ? eq(p.domainId, domainId) : undefined,
         difficulty ? eq(p.difficultyLevel, difficulty as any) : undefined,
         tier === "free" ? eq(p.isPremium, false) : tier === "pro" ? eq(p.isPremium, true) : undefined,
@@ -65,6 +67,7 @@ router.get("/projects", async (req, res) => {
     const totalRow = await db.execute(sql`
       SELECT COUNT(*)::int AS c FROM projects p
       WHERE p.deleted_at IS NULL
+        AND p.learner_visible = TRUE
         ${domainId ? sql`AND p.domain_id = ${domainId}` : sql``}
         ${difficulty ? sql`AND p.difficulty_level = ${difficulty}` : sql``}
         ${tier === "free" ? sql`AND p.is_premium = false` : tier === "pro" ? sql`AND p.is_premium = true` : sql``}
@@ -217,7 +220,8 @@ router.get("/projects/:slug", async (req, res) => {
     const project = await db.query.projects.findFirst({
       where: and(eq(projects.slug, slug)),
     });
-    if (!project) {
+    // Phase 10 — hidden projects return 404 (not 403) so we don't leak existence.
+    if (!project || !project.learnerVisible) {
       res.status(404).json({ error: "Not found", message: "Project not found" });
       return;
     }

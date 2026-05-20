@@ -180,6 +180,48 @@ Phase 10 fan-out (7-project authoring batch) is **paused** pending product confi
 - Archive cohort (22 thin stubs) flip to `learner_visible=false` not yet executed (T005).
 - The course endpoint already filters on `learner_visible`, so flipping archive rows will cleanly remove them from `/api/courses` counts without code changes.
 
+### Phase 10 — Revise Cohort (batch 2) + Visibility Controls
+
+Phase 10 batch-2 closed the carry-overs flagged at the end of the interim taxonomy fix. **No rubric edits, no quality-gate weakening. Anchor drift 0.00 throughout. Atlas is a 9-course platform** — `data-engineering` · `ai-engineer` · `mlops-engineer` · `data-scientist` · `analytics-engineer` · `applied-llm-engineer` · `cloud-data-engineer` · `python-libraries` · `sql`.
+
+**Batch-2 revise cohort (7 projects, all ≥70):**
+- `analytics-engineer-data-catalog-implementation`, `ai-engineer-rag-pipeline`, `ai-engineer-feature-store`, `data-scientist-causal-inference-uplift`, `data-scientist-ab-test-from-scratch`, `data-engineering-column-store-engine`, `data-engineering-data-mesh-design`.
+- Each authored module: 5 steps · full pedagogyConfig (L0–L5 + success/failure/portfolio/finalExplanation/misconception) · real validation kinds only (no `self_attest`) · `candidateId` populated with a pinned `phase10_revise` synthetic UUID from `REVISE_CANDIDATE_FOR_SLUG`.
+- Anchor-checked between every promote — drift stayed at 0.00 across all 7.
+- **Selection rationale (by construction, not oversight):** 3 courses (`applied-llm-engineer`, `python-libraries`, `sql`) are already 100% authored. `mlops-engineer` has zero revise candidates — only thin archive stubs (covered by T005 hides). `cloud-data-engineer` revise candidates have only 1-step skeletons (fail criterion c → Phase-11 skeleton-rebuild work). The 7 picks land in the 4 courses where 5-step skeletons exist: DE (2), AI-eng (2), DS (2), AE (1).
+
+**Adapter bug fix — `projectRowToInput` now hoists `qualityBreakdown.portfolioArtifact` into `ProposalInput.portfolioArtifact`:**
+- Pre-fix, the portfolio scorer fell back to text-keyword inference for every authored project even though `author-project promote` was writing the declared kind/summary into `qualityBreakdown`. The 2 DS modules surfaced the bug (port=30/40 vs the 70+ they should have scored from declared `kind=repo`).
+- Post-fix the scorer reads the declared kind directly. No rubric change — this is the adapter doing what `qualityBreakdown.portfolioArtifact` was always intended for.
+- Added `polars` + `mlflow` (legitimate modern DS-tooling tier-1 tokens) to the 2 DS modules' techStack so jobReadiness reflects 2026 stack expectations.
+
+**`projects.learner_visible` — archive without deletion:**
+- New column `learner_visible BOOLEAN NOT NULL DEFAULT TRUE` (`lib/db/src/schema/domains.ts`). Purely additive — all 65 existing rows default to TRUE.
+- Learner-facing routes filter `learner_visible = TRUE`:
+  - `GET /api/projects` (relational `where` + `COUNT(*)` SQL).
+  - `GET /api/projects/:slug` returns **404 (not 403)** for hidden rows — explicit `projects-visibility.test.ts` pins no-existence-leak.
+  - `GET /api/domains/:slug` projects list.
+  - `GET /api/courses` and `GET /api/courses/:slug` (already filtered as of the interim taxonomy fix).
+- Admin route `GET /api/admin/quality` does NOT filter — gains `hiddenCount: number` + `hiddenSlugs: string[]` so operators always see what's archived.
+- `GET /projects/resume` deliberately does NOT re-filter — by T005's zero-exposure safety check, archived rows have `enrolledCount=0` so they can't appear in resume anyway; keeping the route minimal preserves mid-progress learners on any non-archived row that may later be hidden.
+
+**Archive flip (22 thin stubs hidden, none deleted):**
+- `scripts/src/archive-thin-stubs.ts` (`pnpm --filter @workspace/scripts run archive:thin-stubs`) — idempotent. Hard-codes the 22 archive slugs from the Phase-9 triage manifest.
+- **Safety check:** asserts `total_steps = 0 AND enrolled_count = 0` for every slug BEFORE any UPDATE; aborts the whole batch on violation (no partial application).
+- Reversible: a single SQL `UPDATE … SET learner_visible = TRUE` puts a row back.
+
+**Triage manifest now 9-course-native + Phase-10-aware:**
+- `scripts/src/triage-legacy.ts` reads `projects.course` directly (already did; no `mapToCourse`). Adds a 9-course inventory header (all 9 courses listed even with 0 legacy rows), a `Hidden` column showing `learner_visible=false` rows, and a `replaceCandidate` boolean column (default false, reserved for Phase 11+ when authored replacements exist for archive slugs). Phase-10 outcome summary at the top.
+- Regenerated `docs/phase9/legacy-triage.md`: revise dropped 17 → 10 (7 promoted out); archive stays 22 but all 22 marked hidden ✓.
+
+**Lineage stays bidirectional:**
+- 7 new `phase10_revise` candidates + 7 promotes write both directions atomically; `lineageIntegrity` counters all zero on prod DB.
+- One FK cleanup: legacy slug `ai-eng-rag-pipeline` had a single `user_progress` row pointing at it; re-pointed to upgraded `ai-engineer-rag-pipeline` BEFORE the legacy delete (no learner progress lost).
+
+**Final gate:** `pnpm run typecheck` PASS (chains `check:no-heuristic-runtime`) · 54/54 curriculum-quality · 63/63 api-server (10 new: 3 Phase-10 visibility + 7 pre-existing on this branch) · 4/4 execution-core · `anchor-check` drift 0.00 · `wave-report` 31/31 ≥70 (18 Phase-7 + 6 Phase-9 + 7 Phase-10) · `audit:pedagogy` **34/65 fully enriched** (was 26, KPI ≥33 ✓).
+
+**Phase 10 explicitly did NOT:** upgrade the remaining 10 revise projects (Phase 11+); delete any archive rows (hidden, not destroyed); populate `replaceCandidate` for any slug (field-only); split the `de-core` track; touch rubric / Stripe / cloud creds; add an admin UI for unhide/re-archive (single-script reversal is sufficient). See `docs/phase9/legacy-triage.md` for the per-course breakdown of what's left.
+
 ### Phase 9 — Legacy Remediation (batch 1)
 
 Phase 9 closed the Phase-8 carry-overs WITHOUT touching the rubric, weakening gates, or mass-authoring. **No rubric edits. Anchor drift 0.00 throughout.**

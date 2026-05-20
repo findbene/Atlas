@@ -38,6 +38,27 @@ function stepRowToInput(step: ProjectStep): StepInput {
 }
 
 export function projectRowToInput(row: Project): ProjectInput {
+  // Authored promotes stash the AuthoredPortfolioArtifact under
+  // `qualityBreakdown.portfolioArtifact` (see author-project.ts). Hoist
+  // it into ProposalInput.portfolioArtifact so the portfolio scorer reads
+  // the declared kind/summary instead of falling back to keyword inference
+  // on the description text. Mapping is intentional: AuthoredPortfolioArtifact
+  // uses `deliverable` for the human-facing summary string.
+  const qb = (row.qualityBreakdown ?? null) as { portfolioArtifact?: {
+    kind?: "repo" | "dashboard" | "report" | "service" | "notebook";
+    deliverable?: string;
+    portfolioRelevance?: string;
+  } } | null;
+  const authoredPortfolio = qb?.portfolioArtifact;
+  const proposal = authoredPortfolio?.kind && authoredPortfolio?.deliverable
+    ? {
+        portfolioArtifact: {
+          kind: authoredPortfolio.kind,
+          summary: authoredPortfolio.deliverable,
+        } as const,
+      }
+    : undefined;
+
   return {
     id: row.id,
     slug: row.slug,
@@ -53,6 +74,7 @@ export function projectRowToInput(row: Project): ProjectInput {
     isMultiFile: row.isMultiFile,
     isWalkthroughOnly: row.isWalkthroughOnly,
     hasExecutionProfile: !!row.executionProfile,
+    proposal,
   };
 }
 

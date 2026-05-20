@@ -20,8 +20,8 @@ export const dataScientistAbTestFromScratch: AuthoredProject = {
     "Most 'A/B tests' you see in industry are actually p-hacked or massively under-powered. You'll build the disciplined version: compute the required sample size from a power analysis, randomize deterministically by hashing user_id (replayable + leak-free), run a Welch t-test with bootstrap CIs, gate early stopping via O'Brien-Fleming sequential boundaries, and apply CUPED to cut variance ~30%. Real-shaped fixture data, real edge cases, real interview-ready output.",
   language: "python",
   difficulty: "intermediate",
-  techStack: ["Python", "numpy", "scipy", "pandas", "matplotlib"],
-  tags: ["ab-testing", "experimentation", "power-analysis", "sequential-testing", "cuped", "frequentist", "variance-reduction"],
+  techStack: ["Python", "polars", "scipy", "mlflow", "pandas", "matplotlib"],
+  tags: ["ab-testing", "experimentation", "power-analysis", "sequential-testing", "cuped", "frequentist", "variance-reduction", "mlflow", "observability"],
   learningObjectives: [
     "Compute required sample size from effect size + power.",
     "Randomize deterministically via hash(user_id) for reproducibility.",

@@ -1,8 +1,8 @@
 {
   "totals": {
     "grandfather": 0,
-    "upgrade": 6,
-    "revise": 17,
+    "upgrade": 0,
+    "revise": 10,
     "archive": 22
   },
   "rows": [
@@ -13,6 +13,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -23,6 +25,8 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -33,6 +37,8 @@
       "totalSteps": 2,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -43,18 +49,10 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
-    },
-    {
-      "slug": "column-store-engine",
-      "course": "data-engineering",
-      "score": 41.9,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
     {
       "slug": "data-access-governance",
@@ -63,6 +61,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -73,6 +73,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -83,6 +85,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -93,18 +97,10 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
-    },
-    {
-      "slug": "data-mesh-design",
-      "course": "data-engineering",
-      "score": 41.7,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
     {
       "slug": "data-platform-api",
@@ -113,6 +109,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -123,18 +121,10 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
-    },
-    {
-      "slug": "debezium-cdc",
-      "course": "data-engineering",
-      "score": 57.2,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "upgrade",
-      "rationale": "Strong skeleton — small lift to reach ≥70"
     },
     {
       "slug": "geospatial-data-pipeline",
@@ -143,6 +133,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -153,6 +145,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -163,6 +157,8 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -173,6 +169,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -183,6 +181,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -193,6 +193,8 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -203,18 +205,10 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
-    },
-    {
-      "slug": "real-time-dashboard",
-      "course": "data-engineering",
-      "score": 59,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "upgrade",
-      "rationale": "Strong skeleton — small lift to reach ≥70"
     },
     {
       "slug": "reverse-etl-pipeline",
@@ -223,6 +217,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -233,18 +229,10 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
-    },
-    {
-      "slug": "stream-processing-flink",
-      "course": "data-engineering",
-      "score": 55.1,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "upgrade",
-      "rationale": "Strong skeleton — small lift to reach ≥70"
     },
     {
       "slug": "streaming-joins-windows",
@@ -253,6 +241,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -263,6 +253,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -273,18 +265,10 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
-    },
-    {
-      "slug": "vector-database-search",
-      "course": "data-engineering",
-      "score": 56.1,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "upgrade",
-      "rationale": "Strong skeleton — small lift to reach ≥70"
     },
     {
       "slug": "ai-eng-llm-eval-harness",
@@ -293,26 +277,8 @@
       "totalSteps": 5,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
-    },
-    {
-      "slug": "ai-eng-rag-pipeline",
-      "course": "ai-engineer",
-      "score": 48.7,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
-    },
-    {
-      "slug": "mlops-feature-store",
-      "course": "ai-engineer",
-      "score": 49.4,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -323,6 +289,8 @@
       "totalSteps": 5,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -333,6 +301,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -343,6 +313,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -353,38 +325,10 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
-    },
-    {
-      "slug": "ds-ab-test-from-scratch",
-      "course": "data-scientist",
-      "score": 40.6,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
-    },
-    {
-      "slug": "ds-causal-inference-uplift",
-      "course": "data-scientist",
-      "score": 41.9,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
-    },
-    {
-      "slug": "data-catalog-implementation",
-      "course": "analytics-engineer",
-      "score": 49.8,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "revise",
-      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
     {
       "slug": "dbt-advanced-patterns",
@@ -393,6 +337,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     },
@@ -403,18 +349,10 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
-    },
-    {
-      "slug": "dbt-macros-mastery",
-      "course": "cloud-data-engineer",
-      "score": 56.1,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "upgrade",
-      "rationale": "Strong skeleton — small lift to reach ≥70"
     },
     {
       "slug": "delta-lake-lakehouse",
@@ -423,18 +361,10 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Edge case (review individually)"
-    },
-    {
-      "slug": "iceberg-table-format",
-      "course": "cloud-data-engineer",
-      "score": 52.1,
-      "totalSteps": 5,
-      "enrichedSteps": 0,
-      "pedagogyComplete": false,
-      "action": "upgrade",
-      "rationale": "Strong skeleton — small lift to reach ≥70"
     },
     {
       "slug": "snowflake-data-warehouse",
@@ -443,6 +373,8 @@
       "totalSteps": 1,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": true,
+      "replaceCandidate": false,
       "action": "revise",
       "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
     },
@@ -453,6 +385,8 @@
       "totalSteps": 0,
       "enrichedSteps": 0,
       "pedagogyComplete": false,
+      "learnerVisible": false,
+      "replaceCandidate": false,
       "action": "archive",
       "rationale": "Thin stub, no learner-facing content"
     }
