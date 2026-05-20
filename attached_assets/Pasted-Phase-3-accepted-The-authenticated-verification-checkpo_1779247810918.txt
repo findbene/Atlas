@@ -1,0 +1,59 @@
+Phase 3 accepted.
+
+The authenticated verification checkpoint is sufficient. The /projects route issue is a test-plan typo, not a product issue. The Pyodide CDN timeout is accepted as a known test-harness limitation, but keep it documented as a forward-looking performance risk.
+
+Begin Phase 4: Tutor Prompt Refinements + Progressive Hint Logic.
+
+Before coding, write .local/session_plan.md for Phase 4 and stop for approval.
+
+Phase 4 scope:
+1. Design and implement progressive hint levels:
+   - Level 0: no hint
+   - Level 1: conceptual nudge
+   - Level 2: directional hint
+   - Level 3: checklist / scaffold
+   - Level 4: partial solution
+   - Level 5: full explanation after struggle/request
+
+2. Improve tutor behavior:
+   - Socratic first
+   - do not reveal full answers too early
+   - explain errors in beginner-friendly language first
+   - then provide technical explanation
+   - connect help to job relevance
+   - adapt based on learner mode and failed attempts
+
+3. Extend project step schema/content structure only additively:
+   - learning_objective
+   - required_skill
+   - misconception_to_watch_for
+   - hint_level_1 through hint_level_5
+   - final_explanation
+   - success_feedback
+   - failure_feedback
+   - portfolio_relevance
+
+4. Apply to a representative set of existing projects first, not all projects immediately.
+
+5. Preserve existing AI tutor entry point and Atlas Studio layout.
+
+Do not:
+- redesign Atlas Studio
+- generate new large project catalogs
+- implement cloud credentials
+- alter payment logic
+- break current SQL/Python execution
+- mass-edit all projects before proving the pattern
+
+Phase 4 acceptance criteria:
+- typecheck passes
+- existing tests pass
+- hints escalate correctly
+- hint state persists per learner/project/step
+- tutor responses respect the learner mode
+- validation failures trigger useful next-step guidance
+- full solution is not revealed too early
+- at least one SQL project and one Python project use the new hint model
+- admin/reporting notes identify projects still missing rich hints
+
+After writing the Phase 4 plan, stop and ask for approval.
