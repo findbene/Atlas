@@ -32,6 +32,13 @@ import { pythonLibrariesPydanticValidationService } from "./python-libraries__py
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
 import { sqlFeatureStoreLab } from "./sql__feature-store-lab";
+// Phase 9 batch-1 upgrades.
+import { dataEngineeringRealTimeDashboard } from "./data-engineering__real-time-dashboard";
+import { dataEngineeringDebeziumCdc } from "./data-engineering__debezium-cdc";
+import { dataEngineeringVectorDatabaseSearch } from "./data-engineering__vector-database-search";
+import { dataEngineeringStreamProcessingFlink } from "./data-engineering__stream-processing-flink";
+import { cloudDataEngineerIcebergTableFormat } from "./cloud-data-engineer__iceberg-table-format";
+import { cloudDataEngineerDbtMacrosMastery } from "./cloud-data-engineer__dbt-macros-mastery";
 
 // Phase-7 authored modules (appended as each is written).
 export const AUTHORED_PROJECTS: AuthoredProject[] = [
@@ -53,6 +60,13 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   dataScientistNotebookToProduction,
   dataScientistPytorchImageFinetuning,
   sqlFeatureStoreLab,
+  // Phase 9 batch-1 upgrades.
+  dataEngineeringRealTimeDashboard,
+  dataEngineeringDebeziumCdc,
+  dataEngineeringVectorDatabaseSearch,
+  dataEngineeringStreamProcessingFlink,
+  cloudDataEngineerIcebergTableFormat,
+  cloudDataEngineerDbtMacrosMastery,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

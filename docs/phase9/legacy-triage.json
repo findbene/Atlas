@@ -1,0 +1,460 @@
+{
+  "totals": {
+    "grandfather": 0,
+    "upgrade": 6,
+    "revise": 17,
+    "archive": 22
+  },
+  "rows": [
+    {
+      "slug": "advanced-partitioning",
+      "course": "data-engineering",
+      "score": 17.2,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "airflow-etl-dag",
+      "course": "data-engineering",
+      "score": 49.3,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "api-to-warehouse-ingestion",
+      "course": "data-engineering",
+      "score": 49.9,
+      "totalSteps": 2,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "capstone-streaming",
+      "course": "data-engineering",
+      "score": 28.9,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "column-store-engine",
+      "course": "data-engineering",
+      "score": 41.9,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "data-access-governance",
+      "course": "data-engineering",
+      "score": 16.2,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "data-contracts",
+      "course": "data-engineering",
+      "score": 18.5,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "data-freshness-monitoring",
+      "course": "data-engineering",
+      "score": 16.9,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "data-lineage-graph",
+      "course": "data-engineering",
+      "score": 15.9,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "data-mesh-design",
+      "course": "data-engineering",
+      "score": 41.7,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "data-platform-api",
+      "course": "data-engineering",
+      "score": 28.9,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "data-quality-framework",
+      "course": "data-engineering",
+      "score": 45.9,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "debezium-cdc",
+      "course": "data-engineering",
+      "score": 57.2,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "upgrade",
+      "rationale": "Strong skeleton — small lift to reach ≥70"
+    },
+    {
+      "slug": "geospatial-data-pipeline",
+      "course": "data-engineering",
+      "score": 15.2,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "graph-data-pipeline",
+      "course": "data-engineering",
+      "score": 15.9,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "kafka-streaming-pipeline",
+      "course": "data-engineering",
+      "score": 49.2,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "llm-data-pipeline",
+      "course": "data-engineering",
+      "score": 19.7,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "log-analytics-pipeline",
+      "course": "data-engineering",
+      "score": 18.5,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "ml-feature-store",
+      "course": "data-engineering",
+      "score": 47.7,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "multi-cloud-platform",
+      "course": "data-engineering",
+      "score": 18.1,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "real-time-dashboard",
+      "course": "data-engineering",
+      "score": 59,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "upgrade",
+      "rationale": "Strong skeleton — small lift to reach ≥70"
+    },
+    {
+      "slug": "reverse-etl-pipeline",
+      "course": "data-engineering",
+      "score": 21.2,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "spark-batch-processing",
+      "course": "data-engineering",
+      "score": 43.8,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "stream-processing-flink",
+      "course": "data-engineering",
+      "score": 55.1,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "upgrade",
+      "rationale": "Strong skeleton — small lift to reach ≥70"
+    },
+    {
+      "slug": "streaming-joins-windows",
+      "course": "data-engineering",
+      "score": 23.4,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "time-series-pipeline",
+      "course": "data-engineering",
+      "score": 15.6,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "trino-federated-queries",
+      "course": "data-engineering",
+      "score": 15.5,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "vector-database-search",
+      "course": "data-engineering",
+      "score": 56.1,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "upgrade",
+      "rationale": "Strong skeleton — small lift to reach ≥70"
+    },
+    {
+      "slug": "ai-eng-llm-eval-harness",
+      "course": "ai-engineer",
+      "score": 44.2,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "ai-eng-rag-pipeline",
+      "course": "ai-engineer",
+      "score": 48.7,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "mlops-feature-store",
+      "course": "ai-engineer",
+      "score": 49.4,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "mlops-model-serving-canary",
+      "course": "ai-engineer",
+      "score": 44.7,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "dbt-testing-ci",
+      "course": "mlops-engineer",
+      "score": 24.9,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "kubernetes-data-platform",
+      "course": "mlops-engineer",
+      "score": 22.7,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "mlflow-pipeline",
+      "course": "mlops-engineer",
+      "score": 22.5,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "ds-ab-test-from-scratch",
+      "course": "data-scientist",
+      "score": 40.6,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "ds-causal-inference-uplift",
+      "course": "data-scientist",
+      "score": 41.9,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "data-catalog-implementation",
+      "course": "analytics-engineer",
+      "score": 49.8,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "dbt-advanced-patterns",
+      "course": "analytics-engineer",
+      "score": 22.2,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "capstone-lakehouse",
+      "course": "cloud-data-engineer",
+      "score": 29.6,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    },
+    {
+      "slug": "dbt-macros-mastery",
+      "course": "cloud-data-engineer",
+      "score": 56.1,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "upgrade",
+      "rationale": "Strong skeleton — small lift to reach ≥70"
+    },
+    {
+      "slug": "delta-lake-lakehouse",
+      "course": "cloud-data-engineer",
+      "score": 51.8,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Edge case (review individually)"
+    },
+    {
+      "slug": "iceberg-table-format",
+      "course": "cloud-data-engineer",
+      "score": 52.1,
+      "totalSteps": 5,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "upgrade",
+      "rationale": "Strong skeleton — small lift to reach ≥70"
+    },
+    {
+      "slug": "snowflake-data-warehouse",
+      "course": "cloud-data-engineer",
+      "score": 49.6,
+      "totalSteps": 1,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "revise",
+      "rationale": "Mid-quality, has step skeleton — needs substantive rewrite"
+    },
+    {
+      "slug": "warehouse-cost-optimization",
+      "course": "cloud-data-engineer",
+      "score": 23.4,
+      "totalSteps": 0,
+      "enrichedSteps": 0,
+      "pedagogyComplete": false,
+      "action": "archive",
+      "rationale": "Thin stub, no learner-facing content"
+    }
+  ]
+}

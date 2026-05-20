@@ -8,11 +8,15 @@
  *   (production projects and candidates).
  */
 
-import { pgTable, uuid, text, jsonb, timestamp, numeric, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, jsonb, timestamp, numeric, index, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { candidateStatusEnum, difficultyEnum } from "./enums";
+// Phase 9 — inverse lineage FK target. Circular import is safe: the
+// reference is wrapped in a callback (`() => projects.id`) so it is not
+// dereferenced during module init, and ESM tolerates the cycle.
+import { projects } from "./domains";
 
 export const projectCandidates = pgTable("project_candidates", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -27,11 +31,21 @@ export const projectCandidates = pgTable("project_candidates", {
   duplicateCandidates: jsonb("duplicate_candidates"),      // [{slug, similarity, title}, ...]
   status: candidateStatusEnum("status").default('candidate').notNull(),
   reviewerNotes: text("reviewer_notes"),
+  // Phase 9 — provenance marker. NULL = ordinary candidate-pipeline row.
+  // `'grandfathered_phase4'` = synthetic candidate minted for Phase-4 originals
+  // that predate the candidate pipeline. Free text so future Phase-N synthetic
+  // sources don't require an enum migration.
+  source: text("source"),
+  // Phase 9 — inverse lineage. NULL until the candidate is promoted to a
+  // project. ON DELETE SET NULL so deleting a project doesn't cascade.
+  promotedProjectId: uuid("promoted_project_id").references((): AnyPgColumn => projects.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
   index('project_candidates_status_idx').on(t.status),
   index('project_candidates_course_idx').on(t.proposedCourse),
+  index('project_candidates_promoted_project_idx').on(t.promotedProjectId),
+  index('project_candidates_source_idx').on(t.source),
 ]);
 
 export const projectStatusHistory = pgTable("project_status_history", {

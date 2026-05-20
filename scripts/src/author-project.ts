@@ -12,7 +12,7 @@
  */
 import { db } from "@workspace/db";
 import {
-  projects, projectSteps, domains, tracks,
+  projects, projectSteps, projectCandidates, domains, tracks,
   type Project,
 } from "@workspace/db";
 import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
@@ -141,6 +141,21 @@ async function promote(slug: string): Promise<void> {
     } else {
       const inserted = await tx.insert(projects).values(projectFields).returning({ id: projects.id });
       projectId = inserted[0].id;
+    }
+
+    // Phase 9 — stamp inverse lineage in the same transaction. Hard-fail
+    // (rolls back) if the candidate row doesn't exist OR if more than one
+    // matched — silent zero/multi updates would corrupt lineage.
+    const stamped = await tx.update(projectCandidates)
+      .set({ promotedProjectId: projectId, updatedAt: new Date() })
+      .where(eq(projectCandidates.id, authored.candidateId))
+      .returning({ id: projectCandidates.id });
+    if (stamped.length !== 1) {
+      throw new Error(
+        `promote: inverse-lineage stamp expected exactly 1 candidate row for ` +
+        `candidateId=${authored.candidateId} (slug=${authored.slug}), got ${stamped.length}. ` +
+        `Aborting transaction.`,
+      );
     }
 
     const stepRows: NewProjectStep[] = authored.steps.map(s => ({

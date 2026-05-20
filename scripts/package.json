@@ -14,6 +14,11 @@
     "candidates:batch": "tsx ./src/candidates-batch.ts",
     "author:project": "tsx ./src/author-project.ts",
     "backfill:course": "tsx ./src/backfill-course.ts",
+    "backfill:inverse-lineage": "tsx ./src/backfill-inverse-lineage.ts",
+    "backfill:grandfather-candidates": "tsx ./src/backfill-grandfather-candidates.ts",
+    "backfill:upgrade-candidates": "tsx ./src/backfill-upgrade-candidates.ts",
+    "triage:legacy": "tsx ./src/triage-legacy.ts",
+    "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

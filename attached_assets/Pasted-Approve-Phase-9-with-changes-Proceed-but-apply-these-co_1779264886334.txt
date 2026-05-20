@@ -1,0 +1,61 @@
+Approve Phase 9 with changes.
+
+Proceed, but apply these corrections before implementation:
+
+1. Do NOT make AuthoredProject.candidateId optional.
+   Preserve the Phase-8 invariant that authored projects require lineage.
+
+2. For the two Phase-4 grandfather projects:
+   - csv-to-postgres-pipeline
+   - dbt-data-models
+
+   Create synthetic/backfilled project_candidates rows for them instead.
+   Mark them with:
+   - source = "grandfathered_phase4"
+   - status = "approved"
+   - reviewer_notes explaining they predate the candidate pipeline
+   - promoted_project_id once inverse lineage is added
+
+   Then stamp their projects.source_candidate_id normally.
+
+3. Batch-1 size of 6 is approved.
+   It is the right size: meaningful improvement without risky mass authoring.
+
+4. The six upgrade targets are approved:
+   - real-time-dashboard
+   - debezium-cdc
+   - vector-database-search
+   - stream-processing-flink
+   - iceberg-table-format
+   - dbt-macros-mastery
+
+5. Keep anchor checks between upgrades.
+   If any upgraded project scores below 70, stop and diagnose before continuing.
+
+6. For the ~24 thin stubs:
+   mark them as archive candidates, not deleted.
+   Use:
+   - archive = not learner-facing
+   - replace = future rebuilt version needed
+
+   Do not keep weak stubs visible as “coming soon” unless there is a dedicated coming-soon product state.
+
+7. Add the inverse lineage:
+   project_candidates.promoted_project_id → projects.id
+
+8. Keep Phase 9 focused:
+   - no rubric edits
+   - no mass authoring
+   - no cloud credentials
+   - no Atlas Studio redesign
+   - no Stripe changes
+
+Acceptance criteria:
+- inverse lineage works both ways
+- grandfathered Phase-4 projects preserve candidate lineage through synthetic candidates
+- 6 upgraded projects score >=70
+- pedagogy audit improves from 20/65 to at least 26/65
+- remaining legacy projects are triaged: upgrade | revise | archive | replace
+- reports use projects.course directly
+- typecheck/tests pass
+- architect review passes
