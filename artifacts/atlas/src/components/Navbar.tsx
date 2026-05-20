@@ -69,10 +69,11 @@ export function Navbar() {
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             <Link
-              href="/domains"
+              href="/courses"
+              data-testid="nav-courses"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              Domains
+              Courses
             </Link>
             <Link
               href="/pricing"
@@ -126,7 +127,7 @@ export function Navbar() {
           <SheetContent side="left" className="pr-0">
             <div className="px-7 flex flex-col space-y-4 py-4">
               <Link href="/" className="font-bold">ATLAS</Link>
-              <Link href="/domains">Domains</Link>
+              <Link href="/courses" data-testid="nav-courses-mobile">Courses</Link>
               <Link href="/pricing">Pricing</Link>
               {isSignedIn && (
                 <>

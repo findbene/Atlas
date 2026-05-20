@@ -108,6 +108,51 @@ export type DomainDetail = Domain & {
   projects?: ProjectSummary[];
 };
 
+export type CourseSlug = (typeof CourseSlug)[keyof typeof CourseSlug];
+
+export const CourseSlug = {
+  "data-engineering": "data-engineering",
+  "ai-engineer": "ai-engineer",
+  "mlops-engineer": "mlops-engineer",
+  "data-scientist": "data-scientist",
+  "analytics-engineer": "analytics-engineer",
+  "applied-llm-engineer": "applied-llm-engineer",
+  "cloud-data-engineer": "cloud-data-engineer",
+  "python-libraries": "python-libraries",
+  sql: "sql",
+} as const;
+
+/**
+ * active = has ≥1 learner_visible project; coming_soon otherwise.
+ */
+export type CourseStatus = (typeof CourseStatus)[keyof typeof CourseStatus];
+
+export const CourseStatus = {
+  active: "active",
+  coming_soon: "coming_soon",
+} as const;
+
+/**
+ * One of the 9 Atlas courses. Source of truth = `projects.course`.
+ */
+export interface Course {
+  slug: CourseSlug;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  /** active = has ≥1 learner_visible project; coming_soon otherwise. */
+  status: CourseStatus;
+  /** Number of learner-visible projects with this course. */
+  projectCount: number;
+  /** Number of learner-visible projects with course_source='authored'. */
+  authoredCount: number;
+}
+
+export type CourseDetail = Course & {
+  projects: ProjectSummary[];
+};
+
 export interface PaginatedProjects {
   data: ProjectSummary[];
   total: number;
@@ -185,13 +230,37 @@ client-side by expectedOutputsSchema (rows, stdout, files, metrics).
   executionOverride?: ExecutionProfile | null;
 }
 
+/**
+ * Learner-facing Atlas course this project belongs to (`projects.course`).
+ */
+export type ProjectDetailCourseSlug =
+  (typeof ProjectDetailCourseSlug)[keyof typeof ProjectDetailCourseSlug];
+
+export const ProjectDetailCourseSlug = {
+  "data-engineering": "data-engineering",
+  "ai-engineer": "ai-engineer",
+  "mlops-engineer": "mlops-engineer",
+  "data-scientist": "data-scientist",
+  "analytics-engineer": "analytics-engineer",
+  "applied-llm-engineer": "applied-llm-engineer",
+  "cloud-data-engineer": "cloud-data-engineer",
+  "python-libraries": "python-libraries",
+  sql: "sql",
+} as const;
+
 export type ProjectDetail = ProjectSummary & {
   longDescription?: string;
   learningObjectives?: string[];
   prerequisites?: string[];
   steps?: ProjectStep[];
+  /** INTERNAL — legacy domain slug. Learner UI should prefer `courseSlug`. */
   domainSlug?: string;
+  /** INTERNAL — legacy domain title. Learner UI should prefer `courseName`. */
   domainName?: string;
+  /** Learner-facing Atlas course this project belongs to (`projects.course`). */
+  courseSlug?: ProjectDetailCourseSlug;
+  /** Display name for `courseSlug`. */
+  courseName?: string;
   jobOutcomes?: JobOutcomes;
   executionProfile?: ExecutionProfile | null;
 };

@@ -7,6 +7,7 @@
  */
 import type { ExecutionProfile } from "./executionProfile";
 import type { JobOutcomes } from "./jobOutcomes";
+import type { ProjectDetailCourseSlug } from "./projectDetailCourseSlug";
 import type { ProjectStep } from "./projectStep";
 import type { ProjectSummary } from "./projectSummary";
 
@@ -15,8 +16,14 @@ export type ProjectDetail = ProjectSummary & {
   learningObjectives?: string[];
   prerequisites?: string[];
   steps?: ProjectStep[];
+  /** INTERNAL — legacy domain slug. Learner UI should prefer `courseSlug`. */
   domainSlug?: string;
+  /** INTERNAL — legacy domain title. Learner UI should prefer `courseName`. */
   domainName?: string;
+  /** Learner-facing Atlas course this project belongs to (`projects.course`). */
+  courseSlug?: ProjectDetailCourseSlug;
+  /** Display name for `courseSlug`. */
+  courseName?: string;
   jobOutcomes?: JobOutcomes;
   executionProfile?: ExecutionProfile | null;
 };

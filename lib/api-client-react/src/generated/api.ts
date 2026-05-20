@@ -21,6 +21,8 @@ import type {
   AiChatMessage,
   BillingPlan,
   CheckoutResponse,
+  Course,
+  CourseDetail,
   CreateCheckoutBody,
   Domain,
   DomainDetail,
@@ -290,6 +292,217 @@ export function useGetDomain<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetDomainQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the 9 Atlas courses with project counts aggregated from
+`projects.course`. This is the source of truth for the learner-facing
+catalog — do not use `/domains` for learner UI.
+
+ * @summary List all 9 Atlas courses (learner-facing taxonomy)
+ */
+export const getListCoursesUrl = () => {
+  return `/api/courses`;
+};
+
+export const listCourses = async (options?: RequestInit): Promise<Course[]> => {
+  return customFetch<Course[]>(getListCoursesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCoursesQueryKey = () => {
+  return [`/api/courses`] as const;
+};
+
+export const getListCoursesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCourses>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCourses>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCoursesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCourses>>> = ({
+    signal,
+  }) => listCourses({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCourses>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCoursesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCourses>>
+>;
+export type ListCoursesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all 9 Atlas courses (learner-facing taxonomy)
+ */
+
+export function useListCourses<
+  TData = Awaited<ReturnType<typeof listCourses>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCourses>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCoursesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get course details with project list
+ */
+export const getGetCourseUrl = (
+  slug:
+    | "data-engineering"
+    | "ai-engineer"
+    | "mlops-engineer"
+    | "data-scientist"
+    | "analytics-engineer"
+    | "applied-llm-engineer"
+    | "cloud-data-engineer"
+    | "python-libraries"
+    | "sql",
+) => {
+  return `/api/courses/${slug}`;
+};
+
+export const getCourse = async (
+  slug:
+    | "data-engineering"
+    | "ai-engineer"
+    | "mlops-engineer"
+    | "data-scientist"
+    | "analytics-engineer"
+    | "applied-llm-engineer"
+    | "cloud-data-engineer"
+    | "python-libraries"
+    | "sql",
+  options?: RequestInit,
+): Promise<CourseDetail> => {
+  return customFetch<CourseDetail>(getGetCourseUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCourseQueryKey = (
+  slug:
+    | "data-engineering"
+    | "ai-engineer"
+    | "mlops-engineer"
+    | "data-scientist"
+    | "analytics-engineer"
+    | "applied-llm-engineer"
+    | "cloud-data-engineer"
+    | "python-libraries"
+    | "sql",
+) => {
+  return [`/api/courses/${slug}`] as const;
+};
+
+export const getGetCourseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCourse>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  slug:
+    | "data-engineering"
+    | "ai-engineer"
+    | "mlops-engineer"
+    | "data-scientist"
+    | "analytics-engineer"
+    | "applied-llm-engineer"
+    | "cloud-data-engineer"
+    | "python-libraries"
+    | "sql",
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCourse>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCourseQueryKey(slug);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCourse>>> = ({
+    signal,
+  }) => getCourse(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getCourse>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetCourseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCourse>>
+>;
+export type GetCourseQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get course details with project list
+ */
+
+export function useGetCourse<
+  TData = Awaited<ReturnType<typeof getCourse>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  slug:
+    | "data-engineering"
+    | "ai-engineer"
+    | "mlops-engineer"
+    | "data-scientist"
+    | "analytics-engineer"
+    | "applied-llm-engineer"
+    | "cloud-data-engineer"
+    | "python-libraries"
+    | "sql",
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCourse>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCourseQueryOptions(slug, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

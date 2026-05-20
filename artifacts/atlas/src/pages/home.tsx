@@ -28,7 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useUser } from "@clerk/react";
-import { useListDomains } from "@workspace/api-client-react";
+import { useListCourses } from "@workspace/api-client-react";
 import { Reveal, Stagger, AuroraBg, GlowButton } from "@/components/cinematic";
 import { CountUp } from "@/components/CountUp";
 
@@ -45,7 +45,7 @@ const DOMAIN_ICONS: Record<string, LucideIcon> = {
 
 export default function Home() {
   const { isSignedIn } = useUser();
-  const { data: domains } = useListDomains();
+  const { data: courses } = useListCourses();
   const primaryHref = isSignedIn ? "/dashboard" : "/sign-up";
   const primaryLabel = isSignedIn ? "Go to Dashboard" : "Start Building Free";
   const footerLabel = isSignedIn ? "Open Your Dashboard" : "Create Your Free Account";
@@ -101,7 +101,7 @@ export default function Home() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </GlowButton>
               </Link>
-              <Link href="/domains">
+              <Link href="/courses">
                 <GlowButton variant="ghost">
                   <PlayCircle className="mr-2 h-4 w-4" /> Explore Projects
                 </GlowButton>
@@ -121,7 +121,7 @@ export default function Home() {
           <Stagger className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             {[
               { kind: "num" as const, to: 40, suffix: "+", label: "Hands-on projects" },
-              { kind: "num" as const, to: 6, suffix: "", label: "Engineering domains" },
+              { kind: "num" as const, to: 9, suffix: "", label: "Atlas courses" },
               { kind: "text" as const, value: "AI", label: "Tutor on every step" },
               { kind: "num" as const, to: 0, suffix: "", label: "Local setup needed" },
             ].map((s) => (
@@ -213,27 +213,27 @@ export default function Home() {
                   <GitBranch className="h-3 w-3 mr-1" /> Learning paths
                 </Badge>
                 <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  Pick a domain. Build the portfolio.
+                  Pick a course. Build the portfolio.
                 </h2>
                 <p className="text-muted-foreground mt-2 max-w-xl">
-                  Each domain is a curated track of progressively harder real-world projects.
+                  Atlas is 9 courses of progressively harder, production-grade projects.
                 </p>
               </div>
               <Button asChild variant="ghost" className="self-start md:self-auto">
-                <Link href="/domains">
-                  See all domains <ArrowRight className="ml-1.5 h-4 w-4" />
+                <Link href="/courses">
+                  See all courses <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Link>
               </Button>
             </div>
           </Reveal>
 
           <Stagger className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {(domains ?? []).slice(0, 6).map((d: any) => {
+            {(courses ?? []).slice(0, 6).map((d) => {
               const isComingSoon = d.status === "coming_soon" || (d.projectCount ?? 0) === 0;
-              const Icon = DOMAIN_ICONS[d.icon as string] ?? Wrench;
+              const Icon = DOMAIN_ICONS[d.icon] ?? Wrench;
               return (
-                <Reveal key={d.id}>
-                  <Link href={`/domains/${d.slug}`}>
+                <Reveal key={d.slug}>
+                  <Link href={`/courses/${d.slug}`}>
                     <div className="glass-card hover-lift group relative overflow-hidden rounded-xl p-5 cursor-pointer h-full">
                       <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="relative flex items-start justify-between">
@@ -264,7 +264,7 @@ export default function Home() {
                 </Reveal>
               );
             })}
-            {(domains ?? []).length === 0 &&
+            {(courses ?? []).length === 0 &&
               Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
@@ -494,7 +494,7 @@ export default function Home() {
             <span>· Build the systems. Earn the role.</span>
           </div>
           <div className="flex gap-6 text-xs text-muted-foreground">
-            <Link href="/domains" className="hover:text-foreground">Projects</Link>
+            <Link href="/courses" className="hover:text-foreground">Courses</Link>
             <Link href="/upgrade" className="hover:text-foreground">Pricing</Link>
             <Link href="/dashboard" className="hover:text-foreground">Dashboard</Link>
           </div>

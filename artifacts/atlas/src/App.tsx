@@ -18,6 +18,8 @@ import Home from "@/pages/home";
 import Pricing from "@/pages/pricing";
 import Domains from "@/pages/domains";
 import DomainDetail from "@/pages/domain-detail";
+import Courses from "@/pages/courses";
+import CourseDetail from "@/pages/course-detail";
 import Dashboard from "@/pages/dashboard";
 import ProjectWorkspace from "@/pages/project-workspace";
 import Profile from "@/pages/profile";
@@ -182,6 +184,9 @@ function ClerkProviderWithRoutes() {
             <Switch>
               <Route path="/" component={Home} />
               <Route path="/pricing" component={Pricing} />
+              <Route path="/courses" component={Courses} />
+              <Route path="/courses/:slug" component={CourseDetail} />
+              {/* Phase 10 — `/domains` kept as internal/legacy alias; learner nav points at `/courses`. */}
               <Route path="/domains" component={Domains} />
               <Route path="/domains/:slug" component={DomainDetail} />
               <Route path="/u/:username" component={PublicProfile} />

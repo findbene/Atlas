@@ -474,7 +474,7 @@ export default function Profile() {
               <div className="text-sm text-muted-foreground space-y-3 py-4">
                 <p>You haven't started any projects yet.</p>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/domains/data-engineering">Browse projects</Link>
+                  <Link href="/courses/data-engineering">Browse projects</Link>
                 </Button>
               </div>
             ) : (

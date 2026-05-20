@@ -285,7 +285,7 @@ export default function Conversations() {
                 No project conversations yet — open any project and ask the tutor a question, or start a general chat above.
               </p>
               <Button asChild variant="outline" size="sm">
-                <Link href="/domains">Browse projects</Link>
+                <Link href="/courses">Browse projects</Link>
               </Button>
             </div>
           ) : items.map(c => (

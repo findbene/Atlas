@@ -4,6 +4,21 @@ import { projects, projectSteps, projectHints, domains, projectSolutions } from 
 import { eq, and, desc, asc, sql, or, ilike } from "drizzle-orm";
 import { requireAuth, getCurrentUser } from "../lib/auth";
 import { userProgress, userStepCompletions } from "@workspace/db";
+import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
+
+// Phase 10 — keep in sync with COURSE_METADATA in `./courses.ts`. Only the
+// display name is needed in project detail responses; icon/color stay over there.
+const COURSE_DISPLAY_NAME: Record<AtlasCourseSlug, string> = {
+  "data-engineering": "Data Engineering",
+  "ai-engineer": "AI Engineering",
+  "mlops-engineer": "MLOps Engineering",
+  "data-scientist": "Data Scientist",
+  "analytics-engineer": "Analytics Engineering",
+  "applied-llm-engineer": "Applied LLM Engineer",
+  "cloud-data-engineer": "Cloud Data Engineering",
+  "python-libraries": "Python Libraries",
+  "sql": "SQL Mastery",
+};
 
 const router = Router();
 
@@ -231,6 +246,9 @@ router.get("/projects/:slug", async (req, res) => {
       prerequisites: project.prerequisites ?? [],
       domainSlug: domain?.slug ?? "data-engineering",
       domainName: domain?.title ?? "Data Engineering",
+      // Phase 10 — learner-facing course taxonomy. Reads `projects.course` directly.
+      courseSlug: project.course,
+      courseName: COURSE_DISPLAY_NAME[project.course as keyof typeof COURSE_DISPLAY_NAME] ?? project.course,
       jobOutcomes: project.jobOutcomes ?? undefined,
       executionProfile: project.executionProfile ?? undefined,
       steps: steps.map(s => ({

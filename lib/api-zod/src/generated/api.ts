@@ -117,6 +117,160 @@ export const GetDomainResponse = zod
   );
 
 /**
+ * Returns the 9 Atlas courses with project counts aggregated from
+`projects.course`. This is the source of truth for the learner-facing
+catalog — do not use `/domains` for learner UI.
+
+ * @summary List all 9 Atlas courses (learner-facing taxonomy)
+ */
+export const ListCoursesResponseItem = zod
+  .object({
+    slug: zod.enum([
+      "data-engineering",
+      "ai-engineer",
+      "mlops-engineer",
+      "data-scientist",
+      "analytics-engineer",
+      "applied-llm-engineer",
+      "cloud-data-engineer",
+      "python-libraries",
+      "sql",
+    ]),
+    name: zod.string(),
+    description: zod.string(),
+    icon: zod.string(),
+    color: zod.string(),
+    status: zod
+      .enum(["active", "coming_soon"])
+      .describe(
+        "active = has ≥1 learner_visible project; coming_soon otherwise.",
+      ),
+    projectCount: zod
+      .number()
+      .describe("Number of learner-visible projects with this course."),
+    authoredCount: zod
+      .number()
+      .describe(
+        "Number of learner-visible projects with course_source='authored'.",
+      ),
+  })
+  .describe("One of the 9 Atlas courses. Source of truth = `projects.course`.");
+export const ListCoursesResponse = zod.array(ListCoursesResponseItem);
+
+/**
+ * @summary Get course details with project list
+ */
+export const GetCourseParams = zod.object({
+  slug: zod.enum([
+    "data-engineering",
+    "ai-engineer",
+    "mlops-engineer",
+    "data-scientist",
+    "analytics-engineer",
+    "applied-llm-engineer",
+    "cloud-data-engineer",
+    "python-libraries",
+    "sql",
+  ]),
+});
+
+export const GetCourseResponse = zod
+  .object({
+    slug: zod.enum([
+      "data-engineering",
+      "ai-engineer",
+      "mlops-engineer",
+      "data-scientist",
+      "analytics-engineer",
+      "applied-llm-engineer",
+      "cloud-data-engineer",
+      "python-libraries",
+      "sql",
+    ]),
+    name: zod.string(),
+    description: zod.string(),
+    icon: zod.string(),
+    color: zod.string(),
+    status: zod
+      .enum(["active", "coming_soon"])
+      .describe(
+        "active = has ≥1 learner_visible project; coming_soon otherwise.",
+      ),
+    projectCount: zod
+      .number()
+      .describe("Number of learner-visible projects with this course."),
+    authoredCount: zod
+      .number()
+      .describe(
+        "Number of learner-visible projects with course_source='authored'.",
+      ),
+  })
+  .describe("One of the 9 Atlas courses. Source of truth = `projects.course`.")
+  .and(
+    zod.object({
+      projects: zod.array(
+        zod.object({
+          id: zod.string(),
+          slug: zod.string(),
+          title: zod.string(),
+          description: zod.string(),
+          difficulty: zod.enum([
+            "beginner",
+            "intermediate",
+            "advanced",
+            "expert",
+          ]),
+          tier: zod.enum(["free", "pro"]),
+          xpReward: zod.number(),
+          estimatedHours: zod.number(),
+          stepCount: zod.number(),
+          enrolledCount: zod.number(),
+          completionRate: zod.number(),
+          tags: zod.array(zod.string()),
+          position: zod.number(),
+          jobOutcomes: zod
+            .object({
+              roles: zod
+                .array(zod.string())
+                .describe("Real-world job titles this project maps to."),
+              skillsForResume: zod
+                .array(zod.string())
+                .describe(
+                  "Concrete skills suitable for a Skills section on a resume.",
+                ),
+              resumeBullets: zod
+                .array(zod.string())
+                .describe(
+                  "Action-oriented resume bullet points based on the project work.",
+                ),
+              interviewQuestions: zod
+                .array(zod.string())
+                .describe(
+                  "Common interview questions this project prepares the learner to answer.",
+                ),
+              portfolioReadiness: zod
+                .string()
+                .optional()
+                .describe(
+                  "Short paragraph explaining how this project becomes a portfolio piece.",
+                ),
+              marketSignal: zod
+                .string()
+                .optional()
+                .describe(
+                  "Why this skill matters in the 2026+ data engineering job market.",
+                ),
+            })
+            .optional()
+            .describe(
+              "Career-readiness signals demonstrated by completing this project.",
+            ),
+        }),
+      ),
+    }),
+  );
+
+/**
  * @summary List projects with optional filters
  */
 export const listProjectsQueryPageDefault = 1;
@@ -315,8 +469,38 @@ export const GetProjectResponse = zod
           }),
         )
         .optional(),
-      domainSlug: zod.string().optional(),
-      domainName: zod.string().optional(),
+      domainSlug: zod
+        .string()
+        .optional()
+        .describe(
+          "INTERNAL — legacy domain slug. Learner UI should prefer `courseSlug`.",
+        ),
+      domainName: zod
+        .string()
+        .optional()
+        .describe(
+          "INTERNAL — legacy domain title. Learner UI should prefer `courseName`.",
+        ),
+      courseSlug: zod
+        .enum([
+          "data-engineering",
+          "ai-engineer",
+          "mlops-engineer",
+          "data-scientist",
+          "analytics-engineer",
+          "applied-llm-engineer",
+          "cloud-data-engineer",
+          "python-libraries",
+          "sql",
+        ])
+        .optional()
+        .describe(
+          "Learner-facing Atlas course this project belongs to (`projects.course`).",
+        ),
+      courseName: zod
+        .string()
+        .optional()
+        .describe("Display name for `courseSlug`."),
       jobOutcomes: zod
         .object({
           roles: zod
@@ -613,8 +797,38 @@ export const GetUserProjectProgressResponse = zod
                 }),
               )
               .optional(),
-            domainSlug: zod.string().optional(),
-            domainName: zod.string().optional(),
+            domainSlug: zod
+              .string()
+              .optional()
+              .describe(
+                "INTERNAL — legacy domain slug. Learner UI should prefer `courseSlug`.",
+              ),
+            domainName: zod
+              .string()
+              .optional()
+              .describe(
+                "INTERNAL — legacy domain title. Learner UI should prefer `courseName`.",
+              ),
+            courseSlug: zod
+              .enum([
+                "data-engineering",
+                "ai-engineer",
+                "mlops-engineer",
+                "data-scientist",
+                "analytics-engineer",
+                "applied-llm-engineer",
+                "cloud-data-engineer",
+                "python-libraries",
+                "sql",
+              ])
+              .optional()
+              .describe(
+                "Learner-facing Atlas course this project belongs to (`projects.course`).",
+              ),
+            courseName: zod
+              .string()
+              .optional()
+              .describe("Display name for `courseSlug`."),
             jobOutcomes: zod
               .object({
                 roles: zod

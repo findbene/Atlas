@@ -34,7 +34,7 @@ const STEPS: Step[] = [
     icon: Bot,
     title: "An AI tutor on every step",
     body: "Every project step has a tutor that sees your code, your error, and your goal. Send it your run output with one click.",
-    cta: { label: "Browse Projects", href: "/domains/data-engineering" },
+    cta: { label: "Browse Projects", href: "/courses/data-engineering" },
   },
   {
     icon: Trophy,

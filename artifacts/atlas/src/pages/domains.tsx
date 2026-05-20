@@ -28,9 +28,15 @@ export default function Domains() {
   return (
     <div className="container max-w-6xl mx-auto py-12 px-6">
       <div className="mb-12">
-        <h1 className="text-3xl font-bold mb-4">Learning Domains</h1>
+        <div className="mb-4 flex items-center gap-2">
+          <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/30">
+            Internal · legacy
+          </span>
+        </div>
+        <h1 className="text-3xl font-bold mb-4">Internal Domains</h1>
         <p className="text-muted-foreground text-lg max-w-2xl">
-          Choose a path to master. Atlas provides rigorous, project-based curriculums designed to make you a production-ready engineer.
+          Domains are an <strong>internal grouping</strong> kept for legacy routing and admin reports. The learner-facing taxonomy is the {" "}
+          <Link href="/courses" className="underline text-foreground hover:text-primary">9 Atlas courses</Link>. New learner UI should always link to <code>/courses</code>.
         </p>
       </div>
 

@@ -428,7 +428,7 @@ export default function ProjectWorkspace() {
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
         <p className="text-muted-foreground">Project not found.</p>
         <Button asChild variant="outline">
-          <Link href="/domains/data-engineering">Browse Projects</Link>
+          <Link href="/courses/data-engineering">Browse Projects</Link>
         </Button>
       </div>
     );

@@ -198,7 +198,7 @@ export default function Dashboard() {
               <Code2 className="h-4 w-4 text-blue-400" />
               In Progress
             </h2>
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link href="/domains/data-engineering">View all</Link></Button>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link href="/courses/data-engineering">View all</Link></Button>
           </div>
           {projectsLoading ? (
             <div className="space-y-3">
@@ -211,7 +211,7 @@ export default function Dashboard() {
               title="No projects in progress yet"
               description="Pick a real-world Data Engineering project and ship your first commit."
               ctaLabel="Start a Project"
-              ctaHref="/domains/data-engineering"
+              ctaHref="/courses/data-engineering"
             />
           ) : (
             <div className="space-y-3">
@@ -325,7 +325,7 @@ export default function Dashboard() {
           <h3 className="font-semibold mb-1">Ready to build something?</h3>
           <p className="text-sm text-muted-foreground">Start with the Data Engineering track — 40 real-world projects await.</p>
         </div>
-        <Button asChild><Link href="/domains/data-engineering">
+        <Button asChild><Link href="/courses/data-engineering">
             Browse Projects
             <ChevronRight className="ml-2 h-4 w-4" />
           </Link></Button>

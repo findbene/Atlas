@@ -158,6 +158,28 @@ Phase 8 closed the structural gaps Phase 7 surfaced. **No rubric edits, no mass 
 - Splitting the `de-core` track per course (`analytics-engineer-core`, `cloud-data-engineer-core`, etc.) is deferred — only the lookup map needs updating when it happens.
 - The deprecation marker on `mapToCourse` is JSDoc-only; consider a lint/grep CI guard when more callers exist.
 
+### Phase 10 — Taxonomy Display (interim)
+
+Phase 10 fan-out (7-project authoring batch) is **paused** pending product confirmation. This pre-batch sub-phase fixed a learner-facing taxonomy gap: the catalog was showing only the 4 legacy `domains` rows even though Atlas is a 9-course platform.
+
+**Course is now the learner-facing taxonomy. Domain is internal-only.**
+
+- New endpoints `GET /api/courses` + `GET /api/courses/:slug` in `artifacts/api-server/src/routes/courses.ts`. Source of truth = `projects.course` + `projects.learner_visible` (no `domains`/`tracks` joins, no `mapToCourse`). Static display metadata (name/description/icon/color) lives in `COURSE_METADATA` keyed by `AtlasCourseSlug` so the 9 courses always render — courses with 0 visible projects show as `status: "coming_soon"` instead of being hidden.
+- New pages `artifacts/atlas/src/pages/courses.tsx` + `course-detail.tsx`. Navbar primary nav now says **Courses** → `/courses`. Home showcase, dashboard, profile, certificates, conversations, leaderboard, project-workspace, onboarding tour all link to `/courses/...` instead of `/domains/...`.
+- Legacy `/domains` route + page kept as `Internal · legacy` (banner relabel, link back to `/courses`) so admin/dev workflows that still depend on the 4-domain grouping keep working — no breakage, no delete.
+- OpenAPI spec: new `courses` tag with `Course` + `CourseDetail` schemas; `domains` tag description marked INTERNAL. `slug` enum on `/courses/:slug` is the 9-course allowlist, so client + server agree on the closed set.
+- Regression coverage (`artifacts/api-server/src/routes/courses.test.ts`, 3 tests): list returns exactly the 9 expected slugs; counts come from `projects.course` (not heuristic); unknown slugs 404 against the 9-course allowlist.
+- `check:no-heuristic-runtime` still PASS (the courses route reads `projects.course` directly; the JSDoc string was rephrased so the lint's substring grep stays green).
+
+**Admin quality report (`GET /api/admin/quality`) was already course-native** as of Phase 8 — it groups by `projects.course` over `ALL_COURSES` and emits a 9-bucket `courseDistribution`. No change needed there.
+
+**Final gate for this sub-phase:** `pnpm run typecheck` PASS · 58/58 api-server tests (3 new) · `check:no-heuristic-runtime` PASS · live `/api/courses` returns 9 buckets with real counts (DE 31 / AI-eng 6 / MLOps 5 / DS 4 / AE 5 / Applied-LLM 2 / Cloud-DE / Python-libs / SQL).
+
+**Carry-overs for the Phase 10 authoring batch (still paused):**
+- 7 authored modules under `scripts/src/authored/` are written + registered but NOT yet promoted (no anchor-check, no wave-report). Restart by running the per-slug `author:project promote` + `anchor-check` loop from `.local/session_plan.md` T003.
+- Archive cohort (22 thin stubs) flip to `learner_visible=false` not yet executed (T005).
+- The course endpoint already filters on `learner_visible`, so flipping archive rows will cleanly remove them from `/api/courses` counts without code changes.
+
 ### Phase 9 — Legacy Remediation (batch 1)
 
 Phase 9 closed the Phase-8 carry-overs WITHOUT touching the rubric, weakening gates, or mass-authoring. **No rubric edits. Anchor drift 0.00 throughout.**

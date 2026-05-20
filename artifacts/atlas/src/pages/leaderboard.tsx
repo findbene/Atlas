@@ -83,7 +83,7 @@ export default function Leaderboard() {
                 title="No rankings yet"
                 description="Complete project steps to earn XP and become the first on the leaderboard."
                 ctaLabel="Browse Projects"
-                ctaHref="/domains/data-engineering"
+                ctaHref="/courses/data-engineering"
               />
             )}
           </div>

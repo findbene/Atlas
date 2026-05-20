@@ -29,9 +29,9 @@ export function StudioTopBar({
       data-testid="studio-topbar"
     >
       <Button asChild variant="ghost" size="sm" className="text-muted-foreground -ml-2">
-        <Link href={`/domains/${project.domainSlug}`}>
+        <Link href={`/courses/${project.courseSlug ?? project.domainSlug}`}>
           <ArrowLeft className="h-4 w-4 mr-1" />
-          {project.domainName}
+          {project.courseName ?? project.domainName}
         </Link>
       </Button>
       <span className="text-muted-foreground">/</span>

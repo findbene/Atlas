@@ -85,7 +85,7 @@ export default function Certificates() {
               Finish your first project to earn a shareable certificate showing the roles you're now ready for.
             </p>
             <Button asChild>
-              <Link href="/domains/data-engineering">Start your first project</Link>
+              <Link href="/courses/data-engineering">Start your first project</Link>
             </Button>
           </div>
         ) : (

@@ -11,7 +11,9 @@ tags:
   - name: health
     description: Health operations
   - name: domains
-    description: Learning domain operations
+    description: Learning domain operations (INTERNAL — legacy grouping; learner-facing taxonomy is `courses`)
+  - name: courses
+    description: Atlas 9-course learner-facing taxonomy (source of truth = `projects.course`)
   - name: projects
     description: Project catalog operations
   - name: user-projects
@@ -82,6 +84,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DomainDetail"
+
+  /courses:
+    get:
+      operationId: listCourses
+      tags: [courses]
+      summary: List all 9 Atlas courses (learner-facing taxonomy)
+      description: |
+        Returns the 9 Atlas courses with project counts aggregated from
+        `projects.course`. This is the source of truth for the learner-facing
+        catalog — do not use `/domains` for learner UI.
+      responses:
+        "200":
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+
+  /courses/{slug}:
+    get:
+      operationId: getCourse
+      tags: [courses]
+      summary: Get course details with project list
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - data-engineering
+              - ai-engineer
+              - mlops-engineer
+              - data-scientist
+              - analytics-engineer
+              - applied-llm-engineer
+              - cloud-data-engineer
+              - python-libraries
+              - sql
+      responses:
+        "200":
+          description: Course detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDetail"
+        "404":
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /projects:
     get:
@@ -712,6 +768,62 @@ components:
               items:
                 $ref: "#/components/schemas/ProjectSummary"
 
+    Course:
+      type: object
+      description: One of the 9 Atlas courses. Source of truth = `projects.course`.
+      properties:
+        slug:
+          type: string
+          enum:
+            - data-engineering
+            - ai-engineer
+            - mlops-engineer
+            - data-scientist
+            - analytics-engineer
+            - applied-llm-engineer
+            - cloud-data-engineer
+            - python-libraries
+            - sql
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+        status:
+          type: string
+          enum: [active, coming_soon]
+          description: active = has ≥1 learner_visible project; coming_soon otherwise.
+        projectCount:
+          type: integer
+          description: Number of learner-visible projects with this course.
+        authoredCount:
+          type: integer
+          description: Number of learner-visible projects with course_source='authored'.
+      required:
+        - slug
+        - name
+        - description
+        - icon
+        - color
+        - status
+        - projectCount
+        - authoredCount
+
+    CourseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Course"
+        - type: object
+          properties:
+            projects:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProjectSummary"
+          required:
+            - projects
+
     ProjectSummary:
       type: object
       properties:
@@ -886,8 +998,26 @@ components:
                 $ref: "#/components/schemas/ProjectStep"
             domainSlug:
               type: string
+              description: INTERNAL — legacy domain slug. Learner UI should prefer `courseSlug`.
             domainName:
               type: string
+              description: INTERNAL — legacy domain title. Learner UI should prefer `courseName`.
+            courseSlug:
+              type: string
+              enum:
+                - data-engineering
+                - ai-engineer
+                - mlops-engineer
+                - data-scientist
+                - analytics-engineer
+                - applied-llm-engineer
+                - cloud-data-engineer
+                - python-libraries
+                - sql
+              description: Learner-facing Atlas course this project belongs to (`projects.course`).
+            courseName:
+              type: string
+              description: Display name for `courseSlug`.
             jobOutcomes:
               $ref: "#/components/schemas/JobOutcomes"
             executionProfile:
