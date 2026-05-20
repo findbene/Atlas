@@ -7,10 +7,12 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
     "seed:stripe": "tsx ./src/seed-stripe-products.ts",
+    "audit:pedagogy": "tsx ./src/audit-pedagogy.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
+    "@workspace/execution-core": "workspace:*",
     "drizzle-orm": "catalog:",
     "stripe": "^22.1.0"
   },

@@ -120,6 +120,23 @@ export const userCodeRuns = pgTable("user_code_runs", {
   index('user_code_runs_user_step_idx').on(t.userId, t.stepId, t.createdAt),
 ]);
 
+// Phase 4: per-learner per-step progressive hint state. One row per
+// (user, step). Capped 0..5 by application logic, never auto-spoils.
+export const userProjectStepHints = pgTable("user_project_step_hints", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  stepId: uuid("step_id").notNull(),
+  hintLevel: integer("hint_level").default(0).notNull(),
+  lastOfferedAt: timestamp("last_offered_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex('user_step_hints_uniq').on(t.userId, t.stepId),
+  index('user_step_hints_user_idx').on(t.userId),
+]);
+
 export const insertUserProgressSchema = createInsertSchema(userProgress).omit({ id: true });
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;
+export type UserProjectStepHints = typeof userProjectStepHints.$inferSelect;

@@ -230,6 +230,8 @@ export function StudioShell(props: StudioShellProps) {
             step={currentStep}
             stepNumber={currentStepIdx + 1}
             totalSteps={steps.length}
+            projectSlug={project?.slug}
+            refetchKey={grading?.status ? `${grading.status}:${grading.feedback ?? ""}` : currentStep.id}
           />
         </TabsContent>
         {isCodeStep && (
@@ -275,6 +277,9 @@ export function StudioShell(props: StudioShellProps) {
             grading={grading}
             project={project}
             showCelebration={showCelebration}
+            step={currentStep}
+            projectSlug={project?.slug}
+            refetchKey={`${grading.status}:${grading.feedback ?? ""}`}
           />
         </div>
       )}

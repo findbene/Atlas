@@ -1,0 +1,69 @@
+Approve Phase 4 with small changes.
+
+Proceed, but apply these corrections before implementation:
+
+1. Fix the schema count/naming issue.
+   The plan says “9 nullable columns,” but the listed fields are more than 9. Before coding, make the schema explicit and accurate.
+
+2. Prefer a compact pedagogy JSONB structure over too many loose nullable columns if it keeps the schema cleaner.
+   Acceptable structure:
+   - project_steps.learning_objective
+   - project_steps.required_skill
+   - project_steps.pedagogy_config JSONB
+
+   pedagogy_config should contain:
+   - misconception_to_watch_for
+   - hint_level_1
+   - hint_level_2
+   - hint_level_3
+   - hint_level_4
+   - hint_level_5
+   - final_explanation
+   - success_feedback
+   - failure_feedback
+   - portfolio_relevance
+
+   If existing code conventions strongly favor separate columns, separate columns are acceptable, but keep the design additive and consistent.
+
+3. Align learning modes with Atlas terminology:
+   - guided_ai_assisted
+   - adaptive_inquiry_ai_assisted
+   - mastery_gated_independent_ai_assisted
+   - dynamic_ai_adaptive
+
+   If the current enum only supports guided/unguided, map them temporarily, but document the future migration.
+
+4. Auto-offer logic:
+   - Guided mode: offer next hint after 3 failed attempts.
+   - Adaptive Inquiry mode: proactively offer scaffold/checklist after repeated struggle.
+   - Independent mode: do not auto-spoil; only offer minimal nudges unless learner explicitly requests more.
+   - Dynamic AI mode: use failed attempts, hint usage, and validation results to adjust support.
+
+5. Keep server-side enforcement:
+   Tutor prompts must only receive hint levels the learner has unlocked. Do not rely only on frontend hiding.
+
+6. Apply Phase 4 only to:
+   - dbt-data-models for SQL
+   - csv-to-postgres-pipeline for Python
+
+7. Preserve:
+   - Atlas Studio layout
+   - DuckDB SQL execution
+   - Pyodide execution
+   - existing tutor entry point
+   - existing project behavior
+
+8. Add the pedagogy audit script as planned:
+   It should report projects/steps missing learning objectives, rich hints, feedback, final explanation, and portfolio relevance.
+
+After these changes, proceed with Phase 4 implementation.
+
+Completion report must include:
+- schema changes
+- hint persistence behavior
+- tutor prompt changes
+- SQL project demo
+- Python project demo
+- tests/typecheck results
+- pedagogy audit output
+- known gaps before scaling to all projects

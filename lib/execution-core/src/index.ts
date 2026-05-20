@@ -26,3 +26,19 @@ export {
 } from "./profile.js";
 
 export { validateExpected } from "./validate.js";
+
+export {
+  toAtlasLearnerMode,
+  fromAtlasLearnerMode,
+  evaluateHintPolicy,
+  hintsUpTo,
+  availableHintLevels,
+  MAX_HINT_LEVEL,
+} from "./pedagogy.js";
+export type {
+  DbLearningMode,
+  AtlasLearnerMode,
+  HintPolicyInput,
+  HintPolicyOutcome,
+  PedagogyConfig,
+} from "./pedagogy.js";

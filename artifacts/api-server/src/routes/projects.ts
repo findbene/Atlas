@@ -247,6 +247,13 @@ router.get("/projects/:slug", async (req, res) => {
         expectedOutputs: s.expectedOutputs ?? undefined,
         datasetRefs: s.datasetRefs ?? undefined,
         executionOverride: s.executionOverride ?? undefined,
+        // Phase 4: pedagogy fields (all optional). Hint texts and the full
+        // L5 explanation are NEVER returned here — they are gated by the
+        // per-user hint endpoints. This response is safe for unauthenticated
+        // calls.
+        learningObjective: s.learningObjective ?? undefined,
+        requiredSkill: s.requiredSkill ?? undefined,
+        hasPedagogy: !!s.pedagogyConfig,
       })),
     });
   } catch (err) {

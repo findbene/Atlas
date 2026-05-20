@@ -9,6 +9,10 @@ export type StepVM = {
   datasetRefs?: string[];
   expectedOutputs?: unknown;
   executionOverride?: unknown;
+  // Phase 4 pedagogy (all optional)
+  learningObjective?: string;
+  requiredSkill?: string;
+  hasPedagogy?: boolean;
 };
 
 export type OutputVM = {

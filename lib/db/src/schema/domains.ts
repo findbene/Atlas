@@ -101,6 +101,23 @@ export const projectSteps = pgTable("project_steps", {
   datasetRefs: jsonb("dataset_refs"),
   // Phase 2: optional per-step override of the project's executionProfile.
   executionOverride: jsonb("execution_override"),
+  // Phase 4: pedagogy. All nullable, all optional in API. The legacy `hints`
+  // (on the separate projectHints table) and `validationHint` stay as fallbacks
+  // for steps that have not yet been enriched.
+  learningObjective: text("learning_objective"),
+  requiredSkill: text("required_skill"),
+  // pedagogy_config holds the rich tutoring payload as a single JSONB blob to
+  // keep the table narrow. Shape (all keys optional):
+  //   {
+  //     misconceptionToWatchFor?: string;
+  //     hintLevel1?: string; hintLevel2?: string; hintLevel3?: string;
+  //     hintLevel4?: string; hintLevel5?: string;
+  //     finalExplanation?: string;
+  //     successFeedback?: string;
+  //     failureFeedback?: string;
+  //     portfolioRelevance?: string;
+  //   }
+  pedagogyConfig: jsonb("pedagogy_config"),
 }, (t) => [
   uniqueIndex('project_step_idx').on(t.projectId, t.stepNumber),
 ]);

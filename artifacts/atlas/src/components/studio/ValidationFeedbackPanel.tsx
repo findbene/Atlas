@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Award, ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, Award, ChevronDown, ChevronRight, Lightbulb, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
-import type { GradingResult } from "./types";
+import type { GradingResult, StepVM } from "./types";
+import { useHintState } from "./useHintState";
 
 type Props = {
   grading: GradingResult;
   project: any;
   showCelebration: boolean;
+  step?: StepVM;
+  projectSlug?: string;
+  /** Bump when a new grading result lands so pedagogy feedback refetches. */
+  refetchKey?: unknown;
 };
 
-export function ValidationFeedbackPanel({ grading, project, showCelebration }: Props) {
+export function ValidationFeedbackPanel({ grading, project, showCelebration, step, projectSlug, refetchKey }: Props) {
   const passed = grading.status === "passed";
+  const { state: hintState, advance, advancing } = useHintState({
+    projectSlug,
+    stepId: step?.id,
+    enabled: !!step?.hasPedagogy,
+    refetchKey,
+  });
   // Always expand when a new grading result lands so learners see XP earned,
   // completion celebration, and feedback immediately. Users can collapse
   // afterwards if they want to free up vertical space.
@@ -52,9 +63,47 @@ export function ValidationFeedbackPanel({ grading, project, showCelebration }: P
         )}
       </button>
       {open && (
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 space-y-3">
+          {!passed && hintState?.failureFeedback && (
+            <div
+              className="text-sm rounded-md bg-red-500/10 border border-red-500/20 px-3 py-2 text-red-100 whitespace-pre-wrap"
+              data-testid="failure-feedback"
+            >
+              {hintState.failureFeedback}
+            </div>
+          )}
           {grading.feedback && (
             <p className="text-sm whitespace-pre-wrap">{grading.feedback}</p>
+          )}
+          {!passed && hintState?.shouldOffer && hintState.canEscalate && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10 hover:text-amber-100 h-7 text-xs"
+              onClick={() => void advance()}
+              disabled={advancing}
+              data-testid="hint-offer"
+            >
+              <Lightbulb className="h-3 w-3 mr-1" />
+              Want a nudge? Reveal hint {hintState.level + 1}/{hintState.maxLevel}
+            </Button>
+          )}
+          {passed && hintState?.successFeedback && (
+            <div
+              className="text-sm rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-emerald-100 whitespace-pre-wrap"
+              data-testid="success-feedback"
+            >
+              {hintState.successFeedback}
+            </div>
+          )}
+          {passed && hintState?.portfolioRelevance && (
+            <div
+              className="text-xs rounded-md bg-amber-500/5 border border-amber-500/20 px-3 py-2 text-amber-200 flex items-start gap-2"
+              data-testid="portfolio-relevance"
+            >
+              <Briefcase className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{hintState.portfolioRelevance}</span>
+            </div>
           )}
           {passed && grading.projectComplete && showCelebration && (
             <div className="mt-3 pt-3 border-t border-emerald-500/20">

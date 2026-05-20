@@ -7,6 +7,7 @@ import { extraProjects } from "./seed-projects-extra";
 import { projects2026 } from "./seed-projects-2026";
 import { crossDomainProjects } from "./seed-projects-cross-domain";
 import { jobOutcomesBySlug } from "./seed-job-outcomes";
+import { seedPedagogy } from "./seed-pedagogy";
 
 function slugify(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -905,6 +906,9 @@ async function seed() {
       }
     }
   }
+
+  console.log("\nEnriching pedagogy for reference projects...");
+  await seedPedagogy();
 
   console.log("\nSeed complete!");
   process.exit(0);
