@@ -1,0 +1,74 @@
+Phase 5 accepted.
+
+The Project Quality System is approved:
+- curriculum-quality library shipped
+- project_candidates table separated from production projects
+- project quality fields added
+- audit:quality and catalog:report working
+- candidates CLI working
+- /api/admin/quality endpoint added
+- reference projects approved
+- weak legacy projects flagged needs_revision
+- typecheck/tests/architect review passed
+
+Before mass curriculum generation, begin Phase 6 planning.
+
+Recommended Phase 6: Nine-Course Curriculum Architecture + Candidate Generation Pipeline.
+
+Goal:
+Prepare Atlas to scale toward 1,080 projects without creating shallow, repetitive content.
+
+Phase 6 scope:
+1. Define the official 9-course taxonomy:
+   - Data Engineering
+   - AI Engineer
+   - MLOps Engineer
+   - Data Scientist
+   - Analytics Engineer
+   - Applied LLM Engineer
+   - Cloud Data Engineer
+   - Python — Libraries and Frameworks
+   - SQL
+
+2. Define per-course skill maps:
+   - beginner skills
+   - intermediate skills
+   - advanced skills
+   - required Python depth
+   - required SQL depth
+   - cloud/tooling expectations
+   - portfolio outcomes
+
+3. Build project candidate generation/import structure:
+   - AI proposal schema
+   - batch import format
+   - candidate scoring
+   - duplicate detection
+   - approval workflow
+   - reviewer notes
+
+4. Generate a first controlled candidate batch:
+   - 10 project candidates per course
+   - 90 candidates total
+   - do not author full projects yet
+   - score all candidates
+   - report duplicates and weak candidates
+
+5. Produce coverage reports:
+   - course × difficulty
+   - course × stack
+   - course × role
+   - Python depth
+   - SQL depth
+   - portfolio artifact type
+   - quality score distribution
+
+Do not:
+- generate all 1,080 projects yet
+- write full project content yet
+- expand Atlas Studio
+- implement cloud credentials
+- touch Stripe
+- redesign admin UI
+
+Before coding, write .local/session_plan.md for Phase 6 and stop for approval.
