@@ -176,7 +176,7 @@ FROM {{ source('staging', 'orders_current') }}
             strategy='check', check_cols=['status', 'total_cents']) }}
   SELECT id, customer_id, total_cents, status, updated_at FROM {{ ref('orders_current') }}
 {% endsnapshot %}
--- TODO: run `dbt build --select orders_current orders_snapshot`
+-- TODO: run: dbt build --select orders_current orders_snapshot
 `),
       validationType: "sql_resultset",
       stepType: "code_sql",

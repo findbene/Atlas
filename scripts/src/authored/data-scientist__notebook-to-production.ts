@@ -226,7 +226,7 @@ class PredictRequest(BaseModel):
 
 class PredictResponse(BaseModel):
     probabilities: list[float]
-# TODO: import these in service.py and replace the loose `list[dict]` request shape.
+# TODO: import these in service.py and replace the loose list[dict] request shape.
 `),
       validationType: "json_equal",
       stepType: "code_python",

@@ -15,6 +15,7 @@ import {
   projects, projectSteps, domains, tracks,
   type Project,
 } from "@workspace/db";
+import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
 
 type NewProject = typeof projects.$inferInsert;
 type NewProjectStep = typeof projectSteps.$inferInsert;
@@ -43,11 +44,60 @@ async function getProjectBySlug(slug: string): Promise<Project | undefined> {
   return await db.query.projects.findFirst({ where: eq(projects.slug, slug) });
 }
 
-async function defaultDomainAndTrack(): Promise<{ domainId: string; trackId: string }> {
-  const dRow = await db.select({ id: domains.id }).from(domains).limit(1);
-  const tRow = await db.select({ id: tracks.id }).from(tracks).limit(1);
-  if (!dRow[0] || !tRow[0]) fail("Need at least one domain + track row in DB before promote.");
-  return { domainId: dRow[0].id, trackId: tRow[0].id };
+/**
+ * Phase-7 course → DB-domain map. The DB only has 4 domain rows
+ * (ai-engineering, ai-mlops, data-engineering, data-science); the 9
+ * Atlas courses fan in onto those. Track is the unique track per domain.
+ *
+ * Keep this in sync with COURSE_FOR_AUTHORED_SLUG below.
+ */
+const COURSE_TO_DOMAIN_SLUG: Record<AtlasCourseSlug, string> = {
+  "ai-engineer": "ai-engineering",
+  "applied-llm-engineer": "ai-engineering",
+  "mlops-engineer": "ai-mlops",
+  "data-engineering": "data-engineering",
+  "cloud-data-engineer": "data-engineering",
+  "analytics-engineer": "data-engineering",
+  "python-libraries": "data-engineering",
+  "sql": "data-engineering",
+  "data-scientist": "data-science",
+};
+
+/**
+ * Authoritative course assignment for every Phase-7 authored slug.
+ * Drives the domain/track FK on insert so wave-report / catalog-report
+ * `mapToCourse(domainSlug, tags, stack)` round-trips to the intended course.
+ */
+const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
+  "sql-time-travel-queries-lab": "sql",
+  "ai-engineer-rag-baseline-pgvector": "ai-engineer",
+  "python-libraries-fastapi-di": "python-libraries",
+  "ai-engineer-multi-stage-rag-reranker": "ai-engineer",
+  "applied-llm-planner-executor": "applied-llm-engineer",
+  "applied-llm-multi-agent-coordination": "applied-llm-engineer",
+  "mlops-kserve-multi-model": "mlops-engineer",
+  "mlops-terraform-ml-platform": "mlops-engineer",
+  "data-engineering-flink-windowed-aggregations": "data-engineering",
+  "data-engineering-cdc-debezium": "data-engineering",
+  "cloud-data-engineer-iceberg-compaction-rewrite": "cloud-data-engineer",
+  "cloud-data-engineer-hudi-mor-cdc-merge": "cloud-data-engineer",
+  "analytics-engineer-snowflake-stream-task-pipeline": "analytics-engineer",
+  "analytics-engineer-dbt-ci-state-modified": "analytics-engineer",
+  "python-libraries-pydantic-validation-service": "python-libraries",
+  "data-scientist-notebook-to-production": "data-scientist",
+  "data-scientist-pytorch-image-finetuning": "data-scientist",
+  "sql-feature-store-lab": "sql",
+};
+
+async function resolveDomainAndTrack(authoredSlug: string): Promise<{ domainId: string; trackId: string; course: AtlasCourseSlug; domainSlug: string }> {
+  const course = COURSE_FOR_AUTHORED_SLUG[authoredSlug];
+  if (!course) fail(`No COURSE_FOR_AUTHORED_SLUG entry for '${authoredSlug}' — add one in scripts/src/author-project.ts.`);
+  const domainSlug = COURSE_TO_DOMAIN_SLUG[course];
+  const dRow = await db.select({ id: domains.id }).from(domains).where(eq(domains.slug, domainSlug)).limit(1);
+  if (!dRow[0]) fail(`Domain '${domainSlug}' not found in DB. Seed domains first.`);
+  const tRow = await db.select({ id: tracks.id }).from(tracks).where(eq(tracks.domainId, dRow[0].id)).limit(1);
+  if (!tRow[0]) fail(`No tracks for domain '${domainSlug}'.`);
+  return { domainId: dRow[0].id, trackId: tRow[0].id, course, domainSlug };
 }
 
 async function auditProjectRow(row: Project): Promise<Scorecard> {
@@ -81,7 +131,7 @@ async function promote(slug: string): Promise<void> {
   if (!authored) fail(`No authored module found for slug '${slug}' in scripts/src/authored/.`);
   assertAuthoredProjectComplete(authored);
 
-  const { domainId, trackId } = await defaultDomainAndTrack();
+  const { domainId, trackId, course, domainSlug } = await resolveDomainAndTrack(slug);
   const existing = await getProjectBySlug(slug);
 
   const projectFields: NewProject = {
@@ -143,7 +193,7 @@ async function promote(slug: string): Promise<void> {
     await tx.insert(projectSteps).values(stepRows);
   });
 
-  console.log(`[promote] ${slug}  steps=${authored.steps.length}  (${existing ? "updated" : "inserted"})`);
+  console.log(`[promote] ${slug}  course=${course}  domain=${domainSlug}  steps=${authored.steps.length}  (${existing ? "updated" : "inserted"})`);
 }
 
 // ── audit ───────────────────────────────────────────────────────────────────
@@ -197,7 +247,10 @@ async function anchorCheck(): Promise<void> {
 
 type WaveRow = {
   slug: string;
-  course: string | null;
+  /** Authoritative Phase-7 course intent (from COURSE_FOR_AUTHORED_SLUG). */
+  intendedCourse: AtlasCourseSlug;
+  /** Course derived by mapToCourse from current DB row (heuristic; informational). */
+  mappedCourse: string | null;
   overall: number;
   dimensions: Record<string, number>;
   pedagogyComplete: boolean;
@@ -231,9 +284,11 @@ async function waveReport(): Promise<void> {
       const cfg = s.pedagogyConfig;
       return cfg && cfg.hintLevel1 && cfg.hintLevel5 && cfg.successFeedback && cfg.failureFeedback && cfg.portfolioRelevance;
     });
+    const intendedCourse = COURSE_FOR_AUTHORED_SLUG[authored.slug];
     rows.push({
       slug: authored.slug,
-      course: me.course,
+      intendedCourse,
+      mappedCourse: me.course,
       overall: card.overall,
       dimensions: Object.fromEntries(Object.entries(card.dimensions).map(([k, d]) => [k, d.score])),
       pedagogyComplete: allPedagogy,
@@ -248,17 +303,18 @@ async function waveReport(): Promise<void> {
     "",
     `Total authored: ${rows.length}   Passing ≥70: ${passed}/${rows.length}`,
     "",
-    "| Slug | Course | Overall | Job | Realism | Depth | Pedagogy | Portfolio | Unique | Ped✓ | Val% | Port✓ |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|",
+    "| Slug | Intended Course | Mapped (heuristic) | Overall | Job | Realism | Depth | Pedagogy | Portfolio | Unique | Ped✓ | Val% | Port✓ |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
   ];
   for (const r of rows) {
+    const mapNote = r.mappedCourse && r.mappedCourse !== r.intendedCourse ? `${r.mappedCourse} ⚠` : (r.mappedCourse ?? "?");
     md.push(
-      `| ${r.slug} | ${r.course ?? "?"} | ${r.overall} | ${r.dimensions.jobReadiness} | ${r.dimensions.productionRealism} | ${r.dimensions.pythonSqlDepth} | ${r.dimensions.pedagogy} | ${r.dimensions.portfolio} | ${r.dimensions.uniqueness} | ${r.pedagogyComplete ? "✓" : "✗"} | ${Math.round(r.validationCoverage * 100)}% | ${r.portfolioReady ? "✓" : "✗"} |`,
+      `| ${r.slug} | ${r.intendedCourse} | ${mapNote} | ${r.overall} | ${r.dimensions.jobReadiness} | ${r.dimensions.productionRealism} | ${r.dimensions.pythonSqlDepth} | ${r.dimensions.pedagogy} | ${r.dimensions.portfolio} | ${r.dimensions.uniqueness} | ${r.pedagogyComplete ? "✓" : "✗"} | ${Math.round(r.validationCoverage * 100)}% | ${r.portfolioReady ? "✓" : "✗"} |`,
     );
   }
   const courses = new Map<string, number>();
-  for (const r of rows) courses.set(r.course ?? "?", (courses.get(r.course ?? "?") ?? 0) + 1);
-  md.push("", "## Course coverage", "");
+  for (const r of rows) courses.set(r.intendedCourse, (courses.get(r.intendedCourse) ?? 0) + 1);
+  md.push("", "## Course coverage (intended)", "");
   for (const [c, n] of [...courses.entries()].sort()) md.push(`- ${c}: ${n}`);
 
   mkdirSync(REPORT_DIR, { recursive: true });
