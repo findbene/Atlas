@@ -1,0 +1,80 @@
+Phase 6 accepted.
+
+The nine-course taxonomy, course skill maps, deterministic candidate pipeline, 90-candidate import, scoring, duplicate checks, and expanded catalog reports are approved.
+
+Before Phase 7, note:
+- SQL barely met the gate with 2 candidates >=60.
+- Data Scientist is also weaker with 4 candidates >=60.
+- Do not change the rubric.
+- Improve weak areas through better candidates and authoring quality, not score inflation.
+
+Begin Phase 7 planning.
+
+Recommended Phase 7: Candidate Review + Full Project Authoring Wave 1.
+
+Goal:
+Promote a small, high-quality first wave of candidates into full learner-facing projects.
+
+Phase 7 scope:
+1. Select 18 candidates total:
+   - 2 candidates per course
+   - prefer candidates scoring >=70 where possible
+   - include at least one advanced project per course if available
+
+2. Convert selected candidates into full projects:
+   - project overview
+   - scenario
+   - learning objectives
+   - step-by-step project steps
+   - starter code
+   - datasets or replay artifacts
+   - validation_config
+   - expected_outputs
+   - pedagogy_config
+   - hint ladder levels 1–5
+   - success/failure feedback
+   - portfolio artifact definition
+   - GitHub-ready README outline
+
+3. Preserve the Phase 5/6 quality gate:
+   - no auto-approval
+   - no mass generation
+   - no weakening rubric
+   - no shallow placeholder projects
+
+4. Author projects in controlled batches:
+   - first author 1 project
+   - validate structure
+   - run audit
+   - then author the remaining 17
+
+5. Required reports:
+   - authored project quality scores
+   - pedagogy completeness
+   - validation coverage
+   - Python/SQL depth
+   - portfolio artifact readiness
+   - course coverage
+
+Do not:
+- generate all 1,080 projects
+- implement cloud credentials
+- redesign Atlas Studio
+- touch Stripe
+- change the rubric
+- mass-author projects without checking the first one
+
+Before coding, write .local/session_plan.md for Phase 7 and stop for approval.
+
+Acceptance criteria:
+- 18 candidates selected
+- first project authored and audited before fan-out
+- all 18 projects have full project steps
+- all 18 include validation strategy
+- all 18 include pedagogy_config
+- all 18 include portfolio artifact definition
+- all 18 score >=70 after authoring
+- typecheck passes
+- existing tests pass
+- curriculum-quality tests pass
+- architect review passes
