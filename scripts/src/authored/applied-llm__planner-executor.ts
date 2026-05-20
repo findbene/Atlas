@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const appliedLlmPlannerExecutor: AuthoredProject = {
   slug: "applied-llm-planner-executor",
+  candidateId: "68e53f49-ccce-4c79-a44a-6d9cfb1c24d2",
   title: "Planner / Executor Agent Architecture with LangGraph",
   shortDescription:
     "Build a two-LLM agent pattern: a planner decomposes the user request into a typed task DAG, an executor runs each leaf with tool-calling, then a synthesizer assembles the answer. Wire it on LangGraph, add cost ceilings, and trace every node to LangSmith.",

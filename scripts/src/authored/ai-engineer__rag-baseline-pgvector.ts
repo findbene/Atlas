@@ -242,6 +242,7 @@ const EXPECTED_S5 = `faithfulness = item["gold_snippet"].lower() in ans.lower()`
 
 export const aiEngineerRagBaselinePgvector: AuthoredProject = {
   slug: "ai-engineer-rag-baseline-pgvector",
+  candidateId: "1f0d4364-e8af-4054-83fb-918a4976f51c",
   title: "RAG Baseline with pgvector — Ingest, Retrieve, Serve, Evaluate",
   shortDescription:
     "Build a production-style retrieval-augmented Q&A service end-to-end: chunk + embed docs with the OpenAI async client, store vectors in Postgres+pgvector, serve a FastAPI /ask endpoint with Pydantic models, then measure hit@k + faithfulness on a ground-truth eval set.",

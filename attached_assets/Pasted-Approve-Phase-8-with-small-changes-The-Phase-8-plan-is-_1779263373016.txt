@@ -1,0 +1,56 @@
+Approve Phase 8 with small changes.
+
+The Phase 8 plan is accepted. Proceed, but apply these corrections before implementation:
+
+1. For projects.course, use the 9-course taxonomy as the source of truth.
+   The course column must support:
+   - data-engineering
+   - ai-engineer
+   - mlops-engineer
+   - data-scientist
+   - analytics-engineer
+   - applied-llm-engineer
+   - cloud-data-engineer
+   - python-libraries
+   - sql
+
+2. Backfill carefully.
+   Phase-7 authored projects must be mapped from explicit authored intent, not mapToCourse heuristics.
+   Legacy 47 projects may use mapToCourse as a temporary backfill, but mark this as best-effort/unreviewed.
+
+3. source_candidate_id must be first-class.
+   Do not rely only on comments inside authored files.
+   Add candidateId/sourceCandidateId to the AuthoredProject type and persist it to projects.source_candidate_id during promotion.
+
+4. Canonical track resolution must be explicit.
+   Prefer COURSE_TO_TRACK_SLUG over limit(1).
+   tracks.is_primary is acceptable, but still use explicit course → track mapping where possible.
+
+5. requireAdmin should be real.
+   /api/admin/quality must require admin access, not only authentication.
+   grant-admin <email> CLI is approved for bootstrap.
+
+6. dynamic_ai_adaptive enum migration is approved, but handle PostgreSQL enum migration carefully.
+   Document that ALTER TYPE ADD VALUE may not run inside a normal transaction.
+   Add regression coverage so it no longer silently aliases to guided.
+
+7. Documentation cleanup is approved.
+   Move older phase notes to docs/phases/.
+   Keep replit.md focused on current architecture, active constraints, and current phase status.
+
+8. Add regression tests for:
+   - Phase-7 projects keep correct course/domain/track
+   - source_candidate_id is persisted
+   - /api/admin/quality rejects non-admin users
+   - dynamic_ai_adaptive is recognized natively
+   - mapToCourse is deprecated for runtime use
+
+Do not:
+- mass-author remaining projects
+- change rubric weights
+- weaken quality gates
+- implement cloud credentials
+- redesign Atlas Studio
+- touch Stripe unless strictly required for admin bootstrap
+
+Proceed with Phase 8 after updating the plan.

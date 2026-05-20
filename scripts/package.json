@@ -13,6 +13,8 @@
     "candidates": "tsx ./src/candidates.ts",
     "candidates:batch": "tsx ./src/candidates-batch.ts",
     "author:project": "tsx ./src/author-project.ts",
+    "backfill:course": "tsx ./src/backfill-course.ts",
+    "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

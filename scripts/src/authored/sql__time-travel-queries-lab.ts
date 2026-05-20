@@ -230,6 +230,7 @@ ORDER BY customer_id, valid_from;`;
 
 export const sqlTimeTravelQueriesLab: AuthoredProject = {
   slug: "sql-time-travel-queries-lab",
+  candidateId: "30750cbc-a4cf-4426-97dd-57baddd85b1e",
   title: "Time-Travel Queries Lab — SCD2 + Bitemporal Point-in-Time",
   shortDescription:
     "Build a production SCD Type 2 dimension table in PostgreSQL, apply transactional updates, and answer 'what tier did this customer have when the order was placed?' point-in-time queries with window functions.",

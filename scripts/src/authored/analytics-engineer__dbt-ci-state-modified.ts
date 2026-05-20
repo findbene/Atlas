@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const analyticsEngineerDbtCiStateModified: AuthoredProject = {
   slug: "analytics-engineer-dbt-ci-state-modified",
+  candidateId: "d1f6eeff-77d0-4cfe-a557-b41b02e268ba",
   title: "dbt CI with state:modified+ Slim Builds on GitHub Actions",
   shortDescription:
     "Build a GitHub Actions workflow for a dbt project on Snowflake that uses state:modified+ to build only changed models + their downstream dependencies. Defer to prod's manifest, run tests, and post a model-diff comment on the PR.",

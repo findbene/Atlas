@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const sqlFeatureStoreLab: AuthoredProject = {
   slug: "sql-feature-store-lab",
+  candidateId: "660b9b59-d6a2-41fe-9e76-137160b06063",
   title: "SQL-Native Feature Store on DuckDB + Postgres",
   shortDescription:
     "Build a SQL-native feature store: window-function aggregates in DuckDB for offline training features, materialized views in Postgres for online serving, point-in-time correctness with as-of joins, and a backfill script.",

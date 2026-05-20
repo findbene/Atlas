@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const cloudDataEngineerIcebergCompactionRewrite: AuthoredProject = {
   slug: "cloud-data-engineer-iceberg-compaction-rewrite",
+  candidateId: "bbb58131-76b5-41f3-b2ae-7bea4e2c0981",
   title: "Iceberg Compaction + Rewrite Pipeline on EMR Serverless",
   shortDescription:
     "Build a Spark job that compacts small Iceberg files (rewrite_data_files), expires snapshots, and removes orphan files for a high-ingest Iceberg table. Schedule on EMR Serverless via Airflow, expose throughput + file-count metrics, and validate Athena queries get faster after compaction.",

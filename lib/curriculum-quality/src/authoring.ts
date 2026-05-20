@@ -173,6 +173,13 @@ export type AuthoredStep = {
 
 export type AuthoredProject = {
   slug: string;
+  /**
+   * Phase 8 — explicit lineage from the originating `project_candidates.id`.
+   * Required for every authored project so promote can stamp
+   * `projects.source_candidate_id` without falling back to title-matching.
+   * UUID string.
+   */
+  candidateId: string;
   title: string;
   shortDescription: string;
   fullDescription: string;

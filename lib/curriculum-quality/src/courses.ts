@@ -2,8 +2,11 @@
  * Map an existing DB project (domain slug + track slug + tags + language)
  * to one of the 9 Atlas mastery course slugs.
  *
- * This lets the catalog report group existing 40+ projects under the
- * canonical 9-course taxonomy without restructuring the DB.
+ * @deprecated Phase 8 — for runtime catalog use, read `projects.course`
+ * directly. This heuristic is now only acceptable in two paths:
+ *   1. one-shot backfill of legacy rows in `scripts/src/backfill-course.ts`,
+ *   2. mapping a not-yet-promoted candidate proposal to its target course.
+ * Adding new runtime callers must be flagged in code review.
  */
 
 import type { AtlasCourseSlug, ProjectLanguage } from "./types";

@@ -47,6 +47,7 @@ function buildStep(n: number): AuthoredStep {
 function buildAuthoredFixture(): AuthoredProject {
   return {
     slug: "fixture-project",
+    candidateId: "00000000-0000-0000-0000-000000000001",
     title: "Fixture Project",
     shortDescription: "A production-ready ETL pipeline fixture for tests.",
     fullDescription: "Walks through deploying a production ETL pipeline to PostgreSQL with bulk loaders, dbt models, and a published GitHub repo.",

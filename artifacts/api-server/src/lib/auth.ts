@@ -106,6 +106,24 @@ export function invalidateUserCache(clerkId: string): void {
   userCache.delete(clerkId);
 }
 
+/**
+ * Phase 8 — gate admin-only routes. Chains off `requireAuth` so callers
+ * still get `req.localUser` populated. Rejects authenticated-but-non-admin
+ * users with 403. Anonymous requests get 401 from the underlying
+ * `requireAuth`. Uses the existing `users.role` enum ('learner' | 'admin').
+ */
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, (err?: unknown) => {
+    if (err) return next(err);
+    const user = (req as Request & { localUser?: typeof users.$inferSelect }).localUser;
+    if (!user || user.role !== "admin") {
+      res.status(403).json({ error: "admin role required" });
+      return;
+    }
+    next();
+  });
+}
+
 export async function getCurrentUser(req: Request) {
   // Fast path: requireAuth populated req.localUser already.
   const cached = (req as Request & { localUser?: typeof users.$inferSelect }).localUser;

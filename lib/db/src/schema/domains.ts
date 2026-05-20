@@ -2,8 +2,9 @@ import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, customType, in
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { difficultyEnum, projectLanguageEnum, noteTypeEnum, validationTypeEnum, qualityStatusEnum } from "./enums";
+import { difficultyEnum, projectLanguageEnum, noteTypeEnum, validationTypeEnum, qualityStatusEnum, atlasCourseEnum, courseSourceEnum } from "./enums";
 import { numeric } from "drizzle-orm/pg-core";
+import { projectCandidates } from "./quality";
 
 export const domains = pgTable("domains", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -31,8 +32,14 @@ export const tracks = pgTable("tracks", {
   orderIndex: integer("order_index").default(0).notNull(),
   prerequisites: text("prerequisites").array(),
   isPremium: boolean("is_premium").default(false).notNull(),
+  // Phase 8 — canonical track per domain. Replaces the legacy `limit(1)`
+  // lookup in `resolveDomainAndTrack`. Exactly one track per domain may be
+  // marked primary (enforced by the partial unique index below).
+  isPrimary: boolean("is_primary").default(false).notNull(),
 }, (t) => [
   uniqueIndex('tracks_domain_slug_idx').on(t.domainId, t.slug),
+  // At most one primary track per domain.
+  uniqueIndex('tracks_domain_primary_idx').on(t.domainId).where(sql`is_primary = true`),
 ]);
 
 const searchVectorType = customType<{ data: string; driverData: string }>({
@@ -78,6 +85,16 @@ export const projects = pgTable("projects", {
   qualityScore: numeric("quality_score", { precision: 5, scale: 2 }),
   qualityBreakdown: jsonb("quality_breakdown"),
   lastQualityAuditAt: timestamp("last_quality_audit_at"),
+  // Phase 8 — native 9-course taxonomy. Authored rows get the value from
+  // explicit authoring intent; legacy rows are backfilled via mapToCourse
+  // (best-effort) and labeled `heuristic_legacy` via `courseSource`.
+  // Nullable during initial migration; backfill flips to NOT NULL.
+  course: atlasCourseEnum("course").notNull(),
+  courseSource: courseSourceEnum("course_source").notNull(),
+  // Phase 8 — lineage from candidate → authored project. Null for legacy
+  // rows that pre-date the candidate pipeline. ON DELETE SET NULL so the
+  // catalog stays live if a candidate row is ever hard-deleted.
+  sourceCandidateId: uuid("source_candidate_id").references(() => projectCandidates.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [
@@ -85,6 +102,8 @@ export const projects = pgTable("projects", {
   index('projects_track_id_idx').on(t.trackId),
   index('projects_domain_id_idx').on(t.domainId),
   index('projects_order_idx').on(t.orderIndex),
+  index('projects_course_idx').on(t.course),
+  index('projects_source_candidate_idx').on(t.sourceCandidateId),
 ]);
 
 export const projectSteps = pgTable("project_steps", {

@@ -224,6 +224,7 @@ def require_owner_or_admin(user_id: int, principal: Principal = Depends(current_
 
 export const pythonLibrariesFastapiDi: AuthoredProject = {
   slug: "python-libraries-fastapi-di",
+  candidateId: "74681082-46ca-4d3c-9bf7-29ea9a563391",
   title: "FastAPI Dependency Injection at Scale — From Anti-Pattern to Production",
   shortDescription:
     "Refactor a 'bad' FastAPI handler that owns its config + DB connection + SQL into a layered DI architecture: settings provider, pooled DB dependency, repository interface, override-based tests, and stacked auth dependencies. Production patterns you'll use on every Python backend you ever write.",

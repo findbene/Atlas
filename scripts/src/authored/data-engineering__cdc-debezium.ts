@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const dataEngineeringCdcDebezium: AuthoredProject = {
   slug: "data-engineering-cdc-debezium",
+  candidateId: "e74740b9-152a-40b7-bbdb-798a485e89e6",
   title: "Postgres CDC → Snowflake with Debezium + dbt Reconciliation",
   shortDescription:
     "Set up Debezium logical-replication CDC from Postgres into Kafka, land the change stream into Snowflake raw tables, materialize current-state via dbt incremental + snapshot models, and add a row-count reconciliation job that alerts on drift.",

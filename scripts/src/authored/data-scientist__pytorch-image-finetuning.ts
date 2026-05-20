@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const dataScientistPytorchImageFinetuning: AuthoredProject = {
   slug: "data-scientist-pytorch-image-finetuning",
+  candidateId: "e376cd0d-a945-43f5-8ec9-3edade7fd5f5",
   title: "PyTorch Image Fine-Tuning with HuggingFace + MLflow Tracking",
   shortDescription:
     "Fine-tune a HuggingFace pretrained vision model (ViT) on a custom image dataset with PyTorch DataLoader + AMP mixed precision, track every run in MLflow, save the best checkpoint by val accuracy, and produce an evaluation report with per-class metrics.",

@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const mlopsKserveMultiModel: AuthoredProject = {
   slug: "mlops-kserve-multi-model",
+  candidateId: "0acbb8e4-0910-403f-b714-4ec2b78420ca",
   title: "KServe Multi-Model Deployment on Kubernetes — Cohosted Inference",
   shortDescription:
     "Deploy 8 small ML models behind a single KServe InferenceService using the ModelMesh runtime, autoscale per-model traffic with KEDA, and add Prometheus latency + per-model RPS dashboards. Stops paying for one pod per model.",

@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const aiEngineerMultiStageRagReranker: AuthoredProject = {
   slug: "ai-engineer-multi-stage-rag-reranker",
+  candidateId: "9e681a72-cd70-4242-b44b-a880d3e8cd9e",
   title: "Multi-Stage RAG with Reranker — Retrieve, Rerank, Generate",
   shortDescription:
     "Build a two-stage RAG pipeline: cheap pgvector ANN retrieval pulls a wide candidate set, then a Cohere/BGE cross-encoder reranker scores the top-N for the LLM. Ships with an A/B eval harness measuring NDCG@10 vs the single-stage baseline.",

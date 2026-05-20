@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const pythonLibrariesPydanticValidationService: AuthoredProject = {
   slug: "python-libraries-pydantic-validation-service",
+  candidateId: "f8836bb9-48b8-4709-8254-6b6e6357786f",
   title: "Pydantic v2 Validation Service: Schemas, Discriminated Unions, SQL Loading",
   shortDescription:
     "Build a FastAPI ingest service that validates webhook payloads with Pydantic v2 (discriminated unions, custom validators, alias generators), transforms with Polars, persists via SQLAlchemy, and exposes type-safe OpenAPI.",

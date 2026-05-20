@@ -20,10 +20,12 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 - `pnpm --filter @workspace/scripts run seed:stripe` — create the Pro Plan product + monthly/annual prices in Stripe (idempotent — only run once per Stripe account)
+- `pnpm --filter @workspace/scripts run backfill:course` — Phase-8 one-shot backfill of `projects.course` + `tracks.is_primary` (idempotent)
+- `pnpm --filter @workspace/scripts run grant:admin -- <email>` — promote a user to admin role
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
 
@@ -40,6 +42,8 @@ Atlas is a project-based learning platform for Data Engineering. Artifacts:
 Clerk (`@clerk/react` on the client + `@clerk/express` on the server). `getCurrentUser(req)` returns the local `users` row (looked up by `clerkId`).
 
 **Auto-provisioning:** `requireAuth` (in `artifacts/api-server/src/lib/auth.ts`) is async. On the first authed request from a new Clerk user, it calls `clerkClient.users.getUser(userId)` to read email/name/avatar and inserts a row into the local `users` table. Subsequent requests hit a per-process Map cache (`userCache`) so there is no per-request Clerk roundtrip or DB SELECT. Email-uniqueness collisions on insert fall back to a clerk-scoped placeholder email (`<clerkId>@users.atlasprojects.dev`) so the app stays functional even if a previous local account used the same address.
+
+**Admin gate (Phase 8):** `requireAdmin` chains off `requireAuth` and rejects anyone whose `users.role !== 'admin'` with 403. Use `pnpm --filter @workspace/scripts run grant:admin -- <email>` to promote the first admin.
 
 Trade-off: cache is per-process and never refreshed once primed. For a single-instance deployment this is fine; for multi-instance or when Clerk profile data needs to propagate, add a TTL or invalidate on a Clerk webhook.
 
@@ -68,11 +72,11 @@ If Stripe init fails, the rest of the API still serves traffic — only billing 
 Routes:
 
 - `GET /api/billing/plans` — Pro Plan price IDs are sourced live from `stripe.prices` (joined to `stripe.products` where `name = 'Pro Plan'` and `active = true`). Falls back to `STRIPE_PRO_*_PRICE_ID` env vars.
-- `POST /api/billing/checkout` — Validates the submitted `priceId` against the active Pro price allowlist (prevents users smuggling arbitrary prices). `ensureStripeCustomer` creates the Stripe customer with an idempotency key keyed by `user.id` and writes back to `users.stripe_customer_id` only when the column is still NULL (concurrency-safe).
+- `POST /api/billing/checkout` — Validates the submitted `priceId` against the active Pro price allowlist. `ensureStripeCustomer` creates the Stripe customer with an idempotency key keyed by `user.id` and writes back to `users.stripe_customer_id` only when the column is still NULL.
 - `POST /api/billing/portal` — Stripe Billing Portal session.
-- `POST /api/webhooks/stripe` — Registered with `express.raw` BEFORE `express.json`. Verifies signature via `stripe-replit-sync`, calls `reconcileCustomer` to mirror state into our `users.subscriptionTier` + `subscriptions` rows, and only marks the event in `processed_webhook_events` after both sync and reconcile succeed (so transient failures get retried by Stripe).
+- `POST /api/webhooks/stripe` — Registered with `express.raw` BEFORE `express.json`. Verifies signature via `stripe-replit-sync`, calls `reconcileCustomer` to mirror state into our `users.subscriptionTier` + `subscriptions` rows, and only marks the event in `processed_webhook_events` after both sync and reconcile succeed.
 
-`subscription_status` enum collision note: our `public.subscription_status` enum collides with the unqualified `IF NOT EXISTS` check in `stripe-replit-sync`'s 0004 migration. The fix is to pre-create `stripe.subscription_status` before `runMigrations` runs. This is already handled in the DB; if you reset to a fresh DB, run:
+`subscription_status` enum collision note: our `public.subscription_status` enum collides with the unqualified `IF NOT EXISTS` check in `stripe-replit-sync`'s 0004 migration. The fix is to pre-create `stripe.subscription_status` before `runMigrations` runs. If you reset to a fresh DB, run:
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS stripe;
@@ -89,119 +93,13 @@ Streamed Claude responses at `POST /api/ai/chat` (SSE) in `artifacts/api-server/
 
 ### Transactional Email (Resend)
 
-`artifacts/api-server/src/lib/email.ts` fetches Resend credentials from the Replit Resend connector (`REPLIT_CONNECTORS_HOSTNAME` + `REPL_IDENTITY`), caches them in-process, and exposes `sendEmail()` + `renderWaitlistConfirmationEmail()`. Wired fire-and-forget into `POST /api/waitlist` so route always returns 200; failures are logged via `req.log.warn`.
+`artifacts/api-server/src/lib/email.ts` fetches Resend credentials from the Replit Resend connector (`REPLIT_CONNECTORS_HOSTNAME` + `REPL_IDENTITY`), caches them in-process, and exposes `sendEmail()` + `renderWaitlistConfirmationEmail()`. Wired fire-and-forget into `POST /api/waitlist`; failures are logged via `req.log.warn`.
 
-Free-email domains (gmail / outlook / yahoo / icloud / etc.) cannot be used as the FROM address — Resend rejects them at the API layer. The lib auto-falls-back to `onboarding@resend.dev` (Resend's sandbox sender) so dev works out of the box. **For production**, verify a custom domain (e.g. `mail.atlasprojects.dev`) in the Resend dashboard and update the connection's `from_email`.
-
-Resend test API keys can only deliver to the account owner's verified email until a domain is verified or the account is upgraded.
-
-### Progressive Hints + Socratic Tutor
-
-Hint ladder (L0–L5) lives in `pedagogy_config` jsonb on `project_steps` (plus nullable `learning_objective`, `required_skill` columns). Per-user hint state in `user_project_step_hints` (unique on `user_id, step_id`). Mappers + `evaluateHintPolicy` + `hintsUpTo` + `MAX_HINT_LEVEL=5` in `lib/execution-core/src/pedagogy.ts`.
-
-Routes in `artifacts/api-server/src/routes/hints.ts`:
-- `GET /api/projects/:slug/steps/:stepId/hint` — current level, unlocked hint texts, feedback fields, policy-suggested next level.
-- `POST /api/projects/:slug/steps/:stepId/hint/next` — atomic upsert via `ON CONFLICT (user_id, step_id) DO UPDATE` with `LEAST(cap, GREATEST(hint_level + 1, desired))`, so concurrent requests can't double-increment past the cap or regress. `desired` honors the per-mode policy (e.g. `adaptive_inquiry` jumps to L3 after 2 fails).
-
-Disclosure boundary is server-side: tutor route (`ai.ts`) injects only `hintsUpTo(pedagogy, currentLevel)` into `<step_pedagogy>`; `finalExplanation` is only returned/streamed when `currentLevel >= MAX_HINT_LEVEL` or the step is passed. Frontend hiding is UX, not security. `currentCode` is sanitized before being placed inside `<user_data>` — any literal `</user_data>` / `<project_context>` etc. has a zero-width space inserted after the `<` so a learner's input can't close the untrusted envelope and resume "trusted" instructions.
-
-DB enum `learning_mode` is still `('guided','hint','independent')`. We map at the app layer to the 4 Atlas mode names; `dynamic_ai_adaptive` aliases to `guided` until the enum is extended (TODO — requires a Drizzle migration to add the new variant; user-facing toggle blocked on this).
-
-**Per-process hint state cache** — same caveat as `userCache` in `requireAuth`: the hint API and tutor route read `user_project_step_hints` per request without an in-memory cache today, but any future caching layer (e.g. to avoid the SELECT on every tutor message) MUST be invalidated on every `POST /hint/next`. For multi-instance deployments this either needs Redis or a TTL strategy. Single-instance deployments are fine without it.
-
-Phase 4 also added a FK on `user_project_step_hints.step_id → project_steps(id) ON DELETE CASCADE` so deleting a step automatically cleans up learner hint state (Phase 5 §0 cleanup).
-
-### Project Quality System (Phase 5)
-
-Quality-gate that scores every project + every proposed candidate against a versioned rubric before we scale toward 1,080 projects. Pure-function scoring lib lives at `lib/curriculum-quality/`; orchestration + DB writes in `scripts/`.
-
-**Rubric** (`RUBRIC_VERSION='1.0.1'`, `lib/curriculum-quality/src/rubric.ts`) — weights: jobReadiness 25, productionRealism 20, pythonSqlDepth 15, pedagogy 20, portfolio 15, uniqueness 5. Bands: 0-49 `needs_revision`, 50-69 `candidate`, 70-100 `approved`. Duplicates above `DUPLICATE_WARNING_THRESHOLD=0.6` Jaccard set `scorecard.duplicateWarning`.
-
-**Schema** (`lib/db/src/schema/quality.ts` + quality fields on `projects`):
-- `projects.{quality_status, quality_score, quality_breakdown, last_quality_audit_at}` — existing rows backfilled to `unreviewed` (not `approved`).
-- `project_candidates` — separate table for AI-research proposals (never pollutes the production catalog).
-- `project_status_history` — append-only audit log of every transition (`scope: 'project'|'candidate'`).
-- New enums: `qualityStatusEnum` and `candidateStatusEnum`.
-
-**Candidate scoring stage carve-out** — `composeScorecard(input, { steps, neighbors, stage })`. When `stage='candidate'`, the `pedagogy` dimension is excluded and the remaining 5 weights renormalize to 100, because pedagogy ladders/feedback only exist on authored projects. Without this, even strong proposals could never clear the 70 band. `scripts/src/quality-adapter.ts candidateRowToContext` synthesizes pseudo-steps from `proposal.proposedSteps` and infers language from `proposedStack` so `type: 'code_python'|'code_sql'` matches the depth scorer.
-
-**Commands:**
-- `pnpm --filter @workspace/scripts run audit:quality` — score every project + candidate, write back `quality_score` / `quality_breakdown` / `last_quality_audit_at`, print weakest-10 + summary.
-- `pnpm --filter @workspace/scripts run catalog:report` — emit course×{difficulty, role, stack} matrices, depth + quality funnel, gap detection. Writes `.local/catalog-quality-report.{md,json}`. Role matrix uses per-role anchor overlap (`ROLE_PRIMARY_STACK`), not blanket tier-1 presence.
-- `pnpm --filter @workspace/scripts run candidates -- {list|show|score|approve|reject|revise} ...` — single dispatcher; approve below 70 requires `--force`; `reject`/`revise` require `--reason`. **Atomic transitions:** `cmdTransition` wraps the status UPDATE (with compare-and-swap `WHERE id=? AND status=?` predicate) and the `project_status_history` INSERT in `db.transaction()`. Concurrent reviewers throw `CONCURRENT_UPDATE` instead of clobbering each other.
-
-**Admin endpoint:** `GET /api/admin/quality` (`artifacts/api-server/src/routes/admin.ts`) returns the catalog-report JSON on demand. Auth-gated via `requireAuth` + role check. No UI yet.
-
-**Calibration pins** (`audit:quality` output): csv-to-postgres-pipeline=70.5, dbt-data-models=72.7, 38/47 stubs in `needs_revision`. Lib test suite: 33/33 (includes a regression that proves a strong candidate proposal reaches ≥70 without `--force`).
-
-**Job-demand source-of-truth:** `.local/job-demand-map.md` is the human-reviewable canonical map for the 9 Atlas mastery courses + role-to-stack anchors. `lib/curriculum-quality/src/jobMap.ts` derives from it.
-
-**Known gaps before mass project generation:** (1) `dynamic_ai_adaptive` still aliases to `guided` at the DB enum layer — needs a Drizzle migration to extend `learning_mode`; (2) most catalog projects fall back to the legacy `hints[]` column and will score in the `needs_revision` band until pedagogy is authored; (3) admin role check on `/api/admin/quality` currently relies on the same `requireAuth` shape used elsewhere — promote to a dedicated `requireAdmin` middleware once more admin routes land.
+Free-email domains (gmail / outlook / yahoo / icloud / etc.) cannot be used as the FROM address — Resend rejects them at the API layer. The lib auto-falls-back to `onboarding@resend.dev` (Resend's sandbox sender). For production, verify a custom domain (e.g. `mail.atlasprojects.dev`) in the Resend dashboard and update the connection's `from_email`.
 
 ### Curriculum Seed Data scope
 
-Only `csv-to-postgres-pipeline` (4 steps) and `dbt-data-models` (2 steps) are fully enriched in v1. The other ~38 projects fall back to the legacy `hints[]` column transparently. Seed: `scripts/src/seed-pedagogy.ts` (idempotent, called from `seed.ts`). Audit: `pnpm --filter @workspace/scripts run audit:pedagogy` reports per-step coverage.
-
-### Phase 6 — Nine-Course Curriculum + Candidate Generation Pipeline
-
-Locks the 9-course taxonomy and ships a deterministic (NO LLM) candidate generation → import → score → report pipeline. Rubric stays frozen at `RUBRIC_VERSION='1.0.1'`.
-
-**Source-of-truth files:**
-- `.local/job-demand-map.md` — 2026 job-demand anchors (authoritative).
-- `.local/course-skill-maps.md` — per-course skill ladders + Py/SQL depth + tier-1 stack + portfolio outcomes.
-- `lib/curriculum-quality/src/COURSE_TAXONOMY.ts` — typed `COURSE_TAXONOMY` (`COURSE_TAXONOMY_VERSION='1.0.0'`) + `skillCoverage()` helper. NOT a rubric dimension — used by the generator and report only.
-
-**Proposal schema:** Phase-6 generator uses `proposalStrictSchema` (11 required fields incl. `pythonDepth`, `sqlDepth`, `cloudTooling`, `portfolioArtifact`, `validationIdea`, `executionMode`, `learnerOutcome`). Loose `proposalSchema` still accepts pre-Phase-6 rows. `executionMode` enum: `pyodide | sandboxed-node | external-runner | self-attest | sql-runner`.
-
-**Candidate scoring carve-out (kept from Phase 5):** `composeScorecard(input, { steps, neighbors, stage: 'candidate' })` excludes the `pedagogy` dimension (renormalizes 5 weights to 100). `scripts/src/quality-adapter.ts candidateRowToContext` is the canonical translation: `validationType='self_attest'`, `type=code_sql` if SQL-only else `code_python`, `isMultiFile=steps.length>=4`, language inferred via regex on stack/title.
-
-**Batch format:** `.local/candidate-batches/<YYYY-MM-DD>-<course-slug>-v<n>.json`. Schema lives in `lib/curriculum-quality/src/batchSchema.ts` (`batchFileSchema`, `parseBatchFile`). Thin FS adapter at `scripts/src/lib/batch.ts` (`loadBatch`, `findBatchByIdOrPath`, `BATCH_DIR`).
-
-**CLI:** `pnpm --filter @workspace/scripts run candidates:batch -- {generate|import|score-batch|report} [...]`.
-- `generate --course=<slug> --count=10 [--all]` — deterministic skeletons from `COURSE_TAXONOMY × archetypes × portfolio outcomes`. NO LLM, NO step authoring. Writes batch file under `.local/candidate-batches/`.
-- `import <path>` — validates with `proposalStrictSchema`, inserts into `project_candidates` with `status='candidate'`, idempotent on `(proposedTitle, proposedCourse)`. One transaction per batch (≤10 rows).
-- `score-batch <path>` — wraps the existing scorer for every row, prints summary (median, ≥60, ≥70, dup-flag count).
-- `report` — see catalog:report below.
-
-**Path resolution caveat:** `pnpm --filter` runs from `scripts/`, so `BATCH_DIR` and CLI path args resolve against `process.env.INIT_CWD || process.cwd()` (the user's original cwd, i.e. workspace root). Without this, `.local/candidate-batches/...` writes/reads land in `scripts/.local/...`. If you ever invoke the script outside pnpm and INIT_CWD is unset, just pass absolute paths.
-
-**`catalog:report --include-candidates`** appends 9 new sections after the existing project report: course×difficulty, course×portfolio-kind, course×Py-depth, course×SQL-depth, course×top-stack, course×role, per-course quality distribution (R-7 linear-interpolated percentiles), projects-vs-candidates side-by-side, duplicate warnings, course×difficulty×portfolio gap detection, strongest/weakest 10. JSON shape is additive (`totals.candidates`, `candidates` object) so existing consumers don't break. `GET /api/admin/quality` returns the extended JSON automatically.
-
-**Phase-6 baseline (90 candidates × 9 courses, 2B/3I/5A):** 0 Zod fails, 90/90 imported, **70/90 ≥60**, **20/90 ≥70**, 0% duplicate-flag, every course ≥2 candidates ≥60. Strongest cluster: ai-engineer (RAG/observability), cloud-data-engineer (Iceberg/Hudi). Weakest cluster: `sql` foundation projects + intro `data-scientist` labs — expected, both are skill-ladder primers without production-realism signals. Lib tests 48/48 pass; full `pnpm run typecheck` PASS.
-
-**Phase-7 entry conditions (not in Phase 6):** authoring full project steps + pedagogy_config for promoted candidates, extending the DB `learning_mode` enum, mass project generation (1,080 target), candidate→project promotion path with audit-logged transitions.
-
-### Phase 7 — Promoted Candidates → Authored Projects
-
-Authored 18 candidates (2/course nominal — actual distribution skewed to candidate availability) into fully-authored, learner-facing projects under frozen rubric v1.0.1. NO rubric edits, NO bulk auto-approval, NO placeholder steps.
-
-**Authoring pipeline:**
-- `scripts/src/authored/<course>__<slug>.ts` — each project is a `AuthoredProject` const (typed in `lib/curriculum-quality/src/authoring.ts`) with `projectMeta`, 5 fully-authored steps, each carrying `starter_code`, `validation_config`, `expected_outputs`, and a `pedagogy_config` (L0–L5 hint ladder + success/failure feedback + portfolio_relevance + misconception + finalExplanation).
-- `scripts/src/authored/index.ts` — barrel that exports `AUTHORED_PROJECTS[]` + `findAuthored(slug)`.
-- `scripts/src/author-project.ts` — CLI: `pnpm --filter @workspace/scripts run author:project -- {promote|audit|wave-report} <slug>`. `promote` upserts the project + steps; `audit` re-scores under stage='project' (full pedagogy weight); `wave-report` writes `.local/phase7-wave-report.{md,json}`.
-- Helper template tags: `SRC()` (identity), `pedagogyConfig()`, `validationConfig()`, `portfolioArtifact()`, `projectMeta()` from `@workspace/curriculum-quality`.
-- **Template-literal escape gotcha:** any `${...}` in HCL / Jinja / GitHub-Actions snippets inside SRC() blocks must be escaped as `\${...}`; backticks inside snippets must be removed or escaped (broke `data-engineering__cdc-debezium.ts` and `data-scientist__notebook-to-production.ts` until fixed).
-
-**Phase 7 final gate (all PASS):**
-- 18/18 authored projects score ≥70 under rubric v1.0.1 (range 75.3–90.9, mean ~84.6).
-- Anchor drift: `csv-to-postgres-pipeline=70.5` (unchanged), `dbt-data-models=72.7` (unchanged) — 0.0 drift on both.
-- Validation coverage: 100% — every step has a typed `validation_config` (`json_equal | sql_resultset | exact | numeric_tolerance`).
-- Pedagogy completeness: 100% — every step has objective + required_skill + 5-level hint ladder + success/failure feedback + portfolio_relevance.
-- Portfolio readiness: 100% — every project has a typed `portfolioArtifact` (kind `repo|service`) with README outline.
-- Full `pnpm run typecheck` PASS. `curriculum-quality` tests 54/54 PASS. `api-server` tests 45/45 PASS. `audit:pedagogy` reports 20/65 fully enriched (was 10/65 — the +10 increase matches the 10 new Phase-7 modules with full enrichment; legacy projects remain on the `hints[]` fallback).
-- All 18 candidate rows transitioned `candidate → approved` via `candidates approve --reason` (each transition is a single CLI call; `--force` used because candidate-stage scoring excludes pedagogy and several land below 70 in that stage even though they audit ≥70 as authored projects with pedagogy).
-
-**Wave outputs:** `.local/phase7-wave-report.{md,json}` is the canonical Phase-7 result. `.local/catalog-quality-report.{md,json}` (run with `--include-candidates`) shows the Phase-7 cohort dominates the strongest-10 candidates list.
-
-**Course-domain mapping (Phase 7):** the DB only ships 4 `domains` rows (`ai-engineering`, `ai-mlops`, `data-engineering`, `data-science`) and one track per domain, but Phase 7 spans 9 Atlas courses. `scripts/src/author-project.ts` owns the authoritative `COURSE_FOR_AUTHORED_SLUG` map (per-slug course intent) + `COURSE_TO_DOMAIN_SLUG` (course → DB domain) to write the correct FK on promote. The earlier behavior (`defaultDomainAndTrack` returning the first row) silently misclassified every promoted project — fixed in Phase 7 final gate. Wave-report now prints both `Intended Course` (authored intent) and `Mapped (heuristic)` (whatever `mapToCourse` re-derives from domain+tags); the `⚠` next to a mapped value flags a heuristic disagreement (e.g., `data-scientist-notebook-to-production` is intentionally `data-scientist` but `mapToCourse` routes it to `mlops-engineer` because of the `mlflow` tag). The disagreement is expected for cross-cutting topics and is informational.
-
-**Known gaps before Phase 8:**
-1. Candidate→project promotion path is still manual — the authoring pipeline writes directly into `projects`/`project_steps`; we have not yet stamped the source `candidate_id` onto the resulting project row (audit trail relies on the approve log + the `authored/<file>.ts` candidateId comment).
-2. DB `learning_mode` enum still lacks `dynamic_ai_adaptive` (Phase-6 carry-over). All Phase-7 modules use `guided` as the alias.
-3. 45/65 catalog projects still on `hints[]` fallback; needs to be rolled into a Phase-8 mass-author pass.
-4. `requireAdmin` middleware promotion (Phase-5 carry-over) still pending — `/api/admin/quality` reuses `requireAuth`.
-5. `mapToCourse` (in `lib/curriculum-quality/src/courses.ts`) prioritizes stack keywords (e.g., Snowflake → cloud-data-engineer, mlflow → mlops-engineer) over the authored intent course. For Phase 8, either (a) extend the DB taxonomy to model the 9 courses natively, or (b) thread the authored course onto the project row so reports don't need to re-derive it heuristically.
-6. Audit-score inflation risk: `pythonSqlDepth` and `pedagogy` dimensions are partly heuristic (instruction-length + keyword regex; field presence vs conceptual correctness). Scores are reliable as a floor but should not be read as a ceiling on quality.
+Only `csv-to-postgres-pipeline` (4 steps) and `dbt-data-models` (2 steps) were fully enriched in the v1 hint ladder. Phase 7 added 18 more fully-authored modules. The remaining ~45 catalog projects fall back to the legacy `hints[]` column. Seed: `scripts/src/seed-pedagogy.ts` (idempotent, called from `seed.ts`). Audit: `pnpm --filter @workspace/scripts run audit:pedagogy`.
 
 ### Curriculum Seed Data
 
@@ -211,6 +109,51 @@ Authored 18 candidates (2/course nominal — actual distribution skewed to candi
 - `scripts/src/seed-mastery-sql.ts` — 6 SQL Mastery modules (foundations → DB design).
 - `scripts/src/seed-projects-extra.ts` — full step content for projects 11-15 (Flink, Data Catalog, Real-Time Dashboard, Data Mesh, Column-Store).
 
-The seed handles in-place upgrades for projects that previously existed only as stubs (refreshes metadata + backfills steps).
+The seed handles in-place upgrades for projects that previously existed only as stubs. Run with `pnpm --filter @workspace/scripts run seed`.
 
-Run with `pnpm --filter @workspace/scripts run seed`.
+## Phase History
+
+Closed phase notes have been moved into `docs/phases/` to keep this file scannable:
+
+- **Phase 4 — Progressive Hints + Socratic Tutor** → [docs/phases/phase-4-pedagogy.md](docs/phases/phase-4-pedagogy.md). Hint ladder (L0–L5) in `pedagogy_config`, server-side disclosure boundary, `evaluateHintPolicy`, atomic `/hint/next`.
+- **Phase 5 — Project Quality System** → [docs/phases/phase-5-quality-system.md](docs/phases/phase-5-quality-system.md). Frozen `RUBRIC_VERSION='1.0.1'`, `audit:quality`, `catalog:report`, candidate CLI, calibration anchors.
+- **Phase 6 — Nine-Course Curriculum + Candidate Pipeline** → [docs/phases/phase-6-candidate-pipeline.md](docs/phases/phase-6-candidate-pipeline.md). 9-course taxonomy, deterministic candidate generator, batch import/score.
+- **Phase 7 — Promoted Candidates → Authored Projects** → [docs/phases/phase-7-authored-promotions.md](docs/phases/phase-7-authored-promotions.md). 18 authored projects all ≥70, anchor drift 0.0, 100% validation/pedagogy/portfolio coverage.
+
+### Phase 8 — Native Taxonomy + Governance Hardening
+
+Phase 8 closed the structural gaps Phase 7 surfaced. **No rubric edits, no mass authoring, no quality-gate relaxation.** All 18 Phase-7 projects re-audited at unchanged scores; anchor drift 0.00.
+
+**Native 9-course taxonomy on `projects`:**
+- New pg enum `atlas_course` (9 values) + `projects.course` column (NOT NULL).
+- New pg enum `course_source` (`authored` | `heuristic_legacy`) + `projects.course_source` column (NOT NULL).
+- One-shot backfill (`scripts/src/backfill-course.ts`): 18 authored rows stamped from `COURSE_FOR_AUTHORED_SLUG` as `authored`; 47 legacy rows backfilled via the (now `@deprecated` for runtime catalog reads) `mapToCourse` heuristic and labeled `heuristic_legacy` so the provenance stays visible until Phase 9 re-authors them.
+- All catalog/wave/admin reports now read `projects.course` directly. `mapToCourse` is kept for the one-shot backfill and as a defensive fallback only.
+
+**Candidate lineage on `projects`:**
+- New nullable FK `projects.source_candidate_id` → `project_candidates.id` `ON DELETE SET NULL`.
+- `AuthoredProject.candidateId: string` is now a required typed field (not a comment) — all 18 Phase-7 modules updated; new promotes refuse to compile without it.
+- `GET /api/admin/quality` exposes `{ slug, course, courseSource, sourceCandidateId, sourceCandidateTitle }` per project.
+
+**Canonical track resolution:**
+- New `tracks.is_primary BOOLEAN NOT NULL DEFAULT FALSE` + partial unique index `(domain_id) WHERE is_primary` — at most one primary per domain.
+- `COURSE_TO_TRACK_SLUG` map in `scripts/src/authored-lineage.ts` replaces the legacy `tracks.limit(1)` lookup. Today all 9 courses point at the single existing track per domain; Phase 9 can split without changing the lookup contract.
+
+**Admin route hardening:**
+- `requireAdmin` middleware in `artifacts/api-server/src/lib/auth.ts` chains off `requireAuth`, gates on existing `users.role === 'admin'`.
+- `GET /api/admin/quality` upgraded from `requireAuth` to `requireAdmin`.
+- `scripts/src/grant-admin.ts` is the bootstrap CLI (`pnpm --filter @workspace/scripts run grant:admin -- <email>`) — no UI yet.
+
+**`learning_mode` enum natively supports `dynamic_ai_adaptive`:**
+- `learningModeEnum` extended in `lib/db/src/schema/enums.ts`.
+- `toAtlasLearnerMode`/`fromAtlasLearnerMode` in `lib/execution-core/src/pedagogy.ts` are now bijective for `dynamic_ai_adaptive` (no more `→ guided` alias collapse). `LEGACY_MODE_ALIAS` is empty by default.
+
+**Phase 8 single source of truth:** `scripts/src/authored-lineage.ts` exports `COURSE_FOR_AUTHORED_SLUG`, `CANDIDATE_FOR_AUTHORED_SLUG`, `COURSE_TO_DOMAIN_SLUG`, `COURSE_TO_TRACK_SLUG`. Both `backfill-course.ts` and `author-project.ts` read from this one file.
+
+**Final gate:** `pnpm run typecheck` PASS · 54/54 curriculum-quality tests · 45/45 api-server tests · `anchor-check` drift 0.00 · `wave-report` 18/18 ≥70 · backfill verified 65/65 rows have non-null `course`.
+
+**Known carry-overs into Phase 9:**
+- Promote stamps the FK; the inverse (`project_candidates.promoted_project_id`) is not yet written — readers can join via `sourceCandidateId` for now.
+- 45/65 catalog projects still on `hints[]` fallback — Phase 9 mass-author pass.
+- Splitting the `de-core` track per course (`analytics-engineer-core`, `cloud-data-engineer-core`, etc.) is deferred — only the lookup map needs updating when it happens.
+- The deprecation marker on `mapToCourse` is JSDoc-only; consider a lint/grep CI guard when more callers exist.

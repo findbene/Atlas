@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const dataEngineeringFlinkWindowedAggregations: AuthoredProject = {
   slug: "data-engineering-flink-windowed-aggregations",
+  candidateId: "9a704771-3360-45b3-88e2-8020a627a6d6",
   title: "Flink Windowed Aggregations Pipeline (Kafka → Iceberg)",
   shortDescription:
     "Build an Apache Flink streaming job that consumes user-event records from Kafka, computes tumbling + session windowed aggregations with event-time + watermarks, handles late data, and lands compact Parquet files in an Iceberg table for downstream analytics.",

@@ -1,6 +1,20 @@
 import { db } from "@workspace/db";
 import { domains, tracks, projects, projectSteps, masterySections, masteryModules, masteryLessons } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
+
+/** Phase 8 — minimal domain→course fallback for seed inserts. The
+ * canonical mapping lives in `authored-lineage.ts`; this just covers the
+ * 4 DB domains we seed. Authored rows overwrite this via promote. */
+function domainSlugToCourse(domainSlug: string): AtlasCourseSlug {
+  switch (domainSlug) {
+    case "ai-engineering": return "ai-engineer";
+    case "ai-mlops": return "mlops-engineer";
+    case "data-science": return "data-scientist";
+    case "data-engineering":
+    default: return "data-engineering";
+  }
+}
 import { pythonMasteryModules } from "./seed-mastery-python";
 import { sqlMasteryModules } from "./seed-mastery-sql";
 import { extraProjects } from "./seed-projects-extra";
@@ -413,6 +427,8 @@ async function seed() {
     const [proj] = await db.insert(projects).values({
       trackId: deTrack.id,
       domainId: deDomain.id,
+      course: "data-engineering",
+      courseSource: "heuristic_legacy",
       slug: pd.slug,
       title: pd.title,
       shortDescription: pd.shortDescription,
@@ -478,6 +494,8 @@ async function seed() {
       const [proj] = await db.insert(projects).values({
         trackId: deTrack.id,
         domainId: deDomain.id,
+        course: "data-engineering",
+        courseSource: "heuristic_legacy",
         slug: pd.slug,
         title: pd.title,
         shortDescription: pd.shortDescription,
@@ -554,6 +572,8 @@ async function seed() {
     await db.insert(projects).values({
       trackId: deTrack.id,
       domainId: deDomain.id,
+      course: "data-engineering",
+      courseSource: "heuristic_legacy",
       slug: sp.slug,
       title: sp.title,
       shortDescription: sp.desc,
@@ -665,6 +685,11 @@ async function seed() {
       const [proj] = await db.insert(projects).values({
         trackId: wiring.trackId,
         domainId: wiring.domainId,
+        // Phase-8 native taxonomy: backfill maps to the same course as the legacy
+        // mapToCourse heuristic would derive; mark as heuristic_legacy until
+        // authored. The on-demand backfill script also covers this row.
+        course: domainSlugToCourse(pd.domainSlug),
+        courseSource: "heuristic_legacy",
         slug: pd.slug,
         title: pd.title,
         shortDescription: pd.shortDescription,

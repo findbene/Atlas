@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const mlopsTerraformMlPlatform: AuthoredProject = {
   slug: "mlops-terraform-ml-platform",
+  candidateId: "49204556-683d-4ad7-b0e9-167f8b3cf212",
   title: "Terraform-Provisioned ML Platform — EKS + S3 + MLflow + IAM",
   shortDescription:
     "Stand up a reproducible ML platform with Terraform: EKS cluster, S3 artifact store, RDS metadata store, MLflow tracking server, IAM IRSA roles, and a multi-env state-backend layout. Push a button → environment exists; tear-down is one command.",

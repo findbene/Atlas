@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const cloudDataEngineerHudiMorCdcMerge: AuthoredProject = {
   slug: "cloud-data-engineer-hudi-mor-cdc-merge",
+  candidateId: "e9b594d1-fe69-4bd5-b7f6-6b53456c18a7",
   title: "Hudi Merge-on-Read CDC Pipeline with Spark + Kafka",
   shortDescription:
     "Stream Postgres CDC events from Kafka into an Apache Hudi Merge-on-Read (MoR) table on S3, configure record-key + precombine semantics, schedule compaction, and provision the lake with Terraform. Validate row-level consistency vs. source.",

@@ -7,11 +7,16 @@
     ".": "./src/index.ts",
     "./adapters": "./src/adapters/index.ts"
   },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
   "peerDependencies": {
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "vitest": "^4.1.6",
     "zod": "catalog:"
   }
 }

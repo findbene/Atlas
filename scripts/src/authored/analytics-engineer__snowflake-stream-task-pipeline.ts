@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const analyticsEngineerSnowflakeStreamTaskPipeline: AuthoredProject = {
   slug: "analytics-engineer-snowflake-stream-task-pipeline",
+  candidateId: "3f258d41-44b7-4c78-8e6b-9f7d9c0e85fd",
   title: "Snowflake Streams + Tasks: Incremental dbt Pipeline",
   shortDescription:
     "Wire Snowflake Streams (CDC on a source table) to a Task DAG that runs incremental dbt models. Compose multiple tasks with dependencies, handle failures, and reconcile the materialized result against the source.",

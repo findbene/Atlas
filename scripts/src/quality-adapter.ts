@@ -78,7 +78,10 @@ export async function loadAllProjects(
       where: eq(projectSteps.projectId, row.id),
       orderBy: [asc(projectSteps.stepNumber)],
     });
-    const course = mapCourse({
+    // Phase 8 — prefer the native `projects.course` column. Fall back
+    // to the heuristic `mapCourse` only for legacy rows that haven't
+    // been backfilled (none post-Phase-8, but keep the safety net).
+    const course = (row.course as AtlasCourseSlug | null) ?? mapCourse({
       domainSlug: domainSlug.get(row.domainId) ?? null,
       trackSlug: trackSlug.get(row.trackId) ?? null,
       tags: row.tags,

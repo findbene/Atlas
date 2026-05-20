@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const dataScientistNotebookToProduction: AuthoredProject = {
   slug: "data-scientist-notebook-to-production",
+  candidateId: "a40f5e5d-01b8-4feb-aa01-dbdc7146e9ad",
   title: "Notebook-to-Production: Polars + scikit-learn + MLflow + FastAPI",
   shortDescription:
     "Take a Jupyter notebook prototype (Polars EDA + scikit-learn model) and ship it: register the model in MLflow, wrap it in a FastAPI prediction service, add a feature-store-style preprocessing module, and integration-test the deployed endpoint.",

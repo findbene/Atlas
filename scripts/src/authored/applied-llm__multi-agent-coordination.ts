@@ -11,6 +11,7 @@ const SRC = (s: string) => s;
 
 export const appliedLlmMultiAgentCoordination: AuthoredProject = {
   slug: "applied-llm-multi-agent-coordination",
+  candidateId: "cd46a53e-8532-4cdb-b5ee-9db38a3dfbd8",
   title: "Multi-Agent Coordination — Supervisor + Specialists with LangGraph",
   shortDescription:
     "Build a supervisor agent that routes requests to three specialist agents (Researcher, Writer, Critic) over a shared blackboard, with deterministic termination, structured handoffs, and LangSmith tracing of every hop.",

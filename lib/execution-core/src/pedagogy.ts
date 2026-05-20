@@ -14,7 +14,10 @@
  * importable from both the API server and the React client.
  */
 
-export type DbLearningMode = "guided" | "hint" | "independent";
+// Phase 8 — `dynamic_ai_adaptive` is now a native DB enum value. We no
+// longer silently alias it to `guided`. The other three values are kept
+// for back-compat with rows persisted before the enum extension.
+export type DbLearningMode = "guided" | "hint" | "independent" | "dynamic_ai_adaptive";
 
 export type AtlasLearnerMode =
   | "guided_ai_assisted"
@@ -22,12 +25,21 @@ export type AtlasLearnerMode =
   | "mastery_gated_independent_ai_assisted"
   | "dynamic_ai_adaptive";
 
+/**
+ * Legacy-read alias map. Only consulted when the round-trip would otherwise
+ * widen an Atlas mode that has no DB pair. Today every Atlas mode has a 1:1
+ * DB pair so this is empty — but the explicit constant prevents the silent
+ * `dynamic_ai_adaptive → guided` collapse we shipped in Phase 4.
+ */
+export const LEGACY_MODE_ALIAS: Readonly<Record<string, DbLearningMode>> = Object.freeze({});
+
 /** Map the persisted DB enum value to the Atlas-facing mode label. */
 export function toAtlasLearnerMode(db: DbLearningMode): AtlasLearnerMode {
   switch (db) {
-    case "guided":      return "guided_ai_assisted";
-    case "hint":        return "adaptive_inquiry_ai_assisted";
-    case "independent": return "mastery_gated_independent_ai_assisted";
+    case "guided":               return "guided_ai_assisted";
+    case "hint":                 return "adaptive_inquiry_ai_assisted";
+    case "independent":          return "mastery_gated_independent_ai_assisted";
+    case "dynamic_ai_adaptive":  return "dynamic_ai_adaptive";
   }
 }
 
@@ -37,7 +49,7 @@ export function fromAtlasLearnerMode(atlas: AtlasLearnerMode): DbLearningMode {
     case "guided_ai_assisted":                     return "guided";
     case "adaptive_inquiry_ai_assisted":           return "hint";
     case "mastery_gated_independent_ai_assisted":  return "independent";
-    case "dynamic_ai_adaptive":                    return "guided"; // until enum is extended
+    case "dynamic_ai_adaptive":                    return "dynamic_ai_adaptive";
   }
 }
 
