@@ -1,0 +1,75 @@
+Approve Phase 6 with corrections.
+
+Proceed, but apply these changes before implementation:
+
+1. Fix the first candidate-batch difficulty mix.
+   The final Atlas target is 20% beginner, 30% intermediate, 50% advanced.
+   For 10 candidates per course, use:
+   - 2 beginner
+   - 3 intermediate
+   - 5 advanced
+
+   Do not use 3 beginner / 5 intermediate / 2 advanced.
+
+2. Keep the generator deterministic for Phase 6, but make it research-shaped.
+   It should use the course skill maps, JOB_DEMAND_2026 map, role-stack map, Python/SQL depth rules, and portfolio artifact rules.
+   No LLM calls yet.
+
+3. Strengthen acceptance gates:
+   - 0 Zod failures
+   - 90/90 candidates imported successfully
+   - at least 45/90 candidates score >=60
+   - at least 18/90 candidates score >=70
+   - duplicate-flag rate <20% per batch
+   - every course has at least 2 candidates scoring >=60
+
+4. The 9-course taxonomy must be encoded as a versioned source of truth:
+   - COURSE_TAXONOMY.ts
+   - .local/course-skill-maps.md
+
+5. Each candidate must include:
+   - course
+   - target roles
+   - difficulty
+   - 2026 job-readiness justification
+   - Python depth
+   - SQL depth
+   - cloud/tooling expectations
+   - portfolio artifact
+   - validation idea
+   - execution mode
+   - estimated learner outcome
+
+6. Do not approve candidates automatically.
+   Phase 6 only generates, imports, scores, and reports candidates.
+
+7. Do not write full project steps/content yet.
+   Full project authoring begins in Phase 7 after candidate review.
+
+8. Extend catalog:report around the 9-course model:
+   - course × difficulty
+   - course × role
+   - course × stack
+   - Python depth
+   - SQL depth
+   - portfolio artifact type
+   - quality distribution
+   - duplicate warnings
+   - gap detection
+
+9. Keep Phase 5 rubric frozen at v1.0.1.
+   If candidates score poorly, improve the generator and skill maps, not the rubric.
+
+After these corrections, proceed with Phase 6 implementation.
+
+Completion report must include:
+- taxonomy files created
+- course skill map summary
+- candidate schema changes
+- number of candidates generated/imported
+- score distribution
+- duplicate warnings
+- per-course coverage report
+- tests/typecheck
+- architect review
+- known gaps before Phase 7 project authoring

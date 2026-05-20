@@ -11,6 +11,7 @@
     "audit:quality": "tsx ./src/audit-quality.ts",
     "catalog:report": "tsx ./src/catalog-report.ts",
     "candidates": "tsx ./src/candidates.ts",
+    "candidates:batch": "tsx ./src/candidates-batch.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
