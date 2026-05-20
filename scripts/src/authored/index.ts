@@ -22,6 +22,16 @@ import { appliedLlmPlannerExecutor } from "./applied-llm__planner-executor";
 import { appliedLlmMultiAgentCoordination } from "./applied-llm__multi-agent-coordination";
 import { mlopsKserveMultiModel } from "./mlops__kserve-multi-model";
 import { mlopsTerraformMlPlatform } from "./mlops__terraform-ml-platform";
+import { dataEngineeringFlinkWindowedAggregations } from "./data-engineering__flink-windowed-aggregations";
+import { dataEngineeringCdcDebezium } from "./data-engineering__cdc-debezium";
+import { cloudDataEngineerIcebergCompactionRewrite } from "./cloud-data-engineer__iceberg-compaction-rewrite";
+import { cloudDataEngineerHudiMorCdcMerge } from "./cloud-data-engineer__hudi-mor-cdc-merge";
+import { analyticsEngineerSnowflakeStreamTaskPipeline } from "./analytics-engineer__snowflake-stream-task-pipeline";
+import { analyticsEngineerDbtCiStateModified } from "./analytics-engineer__dbt-ci-state-modified";
+import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
+import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
+import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
+import { sqlFeatureStoreLab } from "./sql__feature-store-lab";
 
 // Phase-7 authored modules (appended as each is written).
 export const AUTHORED_PROJECTS: AuthoredProject[] = [
@@ -33,6 +43,16 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   appliedLlmMultiAgentCoordination,
   mlopsKserveMultiModel,
   mlopsTerraformMlPlatform,
+  dataEngineeringFlinkWindowedAggregations,
+  dataEngineeringCdcDebezium,
+  cloudDataEngineerIcebergCompactionRewrite,
+  cloudDataEngineerHudiMorCdcMerge,
+  analyticsEngineerSnowflakeStreamTaskPipeline,
+  analyticsEngineerDbtCiStateModified,
+  pythonLibrariesPydanticValidationService,
+  dataScientistNotebookToProduction,
+  dataScientistPytorchImageFinetuning,
+  sqlFeatureStoreLab,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

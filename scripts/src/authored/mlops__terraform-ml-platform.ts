@@ -163,11 +163,11 @@ output "oidc_provider_arn" { value = module.eks.oidc_provider_arn }
       requiredSkill: "IAM trust policies + OIDC + IRSA + RDS/S3 module composition",
       starterCode: SRC(`# modules/mlflow-deps/main.tf
 resource "aws_s3_bucket" "models" {
-  bucket = "${var.env}-ml-models"
+  bucket = "\${var.env}-ml-models"
 }
 
 resource "aws_db_instance" "mlflow" {
-  identifier        = "${var.env}-mlflow"
+  identifier        = "\${var.env}-mlflow"
   engine            = "postgres"
   instance_class    = "db.t4g.micro"
   allocated_storage = 20
@@ -193,7 +193,7 @@ data "aws_iam_policy_document" "mlflow_trust" {
 }
 
 resource "aws_iam_role" "mlflow" {
-  name               = "${var.env}-mlflow-irsa"
+  name               = "\${var.env}-mlflow-irsa"
   assume_role_policy = data.aws_iam_policy_document.mlflow_trust.json
 }
 
