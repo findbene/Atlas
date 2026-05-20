@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { progressStatusEnum, learningModeEnum, projectLanguageEnum } from "./enums";
 import { users } from "./users";
-import { projects } from "./domains";
+import { projects, projectSteps } from "./domains";
 
 export const userProgress = pgTable("user_progress", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -126,7 +126,7 @@ export const userProjectStepHints = pgTable("user_project_step_hints", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: 'cascade' }).notNull(),
-  stepId: uuid("step_id").notNull(),
+  stepId: uuid("step_id").references(() => projectSteps.id, { onDelete: 'cascade' }).notNull(),
   hintLevel: integer("hint_level").default(0).notNull(),
   lastOfferedAt: timestamp("last_offered_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

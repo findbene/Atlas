@@ -5,3 +5,4 @@ export * from "./domains";
 export * from "./progress";
 export * from "./modules";
 export * from "./ai";
+export * from "./quality";

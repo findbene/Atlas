@@ -1,0 +1,101 @@
+Approve Phase 5 with changes.
+
+Proceed, but apply these corrections first:
+
+1. Use a separate project_candidates table.
+   Do not mix unapproved AI proposals directly into the production projects table.
+
+   Recommended model:
+   - projects = actual learner-facing projects
+   - project_candidates = proposed/researched projects awaiting review
+   - project_status_history = audit trail for project and candidate decisions
+
+2. Do not backfill all existing projects as quality-approved.
+   Existing projects can remain visible, but quality_status should be one of:
+   - unreviewed
+   - approved
+   - needs_revision
+   - rejected
+
+   The two Phase 4 reference projects should score >=70.
+   At least 5 legacy/stub projects should land in needs_revision to prove the rubric discriminates.
+
+3. Add quality fields to projects, but only for quality tracking:
+   - quality_status
+   - quality_score
+   - quality_breakdown jsonb
+   - last_quality_audit_at
+
+4. Add project_candidates with:
+   - id
+   - proposed_title
+   - proposed_course
+   - target_roles
+   - difficulty
+   - proposed_stack
+   - proposal jsonb
+   - quality_score
+   - quality_breakdown jsonb
+   - duplicate_candidates jsonb
+   - status: candidate | approved | needs_revision | rejected
+   - reviewer_notes
+   - created_at
+   - updated_at
+
+5. Phase 5 should recognize all 9 Atlas mastery courses:
+   - Data Engineering
+   - AI Engineer
+   - MLOps Engineer
+   - Data Scientist
+   - Analytics Engineer
+   - Applied LLM Engineer
+   - Cloud Data Engineer
+   - Python — Libraries and Frameworks
+   - SQL
+
+   Catalog report should show:
+   - course × difficulty coverage
+   - course × role coverage
+   - course × stack coverage
+   - beginner/intermediate/advanced distribution
+   - Python/SQL depth distribution
+   - quality status funnel
+
+6. Use this revised rubric:
+   - 2026 job readiness + hiring relevance: 25
+   - production realism + technical depth: 20
+   - Python/SQL depth: 15
+   - pedagogy + validation quality: 20
+   - portfolio artifact/employer signal: 15
+   - uniqueness/catalog fit: 5
+
+   Duplicate/repetitive projects should also trigger a hard warning, not only lose points.
+
+7. Add the thin read-only /admin/quality JSON endpoint if quick.
+   No admin UI yet. CLI remains primary. The endpoint is only to prepare for a future dashboard.
+
+8. For JOB_DEMAND_2026.ts:
+   Generate .local/job-demand-map.md first.
+   Include the role/course/stack demand assumptions before locking the map in code.
+   Keep it versioned and easy to update later.
+
+9. Keep Phase 5 CLI-first:
+   - candidates list/show/score/approve/reject/revise
+   - audit:quality
+   - catalog:report
+
+10. Do not mass-generate hundreds of projects yet.
+    This phase builds the quality gate, not the full catalog.
+
+After applying these changes, proceed with Phase 5 implementation.
+
+Completion report must include:
+- schema changes
+- candidate/project governance design
+- revised rubric
+- quality scores for reference projects
+- examples of legacy projects flagged needs_revision
+- catalog coverage report
+- tests/typecheck
+- architect review findings
+- known gaps before project generation scale-up

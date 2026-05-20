@@ -13,6 +13,7 @@ import runsRouter from "./runs";
 import publicProfileRouter from "./public-profile";
 import certVerifyRouter from "./cert-verify";
 import hintsRouter from "./hints";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(runsRouter);
 router.use(publicProfileRouter);
 router.use(certVerifyRouter);
 router.use(hintsRouter);
+router.use(adminRouter);
 
 export default router;

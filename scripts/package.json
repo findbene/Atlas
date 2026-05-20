@@ -8,9 +8,13 @@
     "seed": "tsx ./src/seed.ts",
     "seed:stripe": "tsx ./src/seed-stripe-products.ts",
     "audit:pedagogy": "tsx ./src/audit-pedagogy.ts",
+    "audit:quality": "tsx ./src/audit-quality.ts",
+    "catalog:report": "tsx ./src/catalog-report.ts",
+    "candidates": "tsx ./src/candidates.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@workspace/curriculum-quality": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/execution-core": "workspace:*",
     "drizzle-orm": "catalog:",

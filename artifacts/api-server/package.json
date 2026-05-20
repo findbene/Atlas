@@ -15,6 +15,7 @@
     "@clerk/express": "^2.1.9",
     "@clerk/shared": "^4.8.5",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/curriculum-quality": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/execution-core": "workspace:*",
     "cookie-parser": "^1.4.7",

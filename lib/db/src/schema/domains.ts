@@ -2,7 +2,8 @@ import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, customType, in
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { difficultyEnum, projectLanguageEnum, noteTypeEnum, validationTypeEnum } from "./enums";
+import { difficultyEnum, projectLanguageEnum, noteTypeEnum, validationTypeEnum, qualityStatusEnum } from "./enums";
+import { numeric } from "drizzle-orm/pg-core";
 
 export const domains = pgTable("domains", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -71,6 +72,12 @@ export const projects = pgTable("projects", {
   // Shape validated by `executionProfileSchema` in @workspace/execution-core.
   // Null on legacy rows; the runtime falls back to DEFAULT_SIMULATED_PROFILE.
   executionProfile: jsonb("execution_profile"),
+  // Phase 5: curriculum quality governance. Defaults preserve existing rows
+  // as 'unreviewed' so the catalog stays live while the rubric runs.
+  qualityStatus: qualityStatusEnum("quality_status").default('unreviewed').notNull(),
+  qualityScore: numeric("quality_score", { precision: 5, scale: 2 }),
+  qualityBreakdown: jsonb("quality_breakdown"),
+  lastQualityAuditAt: timestamp("last_quality_audit_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [

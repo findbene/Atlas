@@ -9,6 +9,14 @@ export const learningModeEnum = pgEnum('learning_mode', ['guided', 'hint', 'inde
 export const projectLanguageEnum = pgEnum('project_language', ['python', 'sql', 'both']);
 export const difficultyEnum = pgEnum('difficulty', ['beginner', 'intermediate', 'advanced']);
 export const noteTypeEnum = pgEnum('note_type', ['theory', 'cheatsheet', 'reference', 'quickstart']);
+// Phase 5 — curriculum quality governance.
+export const qualityStatusEnum = pgEnum('quality_status', [
+  'unreviewed', 'approved', 'needs_revision', 'rejected',
+]);
+export const candidateStatusEnum = pgEnum('candidate_status', [
+  'candidate', 'approved', 'needs_revision', 'rejected',
+]);
+
 export const validationTypeEnum = pgEnum('validation_type', [
   'exact',
   'regex',
