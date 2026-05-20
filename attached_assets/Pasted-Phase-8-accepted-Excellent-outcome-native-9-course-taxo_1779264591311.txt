@@ -1,0 +1,84 @@
+Phase 8 accepted.
+
+Excellent outcome:
+- native 9-course taxonomy added
+- all 65 projects have non-null course
+- 18 Phase-7 projects carry source_candidate_id
+- canonical track resolution replaced limit(1)
+- /api/admin/quality is protected by requireAdmin
+- dynamic_ai_adaptive is now native
+- replit.md was cleaned up
+- tests/typecheck passed
+- architect review passed
+- rubric unchanged
+- anchor drift 0.00
+
+Begin Phase 9 planning.
+
+Recommended Phase 9: Legacy Catalog Remediation + Course-Native Authoring Cleanup.
+
+Goal:
+Upgrade the remaining 45 legacy projects so the catalog is course-native, quality-scored, pedagogy-complete, and no longer dependent on legacy hints or heuristic course mapping.
+
+Phase 9 scope:
+
+1. Inverse lineage
+   - add project_candidates.promoted_project_id
+   - backfill the 18 Phase-7 promoted projects
+   - update candidate/project reports to show bidirectional lineage
+
+2. Legacy project remediation
+   - identify the 45 legacy projects still using legacy hints[]
+   - group them by native course
+   - decide which should be upgraded, revised, archived, or replaced
+
+3. Authoring upgrade wave
+   - upgrade a controlled first batch of legacy projects
+   - each upgraded project must include:
+     - native course
+     - validation_config
+     - expected_outputs
+     - pedagogy_config
+     - hint levels 1–5
+     - success_feedback
+     - failure_feedback
+     - portfolio_relevance
+     - README outline
+     - quality score ≥70 where appropriate
+
+4. Course-native reporting
+   - remove remaining runtime dependence on mapToCourse
+   - reports should use projects.course directly
+
+5. Track cleanup
+   - evaluate whether de-core track should split per course
+   - do not implement broad taxonomy churn unless needed
+
+6. Quality gates
+   - anchor drift must remain within ±1
+   - rubric must remain v1.0.1
+   - no score inflation
+   - no mass authoring without checkpoint
+
+Do not:
+- generate all 1,080 projects yet
+- change rubric weights
+- weaken quality gates
+- implement cloud credentials
+- redesign Atlas Studio
+- touch Stripe unless required
+
+Before coding, write .local/session_plan.md for Phase 9 and stop for approval.
+
+Acceptance criteria:
+- inverse lineage added and verified
+- legacy projects categorized by action: upgrade | revise | archive | replace
+- first controlled upgrade batch completed
+- upgraded projects score ≥70 or are explicitly marked needs_revision
+- pedagogy audit improves beyond 20/65 fully enriched
+- course-native reports remain correct
+- typecheck passes
+- API tests pass
+- curriculum-quality tests pass
+- execution-core tests pass
+- architect review passes
