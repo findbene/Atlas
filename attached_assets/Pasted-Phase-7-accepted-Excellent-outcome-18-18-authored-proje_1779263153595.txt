@@ -1,0 +1,86 @@
+Phase 7 accepted.
+
+Excellent outcome:
+- 18/18 authored projects passed ≥70
+- 2 projects per course × 9 courses achieved
+- validation coverage is 100%
+- pedagogy completeness is 100%
+- portfolio readiness is 100%
+- anchor drift is 0.00
+- architect review passed
+- tests and typecheck passed
+
+Do not start mass authoring yet.
+
+Begin Phase 8 planning.
+
+Recommended Phase 8: Native 9-Course Taxonomy + Governance Hardening.
+
+Goal:
+Fix structural taxonomy and governance gaps before scaling toward the remaining 1,080-project catalog.
+
+Phase 8 scope:
+
+1. Native 9-course project model
+   - persist course directly on projects
+   - stop relying on mapToCourse heuristics
+   - support the 9 official Atlas courses:
+     Data Engineering
+     AI Engineer
+     MLOps Engineer
+     Data Scientist
+     Analytics Engineer
+     Applied LLM Engineer
+     Cloud Data Engineer
+     Python — Libraries and Frameworks
+     SQL
+
+2. Candidate traceability
+   - add source_candidate_id to projects
+   - preserve authoring lineage from project_candidates → projects
+   - expose candidate lineage in audit/report output
+
+3. Canonical track resolution
+   - replace limit(1) track lookup
+   - add explicit COURSE_TO_TRACK_SLUG or is_primary track flag
+   - prevent future domain/track misclassification
+
+4. Admin security hardening
+   - promote /api/admin/quality from requireAuth to requireAdmin
+   - prepare admin route pattern for future quality dashboard
+
+5. Learning mode enum cleanup
+   - add native dynamic_ai_adaptive support
+   - remove temporary alias-to-guided behavior where safe
+
+6. Documentation cleanup
+   - move older phase notes from replit.md into docs/phases/
+   - keep replit.md focused on current-state architecture and active constraints
+
+7. Regression protection
+   - add tests preventing authored projects from being assigned to the wrong course/domain/track
+   - add tests proving source_candidate_id is preserved
+   - add tests for admin-only access
+
+Do not:
+- mass-author the remaining projects yet
+- change the rubric
+- weaken quality gates
+- implement cloud credentials
+- redesign Atlas Studio
+- touch Stripe unless required for admin auth infrastructure
+
+Before coding, write .local/session_plan.md for Phase 8 and stop for approval.
+
+Acceptance criteria:
+- native course field/model exists
+- all 18 Phase-7 projects mapped to correct courses
+- source_candidate_id stored for promoted projects
+- canonical track resolution implemented
+- /api/admin/quality protected by requireAdmin
+- dynamic_ai_adaptive no longer just aliases silently to guided
+- replit.md reorganized safely
+- typecheck passes
+- API tests pass
+- curriculum-quality tests pass
+- architect review passes
