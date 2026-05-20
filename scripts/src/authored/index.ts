@@ -39,6 +39,14 @@ import { dataEngineeringVectorDatabaseSearch } from "./data-engineering__vector-
 import { dataEngineeringStreamProcessingFlink } from "./data-engineering__stream-processing-flink";
 import { cloudDataEngineerIcebergTableFormat } from "./cloud-data-engineer__iceberg-table-format";
 import { cloudDataEngineerDbtMacrosMastery } from "./cloud-data-engineer__dbt-macros-mastery";
+// Phase 10 batch-2 revise upgrades.
+import { analyticsEngineerDataCatalogImplementation } from "./analytics-engineer__data-catalog-implementation";
+import { aiEngineerRagPipeline } from "./ai-engineer__rag-pipeline";
+import { aiEngineerFeatureStore } from "./ai-engineer__feature-store";
+import { dataScientistCausalInferenceUplift } from "./data-scientist__causal-inference-uplift";
+import { dataScientistAbTestFromScratch } from "./data-scientist__ab-test-from-scratch";
+import { dataEngineeringColumnStoreEngine } from "./data-engineering__column-store-engine";
+import { dataEngineeringDataMeshDesign } from "./data-engineering__data-mesh-design";
 
 // Phase-7 authored modules (appended as each is written).
 export const AUTHORED_PROJECTS: AuthoredProject[] = [
@@ -67,6 +75,14 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   dataEngineeringStreamProcessingFlink,
   cloudDataEngineerIcebergTableFormat,
   cloudDataEngineerDbtMacrosMastery,
+  // Phase 10 batch-2 revise upgrades.
+  analyticsEngineerDataCatalogImplementation,
+  aiEngineerRagPipeline,
+  aiEngineerFeatureStore,
+  dataScientistCausalInferenceUplift,
+  dataScientistAbTestFromScratch,
+  dataEngineeringColumnStoreEngine,
+  dataEngineeringDataMeshDesign,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

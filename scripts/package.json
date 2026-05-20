@@ -17,6 +17,7 @@
     "backfill:inverse-lineage": "tsx ./src/backfill-inverse-lineage.ts",
     "backfill:grandfather-candidates": "tsx ./src/backfill-grandfather-candidates.ts",
     "backfill:upgrade-candidates": "tsx ./src/backfill-upgrade-candidates.ts",
+    "backfill:revise-candidates": "tsx ./src/backfill-revise-candidates.ts",
     "triage:legacy": "tsx ./src/triage-legacy.ts",
     "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",

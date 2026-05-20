@@ -31,10 +31,11 @@ export const projectCandidates = pgTable("project_candidates", {
   duplicateCandidates: jsonb("duplicate_candidates"),      // [{slug, similarity, title}, ...]
   status: candidateStatusEnum("status").default('candidate').notNull(),
   reviewerNotes: text("reviewer_notes"),
-  // Phase 9 — provenance marker. NULL = ordinary candidate-pipeline row.
-  // `'grandfathered_phase4'` = synthetic candidate minted for Phase-4 originals
-  // that predate the candidate pipeline. Free text so future Phase-N synthetic
-  // sources don't require an enum migration.
+  // Phase 9/10 — provenance marker. NULL = ordinary candidate-pipeline row.
+  // Known synthetic-source values (free-text, no enum migration required):
+  //   - `'grandfathered_phase4'`  — Phase-4 originals predating the candidate pipeline.
+  //   - `'phase9_upgrade'`        — Phase-9 batch-1 revise-upgrade synthetics.
+  //   - `'phase10_revise'`        — Phase-10 batch-2 revise-upgrade synthetics.
   source: text("source"),
   // Phase 9 — inverse lineage. NULL until the candidate is promoted to a
   // project. ON DELETE SET NULL so deleting a project doesn't cascade.

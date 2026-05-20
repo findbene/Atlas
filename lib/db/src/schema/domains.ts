@@ -95,6 +95,13 @@ export const projects = pgTable("projects", {
   // rows that pre-date the candidate pipeline. ON DELETE SET NULL so the
   // catalog stays live if a candidate row is ever hard-deleted.
   sourceCandidateId: uuid("source_candidate_id").references(() => projectCandidates.id, { onDelete: 'set null' }),
+  // Phase 10 — learner-facing visibility control. Defaults TRUE so existing
+  // rows stay visible after the additive migration. The `archive:thin-stubs`
+  // script flips this to FALSE for archive-cohort projects (thin stubs with
+  // 0 steps and 0 enrolled learners) so the learner catalog stops surfacing
+  // them, WITHOUT deleting the row — admin/reporting routes still see them.
+  // Reversible by a single SQL UPDATE; no data loss.
+  learnerVisible: boolean("learner_visible").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [
@@ -104,6 +111,9 @@ export const projects = pgTable("projects", {
   index('projects_order_idx').on(t.orderIndex),
   index('projects_course_idx').on(t.course),
   index('projects_source_candidate_idx').on(t.sourceCandidateId),
+  // Phase 10 — learner catalog reads filter on this; small index helps the
+  // hot `WHERE learner_visible = true` path.
+  index('projects_learner_visible_idx').on(t.learnerVisible),
 ]);
 
 export const projectSteps = pgTable("project_steps", {

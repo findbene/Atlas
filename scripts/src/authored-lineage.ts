@@ -39,6 +39,14 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   "data-scientist-notebook-to-production": "data-scientist",
   "data-scientist-pytorch-image-finetuning": "data-scientist",
   "sql-feature-store-lab": "sql",
+  // Phase 10 batch-2 (synthetic candidates, source='phase10_revise').
+  "analytics-engineer-data-catalog-implementation": "analytics-engineer",
+  "ai-engineer-rag-pipeline":                       "ai-engineer",
+  "ai-engineer-feature-store":                      "ai-engineer",
+  "data-scientist-causal-inference-uplift":         "data-scientist",
+  "data-scientist-ab-test-from-scratch":            "data-scientist",
+  "data-engineering-column-store-engine":           "data-engineering",
+  "data-engineering-data-mesh-design":              "data-engineering",
 };
 
 /**
@@ -64,6 +72,37 @@ export const GRANDFATHERED_CANDIDATE_FOR_SLUG: Record<string, string> = {
  * NOT the original legacy slugs (`real-time-dashboard`) — the upgrade renames
  * to the Phase-7 convention. The legacy rows are deleted by the upgrade.
  */
+/**
+ * Phase 10 batch-2 — seven legacy revise-cohort projects with 5-step skeletons
+ * being upgraded in place (full pedagogy, real validation, portfolio metadata).
+ * Same lineage convention as `UPGRADE_CANDIDATE_FOR_SLUG`: synthetic
+ * `project_candidates` rows marked `source='phase10_revise'`. Keys are the
+ * FINAL course-prefixed slugs the upgrade writes to; original legacy slugs
+ * (e.g. `data-catalog-implementation`) are deleted by the upgrade and mapped
+ * via `PHASE10_LEGACY_SLUG_MAP` below.
+ */
+export const REVISE_CANDIDATE_FOR_SLUG: Record<string, string> = {
+  "analytics-engineer-data-catalog-implementation": "fd08c08c-9998-4287-b3ad-b950647a8e29",
+  "ai-engineer-rag-pipeline":                       "390df952-8a61-4d05-81fa-3e45fa89b606",
+  "ai-engineer-feature-store":                      "97562dba-7f15-4767-a2ab-89195bc02065",
+  "data-scientist-causal-inference-uplift":         "94b29e9d-48e5-4125-8486-478cd7361914",
+  "data-scientist-ab-test-from-scratch":            "3338abcb-8b49-4fb3-9eff-203263415369",
+  "data-engineering-column-store-engine":           "41d1a898-798e-44cc-bf54-4dbc03bf9084",
+  "data-engineering-data-mesh-design":              "c4fb285a-971f-4aa5-b98e-c6ed60a92933",
+};
+
+/** Phase 10 legacy slug → upgraded slug. Used by the batch-2 backfill to
+ *  delete the legacy row after promote runs so we don't double-count. */
+export const PHASE10_LEGACY_SLUG_MAP: Record<string, string> = {
+  "data-catalog-implementation": "analytics-engineer-data-catalog-implementation",
+  "ai-eng-rag-pipeline":         "ai-engineer-rag-pipeline",
+  "mlops-feature-store":         "ai-engineer-feature-store",
+  "ds-causal-inference-uplift":  "data-scientist-causal-inference-uplift",
+  "ds-ab-test-from-scratch":     "data-scientist-ab-test-from-scratch",
+  "column-store-engine":         "data-engineering-column-store-engine",
+  "data-mesh-design":            "data-engineering-data-mesh-design",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -112,6 +151,14 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   "data-engineering-stream-processing-flink":  "01047b6e-bc8c-46dc-8044-e022915f2002",
   "cloud-data-engineer-iceberg-table-format":  "52e7704a-c3a1-4e56-bfcd-36f102ad6e6c",
   "cloud-data-engineer-dbt-macros-mastery":    "08624753-d098-4c13-b87e-9936bb68a48c",
+  // Phase 10 batch-2 (synthetic candidates, source='phase10_revise').
+  "analytics-engineer-data-catalog-implementation": "fd08c08c-9998-4287-b3ad-b950647a8e29",
+  "ai-engineer-rag-pipeline":                       "390df952-8a61-4d05-81fa-3e45fa89b606",
+  "ai-engineer-feature-store":                      "97562dba-7f15-4767-a2ab-89195bc02065",
+  "data-scientist-causal-inference-uplift":         "94b29e9d-48e5-4125-8486-478cd7361914",
+  "data-scientist-ab-test-from-scratch":            "3338abcb-8b49-4fb3-9eff-203263415369",
+  "data-engineering-column-store-engine":           "41d1a898-798e-44cc-bf54-4dbc03bf9084",
+  "data-engineering-data-mesh-design":              "c4fb285a-971f-4aa5-b98e-c6ed60a92933",
 };
 
 /**
