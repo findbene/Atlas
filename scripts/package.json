@@ -12,6 +12,7 @@
     "catalog:report": "tsx ./src/catalog-report.ts",
     "candidates": "tsx ./src/candidates.ts",
     "candidates:batch": "tsx ./src/candidates-batch.ts",
+    "author:project": "tsx ./src/author-project.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

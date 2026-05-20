@@ -1,0 +1,73 @@
+Approve Phase 7 with small changes.
+
+The Phase 7 plan is accepted. Proceed, but apply these corrections before implementation:
+
+1. Keep the SQL pilot first.
+   Starting with the weakest course/candidate is the right stress test.
+
+2. If the SQL pilot does not score >=70 after full authoring, stop.
+   Do not fan out to the other 17 projects.
+   Do not change the rubric.
+   Diagnose whether the issue is:
+   - weak candidate concept
+   - missing production realism
+   - weak validation design
+   - weak Python/SQL depth
+   - weak portfolio artifact
+   - shallow pedagogy
+
+3. For courses with zero candidates >=70:
+   - analytics-engineer
+   - data-scientist
+   - python-libraries
+   - sql
+
+   Select the highest-scoring candidates, but require stronger authoring depth.
+   These must not become shallow intro labs.
+
+4. Every authored project must include:
+   - real workplace scenario
+   - 2026+ hiring relevance
+   - full step sequence
+   - starter code or starter SQL
+   - validation_config
+   - expected_outputs
+   - pedagogy_config
+   - hint levels 1–5
+   - success_feedback
+   - failure_feedback
+   - portfolio_relevance
+   - GitHub-ready README outline
+
+5. Keep approval manual.
+   No mass approval helper.
+   No auto-approval from score alone.
+
+6. Add one extra checkpoint:
+   After the SQL pilot passes, author 2 more projects from different courses before authoring the remaining 15.
+   This proves the authoring system works across project types, not only SQL.
+
+7. Keep rubric-anchor-drift protection:
+   csv-to-postgres-pipeline and dbt-data-models must stay within ±1 point unless there is a documented reason.
+
+8. Do not:
+   - generate all 1,080 projects
+   - change rubric weights
+   - implement cloud credentials
+   - redesign Atlas Studio
+   - touch Stripe
+   - create placeholder project steps
+
+Proceed with Phase 7 after updating .local/session_plan.md with these changes.
+
+Completion report must include:
+- selected 18 candidates
+- SQL pilot score before/after authoring
+- 3-project checkpoint result
+- final 18 authored project scores
+- pedagogy completeness report
+- validation coverage report
+- portfolio artifact readiness report
+- tests/typecheck
+- architect review
+- known gaps before Phase 8
