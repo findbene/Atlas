@@ -186,6 +186,7 @@ function ClerkProviderWithRoutes() {
               <Route path="/pricing" component={Pricing} />
               <Route path="/courses" component={Courses} />
               <Route path="/courses/:slug" component={CourseDetail} />
+              <Route path="/projects"><Redirect to="/courses" /></Route>
               {/* Phase 10 — `/domains` kept as internal/legacy alias; learner nav points at `/courses`. */}
               <Route path="/domains" component={Domains} />
               <Route path="/domains/:slug" component={DomainDetail} />
