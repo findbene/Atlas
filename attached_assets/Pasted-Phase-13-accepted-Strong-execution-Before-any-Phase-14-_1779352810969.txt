@@ -1,0 +1,198 @@
+Phase 13 accepted. Strong execution.
+
+Before any Phase 14 implementation, complete two things in one pass:
+
+1. Surface the final auto-checkpoint / commit hash for Phase 13.
+2. Prepare a Phase 14 decision brief only. Do not implement anything.
+
+First confirm:
+
+- Final Phase 13 checkpoint hash
+- git/status equivalent: confirm no unexpected uncommitted implementation files
+- docs/phases/phase-13-underserved-course-seeding.md exists
+- replit.md marks Phase 13 CLOSED / SHIP
+- Phase 14 is not started
+
+Current confirmed state after Phase 13:
+
+- Phase 11: CLOSED / SHIP
+- Phase 12A: CLOSED / SHIP
+- Phase 12B: CLOSED / SHIP
+- Phase 13: CLOSED / SHIP
+- total projects: 79
+- learner-visible projects: 47
+- hidden projects: 32
+- wave-report: 45/45 passing
+- learner-visible pedagogy KPI: 47/47
+- hiddenCount: 32 unchanged during Phase 13
+- legacyReplacements: 10
+- anchorCount: 2
+- anchorSlugs:
+  - csv-to-postgres-pipeline
+  - dbt-data-models
+- visibleThinStubs excluding anchors: 0
+- underserved courses lifted from 2 → 3:
+  - sql
+  - python-libraries
+  - applied-llm-engineer
+  - mlops-engineer
+- API tests: 102/102 passing
+- anchor drift: 0.00
+- lineage integrity: 0/0/0/0
+- rubric v1.0.1 unchanged
+- candidateId remains required
+- 9-course taxonomy unchanged
+- no runtime mapToCourse regression
+- no cloud credential work started
+- no Phase 14 implementation started
+
+Now prepare a Phase 14 decision brief only.
+
+Analyze the best next move across these options:
+
+Option A — Lift the 3-project courses to 4 projects each
+Goal:
+Add one more authored project to each course currently at 3 visible projects:
+- mlops-engineer
+- applied-llm-engineer
+- python-libraries
+- sql
+
+Evaluate:
+- Whether this is the cleanest continuation of Phase 13
+- Expected effect on minimum course depth
+- Whether +4 projects is still within the safe implementation batch size
+- Whether these should be beginner/intermediate/advanced
+- Whether this creates a stronger learner journey than starting a brand-new track of work
+
+Option B — Lift mid-coverage courses
+Goal:
+Add projects to courses currently around 4 visible projects, likely:
+- data-scientist
+- analytics-engineer
+
+Evaluate:
+- Current visible counts
+- Whether these courses now represent the next weakest learner journeys
+- Whether to lift them from 4 → 5
+- Whether to include AI/cloud courses or leave them for later
+
+Option C — Beginner-tier seeding
+Goal:
+Start a beginner-friendly entry layer across the catalog.
+
+Evaluate:
+- Whether to seed all 9 courses or only the lowest-coverage courses first
+- Whether difficulty metadata/backfill must happen first
+- Whether to make beginner seeding a separate Phase 14 or defer to Phase 15
+- Risk of greenfield scope explosion
+- How many beginner projects can safely be authored in one pass
+
+Option D — Difficulty taxonomy/backfill
+Goal:
+Make difficulty_level meaningful across learner-visible projects.
+
+Evaluate:
+- Current schema support
+- Whether projects already have reliable difficulty metadata
+- Whether difficulty should be manual allowlist, author-declared, candidate-derived, or content-inferred
+- Whether to backfill all 47 visible projects or only new projects going forward
+- Whether frontend filtering should be included or deferred
+- Risks of mislabeling advanced content as beginner
+
+Option E — Learner UX/platform polish
+Goal:
+Improve the learner-facing product now that all visible content is enriched.
+
+Evaluate:
+- Course page clarity
+- Project card information architecture
+- Search/filter/sort
+- difficulty badges
+- progress/resume behavior
+- project recommendations
+- admin quality dashboard visibility
+- whether UX work should wait until difficulty taxonomy exists
+
+Option F — Data Engineering core split / catalog balance cleanup
+Goal:
+Address the imbalance where Data Engineering has much more content than the smallest courses.
+
+Evaluate:
+- Whether DE should be left alone for several phases
+- Whether DE projects should be grouped/subcategorized
+- Whether any cross-course recategorization is warranted
+- Whether ml-feature-store should eventually move to mlops-engineer, but do not implement it now
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Expected catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Required tests
+10. Expected effect on:
+   - learner-visible count
+   - hidden/archive count
+   - pedagogy KPI
+   - course coverage
+   - difficulty distribution
+   - learner trust
+   - implementation cost
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 14 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement while preserving the high-quality, low-iteration execution pattern.
+
+The recommended Phase 14 must be executable in one cohesive implementation pass after approval.
+
+The recommended Phase 14 plan should include:
+
+1. Exact scope
+2. Exact project slugs involved, if any
+3. Exact courses involved
+4. Whether work is:
+   - new authoring
+   - metadata/backfill
+   - UI/reporting
+   - archive/replacement
+   - tests only
+5. Required files
+6. Required scripts
+7. Required tests
+8. Required reports
+9. Final gates
+10. Expected final metrics
+11. Hard stop conditions
+12. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Important constraints:
+
+- Do not implement Phase 14 yet.
+- Do not mass-generate projects.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId.
+- Do not change the 9-course taxonomy.
+- Do not use mapToCourse at runtime.
+- Do not delete rows.
+- Preserve archive-by-hiding.
+- Preserve learner_visible filtering.
+- Preserve admin visibility into archived rows.
+- Do not touch cloud credentials.
+- Do not recalibrate anchor projects.
+- Do not modify csv-to-postgres-pipeline.
+- Do not modify dbt-data-models.
+- Do not start Phase 14 implementation after the brief.
