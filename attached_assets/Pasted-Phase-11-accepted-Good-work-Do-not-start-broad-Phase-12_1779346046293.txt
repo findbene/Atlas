@@ -1,0 +1,104 @@
+Phase 11 accepted. Good work. Do not start broad Phase 12 generation yet.
+
+Before any new project authoring, create a clean Phase 11 closure checkpoint and a narrow Phase 12 cleanup plan.
+
+First, write a Phase 11 closure note to the appropriate docs location, including:
+
+1. Final status: CLOSED / SHIP
+2. All 7 promoted projects and final quality scores
+3. Final pedagogy audit result: 40/72
+4. Final anchor drift: 0.00
+5. Final test/typecheck results
+6. Lineage inverse check result
+7. Hidden/archive status
+8. Known unresolved risks
+9. Architect verdict
+10. Final changed files
+11. Latest checkpoint/commit information, including the note that some T004/T005 additions were not yet checkpointed at the time of the report if still true
+
+Then prepare, but do not execute, a Phase 12 plan focused only on cleanup and visibility correctness.
+
+Phase 12 should be scoped as:
+
+Phase 12A — Archive replaced Phase 11 legacy twins
+
+Goal:
+Hide the 7 old legacy projects that were replaced by the Phase 11 upgraded versions, without deleting rows and without touching the new upgraded projects.
+
+Legacy slugs to archive:
+
+1. ai-eng-llm-eval-harness
+2. mlops-model-serving-canary
+3. delta-lake-lakehouse
+4. snowflake-data-warehouse
+5. airflow-etl-dag
+6. api-to-warehouse-ingestion
+7. data-quality-framework
+
+Required constraints:
+
+- Do not delete rows.
+- Only set learner_visible=false for the old replaced legacy rows.
+- Do not hide the new upgraded Phase 11 rows.
+- Do not change rubric v1.0.1.
+- Do not change candidateId requirements.
+- Do not use mapToCourse at runtime.
+- Do not change /courses behavior except that replaced legacy twins should disappear from learner-facing catalog.
+- Admin/reporting should still be able to see archived rows.
+- Preserve the Phase 10 archive/hide pattern.
+- Preserve all project lineage and replace_candidate_slug values.
+
+Before implementation, inspect:
+
+1. Existing Phase 10 archive/thin-stub script pattern
+2. /api/admin/quality behavior
+3. learner_visible filtering in learner-facing project/course routes
+4. tests around hidden projects returning 404
+5. current catalog report denominator behavior
+
+Then propose exact tasks for Phase 12A:
+
+T001 — Add archive script for Phase 11 replaced legacy projects
+- Script name suggestion: scripts/src/archive-phase11-replaced.ts
+- Use replace_candidate_slug values from upgraded rows to identify legacy rows.
+- Hard-code the expected 7 legacy slugs as a safety allowlist.
+- Assert every targeted row exists.
+- Assert every targeted row is currently learner_visible=true before update.
+- Assert no upgraded Phase 11 slug is targeted.
+- Set learner_visible=false only for the 7 legacy rows.
+- Print before/after counts.
+
+T002 — Add or update tests
+- Verify replaced legacy slugs return 404 on learner-facing routes after archive.
+- Verify upgraded Phase 11 slugs return 200.
+- Verify admin/reporting still sees archived rows.
+- Verify hidden count increases by exactly 7.
+- Verify no runtime mapToCourse usage.
+
+T003 — Update catalog/pedagogy reporting
+- Clarify whether pedagogy audit denominator includes all projects or learner-visible projects only.
+- If current report mixes archived and visible rows in a confusing way, add separate counts:
+  - total projects
+  - learner-visible projects
+  - archived/hidden projects
+  - fully enriched learner-visible projects
+  - fully enriched total projects
+
+T004 — Run final gates
+- pnpm run typecheck
+- API tests
+- curriculum-quality tests
+- execution-core tests
+- wave report
+- pedagogy audit
+- catalog report
+- lineage inverse check
+- hidden/archive count check
+- architect review
+
+Stop before implementation and report the Phase 12A plan first.
+
+Do not start beginner-tier seeding.
+Do not address the 31 remaining needs_revision stubs yet.
+Do not mass-generate projects.
+Do not touch cloud credentials.

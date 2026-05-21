@@ -126,7 +126,8 @@ The seed handles in-place upgrades for projects that previously existed only as 
 ## Current Phase Status
 
 - **Phase 10 — Course Taxonomy + Revise Batch 2 + Visibility Controls** — CLOSED. 31/31 authored ≥70 · anchor drift 0.00 · 22 thin stubs hidden · pedagogy 34/65.
-- **Phase 11 — Course Coverage Repair + Remaining Legacy Remediation** — in planning. See `.local/session_plan.md`.
+- **Phase 11 — Course Coverage Repair + Remaining Legacy Remediation** — CLOSED · SHIP. 38/38 authored ≥70 · anchor drift 0.00 · pedagogy 40/72 (≥39 KPI) · `replace_candidate_slug` column + CHECK · 7 P11 upgrades promoted with 0 lineage orphans. See `docs/phases/phase-11-course-coverage-repair.md`.
+- **Phase 12A — Archive Replaced Phase 11 Legacy Twins** — PROPOSED (not started). See `.local/phase12a-plan.md`.
 
 ## Phase History
 
@@ -139,4 +140,5 @@ Closed phase notes are archived in `docs/phases/`:
 - **Phase 8 — Native Taxonomy + Governance Hardening** → [docs/phases/phase-8-native-taxonomy.md](docs/phases/phase-8-native-taxonomy.md). Native `projects.course` + `course_source` enums, bidirectional lineage FK, `requireAdmin` middleware, primary-track invariant.
 - **Phase 9 — Legacy Remediation (batch 1)** → [docs/phases/phase-9-legacy-remediation.md](docs/phases/phase-9-legacy-remediation.md). Bidirectional candidate FK, synthetic candidate sources, 6 DE/Cloud-DE upgrades + 2 grandfather flips, heuristic-runtime guard.
 - **Phase 10 — Course Taxonomy + Revise Batch 2 + Visibility Controls** → [docs/phases/phase-10-visibility-controls.md](docs/phases/phase-10-visibility-controls.md). 9-course learner-facing taxonomy, 7 revise upgrades, `projects.learner_visible` + 22 thin stubs hidden, `qualityBreakdown.portfolioArtifact` adapter fix.
+- **Phase 11 — Course Coverage Repair + Remaining Legacy Remediation** → [docs/phases/phase-11-course-coverage-repair.md](docs/phases/phase-11-course-coverage-repair.md). 7 batch-3 promotes (2 ai-eng carry-overs + 2 cloud-DE skeleton rebuilds + 3 DE skeleton rebuilds), `projects.replace_candidate_slug` + CHECK + idempotent backfill, pedagogy 40/72, anchor drift 0.00, 0 lineage orphans.
 
