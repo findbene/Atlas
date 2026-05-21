@@ -98,6 +98,18 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
       count: 0,
       pairs: [] as Array<{ upgradedSlug: string; legacySlug: string; legacyHidden: boolean }>,
     },
+    // Phase 14 — read-only difficulty distribution across learner-visible
+    // projects. Surfaces the beginner-tier lift (1 → 6 after P14) plus
+    // per-course counts so a future underserved-tier review has a single
+    // place to look. Counts include ONLY learner-visible rows.
+    difficultyDistribution: {
+      visible: {
+        beginner: 0,
+        intermediate: 0,
+        advanced: 0,
+      },
+      visibleBeginnerSlugs: [] as Array<{ slug: string; course: AtlasCourseSlug }>,
+    },
   };
 
   // Pre-build slug → learnerVisible lookup for the Phase-12A pairs surface.
@@ -151,6 +163,16 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
         legacySlug: p.replaceCandidateSlug,
         legacyHidden,
       });
+    }
+    // Phase 14 — difficulty distribution across visible rows only.
+    if (p.learnerVisible !== false) {
+      const d = p.difficultyLevel;
+      if (d === "beginner" || d === "intermediate" || d === "advanced") {
+        summary.difficultyDistribution.visible[d]++;
+        if (d === "beginner") {
+          summary.difficultyDistribution.visibleBeginnerSlugs.push({ slug: p.slug, course });
+        }
+      }
     }
     summary.lineage.push({
       slug: p.slug,

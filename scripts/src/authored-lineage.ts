@@ -69,6 +69,14 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   "applied-llm-engineer-rag-evaluation-harness":    "applied-llm-engineer",
   "python-libraries-pydantic-config-and-cli":       "python-libraries",
   "sql-window-functions-and-cte-mastery":           "sql",
+  // Phase 14 — net-new beginner-tier seed (NOT a revise/upgrade). Lifts
+  // beginner count 1 → 6 across 5 entry-tier-suitable courses. Synthetic
+  // candidates marked `source='phase14_beginner'`.
+  "sql-beginner-select-where-join-essentials":              "sql",
+  "python-libraries-beginner-pandas-essentials":            "python-libraries",
+  "data-engineering-beginner-csv-cleanup-pipeline":         "data-engineering",
+  "analytics-engineer-beginner-spreadsheet-to-sql-models":  "analytics-engineer",
+  "data-scientist-beginner-eda-and-summary-stats":          "data-scientist",
 };
 
 /**
@@ -191,6 +199,24 @@ export const NEW_COURSE_SEED_FOR_SLUG_PHASE13: Record<string, string> = {
   "sql-window-functions-and-cte-mastery":           "24708df5-8a01-45bb-9eef-e758697a8ba3",
 };
 
+/**
+ * Phase 14 — net-new beginner-tier seed cohort. Lifts the visible beginner
+ * count from 1 → 6 across 5 entry-tier-suitable courses. UNLIKE
+ * revise/upgrade phases, these are brand-new slugs (no legacy twin to
+ * archive). Synthetic candidates marked `source='phase14_beginner'` by
+ * `backfill:phase14-candidates`.
+ *
+ * Map keys = authored slug. Values = pinned candidate UUIDs (so the
+ * backfill is idempotent across environments).
+ */
+export const BEGINNER_CANDIDATE_FOR_SLUG_PHASE14: Record<string, string> = {
+  "sql-beginner-select-where-join-essentials":              "93c15ce7-344f-48a2-8aa8-67ee7284e77e",
+  "python-libraries-beginner-pandas-essentials":            "434d885b-6d1d-46b6-b922-88bbcfc6e383",
+  "data-engineering-beginner-csv-cleanup-pipeline":         "86667efa-bf0c-47eb-8803-3f016cc53784",
+  "analytics-engineer-beginner-spreadsheet-to-sql-models":  "601eb400-64c3-4e5f-921b-75e4cff1606f",
+  "data-scientist-beginner-eda-and-summary-stats":          "100f741c-1ca3-4dcd-8b85-84d0d54b3258",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -264,6 +290,12 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   "applied-llm-engineer-rag-evaluation-harness":    "02586bd3-68ef-4499-9ccd-c53647586981",
   "python-libraries-pydantic-config-and-cli":       "13697ce4-79f0-44aa-9dde-d64758697a92",
   "sql-window-functions-and-cte-mastery":           "24708df5-8a01-45bb-9eef-e758697a8ba3",
+  // Phase 14 — net-new beginner-tier seed (source='phase14_beginner').
+  "sql-beginner-select-where-join-essentials":              "93c15ce7-344f-48a2-8aa8-67ee7284e77e",
+  "python-libraries-beginner-pandas-essentials":            "434d885b-6d1d-46b6-b922-88bbcfc6e383",
+  "data-engineering-beginner-csv-cleanup-pipeline":         "86667efa-bf0c-47eb-8803-3f016cc53784",
+  "analytics-engineer-beginner-spreadsheet-to-sql-models":  "601eb400-64c3-4e5f-921b-75e4cff1606f",
+  "data-scientist-beginner-eda-and-summary-stats":          "100f741c-1ca3-4dcd-8b85-84d0d54b3258",
 };
 
 /**

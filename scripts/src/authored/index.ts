@@ -46,6 +46,12 @@ import { sqlWindowFunctionsAndCteMastery } from "./sql__window-functions-and-cte
 import { pythonLibrariesPydanticConfigAndCli } from "./python-libraries__pydantic-config-and-cli";
 import { appliedLlmEngineerRagEvaluationHarness } from "./applied-llm-engineer__rag-evaluation-harness";
 import { mlopsEngineerFeaturePipelineMonitoring } from "./mlops-engineer__feature-pipeline-monitoring";
+// Phase 14 — net-new beginner-tier seed (one each for 5 entry-tier-suitable courses).
+import { sqlBeginnerSelectWhereJoinEssentials } from "./sql__beginner-select-where-join-essentials";
+import { pythonLibrariesBeginnerPandasEssentials } from "./python-libraries__beginner-pandas-essentials";
+import { dataEngineeringBeginnerCsvCleanupPipeline } from "./data-engineering__beginner-csv-cleanup-pipeline";
+import { analyticsEngineerBeginnerSpreadsheetToSqlModels } from "./analytics-engineer__beginner-spreadsheet-to-sql-models";
+import { dataScientistBeginnerEdaAndSummaryStats } from "./data-scientist__beginner-eda-and-summary-stats";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -118,6 +124,12 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   pythonLibrariesPydanticConfigAndCli,
   appliedLlmEngineerRagEvaluationHarness,
   mlopsEngineerFeaturePipelineMonitoring,
+  // Phase 14 — net-new beginner-tier seed (lifts beginner count 1 → 6).
+  sqlBeginnerSelectWhereJoinEssentials,
+  pythonLibrariesBeginnerPandasEssentials,
+  dataEngineeringBeginnerCsvCleanupPipeline,
+  analyticsEngineerBeginnerSpreadsheetToSqlModels,
+  dataScientistBeginnerEdaAndSummaryStats,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {
