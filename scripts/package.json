@@ -20,9 +20,12 @@
     "backfill:revise-candidates": "tsx ./src/backfill-revise-candidates.ts",
     "backfill:phase11-candidates": "tsx ./src/backfill-phase11-candidates.ts",
     "backfill:replace-candidate-slug": "tsx ./src/backfill-replace-candidate-slug.ts",
+    "backfill:phase12b-candidates": "tsx ./src/backfill-phase12b-candidates.ts",
+    "backfill:phase12b-replace-candidate-slug": "tsx ./src/backfill-phase12b-replace-candidate-slug.ts",
     "triage:legacy": "tsx ./src/triage-legacy.ts",
     "archive:thin-stubs": "tsx ./src/archive-thin-stubs.ts",
     "archive:phase11-replaced": "tsx ./src/archive-phase11-replaced.ts",
+    "archive:phase12b-replaced": "tsx ./src/archive-phase12b-replaced.ts",
     "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

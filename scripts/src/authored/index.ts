@@ -37,6 +37,10 @@ import { cloudDataEngineerSnowflakeDataWarehouse } from "./cloud-data-engineer__
 import { dataEngineeringAirflowEtlDag } from "./data-engineering__airflow-etl-dag";
 import { dataEngineeringApiToWarehouseIngestion } from "./data-engineering__api-to-warehouse-ingestion";
 import { dataEngineeringDataQualityFramework } from "./data-engineering__data-quality-framework";
+// Phase 12B — Phase-11 deferral completion (3 DE skeleton rebuilds).
+import { dataEngineeringKafkaStreamingPipeline } from "./data-engineering__kafka-streaming-pipeline";
+import { dataEngineeringMlFeatureStore } from "./data-engineering__ml-feature-store";
+import { dataEngineeringSparkBatchProcessing } from "./data-engineering__spark-batch-processing";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -100,6 +104,10 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   dataEngineeringAirflowEtlDag,
   dataEngineeringApiToWarehouseIngestion,
   dataEngineeringDataQualityFramework,
+  // Phase 12B — Phase-11 deferral completion (3 DE skeleton rebuilds).
+  dataEngineeringKafkaStreamingPipeline,
+  dataEngineeringMlFeatureStore,
+  dataEngineeringSparkBatchProcessing,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

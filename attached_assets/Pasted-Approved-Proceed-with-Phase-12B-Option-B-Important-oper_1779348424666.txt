@@ -1,0 +1,224 @@
+Approved. Proceed with Phase 12B Option B.
+
+Important operating instruction:
+Do not stop after module 1 if gates are green. To reduce iteration cost, complete the full approved Phase 12B scope in one cohesive implementation pass, while preserving per-project gates internally.
+
+Chosen scope:
+Option B — Continue legacy remediation by completing the 3 Phase-11-deferred skeleton rebuilds.
+
+Approved cohort:
+
+1. data-engineering-kafka-streaming-pipeline
+   - course: data-engineering
+   - type: rebuilt replacement
+   - legacy mirror/archive target: kafka-streaming-pipeline
+
+2. data-engineering-ml-feature-store
+   - course: data-engineering
+   - type: rebuilt replacement
+   - legacy mirror/archive target: ml-feature-store
+   - decision: keep this in data-engineering for Phase 12B. Do not recategorize to mlops-engineer in this phase.
+
+3. data-engineering-spark-batch-processing
+   - course: data-engineering
+   - type: rebuilt replacement
+   - legacy mirror/archive target: spark-batch-processing
+
+Implementation behavior:
+- Work in one complete Phase 12B pass.
+- Promote one project at a time internally.
+- Run score and anchor check after each promote.
+- Stop only if a hard stop condition triggers.
+- If all three pass, continue through archive, tests, reports, architect review, closure report.
+- Do not ask for approval between the three projects unless something fails.
+
+Phase 12B tasks:
+
+T000 — Snapshot baseline
+Create a pre-state snapshot in .local/phase12b-pre-state.json with:
+- totalProjects
+- learnerVisible
+- hidden
+- enrichedAll
+- enrichedVisible
+- lineage counters
+- visibleThinStubs
+- legacyReplacementsCount
+- current hiddenCount
+- current admin legacyReplacements count
+
+T001 — Lineage and candidate setup
+Update lineage and candidate support for the 3 approved replacements:
+- Add REVISE_CANDIDATE_FOR_SLUG_PHASE12B with exactly 3 entries.
+- Add the 3 authored slugs to COURSE_FOR_AUTHORED_SLUG.
+- Add PHASE12B_LEGACY_SLUG_MAP with exactly 3 mappings.
+- Merge with prior lineage maps without shadowing existing Phase 11 entries.
+- Create scripts/src/backfill-phase12b-candidates.ts.
+- Add package script for the backfill.
+- Backfill 3 synthetic candidates with source='phase12b_revise', status='approved', and clear reviewer notes.
+- Keep AuthoredProject.candidateId required.
+- Do not change schema unless absolutely necessary.
+- Do not change rubric v1.0.1.
+
+T002 — Author the 3 full replacement modules
+Create and register:
+
+1. scripts/src/authored/data-engineering__kafka-streaming-pipeline.ts
+2. scripts/src/authored/data-engineering__ml-feature-store.ts
+3. scripts/src/authored/data-engineering__spark-batch-processing.ts
+
+Each module must include:
+- native course: data-engineering
+- candidateId
+- source_candidate_id lineage support
+- 5 full steps
+- validation_config
+- expected_outputs
+- pedagogy_config
+- 5 progressive hint levels
+- success_feedback
+- failure_feedback
+- portfolio_relevance
+- README outline
+- production-realistic project framing
+- strong Python/SQL/Data Engineering depth
+- no manual_review shortcuts unless already accepted by existing framework conventions
+
+Register all 3 in scripts/src/authored/index.ts.
+
+Promote each internally in this order:
+1. data-engineering-kafka-streaming-pipeline
+2. data-engineering-ml-feature-store
+3. data-engineering-spark-batch-processing
+
+For each promotion, verify:
+- score >= 70
+- DB course matches intended course
+- sourceCandidateId is present
+- lineage is unambiguous
+- pedagogyComplete = true
+- validationCoverage = 100%
+- portfolioReady = true
+- anchor drift <= ±1.0
+- runtime mapToCourse gate remains green
+
+T003 — Replace-candidate metadata and archive
+Populate replace_candidate_slug for the 3 upgraded rows.
+
+Then add scripts/src/archive-phase12b-replaced.ts, mirroring the Phase 12A safety pattern.
+
+Archive exactly these 3 legacy mirrors:
+- kafka-streaming-pipeline
+- ml-feature-store
+- spark-batch-processing
+
+Archive means:
+- set learner_visible=false
+- no deletes
+- no schema changes
+- preserve admin visibility
+- preserve lineage
+
+Safety requirements:
+- Use triple-source agreement:
+  1. hardcoded allowlist
+  2. PHASE12B_LEGACY_SLUG_MAP
+  3. DB replace_candidate_slug values
+- Hard-fail if the sets diverge.
+- Hard-fail if any target has enrolled_count > 0.
+- Hard-fail if any upgraded Phase 12B slug is targeted.
+- Confirm all upgraded Phase 12B rows remain learner_visible=true.
+- Script must be idempotent.
+- Print hiddenCount before/after.
+- Expected hiddenCount: 29 → 32.
+
+T004 — Admin/reporting/tests
+Update admin/reporting so legacyReplacements includes the 3 new pairs.
+
+Expected admin legacyReplacements count:
+- before: 7
+- after: 10
+
+Add tests, preferably in a Phase 12B visibility test file:
+- 3 legacy slugs return 404 on learner-facing routes.
+- 3 upgraded slugs return 200.
+- /projects excludes the 3 archived legacy slugs.
+- admin/reporting still sees archived rows.
+- hiddenCount increases from 29 to 32.
+- legacyReplacements.count is 10.
+- legacyReplacements includes all 3 new pairs with legacyHidden=true.
+- no runtime mapToCourse regression.
+
+T005 — Final gates and reports
+Run:
+- pnpm run typecheck
+- API tests
+- curriculum-quality tests
+- execution-core tests
+- wave report
+- pedagogy audit
+- catalog report
+- lineage inverse check
+- hidden/archive count check
+- admin legacyReplacements check
+- runtime mapToCourse gate
+- architect review
+
+Expected outcomes:
+- hiddenCount: 29 → 32
+- learner-visible pedagogy KPI: approximately 43/46 if all 3 land
+- all-project pedagogy: approximately 43/75
+- visible thin stubs: 5 → 2
+- data-engineering authored coverage improves materially
+- lineage counters remain 0/0/0/0 with orphanCandidates=0
+- architect verdict should be SHIP
+
+Hard stop conditions:
+- any project scores <70
+- anchor drift exceeds ±1.0
+- DB course mismatch
+- candidateId/sourceCandidateId missing
+- lineage ambiguity or orphan candidate appears
+- any target legacy row has enrolled_count > 0
+- triple-source archive target set diverges
+- upgraded Phase 12B row is hidden
+- hiddenCount does not become 32
+- admin legacyReplacements does not become 10
+- hidden learner routes do not return 404
+- runtime mapToCourse appears outside allowlist
+- typecheck or tests fail
+- architect finds severe/blocking issue
+
+Out of scope:
+- Do not start beginner-tier seeding.
+- Do not recategorize ml-feature-store to mlops-engineer.
+- Do not address csv-to-postgres-pipeline.
+- Do not address dbt-data-models.
+- Do not mass-generate projects.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId requirements.
+- Do not change the 9-course taxonomy.
+- Do not touch cloud credentials.
+- Do not delete rows.
+- Do not start Phase 12C.
+
+Final report must include:
+1. Pre-state snapshot summary
+2. 3 promoted projects with scores and dimension breakdowns
+3. DB course vs intended course for each
+4. Candidate IDs and lineage status
+5. replace_candidate_slug mappings
+6. Archived legacy slugs
+7. Hidden count before/after
+8. Admin legacyReplacements count and pairs
+9. Pedagogy audit all-project vs learner-visible denominator
+10. Catalog report summary
+11. Visible thin-stub count before/after
+12. Lineage inverse check
+13. Test/typecheck results
+14. Runtime mapToCourse result
+15. Architect verdict
+16. Changed files
+17. DB writes performed
+18. Final checkpoint/commit hash
+19. Confirmation that Phase 12C was not started

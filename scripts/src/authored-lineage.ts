@@ -57,6 +57,11 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   "data-engineering-airflow-etl-dag":               "data-engineering",
   "data-engineering-api-to-warehouse-ingestion":    "data-engineering",
   "data-engineering-data-quality-framework":        "data-engineering",
+  // Phase 12B batch (Phase-11 deferral completion; synthetic candidates, source='phase12b_revise').
+  // 3 DE skeleton rebuilds the P11 plan explicitly deferred to "Phase 12" when cap=7.
+  "data-engineering-kafka-streaming-pipeline":      "data-engineering",
+  "data-engineering-ml-feature-store":              "data-engineering",
+  "data-engineering-spark-batch-processing":        "data-engineering",
 };
 
 /**
@@ -107,6 +112,22 @@ export const REVISE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-airflow-etl-dag":               "f0e1a5c6-9178-4d22-9456-5e6f70819203",
   "data-engineering-api-to-warehouse-ingestion":    "a1f2b6d7-0289-4e33-9567-6f7081920314",
   "data-engineering-data-quality-framework":        "b2031ce8-139a-4f44-9678-708192031425",
+  // Phase 12B batch (source='phase12b_revise') — Phase-11 deferral completion.
+  "data-engineering-kafka-streaming-pipeline":      "c3142df9-24ab-4055-9789-819203142536",
+  "data-engineering-ml-feature-store":              "d4253ea0-35bc-4166-989a-92031425364a",
+  "data-engineering-spark-batch-processing":        "e5364fb1-46cd-4277-9aab-a3142536475b",
+};
+
+/**
+ * Phase 12B — exactly 3 entries. Phase-11 deferral cohort completion: the
+ * 3 DE skeleton rebuilds the original Phase-11 plan deferred to "Phase 12"
+ * when the cap was set to 7. Same lineage convention as Phase 11 — synthetic
+ * candidates marked `source='phase12b_revise'`.
+ */
+export const REVISE_CANDIDATE_FOR_SLUG_PHASE12B: Record<string, string> = {
+  "data-engineering-kafka-streaming-pipeline":      "c3142df9-24ab-4055-9789-819203142536",
+  "data-engineering-ml-feature-store":              "d4253ea0-35bc-4166-989a-92031425364a",
+  "data-engineering-spark-batch-processing":        "e5364fb1-46cd-4277-9aab-a3142536475b",
 };
 
 /** Phase 10 legacy slug → upgraded slug. Used by the batch-2 backfill to
@@ -132,6 +153,18 @@ export const PHASE11_LEGACY_SLUG_MAP: Record<string, string> = {
   "airflow-etl-dag":             "data-engineering-airflow-etl-dag",
   "api-to-warehouse-ingestion":  "data-engineering-api-to-warehouse-ingestion",
   "data-quality-framework":      "data-engineering-data-quality-framework",
+};
+
+/**
+ * Phase 12B — exactly 3 mappings. Legacy slug → upgraded slug for the
+ * Phase-11 deferral completion cohort. The legacy rows are NOT deleted by
+ * the Phase-12B archive script; only `learner_visible` is flipped to false
+ * (archive-by-hide pattern, same as Phase 12A).
+ */
+export const PHASE12B_LEGACY_SLUG_MAP: Record<string, string> = {
+  "kafka-streaming-pipeline":  "data-engineering-kafka-streaming-pipeline",
+  "ml-feature-store":          "data-engineering-ml-feature-store",
+  "spark-batch-processing":    "data-engineering-spark-batch-processing",
 };
 
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
@@ -198,6 +231,10 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   "data-engineering-airflow-etl-dag":               "f0e1a5c6-9178-4d22-9456-5e6f70819203",
   "data-engineering-api-to-warehouse-ingestion":    "a1f2b6d7-0289-4e33-9567-6f7081920314",
   "data-engineering-data-quality-framework":        "b2031ce8-139a-4f44-9678-708192031425",
+  // Phase 12B batch (synthetic candidates, source='phase12b_revise').
+  "data-engineering-kafka-streaming-pipeline":      "c3142df9-24ab-4055-9789-819203142536",
+  "data-engineering-ml-feature-store":              "d4253ea0-35bc-4166-989a-92031425364a",
+  "data-engineering-spark-batch-processing":        "e5364fb1-46cd-4277-9aab-a3142536475b",
 };
 
 /**
