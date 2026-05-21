@@ -76,7 +76,18 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
     // are filtered from learner-facing routes (`learnerVisible=false`).
     hiddenCount: 0,
     hiddenSlugs: [] as string[],
+    // Phase 12A — replace_candidate_slug pairs. For every project row that
+    // declares it supersedes a legacy slug (via `replace_candidate_slug`),
+    // surface the pair + whether the legacy row is currently hidden. Gives
+    // ops a single-glance health view of the upgrade→archive lifecycle.
+    legacyReplacements: {
+      count: 0,
+      pairs: [] as Array<{ upgradedSlug: string; legacySlug: string; legacyHidden: boolean }>,
+    },
   };
+
+  // Pre-build slug → learnerVisible lookup for the Phase-12A pairs surface.
+  const learnerVisibleBySlug = new Map(projectRows.map(p => [p.slug, p.learnerVisible !== false]));
 
   for (const p of projectRows) {
     summary.statusFunnel[p.qualityStatus]++;
@@ -101,6 +112,15 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
     if (p.learnerVisible === false) {
       summary.hiddenCount++;
       summary.hiddenSlugs.push(p.slug);
+    }
+    if (p.replaceCandidateSlug) {
+      summary.legacyReplacements.count++;
+      const legacyHidden = learnerVisibleBySlug.get(p.replaceCandidateSlug) === false;
+      summary.legacyReplacements.pairs.push({
+        upgradedSlug: p.slug,
+        legacySlug: p.replaceCandidateSlug,
+        legacyHidden,
+      });
     }
     summary.lineage.push({
       slug: p.slug,

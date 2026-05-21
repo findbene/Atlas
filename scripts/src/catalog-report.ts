@@ -37,6 +37,9 @@ function countMatrix<R, C extends string>(rows: R[], rowKey: (r: R) => string, c
 
 async function main() {
   const loaded = await loadAllProjects(mapToCourse);
+  // Phase 12A — visibility-aware denominators. `rows` still represents ALL
+  // projects (preserves all historical sections); `visibleRows` is the
+  // learner-facing subset for the new dual-denominator summary block.
   const rows: Row[] = loaded.map(l => {
     const card = (l.raw.qualityBreakdown as Scorecard | null);
     return {
@@ -50,6 +53,13 @@ async function main() {
       sqlDepth: l.input.language === "sql" || l.input.language === "both",
     };
   });
+  const visibilityBySlug = new Map(loaded.map(l => [l.input.slug, l.raw.learnerVisible !== false]));
+  const visibleSlugs = new Set([...visibilityBySlug.entries()].filter(([, v]) => v).map(([s]) => s));
+  const totalCount = rows.length;
+  const visibleCount = rows.filter(r => visibleSlugs.has(r.slug)).length;
+  const hiddenCount = totalCount - visibleCount;
+  const approvedAll = rows.filter(r => r.status === "approved").length;
+  const approvedVisible = rows.filter(r => r.status === "approved" && visibleSlugs.has(r.slug)).length;
 
   const courseDiff = countMatrix(rows, r => r.course, r => r.difficulty as "beginner" | "intermediate" | "advanced", ["beginner", "intermediate", "advanced"] as const);
   const statusFunnel = countMatrix(rows, () => "all", r => r.status as "unreviewed" | "approved" | "needs_revision" | "rejected", ["unreviewed", "approved", "needs_revision", "rejected"] as const);
@@ -107,6 +117,18 @@ async function main() {
   lines.push(`# Atlas Catalog Quality Report`);
   lines.push(`\n**Generated:** ${new Date().toISOString()}`);
   lines.push(`**Total projects:** ${rows.length}\n`);
+
+  // Phase 12A — dual-denominator summary block. The all-projects ratio
+  // remains for historical continuity + internal cleanup visibility; the
+  // learner-visible ratio is the learner-facing KPI going forward.
+  lines.push(`## Visibility-aware summary (Phase 12A)\n`);
+  lines.push(`| Metric | Count |`);
+  lines.push(`|---|---|`);
+  lines.push(`| Total projects | ${totalCount} |`);
+  lines.push(`| Learner-visible projects | ${visibleCount} |`);
+  lines.push(`| Archived / hidden projects | ${hiddenCount} |`);
+  lines.push(`| Approved (all projects) | ${approvedAll} / ${totalCount} |`);
+  lines.push(`| Approved (learner-visible only, learner-facing KPI) | ${approvedVisible} / ${visibleCount} |\n`);
 
   lines.push(`## Quality status funnel\n`);
   const funnel = statusFunnel.get("all")!;
@@ -379,6 +401,10 @@ async function main() {
   fs.writeFileSync(OUT_JSON, JSON.stringify({
     generatedAt: new Date().toISOString(),
     totals: { projects: rows.length, candidates: candidateSummary?.totals ?? 0 },
+    visibility: {
+      totalCount, visibleCount, hiddenCount,
+      approvedAll, approvedVisible,
+    },
     statusFunnel: funnel,
     diffDist,
     depthDist,

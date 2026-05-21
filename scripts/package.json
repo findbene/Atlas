@@ -22,6 +22,7 @@
     "backfill:replace-candidate-slug": "tsx ./src/backfill-replace-candidate-slug.ts",
     "triage:legacy": "tsx ./src/triage-legacy.ts",
     "archive:thin-stubs": "tsx ./src/archive-thin-stubs.ts",
+    "archive:phase11-replaced": "tsx ./src/archive-phase11-replaced.ts",
     "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

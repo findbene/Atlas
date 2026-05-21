@@ -40,7 +40,14 @@ async function main() {
   });
 
   let fullyEnrichedProjects = 0;
+  let fullyEnrichedVisible = 0;
   const partials: string[] = [];
+  let visibleCount = 0;
+  let hiddenCount = 0;
+  for (const p of allProjects) {
+    if (p.learnerVisible === false) hiddenCount++;
+    else visibleCount++;
+  }
 
   for (const project of allProjects) {
     const steps = await db.query.projectSteps.findMany({
@@ -77,8 +84,10 @@ async function main() {
       );
     }
 
-    if (projectFullyEnriched) fullyEnrichedProjects++;
-    else partials.push(project.slug);
+    if (projectFullyEnriched) {
+      fullyEnrichedProjects++;
+      if (project.learnerVisible !== false) fullyEnrichedVisible++;
+    } else partials.push(project.slug);
 
     console.log(`\n${project.slug} (${project.language ?? "?"}, ${steps.length} steps)${projectFullyEnriched ? "  ✓ fully enriched" : ""}`);
     for (const l of lines) console.log(l);
@@ -86,7 +95,14 @@ async function main() {
 
   console.log("");
   console.log("=".repeat(60));
-  console.log(`SUMMARY: ${fullyEnrichedProjects} / ${allProjects.length} projects fully enriched`);
+  console.log("SUMMARY");
+  console.log(`  Total projects:                 ${allProjects.length}`);
+  console.log(`  Learner-visible projects:       ${visibleCount}`);
+  console.log(`  Archived / hidden projects:     ${hiddenCount}`);
+  console.log(`  Fully enriched (all):           ${fullyEnrichedProjects} / ${allProjects.length}`);
+  console.log(`  Fully enriched (visible only):  ${fullyEnrichedVisible} / ${visibleCount}    ← learner-facing KPI`);
+  // Legacy line preserved for any tooling that scrapes the historical format.
+  console.log(`SUMMARY (legacy): ${fullyEnrichedProjects} / ${allProjects.length} projects fully enriched`);
   if (partials.length > 0) {
     console.log("Missing or partial:");
     for (const slug of partials) console.log(`  - ${slug}`);

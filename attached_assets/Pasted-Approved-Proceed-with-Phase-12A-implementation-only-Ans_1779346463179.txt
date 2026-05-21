@@ -1,0 +1,148 @@
+Approved. Proceed with Phase 12A implementation only.
+
+Answers to your 4 approval questions:
+
+1. Cohort approval:
+Yes — archive exactly these 7 legacy slugs only:
+
+- ai-eng-llm-eval-harness
+- mlops-model-serving-canary
+- delta-lake-lakehouse
+- snowflake-data-warehouse
+- airflow-etl-dag
+- api-to-warehouse-ingestion
+- data-quality-framework
+
+No additions. No removals.
+
+2. Safety gate approval:
+Yes — use enrolled_count = 0 as the required hard safety gate.
+
+This is approved as a deliberate Phase 12A deviation from the Phase 10 thin-stub archive rule because two of these replaced legacy projects have existing stub steps. The important learner-safety invariant is: do not silently archive any project with active learner progress.
+
+Hard fail if any of the 7 target legacy rows has enrolled_count > 0.
+
+3. Admin-route extension:
+Include T004 now.
+
+Add the legacyReplacements surface to /api/admin/quality:
+
+legacyReplacements: {
+  count: number,
+  pairs: [
+    {
+      upgradedSlug: string,
+      legacySlug: string,
+      legacyHidden: boolean
+    }
+  ]
+}
+
+This should make the replace_candidate_slug relationship visible to admin/reporting and close the Phase 11 open risk around data-only replacement metadata.
+
+4. Dual-denominator reporting:
+Yes — keep the current all-project denominator and add a learner-visible denominator.
+
+Do not replace the old metric. Add both:
+
+- all projects
+- learner-visible projects
+- archived/hidden projects
+- fully enriched total projects
+- fully enriched learner-visible projects
+
+Going forward, learner-visible pedagogy should be treated as the learner-facing KPI. The all-project metric should remain for historical continuity and internal cleanup visibility.
+
+Proceed with the approved Phase 12A tasks:
+
+T001 — Add scripts/src/archive-phase11-replaced.ts
+Requirements:
+- Use both sources of truth:
+  1. PHASE11_LEGACY_SLUG_MAP
+  2. DB-derived replace_candidate_slug values from upgraded rows
+- Hard-fail if the two sets diverge.
+- Hard-code the expected 7 legacy slugs as a safety allowlist.
+- Assert all 7 target rows exist.
+- Assert all 7 target rows are currently learner_visible=true before update, unless the script is running idempotently after a prior archive.
+- Assert enrolled_count = 0 for every target.
+- Assert no upgraded Phase 11 slug is targeted.
+- Assert every upgraded Phase 11 row remains learner_visible=true.
+- Set learner_visible=false only for the 7 old legacy rows.
+- Print before/after hidden counts and target rows.
+- Script must be idempotent.
+
+T002 — Add/update visibility tests
+Verify:
+- 7 legacy slugs return 404 on learner-facing routes.
+- 7 upgraded Phase 11 slugs return 200.
+- Admin/reporting still sees archived rows.
+- hiddenCount increases by exactly 7 compared with the Phase 10 baseline.
+- /projects excludes the 7 archived legacy slugs.
+- Runtime mapToCourse gate remains green.
+
+T003 — Add dual-denominator pedagogy/catalog reporting
+Update audit-pedagogy.ts and catalog-report.ts so reports clearly separate:
+- total project count
+- learner-visible project count
+- hidden/archive count
+- fully enriched total count
+- fully enriched learner-visible count
+- all-project pedagogy ratio
+- learner-visible pedagogy ratio
+
+T004 — Add legacyReplacements to /api/admin/quality
+Expose upgraded-to-legacy replacement pairs and whether each legacy row is hidden.
+
+T005 — Run final Phase 12A gates
+Run:
+
+- pnpm run typecheck
+- API tests
+- curriculum-quality tests
+- execution-core tests
+- wave report
+- pedagogy audit
+- catalog report
+- lineage inverse check
+- hidden/archive count check
+- architect review
+
+Stop immediately if:
+
+- any target legacy row has enrolled_count > 0
+- DB-derived replacement set differs from code-derived set
+- any upgraded Phase 11 slug is accidentally targeted
+- any upgraded Phase 11 row becomes hidden
+- learner-facing hidden slugs do not return 404
+- admin/reporting cannot see archived rows
+- hidden count does not increase by exactly 7
+- runtime mapToCourse appears outside the allowlist
+- typecheck or tests fail
+- learner-visible pedagogy ratio regresses unexpectedly
+
+Out of scope:
+- Do not start beginner-tier seeding.
+- Do not address the 31 remaining needs_revision stubs.
+- Do not mass-generate projects.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId requirements.
+- Do not change course taxonomy.
+- Do not touch live cloud credentials.
+- Do not delete rows.
+
+After implementation, provide a final Phase 12A report with:
+
+1. Archived legacy slugs
+2. Upgraded slugs confirmed still visible
+3. Hidden count before/after
+4. Admin legacyReplacements output
+5. Pedagogy audit total vs learner-visible denominator
+6. Catalog report summary
+7. Lineage inverse check
+8. Test/typecheck results
+9. Runtime mapToCourse gate result
+10. Architect verdict
+11. Changed files
+12. Final checkpoint/commit hash
+
+Do not start Phase 12B.
