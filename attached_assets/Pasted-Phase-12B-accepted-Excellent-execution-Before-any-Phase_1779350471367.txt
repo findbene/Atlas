@@ -1,0 +1,165 @@
+Phase 12B accepted. Excellent execution.
+
+Before any Phase 13 implementation, complete two things in one pass:
+
+1. Surface the final auto-checkpoint / commit hash for Phase 12B.
+2. Prepare a Phase 13 decision brief only. Do not implement anything.
+
+First, confirm:
+
+- Final Phase 12B checkpoint hash
+- git/status equivalent: confirm no unexpected uncommitted implementation files
+- docs/phases/phase-12b-de-skeleton-rebuild-completion.md exists
+- replit.md marks Phase 12B CLOSED / SHIP
+- Phase 13 is not started
+
+Then prepare the Phase 13 decision brief.
+
+Current confirmed state after Phase 12B:
+- Phase 11 CLOSED / SHIP
+- Phase 12A CLOSED / SHIP
+- Phase 12B CLOSED / SHIP
+- hiddenCount: 32
+- legacyReplacements: 10
+- learner-visible pedagogy KPI: 43/43
+- all visible learner-facing projects are now fully enriched according to the pedagogy audit
+- visible thin stubs reduced from 5 to 2
+- remaining thin/odd visible rows appear to be csv-to-postgres-pipeline and dbt-data-models
+- wave-report: 41/41 passing
+- API tests: 89/89 passing
+- curriculum-quality: 54/54 passing
+- execution-core: 4/4 passing
+- anchor drift: 0.00
+- lineage integrity: 0/0/0/0
+- rubric v1.0.1 remains frozen
+- candidateId remains required
+- 9-course taxonomy remains unchanged
+- no cloud credential work has started
+
+Phase 13 should be planning only.
+
+Analyze the best next move across these options:
+
+Option A — Difficulty taxonomy/backfill
+Goal:
+Make the projects.difficulty field useful by designing and safely backfilling beginner/intermediate/advanced difficulty across the current learner-visible catalog.
+
+Evaluate:
+- Whether the current schema supports this cleanly
+- Whether difficulty should be inferred from candidate metadata, authored slug/source, project content, or a manual allowlist
+- How to avoid mislabeling advanced projects as beginner
+- Whether frontend filtering already exists or would need UI work
+- Whether this should be admin-only first before learner-facing filters
+
+Option B — Beginner-tier seeding
+Goal:
+Add beginner-friendly entry projects across the 9 courses, now that visible-content quality is clean.
+
+Evaluate:
+- Whether to seed all 9 courses or only the most underserved courses first
+- Whether each beginner seed needs a synthetic candidate
+- Expected effect on visible project count and pedagogy KPI
+- Risk of adding greenfield content too quickly
+
+Option C — Resolve the final 2 visible thin/odd rows
+Goal:
+Inspect csv-to-postgres-pipeline and dbt-data-models and decide whether they should be:
+- left as intentional legacy anchors,
+- upgraded to 5-step authored modules,
+- archived/replaced,
+- or excluded from “thin stub” reporting because they are known anchor/special-case projects.
+
+Evaluate:
+- Current steps, score, learner_visible, lineage, enrolled_count, and role in anchor drift
+- Whether touching them risks destabilizing anchor scoring
+- Whether they should remain as canonical anchor projects
+
+Option D — Course coverage balancing
+Goal:
+Improve underserved courses like applied-llm-engineer, sql, python-libraries, mlops-engineer, analytics-engineer, and data-scientist.
+
+Evaluate:
+- Current per-course visible counts
+- Authored/enriched counts per course
+- Which courses have the weakest learner journey
+- Whether to add 2–3 projects to the lowest-coverage courses instead of doing 9 beginner seeds
+
+Option E — Platform polish / learner UX
+Goal:
+Improve the learner-facing platform now that content quality is clean.
+
+Evaluate:
+- Course page clarity
+- Project cards
+- Difficulty badges
+- progress/resume behavior
+- admin quality dashboards
+- search/filter/sort
+- whether UX work should come before more content
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Expected catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Required tests
+10. Expected effect on:
+   - learner-visible count
+   - hidden/archive count
+   - pedagogy KPI
+   - course coverage
+   - difficulty distribution
+   - learner trust
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 13 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement without destabilizing the catalog or creating too much greenfield content.
+
+Important:
+Given cost-per-iteration, the recommended Phase 13 should be executable in one cohesive implementation pass after approval.
+
+The recommended Phase 13 plan should include:
+
+1. Exact scope
+2. Exact project slugs involved, if any
+3. Whether work is:
+   - metadata/backfill
+   - authoring
+   - archive/replacement
+   - UI/reporting
+   - tests only
+4. Required files
+5. Required scripts
+6. Required tests
+7. Required reports
+8. Final gates
+9. Expected final metrics
+10. Hard stop conditions
+11. Out-of-scope boundaries
+
+Include a section titled:
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Constraints:
+- Do not implement Phase 13 yet.
+- Do not mass-generate projects.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId.
+- Do not change the 9-course taxonomy.
+- Do not use mapToCourse at runtime.
+- Do not delete rows.
+- Preserve archive-by-hiding.
+- Preserve learner_visible filtering.
+- Preserve admin visibility into archived rows.
+- Do not touch cloud credentials.
+- Do not start Phase 13 implementation after the brief.
