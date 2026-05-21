@@ -1,0 +1,94 @@
+Phase 12A accepted. Good closure.
+
+Now begin Phase 12B planning only. Do not implement anything yet.
+
+Goal:
+Prepare a careful Phase 12B decision brief for the next catalog-improvement move after Phase 12A.
+
+Current confirmed state:
+- Phase 11: CLOSED / SHIP
+- Phase 12A: CLOSED / SHIP
+- hiddenCount: 29
+- learner-visible pedagogy KPI: 40/43
+- all-project pedagogy ratio: 40/72
+- 7 replaced Phase 11 legacy twins archived
+- 7 upgraded Phase 11 projects remain visible
+- 31 needs_revision legacy stubs remain
+- beginner-tier coverage is still empty across courses
+- rubric v1.0.1 is frozen
+- candidateId remains required
+- 9-course taxonomy remains unchanged
+- no cloud credential work should start
+
+Prepare a Phase 12B planning report with no code changes.
+
+Analyze the next best move across these possible directions:
+
+Option A — Beginner-tier seeding
+Seed beginner projects across the 9 Atlas courses so every course has at least one learner-friendly entry project.
+
+Option B — Continue legacy remediation
+Pick the weakest remaining needs_revision stubs and rebuild/archive them using the Phase 11 + Phase 12A pattern.
+
+Option C — Hybrid batch
+Do a small mixed batch that adds beginner coverage while also replacing the worst remaining visible weak stubs.
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Expected catalog-quality impact
+5. Risk level
+6. Estimated implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Required tests
+10. Expected effect on:
+   - learner-visible project count
+   - hidden/archive count
+   - pedagogy audit
+   - course coverage
+   - beginner/intermediate/advanced distribution
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then produce a recommended Phase 12B scope.
+
+My preference:
+Choose the smallest scope that creates the largest learner-facing improvement without destabilizing the catalog.
+
+Do not mass-generate projects.
+
+The recommended Phase 12B plan should include:
+
+1. Exact project cohort
+2. Exact slugs involved
+3. Whether each project is:
+   - new beginner seed
+   - rebuilt replacement
+   - archive target
+4. Course and difficulty distribution
+5. Required authoring work
+6. Required lineage work
+7. Required visibility/archive work
+8. Required tests
+9. Required reports
+10. Final gates
+11. Estimated effect on learner-visible KPI
+12. Estimated effect on coverage gaps
+
+Important constraints:
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId.
+- Do not change the 9-course taxonomy.
+- Do not use mapToCourse at runtime.
+- Do not delete rows.
+- Preserve archive-by-hiding pattern.
+- Preserve learner_visible filtering.
+- Preserve admin visibility into archived rows.
+- Do not touch live cloud credentials.
+- Do not begin implementation after the plan.
+- Stop after the Phase 12B decision brief and wait for approval.
+
+Also include a section titled “What I would do next if approved” with the exact first 5 implementation steps, but do not execute them.
