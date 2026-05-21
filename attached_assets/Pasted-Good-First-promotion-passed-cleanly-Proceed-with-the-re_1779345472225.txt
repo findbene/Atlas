@@ -1,0 +1,67 @@
+Good. First promotion passed cleanly.
+
+Proceed with the remaining 6 Phase 11 promotions, but keep the process controlled.
+
+Promote the remaining projects one at a time in this order:
+
+1. ai-engineer-model-serving-canary
+2. cloud-data-engineer-delta-lake-lakehouse
+3. cloud-data-engineer-snowflake-data-warehouse
+4. data-engineering-airflow-etl-dag
+5. data-engineering-api-to-warehouse-ingestion
+6. data-engineering-data-quality-framework
+
+For each project, report:
+
+1. Promotion result
+2. Quality score and dimension breakdown
+3. DB course vs intended course
+4. sourceCandidateId / lineage status
+5. replace_candidate_slug mapping status
+6. pedagogyComplete status
+7. validationCoverage
+8. portfolioReady status
+9. anchor drift result
+10. learner_visible behavior confirmation
+11. runtime mapToCourse gate result
+
+Stop immediately if any project fails one of these gates:
+
+- quality score < 70
+- dbCourse does not match intendedCourse
+- sourceCandidateId missing or ambiguous
+- replace_candidate_slug mapping invalid
+- validation coverage incomplete
+- pedagogy incomplete
+- anchor drift outside ±1.0
+- learner_visible behavior unexpectedly changes
+- runtime mapToCourse appears outside the allowlist
+- pnpm run typecheck fails
+
+After all 6 pass, run the final Phase 11 gates:
+
+1. pnpm run typecheck
+2. API tests
+3. curriculum-quality tests
+4. execution-core tests
+5. wave report
+6. pedagogy audit
+7. 9-course inventory report
+8. lineage inverse check
+9. hidden/archive count check
+10. architect review
+
+Final report should include:
+
+- all 7 upgraded projects with scores
+- pedagogy audit before/after, especially whether it improved from 34/65 to at least 39/65
+- final anchor drift
+- final changed files
+- final commit hash
+- any remaining Phase 12 candidates or unresolved risks
+
+Do not start Phase 12.
+Do not mass-generate projects.
+Do not change rubric v1.0.1.
+Do not change learner_visible filtering.
+Do not touch live cloud credential work.
