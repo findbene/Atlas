@@ -1,0 +1,268 @@
+Approved. Proceed with Phase 13: Underserved Course Seeding + Anchor Reporting Hygiene.
+
+Important operating instruction:
+Complete the full approved Phase 13 scope in one cohesive implementation pass. Do not stop after each project if gates are green. Promote sequentially internally, run anchor-check after each promote, and stop only if a hard stop condition triggers.
+
+Chosen Phase 13 scope:
+1. Add 4 net-new authored projects, one each for the 4 underserved courses currently stuck at 2 visible projects:
+   - mlops-engineer
+   - applied-llm-engineer
+   - python-libraries
+   - sql
+
+2. Add anchor reporting hygiene:
+   - Add an is_anchor flag for the 2 rubric anchors.
+   - Flag only:
+     - csv-to-postgres-pipeline
+     - dbt-data-models
+   - Exclude anchors from visible thin-stub reporting.
+   - Surface anchorCount and anchorSlugs in admin/reporting.
+   - Do not modify anchor project content, steps, scoring, or lineage.
+
+Approved project slugs:
+1. mlops-engineer-feature-pipeline-monitoring
+2. applied-llm-engineer-rag-evaluation-harness
+3. python-libraries-pydantic-config-and-cli
+4. sql-window-functions-and-cte-mastery
+
+Do not leave slugs TBD. Use the four slugs above unless an existing slug collision is detected. If there is a collision, stop and report.
+
+Phase 13 goals:
+- learner-visible count: 43 → 47
+- hidden count: remain 32
+- per-course minimum visible count: 2 → 3
+- wave-report: expected 45/45 passing
+- learner-visible pedagogy KPI: expected 47/47
+- visible thin stubs excluding anchors: 0
+- anchorCount: 2
+- anchor drift: target 0.00, hard limit ±1.0
+- lineage integrity: 0/0/0/0, orphanCandidates=0
+
+T000 — Pre-state snapshot
+Create a Phase 13 baseline snapshot with:
+- totalProjects
+- learnerVisible
+- hidden
+- enrichedAll
+- enrichedVisible
+- per-course visible counts
+- per-course authored counts
+- visibleThinStubs
+- anchor candidates before is_anchor
+- lineage counters
+- legacyReplacements count
+- current wave-report count
+- current hiddenCount
+
+Write it to an appropriate .local or scripts/.local path.
+
+T001 — Minimal schema/metadata support for anchors
+Add only the following schema change:
+- projects.is_anchor boolean NOT NULL DEFAULT false
+
+Do not add any other schema changes.
+
+Push the schema safely.
+
+Add an idempotent script to flag exactly these two anchors:
+- csv-to-postgres-pipeline
+- dbt-data-models
+
+Requirements:
+- Assert both rows exist.
+- Assert both rows are learner_visible=true.
+- Assert exactly 2 rows become is_anchor=true.
+- Assert no other row is marked is_anchor=true.
+- Do not edit project content.
+- Do not edit project steps.
+- Do not edit rubric targets.
+- Do not edit scores.
+- Do not edit candidateId.
+- Do not archive either anchor.
+
+T002 — Reporting/admin anchor hygiene
+Update reporting/admin behavior so:
+- visibleThinStubs excludes is_anchor=true rows.
+- admin/reporting exposes:
+  - anchorCount
+  - anchorSlugs
+  - visibleThinStubsExcludingAnchors
+- The previous raw thin-stub count may remain for internal visibility, but the headline remediation metric should exclude anchors.
+- /api/admin/quality should include anchorCount and anchorSlugs.
+- Do not alter learner-facing visibility behavior for anchors.
+
+T003 — Candidate and lineage setup for 4 new Phase 13 projects
+Add:
+- NEW_COURSE_SEED_FOR_SLUG_PHASE13 with exactly 4 entries.
+- 4 COURSE_FOR_AUTHORED_SLUG entries.
+- 4 synthetic project_candidates rows with source='phase13_course_seed', status='approved', and clear reviewer notes.
+- Idempotent backfill script: scripts/src/backfill-phase13-candidates.ts
+- Package script for the backfill.
+
+Keep:
+- rubric v1.0.1 unchanged
+- AuthoredProject.candidateId required
+- 9-course taxonomy unchanged
+- no runtime mapToCourse usage
+
+Do not implement difficulty taxonomy/backfill in this phase.
+Do not add learner-facing difficulty filters.
+If existing authoring types require internal difficulty metadata, keep it consistent and report it, but do not treat Phase 13 as the difficulty system rollout.
+
+T004 — Author and register 4 new projects
+Create and register these authored modules:
+
+1. scripts/src/authored/mlops-engineer__feature-pipeline-monitoring.ts
+   slug: mlops-engineer-feature-pipeline-monitoring
+   course: mlops-engineer
+   goal: production-style feature pipeline monitoring with freshness, schema drift, null-rate checks, SLA alerts, and model-impact reporting.
+
+2. scripts/src/authored/applied-llm-engineer__rag-evaluation-harness.ts
+   slug: applied-llm-engineer-rag-evaluation-harness
+   course: applied-llm-engineer
+   goal: RAG evaluation harness with retrieval metrics, answer faithfulness checks, citation validation, regression test set, and release gate.
+
+3. scripts/src/authored/python-libraries__pydantic-config-and-cli.ts
+   slug: python-libraries-pydantic-config-and-cli
+   course: python-libraries
+   goal: production Python package using Pydantic settings, Typer/argparse CLI, structured config validation, logging, tests, and packaging-ready layout.
+
+4. scripts/src/authored/sql__window-functions-and-cte-mastery.ts
+   slug: sql-window-functions-and-cte-mastery
+   course: sql
+   goal: SQL analytics project using CTEs, window functions, cohort metrics, rankings, retention logic, and query validation.
+
+Each module must include:
+- native course
+- candidateId
+- source_candidate_id lineage support
+- 5 full steps
+- validation_config
+- expected_outputs
+- pedagogy_config
+- 5 progressive hint levels
+- success_feedback
+- failure_feedback
+- portfolio_relevance
+- README outline
+- production-realistic framing
+- strong role relevance
+- real validation kinds
+- no manual_review shortcuts unless already accepted by the framework
+
+Promote internally in this order:
+1. sql-window-functions-and-cte-mastery
+2. python-libraries-pydantic-config-and-cli
+3. applied-llm-engineer-rag-evaluation-harness
+4. mlops-engineer-feature-pipeline-monitoring
+
+After each promote:
+- verify score >= 70
+- verify DB course matches intended course
+- verify sourceCandidateId/candidateId present
+- verify lineage is unambiguous
+- verify pedagogyComplete=true
+- verify validationCoverage=100%
+- verify portfolioReady=true
+- run anchor-check
+- verify anchor drift <= ±1.0
+- verify runtime mapToCourse gate remains green
+
+T005 — Tests
+Add Phase 13 coverage tests verifying:
+- all 4 new slugs return 200 on learner-facing routes
+- underserved course counts move from 2 → 3
+- total learner-visible projects move from 43 → 47
+- hidden count remains 32
+- admin exposes anchorCount=2
+- admin exposes the exact 2 anchor slugs
+- visibleThinStubs excluding anchors = 0
+- 9-course taxonomy remains unchanged
+- no runtime mapToCourse regression
+
+T006 — Final gates
+Run:
+- pnpm run typecheck
+- API tests
+- curriculum-quality tests
+- execution-core tests
+- wave report
+- pedagogy audit
+- catalog report
+- lineage inverse check
+- admin quality check
+- visible thin-stub report
+- anchor reporting check
+- runtime mapToCourse gate
+- architect review
+
+Expected final metrics:
+- learnerVisible: 43 → 47
+- hiddenCount: 32 unchanged
+- per-course minimum visible count: 2 → 3
+- wave-report: 45/45 passing target
+- visible pedagogy KPI: 47/47 target
+- anchorCount: 2
+- anchorSlugs:
+  - csv-to-postgres-pipeline
+  - dbt-data-models
+- visibleThinStubs excluding anchors: 0
+- lineage integrity: 0/0/0/0
+- orphanCandidates: 0
+- anchor drift: 0.00 target, ±1.0 max
+
+Hard stop conditions:
+- any slug collision
+- any project scores <70
+- anchor drift > ±1.0
+- DB course mismatch
+- candidateId/sourceCandidateId missing
+- lineage ambiguity or orphan candidate appears
+- fewer than 3 of 4 projects land successfully
+- is_anchor marks anything other than the 2 known anchors
+- anchor content/steps/scores/rubric targets are modified
+- hiddenCount changes unexpectedly
+- learner-visible count does not become 47 after all 4 projects land
+- runtime mapToCourse appears outside allowlist
+- typecheck or tests fail
+- architect finds severe/blocking issue
+
+Out of scope:
+- Do not start beginner-tier seeding across all 9 courses.
+- Do not implement difficulty backfill.
+- Do not implement difficulty filtering UI.
+- Do not touch UX polish beyond admin/reporting needed for anchor hygiene.
+- Do not modify csv-to-postgres-pipeline content.
+- Do not modify dbt-data-models content.
+- Do not recalibrate anchors.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId requirements.
+- Do not change the 9-course taxonomy.
+- Do not touch cloud credentials.
+- Do not delete rows.
+- Do not archive any row.
+- Do not start Phase 14.
+
+Final report must include:
+1. Pre-state snapshot summary
+2. Schema change summary for is_anchor
+3. Anchor flagging result
+4. 4 promoted projects with scores and dimension breakdowns
+5. DB course vs intended course for each
+6. Candidate IDs and lineage status
+7. Per-course count before/after
+8. Learner-visible count before/after
+9. Hidden count before/after
+10. Pedagogy audit all-project vs learner-visible denominator
+11. Wave-report result
+12. Catalog report summary
+13. Visible thin-stub count before/after, with anchors excluded
+14. Admin anchorCount and anchorSlugs output
+15. Lineage inverse check
+16. Test/typecheck results
+17. Runtime mapToCourse gate result
+18. Architect verdict
+19. Changed files
+20. DB writes performed
+21. Final checkpoint/commit hash
+22. Confirmation that Phase 14 was not started

@@ -62,6 +62,13 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   "data-engineering-kafka-streaming-pipeline":      "data-engineering",
   "data-engineering-ml-feature-store":              "data-engineering",
   "data-engineering-spark-batch-processing":        "data-engineering",
+  // Phase 13 — net-new course-seed (NOT a revise/upgrade of a legacy slug).
+  // Synthetic candidates marked `source='phase13_course_seed'`. One project
+  // each for the 4 courses stuck at 2 visible projects post-P12B.
+  "mlops-engineer-feature-pipeline-monitoring":     "mlops-engineer",
+  "applied-llm-engineer-rag-evaluation-harness":    "applied-llm-engineer",
+  "python-libraries-pydantic-config-and-cli":       "python-libraries",
+  "sql-window-functions-and-cte-mastery":           "sql",
 };
 
 /**
@@ -167,6 +174,23 @@ export const PHASE12B_LEGACY_SLUG_MAP: Record<string, string> = {
   "spark-batch-processing":    "data-engineering-spark-batch-processing",
 };
 
+/**
+ * Phase 13 — net-new course-seed cohort. UNLIKE Phase 9/10/11/12B, these
+ * are NOT upgrades of an existing legacy slug: each is a brand-new project
+ * authored to lift its course out of the 2-visible underserved tier. No
+ * legacy twin to archive. Synthetic candidates marked
+ * `source='phase13_course_seed'` by `backfill:phase13-candidates`.
+ *
+ * Map keys = authored slug. Values = pinned candidate UUIDs (so the
+ * backfill is idempotent across environments).
+ */
+export const NEW_COURSE_SEED_FOR_SLUG_PHASE13: Record<string, string> = {
+  "mlops-engineer-feature-pipeline-monitoring":     "f1475ac2-57de-4388-9bbc-b42536475870",
+  "applied-llm-engineer-rag-evaluation-harness":    "02586bd3-68ef-4499-9ccd-c53647586981",
+  "python-libraries-pydantic-config-and-cli":       "13697ce4-79f0-44aa-9dde-d64758697a92",
+  "sql-window-functions-and-cte-mastery":           "24708df5-8a01-45bb-9eef-e758697a8ba3",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -235,6 +259,11 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   "data-engineering-kafka-streaming-pipeline":      "c3142df9-24ab-4055-9789-819203142536",
   "data-engineering-ml-feature-store":              "d4253ea0-35bc-4166-989a-92031425364a",
   "data-engineering-spark-batch-processing":        "e5364fb1-46cd-4277-9aab-a3142536475b",
+  // Phase 13 — net-new course-seed (source='phase13_course_seed').
+  "mlops-engineer-feature-pipeline-monitoring":     "f1475ac2-57de-4388-9bbc-b42536475870",
+  "applied-llm-engineer-rag-evaluation-harness":    "02586bd3-68ef-4499-9ccd-c53647586981",
+  "python-libraries-pydantic-config-and-cli":       "13697ce4-79f0-44aa-9dde-d64758697a92",
+  "sql-window-functions-and-cte-mastery":           "24708df5-8a01-45bb-9eef-e758697a8ba3",
 };
 
 /**

@@ -76,6 +76,20 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
     // are filtered from learner-facing routes (`learnerVisible=false`).
     hiddenCount: 0,
     hiddenSlugs: [] as string[],
+    // Phase 13 — rubric calibration anchors. Flagged via `projects.is_anchor`
+    // (see `backfill:phase13-anchor-flag`). Anchors are intentionally not
+    // remediated and are excluded from `visibleThinStubs` so the headline
+    // thin-stub metric reflects genuine remediation work only. The list is
+    // expected to stay at exactly 2 (csv-to-postgres-pipeline + dbt-data-models)
+    // for the lifetime of `RUBRIC_VERSION='1.0.1'`.
+    anchorCount: 0,
+    anchorSlugs: [] as string[],
+    // Visible projects with <5 authored steps AND not flagged as an anchor.
+    // This is the actionable thin-stub backlog; anchors are excluded above.
+    visibleThinStubs: {
+      count: 0,
+      slugs: [] as Array<{ slug: string; course: AtlasCourseSlug; steps: number }>,
+    },
     // Phase 12A — replace_candidate_slug pairs. For every project row that
     // declares it supersedes a legacy slug (via `replace_candidate_slug`),
     // surface the pair + whether the legacy row is currently hidden. Gives
@@ -112,6 +126,22 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
     if (p.learnerVisible === false) {
       summary.hiddenCount++;
       summary.hiddenSlugs.push(p.slug);
+    }
+    if (p.isAnchor === true) {
+      summary.anchorCount++;
+      summary.anchorSlugs.push(p.slug);
+    }
+    // Visible-thin-stubs surface: a learner-visible row with <5 authored
+    // steps that is NOT a calibration anchor. Anchors are deliberately
+    // 1-step demo content; excluding them prevents the metric from
+    // permanently bottoming out at 2.
+    if (p.learnerVisible !== false && p.isAnchor !== true && (p.totalSteps ?? 0) < 5) {
+      summary.visibleThinStubs.count++;
+      summary.visibleThinStubs.slugs.push({
+        slug: p.slug,
+        course,
+        steps: p.totalSteps ?? 0,
+      });
     }
     if (p.replaceCandidateSlug) {
       summary.legacyReplacements.count++;

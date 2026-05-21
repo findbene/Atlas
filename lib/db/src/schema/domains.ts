@@ -111,6 +111,15 @@ export const projects = pgTable("projects", {
   // self-reference; existence + visibility of the referent is enforced by
   // the backfill script + the admin route surface, not the DB.
   replaceCandidateSlug: text("replace_candidate_slug"),
+  // Phase 13 — marks the two rubric calibration anchors
+  // (csv-to-postgres-pipeline, dbt-data-models). Anchors are intentionally
+  // not scored or remediated and MUST be excluded from "thin stub"
+  // reporting so the headline visible-thin-stubs metric stays accurate.
+  // Defaults FALSE so additive migration is safe; flipped to TRUE only by
+  // `backfill:phase13-anchor-flag`. Editing anchor content or unflagging
+  // them would invalidate `RUBRIC_VERSION='1.0.1'` calibration — gated
+  // out of scope by Phase 13 invariants.
+  isAnchor: boolean("is_anchor").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [

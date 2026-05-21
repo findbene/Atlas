@@ -41,6 +41,11 @@ import { dataEngineeringDataQualityFramework } from "./data-engineering__data-qu
 import { dataEngineeringKafkaStreamingPipeline } from "./data-engineering__kafka-streaming-pipeline";
 import { dataEngineeringMlFeatureStore } from "./data-engineering__ml-feature-store";
 import { dataEngineeringSparkBatchProcessing } from "./data-engineering__spark-batch-processing";
+// Phase 13 — net-new course-seed (one each for the 4 underserved courses).
+import { sqlWindowFunctionsAndCteMastery } from "./sql__window-functions-and-cte-mastery";
+import { pythonLibrariesPydanticConfigAndCli } from "./python-libraries__pydantic-config-and-cli";
+import { appliedLlmEngineerRagEvaluationHarness } from "./applied-llm-engineer__rag-evaluation-harness";
+import { mlopsEngineerFeaturePipelineMonitoring } from "./mlops-engineer__feature-pipeline-monitoring";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -108,6 +113,11 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   dataEngineeringKafkaStreamingPipeline,
   dataEngineeringMlFeatureStore,
   dataEngineeringSparkBatchProcessing,
+  // Phase 13 — net-new course-seed (lifts 4 underserved courses 2 → 3).
+  sqlWindowFunctionsAndCteMastery,
+  pythonLibrariesPydanticConfigAndCli,
+  appliedLlmEngineerRagEvaluationHarness,
+  mlopsEngineerFeaturePipelineMonitoring,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {
