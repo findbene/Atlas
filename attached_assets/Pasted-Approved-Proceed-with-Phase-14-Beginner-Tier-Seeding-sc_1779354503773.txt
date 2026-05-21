@@ -1,0 +1,276 @@
+Approved. Proceed with Phase 14: Beginner-Tier Seeding, scope-capped to 5 projects.
+
+Important operating instruction:
+Complete the full approved Phase 14 scope in one cohesive implementation pass. Do not stop after each project if gates are green. Promote sequentially internally, run anchor-check after each promote, and stop only if a hard stop condition triggers.
+
+Chosen Phase 14 scope:
+Seed 5 net-new beginner-tier projects across 5 courses, plus add a read-only difficulty audit/admin reporting surface.
+
+Approved courses and slugs:
+
+1. sql
+   slug: sql-beginner-select-where-join-essentials
+   goal: beginner SQL foundations using SELECT, WHERE, JOIN, GROUP BY, simple aggregations, and query validation.
+
+2. python-libraries
+   slug: python-libraries-beginner-pandas-essentials
+   goal: beginner Pandas workflow covering loading CSVs, inspecting data, filtering, grouping, cleaning missing values, and exporting a clean dataset.
+
+3. data-engineering
+   slug: data-engineering-beginner-csv-cleanup-pipeline
+   goal: beginner data engineering pipeline that reads messy CSV data, validates schema, cleans records, writes a trusted output, and produces a simple data-quality report.
+
+4. analytics-engineer
+   slug: analytics-engineer-beginner-spreadsheet-to-sql-models
+   goal: beginner analytics engineering project converting spreadsheet-style business data into clean SQL models, metrics, and a small reporting layer.
+
+5. data-scientist
+   slug: data-scientist-beginner-eda-and-summary-stats
+   goal: beginner data science project covering exploratory data analysis, summary statistics, distributions, missing values, basic visual reasoning, and portfolio-ready findings.
+
+Do not add beginner projects for:
+- ai-engineer
+- mlops-engineer
+- applied-llm-engineer
+- cloud-data-engineer
+
+Those are deferred because true beginner modules in those courses require more careful prerequisite design.
+
+Phase 14 goals:
+- learner-visible projects: 47 → 52
+- hidden projects: remain 32
+- visible pedagogy KPI: 52/52 target
+- wave-report: 50/50 target
+- beginner visible count: 1 → 6 minimum
+- anchorCount remains 2
+- anchorSlugs unchanged:
+  - csv-to-postgres-pipeline
+  - dbt-data-models
+- anchor drift target: 0.00, hard limit ±1.0
+- lineage integrity: 0/0/0/0, orphanCandidates=0
+- no runtime mapToCourse regression
+
+T000 — Pre-state snapshot
+Create a Phase 14 baseline snapshot with:
+- totalProjects
+- learnerVisible
+- hidden
+- pedagogy all-project denominator
+- pedagogy learner-visible denominator
+- difficulty distribution across learner-visible projects
+- per-course visible counts
+- per-course difficulty mix
+- anchorCount
+- anchorSlugs
+- visibleThinStubs excluding anchors
+- lineage counters
+- legacyReplacements count
+- current wave-report count
+- current hiddenCount
+
+Write it to an appropriate .local or scripts/.local path.
+
+T001 — Candidate and lineage setup
+Add:
+- BEGINNER_CANDIDATE_FOR_SLUG_PHASE14 with exactly 5 entries.
+- 5 COURSE_FOR_AUTHORED_SLUG entries.
+- 5 synthetic project_candidates rows with source='phase14_beginner', status='approved', and clear reviewer notes.
+- Idempotent backfill script: scripts/src/backfill-phase14-candidates.ts
+- Package script for the backfill.
+
+Requirements:
+- No slug collisions.
+- Do not change rubric v1.0.1.
+- Do not loosen AuthoredProject.candidateId.
+- Do not change the 9-course taxonomy.
+- Do not use mapToCourse at runtime.
+- Do not change anchor targets.
+- Do not modify csv-to-postgres-pipeline.
+- Do not modify dbt-data-models.
+
+T002 — Author and register 5 beginner projects
+Create and register:
+
+1. scripts/src/authored/sql__beginner-select-where-join-essentials.ts
+2. scripts/src/authored/python-libraries__beginner-pandas-essentials.ts
+3. scripts/src/authored/data-engineering__beginner-csv-cleanup-pipeline.ts
+4. scripts/src/authored/analytics-engineer__beginner-spreadsheet-to-sql-models.ts
+5. scripts/src/authored/data-scientist__beginner-eda-and-summary-stats.ts
+
+Each module must include:
+- native course
+- difficulty_level or equivalent project difficulty set to beginner, following existing field conventions
+- candidateId
+- source_candidate_id lineage support
+- full beginner-appropriate step sequence
+- validation_config
+- expected_outputs
+- pedagogy_config
+- 5 progressive hint levels
+- success_feedback
+- failure_feedback
+- portfolio_relevance
+- README outline
+- role-relevant but truly beginner-friendly framing
+- real validation kinds
+- no manual_review shortcuts unless already accepted by the framework
+
+Beginner quality rules:
+- Step 1 must not require advanced prerequisites.
+- Avoid advanced infra assumptions.
+- Keep tasks concrete, local, and portfolio-relevant.
+- Use more scaffolding than advanced modules.
+- Make each final artifact portfolio-visible.
+- Do not label an advanced-style project as beginner.
+
+Promote internally in this order:
+1. sql-beginner-select-where-join-essentials
+2. python-libraries-beginner-pandas-essentials
+3. data-engineering-beginner-csv-cleanup-pipeline
+4. analytics-engineer-beginner-spreadsheet-to-sql-models
+5. data-scientist-beginner-eda-and-summary-stats
+
+After each promote:
+- verify score >= 70
+- verify DB course matches intended course
+- verify difficulty is beginner
+- verify sourceCandidateId/candidateId present
+- verify lineage is unambiguous
+- verify pedagogyComplete=true
+- verify validationCoverage=100%
+- verify portfolioReady=true
+- run anchor-check
+- verify anchor drift <= ±1.0
+- verify runtime mapToCourse gate remains green
+
+T003 — Difficulty audit and admin reporting
+Add a read-only difficulty audit script:
+- scripts/src/audit-difficulty.ts
+
+The audit should report:
+- total learner-visible projects by difficulty
+- per-course difficulty distribution
+- beginner count
+- intermediate count
+- advanced count
+- unlabeled/unknown count, if applicable
+- seeded Phase 14 beginner slugs and their courses
+
+Add additive admin reporting to /api/admin/quality:
+- difficultyDistribution
+- difficultyDistributionByCourse if straightforward and low-risk
+- beginnerCount
+- optionally phase14BeginnerSlugs if useful
+
+Do not perform global difficulty backfill in Phase 14.
+Do not flip existing project difficulty labels except the 5 new Phase 14 beginner projects.
+
+T004 — Tests
+Add Phase 14 coverage tests verifying:
+- all 5 new slugs return 200 on learner-facing routes
+- all 5 new projects are learner_visible=true
+- all 5 new projects are difficulty=beginner
+- learner-visible project count becomes 52
+- hidden count remains 32
+- beginner visible count is at least 6
+- seeded courses each have at least one beginner project
+- anchorCount remains 2
+- anchorSlugs remain exactly:
+  - csv-to-postgres-pipeline
+  - dbt-data-models
+- visibleThinStubs excluding anchors remains 0
+- lineage counters remain 0/0/0/0
+- 9-course taxonomy remains unchanged
+- runtime mapToCourse gate remains green
+
+T005 — Final gates
+Run:
+- pnpm run typecheck
+- API tests
+- curriculum-quality tests
+- execution-core tests
+- wave report
+- pedagogy audit
+- difficulty audit
+- catalog report
+- lineage inverse check
+- admin quality check
+- anchor reporting check
+- runtime mapToCourse gate
+- architect review
+
+Expected final metrics:
+- learnerVisible: 47 → 52
+- hiddenCount: 32 unchanged
+- visible pedagogy KPI: 52/52 target
+- wave-report: 50/50 target
+- beginner visible count: 1 → 6 minimum
+- seeded-course beginner coverage: 5 courses have a beginner project
+- anchorCount: 2 unchanged
+- visibleThinStubs excluding anchors: 0
+- lineage integrity: 0/0/0/0
+- orphanCandidates: 0
+- anchor drift: 0.00 target, ±1.0 max
+
+Hard stop conditions:
+- any slug collision
+- any project scores <70
+- any module is labeled beginner but requires advanced prerequisites in Step 1
+- anchor drift > ±1.0
+- DB course mismatch
+- difficulty not set to beginner for the 5 new projects
+- candidateId/sourceCandidateId missing
+- lineage ambiguity or orphan candidate appears
+- learner-visible count does not become 52 after all 5 land
+- hiddenCount changes unexpectedly
+- anchorCount changes unexpectedly
+- csv-to-postgres-pipeline or dbt-data-models are modified
+- runtime mapToCourse appears outside allowlist
+- typecheck or tests fail
+- architect finds severe/blocking issue
+
+Out of scope:
+- Do not seed all 9 courses in Phase 14.
+- Do not add beginner projects for ai-engineer, mlops-engineer, applied-llm-engineer, or cloud-data-engineer.
+- Do not implement global difficulty backfill.
+- Do not implement difficulty filtering UI.
+- Do not start learner UX redesign.
+- Do not do DE track split.
+- Do not recategorize ml-feature-store.
+- Do not recalibrate anchors.
+- Do not modify csv-to-postgres-pipeline.
+- Do not modify dbt-data-models.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId requirements.
+- Do not change the 9-course taxonomy.
+- Do not touch cloud credentials.
+- Do not delete rows.
+- Do not archive rows.
+- Do not start Phase 15.
+
+Final report must include:
+1. Pre-state snapshot summary
+2. Candidate and lineage setup summary
+3. 5 promoted projects with scores and dimension breakdowns
+4. DB course vs intended course for each
+5. Difficulty value for each new project
+6. Candidate IDs and lineage status
+7. Learner-visible count before/after
+8. Hidden count before/after
+9. Beginner count before/after
+10. Per-course difficulty distribution
+11. Pedagogy audit all-project vs learner-visible denominator
+12. Wave-report result
+13. Difficulty audit result
+14. Catalog report summary
+15. Admin difficultyDistribution output
+16. AnchorCount and anchorSlugs confirmation
+17. Visible thin-stub count excluding anchors
+18. Lineage inverse check
+19. Test/typecheck results
+20. Runtime mapToCourse gate result
+21. Architect verdict
+22. Changed files
+23. DB writes performed
+24. Final checkpoint/commit hash
+25. Confirmation that Phase 15 was not started
