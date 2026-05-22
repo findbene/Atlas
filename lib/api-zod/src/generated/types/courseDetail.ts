@@ -7,7 +7,14 @@
  */
 import type { Course } from "./course";
 import type { ProjectSummary } from "./projectSummary";
+import type { StartHereRecommendation } from "./startHereRecommendation";
 
 export type CourseDetail = Course & {
   projects: ProjectSummary[];
+  /** Phase 18 — Rule-based recommended first project for this
+course. Computed from the unfiltered learner-visible set so
+the recommendation is stable across difficulty filtering.
+Null only if the course has zero visible projects.
+ */
+  startHere?: StartHereRecommendation | null;
 };

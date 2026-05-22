@@ -276,6 +276,76 @@ export const GetCourseResponse = zod
             ),
         }),
       ),
+      startHere: zod
+        .object({
+          project: zod.object({
+            id: zod.string(),
+            slug: zod.string(),
+            title: zod.string(),
+            description: zod.string(),
+            difficulty: zod.enum([
+              "beginner",
+              "intermediate",
+              "advanced",
+              "expert",
+            ]),
+            tier: zod.enum(["free", "pro"]),
+            xpReward: zod.number(),
+            estimatedHours: zod.number(),
+            stepCount: zod.number(),
+            enrolledCount: zod.number(),
+            completionRate: zod.number(),
+            tags: zod.array(zod.string()),
+            position: zod.number(),
+            jobOutcomes: zod
+              .object({
+                roles: zod
+                  .array(zod.string())
+                  .describe("Real-world job titles this project maps to."),
+                skillsForResume: zod
+                  .array(zod.string())
+                  .describe(
+                    "Concrete skills suitable for a Skills section on a resume.",
+                  ),
+                resumeBullets: zod
+                  .array(zod.string())
+                  .describe(
+                    "Action-oriented resume bullet points based on the project work.",
+                  ),
+                interviewQuestions: zod
+                  .array(zod.string())
+                  .describe(
+                    "Common interview questions this project prepares the learner to answer.",
+                  ),
+                portfolioReadiness: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Short paragraph explaining how this project becomes a portfolio piece.",
+                  ),
+                marketSignal: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Why this skill matters in the 2026+ data engineering job market.",
+                  ),
+              })
+              .optional()
+              .describe(
+                "Career-readiness signals demonstrated by completing this project.",
+              ),
+          }),
+          kind: zod.enum(["start_here", "most_approachable_available"]),
+          reasonKey: zod.enum(["beginner_available", "no_beginner_available"]),
+          hasBeginner: zod.boolean(),
+        })
+        .describe(
+          "Phase 18 — Start Here recommendation. `kind=start_here` when at\nleast one beginner project exists in the course; otherwise\n`kind=most_approachable_available` and the frontend renders an\nhonest fallback message (no beginner projects yet).\n",
+        )
+        .nullish()
+        .describe(
+          "Phase 18 — Rule-based recommended first project for this\ncourse. Computed from the unfiltered learner-visible set so\nthe recommendation is stable across difficulty filtering.\nNull only if the course has zero visible projects.\n",
+        ),
     }),
   );
 

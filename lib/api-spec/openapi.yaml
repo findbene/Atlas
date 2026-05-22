@@ -837,8 +837,41 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/ProjectSummary"
+            startHere:
+              nullable: true
+              description: |
+                Phase 18 — Rule-based recommended first project for this
+                course. Computed from the unfiltered learner-visible set so
+                the recommendation is stable across difficulty filtering.
+                Null only if the course has zero visible projects.
+              allOf:
+                - $ref: "#/components/schemas/StartHereRecommendation"
           required:
             - projects
+
+    StartHereRecommendation:
+      type: object
+      description: |
+        Phase 18 — Start Here recommendation. `kind=start_here` when at
+        least one beginner project exists in the course; otherwise
+        `kind=most_approachable_available` and the frontend renders an
+        honest fallback message (no beginner projects yet).
+      properties:
+        project:
+          $ref: "#/components/schemas/ProjectSummary"
+        kind:
+          type: string
+          enum: [start_here, most_approachable_available]
+        reasonKey:
+          type: string
+          enum: [beginner_available, no_beginner_available]
+        hasBeginner:
+          type: boolean
+      required:
+        - project
+        - kind
+        - reasonKey
+        - hasBeginner
 
     ProjectSummary:
       type: object

@@ -149,8 +149,44 @@ export interface Course {
   authoredCount: number;
 }
 
+export type StartHereRecommendationKind =
+  (typeof StartHereRecommendationKind)[keyof typeof StartHereRecommendationKind];
+
+export const StartHereRecommendationKind = {
+  start_here: "start_here",
+  most_approachable_available: "most_approachable_available",
+} as const;
+
+export type StartHereRecommendationReasonKey =
+  (typeof StartHereRecommendationReasonKey)[keyof typeof StartHereRecommendationReasonKey];
+
+export const StartHereRecommendationReasonKey = {
+  beginner_available: "beginner_available",
+  no_beginner_available: "no_beginner_available",
+} as const;
+
+/**
+ * Phase 18 — Start Here recommendation. `kind=start_here` when at
+least one beginner project exists in the course; otherwise
+`kind=most_approachable_available` and the frontend renders an
+honest fallback message (no beginner projects yet).
+
+ */
+export interface StartHereRecommendation {
+  project: ProjectSummary;
+  kind: StartHereRecommendationKind;
+  reasonKey: StartHereRecommendationReasonKey;
+  hasBeginner: boolean;
+}
+
 export type CourseDetail = Course & {
   projects: ProjectSummary[];
+  /** Phase 18 — Rule-based recommended first project for this
+course. Computed from the unfiltered learner-visible set so
+the recommendation is stable across difficulty filtering.
+Null only if the course has zero visible projects.
+ */
+  startHere?: StartHereRecommendation | null;
 };
 
 export interface PaginatedProjects {

@@ -19,6 +19,7 @@ import {
   ALL_COURSES,
   type AtlasCourseSlug,
 } from "@workspace/curriculum-quality";
+import { pickStartHere } from "../lib/startHere";
 
 // Phase 16 — Learner-facing difficulty filter values. Mirrors the OpenAPI
 // enum on GET /courses/:slug. The `expert` tier exists in the DB enum but is
@@ -164,16 +165,19 @@ router.get("/courses/:slug", async (req, res) => {
       difficulty = rawDifficulty as LearnerDifficulty;
     }
 
-    const rows = await db.query.projects.findMany({
+    // Phase 18 — Always load the unfiltered visible set so `startHere`
+    // reflects the whole course (it must not change as the learner toggles
+    // the difficulty filter). The filtered subset is computed in-memory; 52
+    // rows max across the catalog → trivial.
+    const allVisible = await db.query.projects.findMany({
       where: and(
         eq(projects.course, courseSlug),
         eq(projects.learnerVisible, true),
-        difficulty ? eq(projects.difficultyLevel, difficulty) : undefined,
       ),
       orderBy: [asc(projects.orderIndex)],
     });
 
-    const projectList = rows.map(p => ({
+    const toSummary = (p: typeof allVisible[number]) => ({
       id: p.id,
       slug: p.slug,
       title: p.title,
@@ -188,9 +192,20 @@ router.get("/courses/:slug", async (req, res) => {
       tags: p.tags ?? [],
       position: p.orderIndex,
       jobOutcomes: p.jobOutcomes ?? undefined,
-    }));
+    });
 
-    const authoredCount = rows.filter(r => r.courseSource === "authored").length;
+    const allSummaries = allVisible.map(toSummary);
+    const projectList = difficulty
+      ? allSummaries.filter(p => p.difficulty === difficulty)
+      : allSummaries;
+    const authoredCount = allVisible.filter(r => r.courseSource === "authored").length;
+
+    // Phase 18 — Start Here recommendation. Computed from the unfiltered
+    // visible set (never the difficulty-filtered subset) so the card stays
+    // stable as the user toggles filters. `is_anchor` is intentionally
+    // NEVER passed into pickStartHere — the helper's signature can't accept
+    // it. Hidden/archived rows are excluded by `learner_visible=true` above.
+    const startHere = pickStartHere(allSummaries);
 
     res.json({
       slug: courseSlug,
@@ -198,10 +213,18 @@ router.get("/courses/:slug", async (req, res) => {
       description: meta.description,
       icon: meta.icon,
       color: meta.color,
-      status: rows.length > 0 ? "active" : "coming_soon",
-      projectCount: rows.length,
+      status: allVisible.length > 0 ? "active" : "coming_soon",
+      projectCount: difficulty ? projectList.length : allVisible.length,
       authoredCount,
       projects: projectList,
+      startHere: startHere
+        ? {
+            project: startHere.project,
+            kind: startHere.kind,
+            reasonKey: startHere.reasonKey,
+            hasBeginner: startHere.hasBeginner,
+          }
+        : null,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to get course");

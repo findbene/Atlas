@@ -15,6 +15,7 @@ import {
   parseDifficultyParam,
   type DifficultyFilterValue,
 } from "@/components/DifficultyFilter";
+import { StartHereCard } from "@/components/StartHereCard";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Database, Sparkles, Brain, LineChart, Layers, Bot, Cloud, Code2, Table,
@@ -137,6 +138,10 @@ export default function CourseDetail() {
           </div>
         </div>
       </div>
+
+      {course.startHere ? (
+        <StartHereCard recommendation={course.startHere} />
+      ) : null}
 
       <div className="mb-6">
         <DifficultyFilter value={difficulty} onChange={onFilterChange} />

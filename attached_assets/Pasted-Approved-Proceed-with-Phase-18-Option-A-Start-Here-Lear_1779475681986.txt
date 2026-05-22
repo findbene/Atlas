@@ -1,0 +1,286 @@
+Approved. Proceed with Phase 18 Option A: Start Here Learner Path.
+
+Important operating instruction:
+Complete the full approved Phase 18 scope in one cohesive implementation pass. Do not pause after each small file edit if gates are green. Stop only if a hard stop condition triggers.
+
+First, surface the final auto-checkpoint / commit hash for the Phase 17 closure-hardening pass. If it is not yet available, say so clearly and continue Phase 18 from the current clean state.
+
+Current confirmed state:
+
+* Phase 17 root-cause fix shipped.
+* Phase 17 closure-hardening added mergeQualityBreakdown regression coverage.
+* Tests: 192/192 passing.
+* wave-report: 50/50.
+* visible pedagogy: 52/52.
+* visible projects: 52.
+* hidden projects: 32.
+* difficulty distribution: 6 beginner / 1 intermediate / 45 advanced.
+* anchorCount: 2.
+* anchor drift: 0.00.
+* lineage: 0/0/0/0.
+* runtime mapToCourse guard: green.
+* Phase 18 not started.
+
+Approved Phase 18 scope:
+Add a rule-based “Start Here” learner path on course/project browsing surfaces.
+
+Goal:
+Help learners know the best first project to start with in each course, using trusted difficulty labels and existing visible project data.
+
+Core behavior:
+
+1. For courses with at least one beginner project:
+
+   * Show a “Start Here” recommendation using the best beginner project.
+   * Prefer beginner projects whose slug/title clearly indicates beginner/foundations.
+   * Then tie-break by estimated duration, step count, and stable slug ordering.
+
+2. For courses with no beginner project:
+
+   * Do not pretend there is a beginner project.
+   * Show a fallback recommendation labeled something like:
+     “Most approachable project available”
+   * Include honest copy:
+     “Beginner projects for this course are coming soon. This is the gentlest available starting point for now.”
+   * Do not label advanced-only courses as beginner-friendly.
+
+3. Do not expose internal anchor metadata publicly.
+
+4. Anchors should not be called anchors in the UI.
+
+5. Do not mutate DB.
+
+6. Do not author projects.
+
+7. Do not change difficulty labels.
+
+T000 — Inspect current UI/API shape
+Inspect before editing:
+
+* Phase 16 difficulty badge/filter implementation
+* course-detail page
+* project card/list components
+* current course API response shape
+* whether project fields include difficulty, estimated duration, step count, title, slug
+* frontend test setup, if any
+* current API tests and route tests
+* docs/replit.md phase patterns
+
+T001 — Implement Start Here recommendation helper
+Create a small deterministic helper for selecting the recommended first project from a course’s visible projects.
+
+Suggested rule:
+
+1. Rank difficulty:
+
+   * beginner first
+   * intermediate second
+   * advanced third
+2. Within beginner:
+
+   * prefer slug/title containing beginner, foundations, essentials, intro, or getting-started
+3. Then tie-break:
+
+   * lower estimated duration
+   * fewer steps
+   * stable slug/title order
+
+Return:
+
+* recommended project
+* recommendation type:
+
+  * start_here
+  * most_approachable_available
+* reason/copy key:
+
+  * beginner_available
+  * no_beginner_available
+* whether the course has any beginner project
+
+Requirements:
+
+* Pure function if possible.
+* Easy to test.
+* No DB writes.
+* No mapToCourse.
+* No AI recommendation logic.
+* No new schema.
+
+T002 — Add learner-facing UI
+On each course detail page, add a compact Start Here card/section above the project list.
+
+For courses with beginner:
+
+* Show “Start Here”
+* Show recommended project title
+* Show difficulty badge
+* Show short reason:
+  “Best first project for this course.”
+* CTA:
+  “Start this project”
+
+For zero-beginner courses:
+
+* Show “Most approachable project available”
+* Show recommended fallback project title
+* Show its actual difficulty badge, likely Advanced
+* Show honest copy:
+  “Beginner projects for this course are coming soon. This is the gentlest available starting point for now.”
+* CTA:
+  “View project”
+
+Scope control:
+
+* Do not redesign the whole course page.
+* Do not redesign all project cards.
+* Do not add search.
+* Do not add new filters.
+* Do not add onboarding/auth/payment changes.
+* Do not add AI recommendations.
+* Do not add DB-backed recommendation fields.
+
+T003 — Optional API support only if needed
+Prefer frontend-computed recommendation from already-loaded course projects if the data is sufficient.
+
+Only add API support if:
+
+* the frontend does not receive enough project fields to compute deterministically, or
+* there is already a clean course summary endpoint pattern.
+
+If API support is added:
+
+* it must be read-only
+* preserve learner_visible filtering
+* never expose hidden/archive rows
+* never expose is_anchor publicly
+* no schema changes
+
+T004 — Tests
+Add tests at the right level based on existing tooling.
+
+Required logic tests:
+
+* If a course has beginner projects, helper picks a beginner.
+* If multiple beginner projects exist, helper uses deterministic tie-breaks.
+* If no beginner exists, helper picks the lowest available difficulty and marks it as fallback.
+* Helper never requires anchor metadata.
+* Helper returns stable results.
+
+Required integration/API/UI tests where practical:
+
+* Courses with beginner show “Start Here”.
+* Zero-beginner courses show “Most approachable project available” or equivalent honest fallback.
+* Difficulty badges still render correctly.
+* Existing difficulty filter behavior remains intact.
+* Hidden/archive projects are not considered.
+* No internal anchor flag appears in learner-facing output.
+
+If no frontend test harness exists:
+
+* Do not create a large new test stack.
+* Add pure helper tests and API tests where possible.
+* Use typecheck/build/smoke verification and document manual verification.
+
+T005 — Final gates
+Run:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* frontend typecheck/build if applicable
+* audit:difficulty-labels
+* wave-report
+* pedagogy audit
+* anchor-check
+* lineage check
+* runtime mapToCourse guard
+* architect review
+
+Expected final state:
+
+* visible projects: 52 unchanged
+* hidden projects: 32 unchanged
+* difficulty distribution unchanged: 6 beginner / 1 intermediate / 45 advanced
+* wave-report: 50/50 unchanged
+* visible pedagogy: 52/52 unchanged
+* anchorCount: 2 unchanged
+* anchor drift: 0.00
+* lineage: 0/0/0/0
+* no DB writes
+* no authoring
+* no archive/delete
+* no difficulty relabeling
+* Start Here guidance appears on course detail pages
+* zero-beginner courses get honest fallback guidance
+
+Hard stop conditions:
+
+* any visible/hidden count changes
+* difficulty distribution changes
+* wave-report falls below 50/50
+* visible pedagogy falls below 52/52
+* anchor drift exceeds ±1.0
+* lineage counters regress
+* hidden/archive rows appear in learner-facing recommendations
+* internal anchor metadata leaks publicly
+* runtime mapToCourse guard fails
+* typecheck/tests fail
+* architect finds severe/blocking issue
+
+Out of scope:
+
+* Do not author new projects.
+* Do not complete beginner coverage for remaining courses.
+* Do not mutate project difficulty labels.
+* Do not add AI recommendations.
+* Do not add search/sort.
+* Do not redesign the entire course page.
+* Do not add onboarding/auth/payment/productization work.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not archive or delete rows.
+* Do not touch cloud credentials.
+* Do not start Phase 19.
+
+Closure:
+If all gates pass, close as:
+
+Phase 18 — Start Here Learner Path · CLOSED / SHIP
+
+Write:
+docs/phases/phase-18-start-here-learner-path.md
+
+Update replit.md:
+
+* Mark Phase 18 CLOSED / SHIP.
+* Keep Phase 19 NOT STARTED.
+* Note that Phase 18 converted the clean content/difficulty foundation into learner-facing first-project guidance.
+
+Final report must include:
+
+1. Final Phase 17 closure-hardening checkpoint hash
+2. Phase 18 implementation summary
+3. Recommendation rule used
+4. UI surfaces updated
+5. Behavior for courses with beginner projects
+6. Behavior for zero-beginner courses
+7. Tests added
+8. Test/typecheck results
+9. Wave-report result
+10. Pedagogy audit result
+11. audit:difficulty-labels result
+12. Anchor-check result
+13. Lineage check result
+14. Runtime mapToCourse result
+15. Confirmation that counts/distribution did not change
+16. Architect verdict
+17. Changed files
+18. DB writes performed, expected zero
+19. Final Phase 18 checkpoint/commit hash
+20. Confirmation that Phase 19 was not started

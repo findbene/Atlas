@@ -163,7 +163,7 @@ describe("GET /api/courses/:slug — Phase 16 difficulty filter", () => {
     expect(findMany).not.toHaveBeenCalled();
   });
 
-  it("with no difficulty param uses the existing 2-predicate WHERE (regression)", async () => {
+  it("with no difficulty param uses the (course, learner_visible) predicate (regression)", async () => {
     findMany.mockResolvedValue([]);
     await request(makeApp()).get("/api/courses/ai-engineer");
     expect(eqCalls).toHaveLength(2);
@@ -173,15 +173,33 @@ describe("GET /api/courses/:slug — Phase 16 difficulty filter", () => {
     ]);
   });
 
+  // Phase 18 — difficulty filter is now applied in-memory after a single
+  // unfiltered visible-set fetch, so `startHere` can reflect the full
+  // course (and not change as the learner toggles filters). The SQL
+  // predicate stays the 2-predicate form regardless of `?difficulty=`.
   for (const level of ["beginner", "intermediate", "advanced"] as const) {
-    it(`difficulty=${level} adds a third eq() predicate for difficulty_level=${level}`, async () => {
-      findMany.mockResolvedValue([]);
+    it(`difficulty=${level} keeps SQL at the 2-predicate form and filters in-memory (Phase 18)`, async () => {
+      findMany.mockResolvedValue([
+        { id: "p1", slug: "beg-a", title: "Beg A", shortDescription: "",
+          difficultyLevel: "beginner", isPremium: false, xpReward: 10,
+          estimatedMinutes: 60, totalSteps: 2, enrolledCount: 0,
+          completionRate: 0, tags: [], orderIndex: 1, jobOutcomes: null,
+          course: "ai-engineer", courseSource: "authored" },
+        { id: "p2", slug: "adv-a", title: "Adv A", shortDescription: "",
+          difficultyLevel: "advanced", isPremium: false, xpReward: 10,
+          estimatedMinutes: 120, totalSteps: 5, enrolledCount: 0,
+          completionRate: 0, tags: [], orderIndex: 2, jobOutcomes: null,
+          course: "ai-engineer", courseSource: "authored" },
+      ]);
       const res = await request(makeApp()).get(`/api/courses/ai-engineer?difficulty=${level}`);
       expect(res.status).toBe(200);
-      expect(eqCalls).toHaveLength(3);
+      // SQL stays 2-predicate: (course, learner_visible). Difficulty
+      // is NEVER pushed into the SQL — it's filtered in-memory.
+      expect(eqCalls).toHaveLength(2);
       expect(eqCalls[0]).toEqual({ col: { __col: "course" }, val: "ai-engineer" });
       expect(eqCalls[1]).toEqual({ col: { __col: "learner_visible" }, val: true });
-      expect(eqCalls[2]).toEqual({ col: { __col: "difficulty_level" }, val: level });
+      // And the in-memory filter is correct.
+      for (const p of res.body.projects) expect(p.difficulty).toBe(level);
     });
   }
 
@@ -212,5 +230,94 @@ describe("GET /api/courses/:slug — Phase 16 difficulty filter", () => {
     expect(project).not.toHaveProperty("learnerVisible");
     expect(project).not.toHaveProperty("learner_visible");
     expect(project).not.toHaveProperty("courseSource");
+  });
+});
+
+// Phase 18 — Start Here recommendation surface on GET /api/courses/:slug.
+describe("GET /api/courses/:slug — Phase 18 Start Here", () => {
+  const row = (over: Partial<Record<string, unknown>>) => ({
+    id: "id", slug: "x", title: "X", shortDescription: "",
+    difficultyLevel: "advanced", isPremium: false, xpReward: 10,
+    estimatedMinutes: 120, totalSteps: 5, enrolledCount: 0,
+    completionRate: 0, tags: [], orderIndex: 1, jobOutcomes: null,
+    course: "ai-engineer", courseSource: "authored", ...over,
+  });
+
+  it("kind=start_here for a course with at least one beginner project", async () => {
+    findMany.mockResolvedValue([
+      row({ id: "1", slug: "adv-1", difficultyLevel: "advanced", orderIndex: 1 }),
+      row({ id: "2", slug: "sql-beginner-essentials", title: "SQL Essentials",
+            difficultyLevel: "beginner", estimatedMinutes: 240, orderIndex: 2 }),
+    ]);
+    const res = await request(makeApp()).get("/api/courses/sql");
+    expect(res.status).toBe(200);
+    expect(res.body.startHere).toBeTruthy();
+    expect(res.body.startHere.kind).toBe("start_here");
+    expect(res.body.startHere.reasonKey).toBe("beginner_available");
+    expect(res.body.startHere.hasBeginner).toBe(true);
+    expect(res.body.startHere.project.slug).toBe("sql-beginner-essentials");
+  });
+
+  it("kind=most_approachable_available for a zero-beginner course", async () => {
+    findMany.mockResolvedValue([
+      row({ id: "1", slug: "adv-hard", difficultyLevel: "advanced", estimatedMinutes: 600 }),
+      row({ id: "2", slug: "adv-soft", difficultyLevel: "advanced", estimatedMinutes: 120 }),
+    ]);
+    const res = await request(makeApp()).get("/api/courses/ai-engineer");
+    expect(res.status).toBe(200);
+    expect(res.body.startHere.kind).toBe("most_approachable_available");
+    expect(res.body.startHere.reasonKey).toBe("no_beginner_available");
+    expect(res.body.startHere.hasBeginner).toBe(false);
+    expect(res.body.startHere.project.slug).toBe("adv-soft");
+  });
+
+  it("startHere is stable across difficulty filter changes (computed from unfiltered set)", async () => {
+    const rows = [
+      row({ id: "1", slug: "beg-1", difficultyLevel: "beginner", estimatedMinutes: 60, orderIndex: 1 }),
+      row({ id: "2", slug: "int-1", difficultyLevel: "intermediate", orderIndex: 2 }),
+      row({ id: "3", slug: "adv-1", difficultyLevel: "advanced", orderIndex: 3 }),
+    ];
+    findMany.mockResolvedValue(rows);
+    const unfiltered = await request(makeApp()).get("/api/courses/sql");
+    findMany.mockResolvedValue(rows);
+    const filtered = await request(makeApp()).get("/api/courses/sql?difficulty=advanced");
+    expect(unfiltered.body.startHere.project.slug).toBe("beg-1");
+    expect(filtered.body.startHere.project.slug).toBe("beg-1"); // still beginner!
+    expect(filtered.body.projects.every((p: { difficulty: string }) => p.difficulty === "advanced")).toBe(true);
+  });
+
+  it("startHere is null when the course has zero visible projects", async () => {
+    findMany.mockResolvedValue([]);
+    const res = await request(makeApp()).get("/api/courses/mlops-engineer");
+    expect(res.status).toBe(200);
+    expect(res.body.startHere).toBeNull();
+  });
+
+  it("startHere never exposes anchor / internal flags", async () => {
+    findMany.mockResolvedValue([
+      row({ id: "1", slug: "beg-1", difficultyLevel: "beginner",
+            // Anchor / internal fields below — must NEVER appear in startHere.
+            isAnchor: true, learnerVisible: true }),
+    ]);
+    const res = await request(makeApp()).get("/api/courses/sql");
+    expect(res.status).toBe(200);
+    const sh = res.body.startHere;
+    expect(sh.project).not.toHaveProperty("isAnchor");
+    expect(sh.project).not.toHaveProperty("is_anchor");
+    expect(sh.project).not.toHaveProperty("learnerVisible");
+    expect(sh.project).not.toHaveProperty("courseSource");
+    expect(sh).not.toHaveProperty("isAnchor");
+  });
+
+  it("startHere prefers approachability-signaled beginner (slug match)", async () => {
+    findMany.mockResolvedValue([
+      row({ id: "1", slug: "beg-zeta", title: "Zeta", difficultyLevel: "beginner",
+            estimatedMinutes: 30, orderIndex: 1 }),
+      row({ id: "2", slug: "sql-foundations-101", title: "SQL Foundations",
+            difficultyLevel: "beginner", estimatedMinutes: 240, orderIndex: 2 }),
+    ]);
+    const res = await request(makeApp()).get("/api/courses/sql");
+    // 'foundations' signal wins over lower estimatedHours.
+    expect(res.body.startHere.project.slug).toBe("sql-foundations-101");
   });
 });
