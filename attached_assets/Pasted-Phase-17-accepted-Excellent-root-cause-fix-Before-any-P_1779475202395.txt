@@ -1,0 +1,228 @@
+Phase 17 accepted. Excellent root-cause fix.
+
+Before any Phase 18 implementation, complete one Phase 17 closure-hardening pass and then prepare a Phase 18 decision brief only.
+
+Do the following in one cohesive pass:
+
+1. Surface the final Phase 17 checkpoint / commit hash.
+2. Add a focused regression test for the Phase 17 bug.
+3. Re-run the relevant gates.
+4. Update the Phase 17 closure doc/replit.md if needed.
+5. Prepare a Phase 18 decision brief only.
+6. Do not implement Phase 18.
+
+Phase 17 root cause to pin:
+`promote()` writes `qualityBreakdown.portfolioArtifact`, but `audit --commit` and `audit-quality.ts` were overwriting `qualityBreakdown` with the Scorecard JSON. That stripped `portfolioArtifact`, causing the portfolio scorer to fall back to weak keyword inference and dropping 3 beginner projects below 70.
+
+Regression test requirement:
+Add the smallest reliable test that proves:
+
+* a promoted project with `qualityBreakdown.portfolioArtifact` keeps that field after audit commit / quality audit persistence
+* scorecard fields can still be updated
+* existing `qualityBreakdown` fields are merged, not overwritten
+* `portfolioArtifact.kind` survives
+* at least one regression case would have failed before the Phase 17 fix
+
+Prefer a script/unit-level test if available. If the repo does not have a clean unit-test harness for these scripts, add the closest practical regression test around the persistence/merge helper or script behavior. Do not create a large new test framework.
+
+After adding the regression test, run:
+
+* pnpm run typecheck
+* relevant script tests or full available test suite
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* wave-report
+* pedagogy audit
+* audit:difficulty-labels
+* anchor-check
+* lineage check
+* runtime mapToCourse guard
+
+Expected state:
+
+* wave-report: 50/50
+* visible pedagogy: 52/52
+* visible projects: 52
+* hidden projects: 32
+* difficulty distribution: 6 beginner / 1 intermediate / 45 advanced
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage: 0/0/0/0
+* no rubric change
+* no authored module content change unless strictly necessary
+* no difficulty relabeling
+* no DB schema change
+* no archive/delete
+* no Phase 18 implementation
+
+Then prepare a Phase 18 decision brief only.
+
+Current confirmed state after Phase 17:
+
+* Phase 16 UI/filter implementation: SHIP
+* Phase 16 discovered pre-existing wave-report drift: 47/50
+* Phase 17 fixed root cause and restored wave-report to 50/50
+* Root cause: qualityBreakdown overwrite stripped portfolioArtifact
+* Fix: merge qualityBreakdown instead of overwrite in:
+
+  * scripts/src/author-project.ts
+  * scripts/src/audit-quality.ts
+* Restored project scores:
+
+  * sql-beginner-select-where-join-essentials: 65.3 → 73.6
+  * data-engineering-beginner-csv-cleanup-pipeline: 69.1 → 72.9
+  * data-scientist-beginner-eda-and-summary-stats: 67.1 → 75.3
+* tests: 186/186 passing before the new regression test
+* Phase 18 not started
+
+Phase 18 decision brief should evaluate:
+
+Option A — Start Here learner path
+Goal:
+Add clear “Start Here” guidance per course using trusted difficulty labels and existing beginner projects.
+
+Evaluate:
+
+* beginner-first ordering
+* recommended first project per course
+* fallback behavior for courses with no beginner project
+* whether to show “Beginner coming soon” for zero-beginner courses
+* whether this should be rule-based instead of AI-driven
+* whether it should use DB fields or computed logic
+
+Option B — Complete beginner coverage for remaining 4 courses
+Goal:
+Add beginner/foundations projects for:
+
+* ai-engineer
+* cloud-data-engineer
+* applied-llm-engineer
+* mlops-engineer
+
+Evaluate:
+
+* whether true beginner projects are possible without fake-beginner complexity
+* whether these should be called “foundations” instead of beginner
+* safe batch size
+* risk of new scoring drift
+* whether to wait until Start Here UX exposes current beginner projects first
+
+Option C — Course card/project card polish
+Goal:
+Improve visual clarity of course/project browsing after badges/filters shipped.
+
+Evaluate:
+
+* card hierarchy
+* difficulty badge placement
+* duration/steps/portfolio artifact visibility
+* CTA wording
+* avoiding a broad redesign
+
+Option D — Search/sort
+Goal:
+Add search and sorting across projects.
+
+Evaluate:
+
+* whether 52 projects justify search now
+* local/client-side search versus API search
+* sort by difficulty, duration, course, recommended
+* test burden and UX value
+
+Option E — Product onboarding readiness
+Goal:
+Shift from catalog quality to learner onboarding/product readiness.
+
+Evaluate:
+
+* first-run onboarding
+* course enrollment flow
+* dashboard/progress clarity
+* resume next project
+* whether this is too broad for one phase
+
+Option F — Complete remaining beginner coverage and Start Here together
+Goal:
+Combine new beginner coverage for 4 courses with Start Here UX.
+
+Evaluate:
+
+* learner impact
+* implementation risk
+* whether this is too large for one phase
+* whether it violates the one-pass discipline
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Tests required
+10. Expected effect on:
+
+* learner-visible count
+* hidden/archive count
+* pedagogy KPI
+* wave-report
+* difficulty distribution
+* learner trust
+* product readiness
+* implementation cost
+
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 18 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement now that:
+
+* content quality is clean,
+* difficulty labels are trusted,
+* badges/filters are shipped,
+* wave-report is restored to 50/50.
+
+Recommended Phase 18 must be executable in one cohesive implementation pass after approval.
+
+Include:
+
+1. Exact scope
+2. Exact UI/API surfaces involved
+3. Exact project slugs involved, if any
+4. Whether work is frontend UX, API logic, metadata/reporting, authoring, or tests only
+5. Required files
+6. Required tests
+7. Required reports
+8. Final gates
+9. Expected final metrics
+10. Hard stop conditions
+11. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+Give the exact first 10 implementation steps, but do not execute them.
+
+Hard constraints:
+
+* Do not implement Phase 18 yet.
+* Do not author new projects unless Phase 18 is later explicitly approved.
+* Do not mutate project difficulty labels.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not touch cloud credentials.
+* Do not start Phase 18 implementation after the brief.
