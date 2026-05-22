@@ -22,7 +22,7 @@ type NewProjectStep = typeof projectSteps.$inferInsert;
 import { and, eq } from "drizzle-orm";
 import {
   composeScorecard, buildCorpus, nearestNeighbors, projectFingerprint,
-  mapToCourse, assertAuthoredProjectComplete,
+  mapToCourse, assertAuthoredProjectComplete, mergeQualityBreakdown,
   type AuthoredProject, type Scorecard,
 } from "@workspace/curriculum-quality";
 import { loadAllProjects, projectRowToInput } from "./quality-adapter";
@@ -122,16 +122,12 @@ async function promote(slug: string): Promise<void> {
     tags: authored.tags,
     xpReward: authored.xpReward,
     qualityStatus: existing?.qualityStatus ?? "unreviewed",
-    // Phase 17 — merge instead of overwrite. `audit --commit` writes
-    // Scorecard fields here; `promote` writes authoredMeta + portfolioArtifact.
-    // Both readers (catalog-report / admin route as Scorecard, quality-adapter
-    // for portfolioArtifact) must continue to find their respective fields,
-    // so we preserve whatever was already there and layer authoring on top.
-    qualityBreakdown: {
-      ...((existing?.qualityBreakdown as object | null) ?? {}),
-      authoredMeta: authored.meta,
-      portfolioArtifact: authored.portfolio,
-    } as unknown as object,
+    // Phase 17 — merge via the canonical helper so authoredMeta +
+    // portfolioArtifact never strip the Scorecard (or vice versa).
+    qualityBreakdown: mergeQualityBreakdown(
+      existing?.qualityBreakdown as Record<string, unknown> | null,
+      { authoredMeta: authored.meta, portfolioArtifact: authored.portfolio },
+    ) as unknown as object,
     // Phase 8 — native taxonomy + lineage stamped on every promote.
     course,
     courseSource: "authored",
@@ -200,14 +196,13 @@ async function audit(slug: string, commit: boolean): Promise<Scorecard> {
     // Atomic CAS — only flip if still unreviewed.
     const updated = await db.update(projects).set({
       qualityScore: card.overall.toFixed(2),
-      // Phase 17 — merge, preserving authoredMeta + portfolioArtifact written
-      // by promote(). Overwriting strips those fields and demotes the
-      // portfolio scorer back to keyword inference on the next wave-report
-      // (this was the root cause of the Phase 16 47/50 regression).
-      qualityBreakdown: {
-        ...((row.qualityBreakdown as object | null) ?? {}),
-        ...(card as unknown as object),
-      } as unknown as object,
+      // Phase 17 — merge via the canonical helper. Overwriting strips
+      // portfolioArtifact and was the root cause of the Phase 16 47/50
+      // wave-report regression.
+      qualityBreakdown: mergeQualityBreakdown(
+        row.qualityBreakdown as Record<string, unknown> | null,
+        card as unknown as Record<string, unknown>,
+      ) as unknown as object,
       lastQualityAuditAt: new Date(),
       qualityStatus: newStatus,
     }).where(and(eq(projects.id, row.id), eq(projects.qualityStatus, row.qualityStatus)))

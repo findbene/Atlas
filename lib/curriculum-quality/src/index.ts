@@ -11,3 +11,4 @@ export * from "./archetypes";
 export * from "./generator";
 export * from "./batchSchema";
 export * from "./authoring";
+export * from "./mergeQualityBreakdown";

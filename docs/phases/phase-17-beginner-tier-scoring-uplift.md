@@ -68,19 +68,22 @@ Only 3 writes to `scripts/src/*.ts` (audit/promote merge fix), plus 3 `promote`s
 
 - `pnpm run typecheck` — PASS (chains `check:no-heuristic-runtime` — PASS)
 - `pnpm --filter @workspace/api-server run test` — 128/128 PASS
-- `pnpm --filter @workspace/curriculum-quality run test` — 54/54 PASS
+- `pnpm --filter @workspace/curriculum-quality run test` — 60/60 PASS (54 prior + 6 new Phase-17 regression tests)
 - `pnpm --filter @workspace/execution-core run test` — 4/4 PASS
 - `author:project anchor-check` — both anchors drift 0.00
 - `author:project wave-report` — 50/50
 - `audit:pedagogy` — 52/52 visible
 - `audit:difficulty-labels` — 0 mismatches, anchor immutability 0 mismatches
 
-Total: **186/186** tests pass (unchanged from Phase 16).
+Total: **192/192** tests pass (186 prior + 6 new Phase-17 merge regression tests).
 
 ## Files changed
 
-- `scripts/src/author-project.ts` — `promote()` + `audit --commit` use merge instead of overwrite for `qualityBreakdown` (3 line block × 2).
-- `scripts/src/audit-quality.ts` — same merge fix on the batch path.
+- `lib/curriculum-quality/src/mergeQualityBreakdown.ts` — new canonical merge helper (single source of truth for the spread).
+- `lib/curriculum-quality/src/mergeQualityBreakdown.test.ts` — 6 regression tests that pin the contract: portfolioArtifact survives audit; scorecard survives promote; repeated audits don't drift; null-existing is safe; last-write-wins on collision. Every test in this file would have failed before the Phase 17 fix.
+- `lib/curriculum-quality/src/index.ts` — barrel re-export.
+- `scripts/src/author-project.ts` — `promote()` + `audit --commit` call `mergeQualityBreakdown` instead of inlining the spread.
+- `scripts/src/audit-quality.ts` — same on the batch path.
 
 Snapshot artifacts:
 
@@ -90,5 +93,5 @@ Snapshot artifacts:
 
 ## Follow-ups (not in Phase 17)
 
-- The merge fix only prevents *future* destruction. Any other path that overwrites `qualityBreakdown` should be audited if added. Consider a small adapter helper (`mergeQualityBreakdown(existing, patch)`) to centralize the pattern — not required for Phase 17 closure.
 - `targetRoles` is only consumed by `scoreJobReadiness` on candidate-stage projects; promoted projects rely on the inferred-role overlap path. If we wanted to lift `jobReadiness` further on beginner-tier authored projects, a future phase could plumb `targetRoles` through `promote()` and the projects schema. Out of scope here.
+- Phase 17 closure-hardening pass (this revision): extracted the merge into `mergeQualityBreakdown` and added 6 unit-level regression tests. Any new code path that writes `projects.qualityBreakdown` should call this helper instead of inlining a spread.
