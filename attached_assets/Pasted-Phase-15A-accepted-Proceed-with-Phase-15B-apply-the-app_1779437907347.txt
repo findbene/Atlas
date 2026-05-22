@@ -1,0 +1,153 @@
+Phase 15A accepted. Proceed with Phase 15B: apply the approved difficulty backfill allowlist.
+
+Important operating instruction:
+Complete Phase 15B in one cohesive pass. Do not pause unless a hard stop condition triggers.
+
+First, surface the final auto-checkpoint / commit hash for Phase 15A if it exists. If the platform has not checkpointed it yet, say so clearly and continue Phase 15B from the current clean Phase 15A state.
+
+Approved Phase 15B allowlist:
+
+1. analytics-engineer-dbt-ci-state-modified
+   from: intermediate
+   to: advanced
+   reason: Snowflake target + dbt CI/state-modified semantics — advanced-stack
+
+2. sql-window-functions-and-cte-mastery
+   from: intermediate
+   to: advanced
+   reason: 5-step × 180min · window/CTE mastery
+
+3. python-libraries-pydantic-config-and-cli
+   from: intermediate
+   to: advanced
+   reason: 5-step × 195min · Pydantic + Typer CLI authoring depth
+
+4. python-libraries-pydantic-validation-service
+   from: intermediate
+   to: advanced
+   reason: 5-step × 180min · validation service depth
+
+5. data-scientist-ab-test-from-scratch
+   from: intermediate
+   to: advanced
+   reason: 5-step × 180min · A/B test from scratch with stats + power + MDE
+
+Before applying:
+
+1. Populate the allowlist in scripts/src/backfill-phase15-difficulty.ts with exactly the 5 rows above.
+2. Re-run audit:difficulty-labels to confirm the current mismatch list is still exactly these 5 rows.
+3. Identify and report the exact intermediate row that will remain after the 5 flips. The Phase 15A report had a wording inconsistency here, so explicitly name the remaining intermediate slug before and after apply.
+4. Run the backfill in dry-run mode first.
+5. Confirm expected distribution:
+
+   * beginner: 6
+   * intermediate: 1
+   * advanced: 45
+6. Confirm anchors are not targeted:
+
+   * csv-to-postgres-pipeline
+   * dbt-data-models
+
+If and only if the dry run is clean, apply the backfill.
+
+Hard stop conditions:
+
+* mismatch list is not exactly the approved 5 rows
+* any anchor slug appears in the allowlist or mismatch list
+* any row currently has a difficulty other than the expected `from`
+* any target row is not learner_visible=true
+* dry-run distribution is not beginner 6 / intermediate 1 / advanced 45
+* visible count changes from 52
+* hidden count changes from 32
+* wave-report changes from 50/50
+* visible pedagogy changes from 52/52
+* anchor drift is not 0.00 or exceeds ±1.0
+* lineage counters regress from 0/0/0/0
+* runtime mapToCourse guard fails
+* typecheck or tests fail
+* architect finds severe/blocking issue
+
+After applying, run the full Phase 15B gate chain:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* wave report
+* pedagogy audit
+* existing audit:difficulty
+* new audit:difficulty-labels
+* lineage inverse check
+* admin quality check
+* runtime mapToCourse gate
+* anchor-check
+* architect review
+
+Expected final state:
+
+* visible projects: 52 unchanged
+* hidden projects: 32 unchanged
+* beginner: 6 unchanged
+* intermediate: 1
+* advanced: 45
+* visible pedagogy KPI: 52/52 unchanged
+* wave-report: 50/50 unchanged
+* anchorCount: 2 unchanged
+* anchorSlugs unchanged:
+
+  * csv-to-postgres-pipeline
+  * dbt-data-models
+* lineage integrity: 0/0/0/0
+* no project content changed
+* no project steps changed
+* no authoring
+* no archive/delete
+* no UI work
+
+Then close Phase 15 as:
+Phase 15 — Difficulty Taxonomy Audit + Targeted Backfill · CLOSED / SHIP
+
+Write the closure doc:
+docs/phases/phase-15-difficulty-taxonomy-audit.md
+
+Include:
+
+1. Phase 15A audit summary
+2. Approved Phase 15B allowlist
+3. Dry-run result
+4. Apply result
+5. Difficulty distribution before/after
+6. Exact remaining intermediate row
+7. Anchor immutability confirmation
+8. Admin difficultyDistribution output
+9. Test/typecheck results
+10. Wave-report result
+11. Pedagogy audit result
+12. Lineage check result
+13. Runtime mapToCourse result
+14. Architect verdict
+15. Changed files
+16. DB writes performed
+17. Final checkpoint/commit hash if available
+18. Confirmation that Phase 16 was not started
+
+Update replit.md:
+
+* Mark Phase 15 CLOSED / SHIP.
+* Keep Phase 16 NOT STARTED.
+* Add a short note that Phase 15 made difficulty labels trustworthy enough to support future learner-facing filters/badges.
+
+Out of scope:
+
+* Do not author new projects.
+* Do not add beginner projects.
+* Do not implement UI filters or badges.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not archive or delete rows.
+* Do not touch cloud credentials.
+* Do not start Phase 16.

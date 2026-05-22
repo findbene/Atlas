@@ -36,7 +36,39 @@ interface AllowlistEntry {
  * audit-mismatch row it corresponds to.
  */
 const ALLOWLIST: ReadonlyArray<AllowlistEntry> = [
-  // (Phase 15A: intentionally empty — audit-then-approve gate.)
+  // Phase 15B — 5 approved intermediate → advanced flips. Every entry was
+  // surfaced by the `audit:difficulty-labels` heuristic and reviewed by the
+  // user. No anchors. No beginner-count change. No hidden rows.
+  {
+    slug: "analytics-engineer-dbt-ci-state-modified",
+    from: "intermediate",
+    to: "advanced",
+    reason: "Snowflake target + dbt CI/state-modified semantics — advanced-stack",
+  },
+  {
+    slug: "sql-window-functions-and-cte-mastery",
+    from: "intermediate",
+    to: "advanced",
+    reason: "5-step × 180min · window/CTE mastery",
+  },
+  {
+    slug: "python-libraries-pydantic-config-and-cli",
+    from: "intermediate",
+    to: "advanced",
+    reason: "5-step × 195min · Pydantic + Typer CLI authoring depth",
+  },
+  {
+    slug: "python-libraries-pydantic-validation-service",
+    from: "intermediate",
+    to: "advanced",
+    reason: "5-step × 180min · validation service depth",
+  },
+  {
+    slug: "data-scientist-ab-test-from-scratch",
+    from: "intermediate",
+    to: "advanced",
+    reason: "5-step × 180min · A/B test from scratch with stats + power + MDE",
+  },
 ];
 
 /** Forbidden slugs. Anchors must NEVER be relabeled (P14 invariant). */
