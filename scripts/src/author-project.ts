@@ -122,7 +122,13 @@ async function promote(slug: string): Promise<void> {
     tags: authored.tags,
     xpReward: authored.xpReward,
     qualityStatus: existing?.qualityStatus ?? "unreviewed",
+    // Phase 17 — merge instead of overwrite. `audit --commit` writes
+    // Scorecard fields here; `promote` writes authoredMeta + portfolioArtifact.
+    // Both readers (catalog-report / admin route as Scorecard, quality-adapter
+    // for portfolioArtifact) must continue to find their respective fields,
+    // so we preserve whatever was already there and layer authoring on top.
     qualityBreakdown: {
+      ...((existing?.qualityBreakdown as object | null) ?? {}),
       authoredMeta: authored.meta,
       portfolioArtifact: authored.portfolio,
     } as unknown as object,
@@ -194,7 +200,14 @@ async function audit(slug: string, commit: boolean): Promise<Scorecard> {
     // Atomic CAS — only flip if still unreviewed.
     const updated = await db.update(projects).set({
       qualityScore: card.overall.toFixed(2),
-      qualityBreakdown: card as unknown as object,
+      // Phase 17 — merge, preserving authoredMeta + portfolioArtifact written
+      // by promote(). Overwriting strips those fields and demotes the
+      // portfolio scorer back to keyword inference on the next wave-report
+      // (this was the root cause of the Phase 16 47/50 regression).
+      qualityBreakdown: {
+        ...((row.qualityBreakdown as object | null) ?? {}),
+        ...(card as unknown as object),
+      } as unknown as object,
       lastQualityAuditAt: new Date(),
       qualityStatus: newStatus,
     }).where(and(eq(projects.id, row.id), eq(projects.qualityStatus, row.qualityStatus)))

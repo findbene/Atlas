@@ -29,9 +29,15 @@ async function main() {
     const neighbors = nearestNeighbors({ slug: l.input.slug, fingerprint: fp }, corpus, 3);
     const card = composeScorecard(l.input, { steps: l.steps, neighbors });
 
+    // Phase 17 — merge so we never strip authoredMeta + portfolioArtifact
+    // (written by promote()). Overwriting demotes the portfolio scorer back
+    // to keyword inference and silently regresses authored scores.
     await db.update(projects).set({
       qualityScore: card.overall.toFixed(2),
-      qualityBreakdown: card as unknown as object,
+      qualityBreakdown: {
+        ...((l.raw.qualityBreakdown as object | null) ?? {}),
+        ...(card as unknown as object),
+      } as unknown as object,
       lastQualityAuditAt: new Date(),
     }).where(eq(projects.id, l.raw.id));
 

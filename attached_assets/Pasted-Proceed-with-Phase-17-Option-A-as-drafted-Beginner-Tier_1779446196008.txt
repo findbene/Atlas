@@ -1,0 +1,182 @@
+Proceed with Phase 17 Option A as drafted: Beginner-Tier Scoring Uplift.
+
+Important operating instruction:
+Complete the full approved Phase 17 scope in one cohesive implementation pass. Do not stop after each small file edit if gates are green. Stop only if a hard stop condition triggers.
+
+Approved Phase 17 scope:
+Restore the wave-report gate from 47/50 back to 50/50 by uplifting exactly these 3 below-threshold beginner projects:
+
+1. sql-beginner-select-where-join-essentials
+   Current score: 65.3
+   Goal: >=70, preferably 72–76
+   Keep difficulty: beginner
+
+2. data-engineering-beginner-csv-cleanup-pipeline
+   Current score: 69.1
+   Goal: >=70, preferably 72–76
+   Keep difficulty: beginner
+
+3. data-scientist-beginner-eda-and-summary-stats
+   Current score: 67.1
+   Goal: >=70, preferably 72–76
+   Keep difficulty: beginner
+
+Do not touch any other project unless required for tests/docs.
+
+Phase 17 objective:
+Improve the 3 beginner projects enough to pass the frozen rubric while preserving true beginner-friendliness.
+
+Primary rules:
+
+* Do not change rubric v1.0.1.
+* Do not relabel difficulty.
+* Do not create new projects.
+* Do not archive or delete rows.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not touch cloud credentials.
+* Do not start UX/product work.
+* Do not start Phase 18.
+
+T000 — Baseline diagnosis
+Before editing, run or inspect scoring details for the 3 projects and report internally:
+
+* current total score
+* dimension breakdown
+* weakest dimensions
+* likely reason each is below 70
+* exact authored module file for each
+
+Expected weak dimensions are likely:
+
+* jobReadiness
+* productionRealism
+* pythonSqlDepth
+* portfolio
+* uniqueness
+
+T001 — Targeted beginner-safe uplift
+For each project, improve only what is necessary to reach >=70 without making the project fake-beginner.
+
+Allowed improvements:
+
+* clearer portfolio artifact
+* stronger README outline
+* more realistic but still local scenario
+* better validation_config
+* stronger expected_outputs
+* better success/failure feedback
+* better portfolio_relevance
+* better job-readiness framing
+* clearer step objectives
+* small beginner-safe Python/SQL depth improvements
+* simple production concepts explained gently, such as validation, repeatability, logging, reproducibility, data checks, clean outputs
+
+Forbidden improvements:
+
+* advanced infrastructure
+* cloud deployment
+* Kafka/Spark/Airflow/dbt unless already part of the project
+* orchestration-heavy workflows
+* production claims that are not represented in the beginner steps
+* anything that makes Step 1 require advanced prerequisites
+* changing difficulty away from beginner
+* scoring/rubric changes
+
+T002 — Promote/audit each uplifted project
+After editing each project:
+
+* run author/promote or the correct scoring command
+* confirm score >=70
+* confirm difficulty remains beginner
+* confirm course remains unchanged
+* confirm candidateId/sourceCandidateId remains intact
+* confirm validationCoverage remains 100%
+* confirm pedagogyComplete remains true
+* confirm portfolioReady remains true
+* run anchor-check
+* confirm anchor drift remains 0.00 or at least within ±1.0
+
+Proceed through all 3 in one implementation pass if gates are green.
+
+T003 — Final gates
+Run:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* wave-report
+* pedagogy audit
+* audit:difficulty-labels
+* anchor-check
+* lineage inverse check
+* runtime mapToCourse guard
+* architect review
+
+Expected final state:
+
+* wave-report: 50/50
+* visible pedagogy KPI: 52/52 unchanged
+* visible projects: 52 unchanged
+* hidden projects: 32 unchanged
+* difficulty distribution unchanged:
+
+  * beginner: 6
+  * intermediate: 1
+  * advanced: 45
+* anchorCount: 2 unchanged
+* anchor drift: 0.00 target
+* lineage integrity: 0/0/0/0
+* no new projects
+* no archived/deleted rows
+* no rubric changes
+* no difficulty relabeling
+* no UI/product work
+
+Hard stop conditions:
+
+* any of the 3 projects still scores <70 after a reasonable targeted uplift
+* any project becomes no longer beginner-safe
+* difficulty distribution changes
+* anchor drift exceeds ±1.0
+* wave-report remains below 50/50
+* visible pedagogy regresses from 52/52
+* lineage counters regress
+* runtime mapToCourse guard fails
+* typecheck/tests fail
+* architect finds severe/blocking issue
+
+Closure work:
+If all gates pass, close Phase 17 as:
+
+Phase 17 — Beginner-Tier Scoring Uplift · CLOSED / SHIP
+
+Write:
+docs/phases/phase-17-beginner-tier-scoring-uplift.md
+
+Update replit.md:
+
+* Mark Phase 17 CLOSED / SHIP.
+* Keep Phase 18 NOT STARTED.
+* Note that Phase 17 restored the wave-report gate to 50/50 after pre-existing beginner scoring drift was discovered during Phase 16.
+
+Final report must include:
+
+1. Baseline score/dimension breakdown for the 3 projects
+2. Exact changes made per project
+3. Final score/dimension breakdown per project
+4. Confirmation each remains beginner
+5. Wave-report result
+6. Pedagogy audit result
+7. audit:difficulty-labels result
+8. Anchor-check result
+9. Lineage check result
+10. Test/typecheck results
+11. Runtime mapToCourse result
+12. Architect verdict
+13. Changed files
+14. DB writes performed, expected zero unless promote process updates existing project content normally
+15. Final checkpoint/commit hash
+16. Confirmation that Phase 18 was not started
