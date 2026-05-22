@@ -1,0 +1,94 @@
+Good. Phase 14 confirmation accepted.
+
+Now continue and complete the Phase 15 decision brief only. Do not implement anything.
+
+You already confirmed:
+
+* Phase 14 checkpoint hash: 1c6a6e80716e9be448ea206dc927574f7bab7267
+* Phase 14 docs exist
+* replit.md marks Phase 14 CLOSED / SHIP
+* Phase 15 is NOT STARTED
+* Current difficulty distribution: 6 beginner / 6 intermediate / 40 advanced visible
+* Zero-beginner courses:
+
+  * ai-engineer
+  * cloud-data-engineer
+  * applied-llm-engineer
+  * mlops-engineer
+
+Now produce the full Phase 15 decision brief requested earlier.
+
+Analyze these options:
+
+A — Complete beginner-tier coverage for the remaining 4 courses
+B — Difficulty taxonomy/backfill audit
+C — Learner UX/course discovery polish
+D — Lift course depth floor from 3/4 toward 5
+E — Admin/reporting hardening
+F — Defer content and start productization
+
+For each option, include:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Expected catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Required tests
+10. Expected effect on:
+
+* learner-visible count
+* hidden/archive count
+* pedagogy KPI
+* beginner coverage
+* difficulty distribution
+* course coverage
+* learner trust
+* implementation cost
+
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 15 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement while preserving the high-quality, low-iteration execution pattern.
+
+Important:
+The recommended Phase 15 must be executable in one cohesive implementation pass after approval.
+
+Include:
+
+1. Exact scope
+2. Exact project slugs involved, if any
+3. Exact courses involved
+4. Whether work is:
+
+   * new authoring
+   * metadata/backfill
+   * UI/reporting
+   * tests only
+   * archive/replacement
+5. Required files
+6. Required scripts
+7. Required tests
+8. Required reports
+9. Final gates
+10. Expected final metrics
+11. Hard stop conditions
+12. Out-of-scope boundaries
+
+Include a final section titled:
+
+“What I would do next if approved”
+
+Give the exact first 10 implementation steps, but do not execute them.
+
+Do not implement Phase 15.
+Do not modify files.
+Do not run backfills.
+Do not promote projects.
+Do not start Phase 15 after the brief.
