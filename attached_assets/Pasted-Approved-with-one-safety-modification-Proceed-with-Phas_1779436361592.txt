@@ -1,0 +1,242 @@
+Approved with one safety modification.
+
+Proceed with Phase 15A: Difficulty Taxonomy Audit + Backfill Preparation.
+
+Do not run live difficulty backfill yet.
+
+Goal:
+Build the audit/reporting infrastructure, run the difficulty audit, generate a proposed explicit backfill allowlist, and stop for approval before mutating project difficulty labels.
+
+Approved scope for this pass:
+
+1. Add difficulty-label audit script.
+2. Add admin/reporting surface for difficulty mismatches.
+3. Add the targeted backfill script, but do not run it against live DB yet.
+4. Add tests for the audit/admin behavior and anchor immutability.
+5. Run all final gates.
+6. Produce the proposed backfill allowlist and pre/post expected diff.
+7. Stop for approval before applying the backfill.
+
+Proceed in one cohesive implementation pass. Do not pause after every file edit. Stop only if a hard stop condition triggers.
+
+Current confirmed state:
+
+* Phase 14 checkpoint: 1c6a6e80716e9be448ea206dc927574f7bab7267
+* Phase 14 CLOSED / SHIP
+* Phase 15 NOT STARTED
+* Visible projects: 52
+* Hidden projects: 32
+* Visible pedagogy KPI: 52/52
+* Wave-report: 50/50
+* Current visible difficulty distribution: 6 beginner / 6 intermediate / 40 advanced
+* Zero-beginner courses already known from the audit:
+
+  * ai-engineer
+  * cloud-data-engineer
+  * applied-llm-engineer
+  * mlops-engineer
+* Anchor count: 2
+* Anchor slugs:
+
+  * csv-to-postgres-pipeline
+  * dbt-data-models
+* Rubric v1.0.1 remains frozen
+* candidateId remains required
+* 9-course taxonomy remains unchanged
+
+Phase 15A tasks:
+
+T000 — Pre-state snapshot
+Create `.local/phase15-pre-state.json` or equivalent with:
+
+* total projects
+* learner-visible projects
+* hidden projects
+* visible difficulty distribution
+* per-course difficulty distribution
+* beginner count
+* intermediate count
+* advanced count
+* unknown/unlabeled count, if any
+* anchorCount
+* anchorSlugs
+* visible pedagogy KPI
+* wave-report count
+* lineage counters
+* legacyReplacements count
+
+T001 — Add difficulty-label audit script
+Create:
+
+`scripts/src/audit-difficulty-labels.ts`
+
+The script should:
+
+* Read learner_visible=true projects only.
+* Include slug, course, declared difficulty, step count, estimated minutes if available, validation/pedagogy completeness, is_anchor, and suggested difficulty.
+* Use a pure local heuristic only.
+* Do not use mapToCourse.
+* Do not mutate DB.
+* Short-circuit anchors so the two anchor slugs keep their declared difficulty and are not suggested for mutation.
+* Output both a human-readable report and JSON:
+
+  * `.local/phase15-difficulty-audit.json`
+
+Suggested heuristic may use step count, estimated duration, validation depth, project framing, and known advanced keywords, but it must be conservative:
+
+* Never suggest beginner if the project requires distributed systems, orchestration, streaming, cloud infra, LLM evaluation, feature stores, monitoring, CI/CD, lakehouse operations, or production deployment.
+* Prefer intermediate over beginner when uncertain.
+* Prefer no-change over aggressive relabeling when uncertain.
+
+T002 — Add targeted backfill script but do not run it
+Create:
+
+`scripts/src/backfill-phase15-difficulty.ts`
+
+Requirements:
+
+* Include a typed explicit allowlist:
+  `Array<{ slug, from, to, reason }>`
+* Initially populate the allowlist only after the audit is run and reviewed internally.
+* Hard-assert no anchor slug appears in the allowlist.
+* Hard-assert every row currently has the expected `from` difficulty before updating.
+* Hard-assert every `to` value is one of beginner/intermediate/advanced.
+* Hard-assert learner_visible=true for every targeted row.
+* Print the proposed before/after distribution.
+* Make it idempotent.
+* Do not run this script against live DB in Phase 15A.
+* If package script is added, name it clearly, but do not invoke it.
+
+T003 — Admin/reporting extension
+Extend `/api/admin/quality` additively with:
+
+* difficultyDistribution
+* difficultyDistributionByCourse if straightforward
+* difficultyMismatchCount
+* difficultyMismatchSlugs:
+
+  * slug
+  * course
+  * declared
+  * suggested
+  * reason
+* beginnerCoverageByCourse if straightforward
+
+Do not remove existing fields.
+Do not change existing response semantics.
+Do not change learner-facing routes.
+
+T004 — Tests
+Add Phase 15 tests verifying:
+
+* admin difficultyDistribution exists
+* difficultyMismatchSlugs shape is valid
+* anchorCount remains 2
+* anchorSlugs remain exactly:
+
+  * csv-to-postgres-pipeline
+  * dbt-data-models
+* audit/backfill logic never targets anchors
+* visible count remains 52
+* hidden count remains 32
+* visible pedagogy KPI remains 52/52
+* wave-report remains 50/50
+* lineage counters remain 0/0/0/0
+* runtime mapToCourse guard remains green
+
+T005 — Run audit and produce allowlist proposal
+Run the new difficulty audit.
+
+Then produce:
+
+1. Full current difficulty distribution.
+2. Per-course difficulty distribution.
+3. Mismatch list.
+4. Proposed explicit allowlist for Phase 15B backfill.
+5. Expected distribution after applying the allowlist.
+6. Risks or uncertain rows that should not be changed yet.
+
+Do not apply the allowlist.
+Do not run the backfill.
+Stop after reporting the proposed allowlist.
+
+T006 — Final gates
+Run:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* wave report
+* pedagogy audit
+* existing audit:difficulty
+* new audit:difficulty-labels
+* lineage inverse check
+* admin quality check
+* runtime mapToCourse gate
+* architect review
+
+Expected Phase 15A final state:
+
+* visible projects: 52 unchanged
+* hidden projects: 32 unchanged
+* visible pedagogy KPI: 52/52 unchanged
+* wave-report: 50/50 unchanged
+* anchorCount: 2 unchanged
+* anchorSlugs unchanged
+* lineage counters: 0/0/0/0 unchanged
+* no difficulty labels mutated yet
+* proposed backfill allowlist produced
+* Phase 15B not started
+
+Hard stop conditions:
+
+* audit suggests mutating either anchor slug
+* any code path modifies csv-to-postgres-pipeline
+* any code path modifies dbt-data-models
+* any live DB difficulty update is attempted before approval
+* runtime mapToCourse appears outside allowlist
+* visible pedagogy KPI changes
+* wave-report changes unexpectedly
+* visible/hidden counts change unexpectedly
+* lineage counters regress
+* typecheck or tests fail
+* architect finds severe/blocking issue
+
+Out of scope:
+
+* Do not run live difficulty backfill.
+* Do not author new projects.
+* Do not seed beginner projects.
+* Do not implement UI filters or badges.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not recalibrate anchors.
+* Do not archive or delete rows.
+* Do not touch cloud credentials.
+* Do not start Phase 15B.
+* Do not start Phase 16.
+
+Final report must include:
+
+1. Pre-state snapshot summary
+2. Files changed
+3. New audit script behavior
+4. Admin/reporting additions
+5. Current difficulty distribution
+6. Per-course difficulty distribution
+7. Mismatch list
+8. Proposed backfill allowlist
+9. Expected distribution after proposed backfill
+10. Rows intentionally left unchanged
+11. Anchor immutability confirmation
+12. Test/typecheck results
+13. Wave-report result
+14. Pedagogy audit result
+15. Lineage check result
+16. Runtime mapToCourse gate result
+17. Architect verdict
+18. Final checkpoint/commit hash if available
+19. Confirmation that no live difficulty backfill was run
+20. Confirmation that Phase 15B was not started

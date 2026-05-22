@@ -109,6 +109,32 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
         advanced: 0,
       },
       visibleBeginnerSlugs: [] as Array<{ slug: string; course: AtlasCourseSlug }>,
+      // Phase 15A — per-course difficulty grid across learner-visible rows.
+      // Lets ops see at a glance which courses are advanced-heavy without
+      // re-running `audit:difficulty`. Counts ONLY learner-visible rows.
+      visibleByCourse: Object.fromEntries(
+        ALL_COURSES.map(c => [c, { beginner: 0, intermediate: 0, advanced: 0 }]),
+      ) as Record<AtlasCourseSlug, { beginner: number; intermediate: number; advanced: number }>,
+      // Phase 15A — beginner-coverage-by-course: count of visible beginner
+      // rows per course (zero-beginner courses are the Phase-15 follow-up
+      // candidates per the Phase 14 close brief).
+      beginnerCoverageByCourse: Object.fromEntries(
+        ALL_COURSES.map(c => [c, 0]),
+      ) as Record<AtlasCourseSlug, number>,
+      // Phase 15A — read-only mismatch surface populated by the
+      // `audit:difficulty-labels` heuristic. The admin route DOES NOT
+      // re-run the audit; it surfaces the count + slug list when present
+      // in `qualityBreakdown.difficultyAuditNote` (Phase 15B will wire a
+      // live source). For Phase 15A the count is always 0 — the audit
+      // report itself lives at `.local/phase15-difficulty-audit.json`.
+      mismatchCount: 0,
+      mismatchSlugs: [] as Array<{
+        slug: string;
+        course: AtlasCourseSlug | null;
+        declared: "beginner" | "intermediate" | "advanced";
+        suggested: "beginner" | "intermediate" | "advanced";
+        reason: string;
+      }>,
     },
   };
 
@@ -165,12 +191,21 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
       });
     }
     // Phase 14 — difficulty distribution across visible rows only.
+    // Phase 15A — also accrue per-course grid + beginner-coverage-by-course.
     if (p.learnerVisible !== false) {
       const d = p.difficultyLevel;
       if (d === "beginner" || d === "intermediate" || d === "advanced") {
         summary.difficultyDistribution.visible[d]++;
+        // Defensive: course may be NULL on extremely-legacy rows. The
+        // ALL_COURSES bucket pre-seed means we only accrue into known keys.
+        if (course && course in summary.difficultyDistribution.visibleByCourse) {
+          summary.difficultyDistribution.visibleByCourse[course][d]++;
+        }
         if (d === "beginner") {
           summary.difficultyDistribution.visibleBeginnerSlugs.push({ slug: p.slug, course });
+          if (course && course in summary.difficultyDistribution.beginnerCoverageByCourse) {
+            summary.difficultyDistribution.beginnerCoverageByCourse[course]++;
+          }
         }
       }
     }
