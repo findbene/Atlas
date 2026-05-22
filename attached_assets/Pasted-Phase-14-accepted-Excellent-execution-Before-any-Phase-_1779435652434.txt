@@ -1,0 +1,194 @@
+Phase 14 accepted. Excellent execution.
+
+Before any Phase 15 implementation, complete two things in one pass:
+
+1. Surface the final auto-checkpoint / commit hash for Phase 14.
+2. Prepare a Phase 15 decision brief only. Do not implement anything.
+
+First confirm:
+
+- Final Phase 14 checkpoint hash
+- git/status equivalent: confirm no unexpected uncommitted implementation files
+- docs/phases/phase-14-beginner-tier-seeding.md exists
+- replit.md marks Phase 14 CLOSED / SHIP
+- Phase 15 is not started
+
+Current confirmed state after Phase 14:
+
+- Phase 11: CLOSED / SHIP
+- Phase 12A: CLOSED / SHIP
+- Phase 12B: CLOSED / SHIP
+- Phase 13: CLOSED / SHIP
+- Phase 14: CLOSED / SHIP
+- total projects: 84 expected after Phase 14 if prior 79 + 5 landed
+- learner-visible projects: 52
+- hidden projects: 32
+- wave-report: 50/50 passing
+- learner-visible pedagogy KPI: 52/52
+- beginner-tier visible count: 6
+- hiddenCount: 32 unchanged during Phase 14
+- anchorCount: 2
+- anchorSlugs:
+  - csv-to-postgres-pipeline
+  - dbt-data-models
+- anchor drift: 0.00
+- lineage integrity: 0/0/0/0
+- API tests: 114/114 passing
+- full repo typecheck passing
+- runtime mapToCourse guard passing
+- rubric v1.0.1 unchanged
+- candidateId remains required
+- 9-course taxonomy unchanged
+- no cloud credential work started
+- no Phase 15 implementation started
+
+Now prepare a Phase 15 decision brief only.
+
+Analyze the best next move across these options:
+
+Option A — Complete beginner-tier coverage for the remaining 4 courses
+Goal:
+Add beginner-friendly entry projects for the 4 courses not seeded in Phase 14:
+- ai-engineer
+- cloud-data-engineer
+- applied-llm-engineer
+- mlops-engineer
+
+Evaluate:
+- Whether true beginner projects are feasible for these prerequisite-heavy courses
+- How to avoid fake-beginner modules that secretly require advanced ML/cloud/LLM knowledge
+- Whether each course should get a beginner project now or whether some need a “foundations/prerequisite” module first
+- Expected effect on beginner coverage, learner trust, and course depth
+- Whether +4 projects is a safe one-pass batch
+
+Option B — Difficulty taxonomy/backfill audit
+Goal:
+Make difficulty labels reliable across all learner-visible projects.
+
+Evaluate:
+- Current difficulty distribution after Phase 14
+- Whether the new beginner projects are correctly labeled
+- Whether older projects are over-labeled as advanced
+- Whether difficulty should be manual allowlist, author-declared, candidate-derived, or content-inferred
+- Whether to backfill all visible projects or keep this read-only first
+- Whether difficulty filtering UI should wait
+
+Option C — Learner UX/course discovery polish
+Goal:
+Improve how learners browse the now-clean catalog.
+
+Evaluate:
+- Course page clarity
+- Project cards
+- beginner/intermediate/advanced badges
+- search/filter/sort
+- recommended next project
+- progress/resume behavior
+- whether UX should wait until difficulty labels are fully audited
+
+Option D — Lift course depth floor from 3/4 toward 5
+Goal:
+Add more projects to lower-coverage courses to make each course feel like a real learning path.
+
+Evaluate:
+- Current visible count per course
+- Which courses remain weakest after Phase 14
+- Whether to target courses at 3 visible projects or courses with no beginner project
+- Whether this competes with beginner completion
+
+Option E — Admin/reporting hardening
+Goal:
+Improve operational visibility after many catalog phases.
+
+Evaluate:
+- Admin quality dashboard
+- phase lineage visibility
+- difficulty distribution by course
+- beginner coverage by course
+- hidden/archive counts
+- anchor reporting
+- legacyReplacements
+- whether reporting gaps could cause future planning mistakes
+
+Option F — Defer content and start productization
+Goal:
+Pause catalog authoring and shift toward product readiness.
+
+Evaluate:
+- Whether Atlas is now content-clean enough to focus on UX, onboarding, auth/payment readiness, deployment, and learner workflows
+- What blocks actual learner use
+- Whether more content or better product experience is the current bottleneck
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Expected catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Required tests
+10. Expected effect on:
+   - learner-visible count
+   - hidden/archive count
+   - pedagogy KPI
+   - beginner coverage
+   - difficulty distribution
+   - course coverage
+   - learner trust
+   - implementation cost
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 15 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement while preserving the high-quality, low-iteration execution pattern.
+
+The recommended Phase 15 must be executable in one cohesive implementation pass after approval.
+
+The recommended Phase 15 plan should include:
+
+1. Exact scope
+2. Exact project slugs involved, if any
+3. Exact courses involved
+4. Whether work is:
+   - new authoring
+   - metadata/backfill
+   - UI/reporting
+   - tests only
+   - archive/replacement
+5. Required files
+6. Required scripts
+7. Required tests
+8. Required reports
+9. Final gates
+10. Expected final metrics
+11. Hard stop conditions
+12. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Important constraints:
+
+- Do not implement Phase 15 yet.
+- Do not mass-generate projects.
+- Do not change rubric v1.0.1.
+- Do not loosen candidateId.
+- Do not change the 9-course taxonomy.
+- Do not use mapToCourse at runtime.
+- Do not delete rows.
+- Preserve archive-by-hiding.
+- Preserve learner_visible filtering.
+- Preserve admin visibility into archived rows.
+- Do not touch cloud credentials.
+- Do not recalibrate anchor projects.
+- Do not modify csv-to-postgres-pipeline.
+- Do not modify dbt-data-models.
+- Do not start Phase 15 implementation after the brief.
