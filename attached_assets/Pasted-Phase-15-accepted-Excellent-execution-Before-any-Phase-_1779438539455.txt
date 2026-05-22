@@ -1,0 +1,203 @@
+Phase 15 accepted. Excellent execution.
+
+Before any Phase 16 implementation, complete two things in one pass:
+
+1. Surface the final auto-checkpoint / commit hash for Phase 15B.
+2. Prepare a Phase 16 decision brief only. Do not implement anything.
+
+First confirm:
+
+* Final Phase 15B checkpoint hash
+* git/status equivalent: confirm no unexpected uncommitted implementation files
+* docs/phases/phase-15-difficulty-taxonomy-audit.md exists
+* replit.md marks Phase 15 CLOSED / SHIP
+* Phase 16 is NOT STARTED
+
+Current confirmed state after Phase 15:
+
+* Phase 14 checkpoint: 1c6a6e80716e9be448ea206dc927574f7bab7267
+* Phase 15A checkpoint: c601c973e3d8bfb144d994a52ba02a92987052e8
+* Phase 15B: CLOSED / SHIP, final checkpoint hash pending
+* visible projects: 52
+* hidden projects: 32
+* beginner: 6
+* intermediate: 1
+* advanced: 45
+* the lone intermediate is dbt-data-models, a protected anchor
+* visible pedagogy KPI: 52/52
+* wave-report: 50/50
+* anchorCount: 2
+* anchorSlugs:
+
+  * csv-to-postgres-pipeline
+  * dbt-data-models
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* tests: 178/178 passing
+* typecheck + runtime mapToCourse guard: green
+* no project content changed
+* no project steps changed
+* no authoring
+* no archive/delete
+* no UI work yet
+* Phase 16 NOT STARTED
+
+Now prepare a Phase 16 decision brief only.
+
+Analyze the best next move across these options:
+
+Option A — Learner-facing difficulty badges and filters
+Goal:
+Use the now-trusted difficulty labels to improve course/project discovery.
+
+Evaluate:
+
+* difficulty badges on project cards
+* beginner/intermediate/advanced filters
+* course detail page filtering
+* whether filtering should be client-side or API-driven
+* empty-state handling
+* whether anchors should display normally or carry an internal-only flag
+* whether difficulty should affect sort order
+
+Option B — “Start Here” learner path improvements
+Goal:
+Guide new learners to the right first project in each course.
+
+Evaluate:
+
+* start-here badge per course
+* recommended first project logic
+* beginner-first sorting
+* fallback behavior for courses with no beginner
+* whether remaining zero-beginner courses need a special message
+* whether this should be rule-based before AI recommendations
+
+Option C — Course/project card information architecture polish
+Goal:
+Make the catalog feel professional and easier to scan.
+
+Evaluate:
+
+* project card layout
+* course card layout
+* visible difficulty, estimated duration, step count, portfolio artifact, role relevance
+* CTA wording
+* visual hierarchy
+* whether this can be done without a full redesign
+
+Option D — Search/sort improvements
+Goal:
+Add useful project discovery controls.
+
+Evaluate:
+
+* search by title/slug/skills
+* sort by difficulty, course, duration, newest, recommended
+* filters by course and difficulty
+* whether search should be local/client-side first
+* whether API query params are needed
+
+Option E — Complete beginner coverage for remaining 4 courses
+Goal:
+Add beginner projects for:
+
+* ai-engineer
+* cloud-data-engineer
+* applied-llm-engineer
+* mlops-engineer
+
+Evaluate:
+
+* whether this should wait until UX exposes current beginner layer
+* risk of fake-beginner modules
+* whether “foundations” projects are better than beginner projects
+* safe batch size
+
+Option F — Productization/onboarding readiness
+Goal:
+Shift from catalog quality to learner onboarding and product readiness.
+
+Evaluate:
+
+* onboarding flow
+* user progress/resume clarity
+* auth/payment readiness
+* course enrollment flow
+* dashboard polish
+* whether this is too broad for one phase
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Expected catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Required tests
+10. Expected effect on:
+
+* learner-visible count
+* hidden/archive count
+* pedagogy KPI
+* difficulty distribution
+* learner trust
+* product readiness
+* implementation cost
+
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 16 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement now that content quality and difficulty labels are clean.
+
+The recommended Phase 16 must be executable in one cohesive implementation pass after approval.
+
+The recommended Phase 16 plan should include:
+
+1. Exact scope
+2. Exact UI/API surfaces involved
+3. Exact files likely touched
+4. Whether work is:
+
+   * frontend UX
+   * API filtering
+   * metadata/reporting
+   * tests only
+   * content authoring
+5. Required tests
+6. Required reports
+7. Final gates
+8. Expected final metrics
+9. Hard stop conditions
+10. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Important constraints:
+
+* Do not implement Phase 16 yet.
+* Do not author new projects.
+* Do not mutate project difficulty labels.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Preserve archive-by-hiding.
+* Preserve learner_visible filtering.
+* Preserve admin visibility into archived rows.
+* Do not touch cloud credentials.
+* Do not recalibrate anchor projects.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not start Phase 16 implementation after the brief.
