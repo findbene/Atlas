@@ -604,6 +604,25 @@ export interface ExecuteCodeResult {
   timedOut: boolean;
 }
 
+export type GetCourseParams = {
+  /**
+ * Phase 16 — Optional learner-facing difficulty filter. Composes with
+the always-on `learner_visible=true` filter; hidden rows never leak.
+Invalid values return 400. Omit to return all difficulties.
+
+ */
+  difficulty?: GetCourseDifficulty;
+};
+
+export type GetCourseDifficulty =
+  (typeof GetCourseDifficulty)[keyof typeof GetCourseDifficulty];
+
+export const GetCourseDifficulty = {
+  beginner: "beginner",
+  intermediate: "intermediate",
+  advanced: "advanced",
+} as const;
+
 export type ListProjectsParams = {
   domainSlug?: string;
   difficulty?: ListProjectsDifficulty;

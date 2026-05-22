@@ -125,6 +125,16 @@ paths:
               - cloud-data-engineer
               - python-libraries
               - sql
+        - name: difficulty
+          in: query
+          required: false
+          description: |
+            Phase 16 — Optional learner-facing difficulty filter. Composes with
+            the always-on `learner_visible=true` filter; hidden rows never leak.
+            Invalid values return 400. Omit to return all difficulties.
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced]
       responses:
         "200":
           description: Course detail
@@ -132,6 +142,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CourseDetail"
+        "400":
+          description: Invalid difficulty filter value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Course not found
           content:

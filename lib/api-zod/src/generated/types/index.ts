@@ -30,6 +30,8 @@ export * from "./executionProfile";
 export * from "./executionProfileMode";
 export * from "./getAiChatHistoryContextType";
 export * from "./getAiChatHistoryParams";
+export * from "./getCourseDifficulty";
+export * from "./getCourseParams";
 export * from "./getLeaderboardParams";
 export * from "./getLeaderboardPeriod";
 export * from "./gradingResult";

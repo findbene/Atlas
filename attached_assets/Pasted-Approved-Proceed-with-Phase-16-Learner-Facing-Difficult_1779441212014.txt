@@ -1,0 +1,262 @@
+Approved. Proceed with Phase 16: Learner-Facing Difficulty Badges + Filters.
+
+Important operating instruction:
+Complete the full approved Phase 16 scope in one cohesive implementation pass. Do not pause after individual file edits if gates are green. Stop only if a hard stop condition triggers.
+
+Chosen Phase 16 scope:
+Implement difficulty badges and difficulty filters using the now-trusted Phase 15 difficulty labels.
+
+Primary goals:
+
+1. Show a difficulty badge on learner-facing project cards.
+2. Add difficulty filtering on course/project listing surfaces.
+3. Persist selected difficulty in the URL query string.
+4. Preserve all catalog invariants.
+5. Do not mutate catalog data.
+
+Current confirmed baseline:
+
+* Phase 15B commit: f4300f5
+* Phase 15B auto-checkpoint: 0e46dabfcda6dde8628a863cea283ec339b8640a
+* visible projects: 52
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 6
+  * intermediate: 1
+  * advanced: 45
+* visible pedagogy KPI: 52/52
+* wave-report: 50/50
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* tests: 178/178 passing
+* runtime mapToCourse guard: green
+* Phase 16 NOT STARTED
+
+Implementation tasks:
+
+T000 — Inspect current UI/API shape
+Before editing, inspect:
+
+* current project/course list routes
+* current course-detail page file names
+* current project card components
+* current API client/hooks
+* current OpenAPI/codegen flow
+* current API route query-param validation patterns
+* current tests for project list/course list visibility
+
+Do not assume file names. Use the actual repo structure.
+
+T001 — API difficulty filter
+Add a difficulty query param to the learner-facing projects API.
+
+Supported values:
+
+* beginner
+* intermediate
+* advanced
+
+Requirements:
+
+* Default behavior with no difficulty param remains unchanged.
+* Filter must preserve learner_visible=true behavior.
+* Hidden/archive rows must never appear.
+* Invalid difficulty value returns 400.
+* Filtering must not expose internal anchor metadata.
+* Difficulty filter must compose safely with existing course/domain filters if those exist.
+* Do not use mapToCourse at runtime.
+* Do not mutate DB.
+
+If the UI consumes course-detail data from a course-specific endpoint rather than the generic projects endpoint, implement the filter wherever the actual course-detail list is sourced. Keep the API design minimal and consistent with existing route patterns.
+
+T002 — OpenAPI / typed client
+If the repo uses OpenAPI/codegen for this endpoint, update the relevant OpenAPI operation with the difficulty enum query param and regenerate the typed client using the existing command.
+
+If codegen is not used for this route, do not invent a new flow. Follow the existing API-client pattern.
+
+T003 — DifficultyBadge component
+Create a reusable difficulty badge component.
+
+Requirements:
+
+* Displays:
+
+  * Beginner
+  * Intermediate
+  * Advanced
+* Uses accessible text and visually distinct styling.
+* Handles missing/unknown difficulty defensively, but unknown should not appear in the current visible catalog.
+* Does not display or leak internal `is_anchor`.
+* Anchors display their public difficulty normally.
+
+T004 — DifficultyFilter component
+Create a small filter control with:
+
+* All
+* Beginner
+* Intermediate
+* Advanced
+
+Requirements:
+
+* Selected value persists in URL query string, e.g. `?difficulty=beginner`.
+* Back/forward browser navigation works.
+* Selecting “All” clears the query param.
+* Invalid query param should not crash the UI.
+* Empty states are clear and course-aware.
+
+Empty-state guidance:
+
+* If a filter returns zero results, show a calm message such as:
+  “No beginner projects in this course yet.”
+* For the 4 zero-beginner courses:
+
+  * ai-engineer
+  * cloud-data-engineer
+  * applied-llm-engineer
+  * mlops-engineer
+    show a slightly more helpful version:
+    “Beginner projects for this course are coming soon. Try Intermediate or Advanced for now.”
+
+T005 — Wire into learner-facing pages
+Add difficulty badges to project card/list surfaces used by:
+
+* course detail pages
+* project catalog/grid pages, if present
+
+Add difficulty filter to the course-detail/project-list surface where learners browse projects.
+
+Scope control:
+
+* Do not redesign the entire card.
+* Do not change global navigation.
+* Do not add search.
+* Do not add “Start Here” logic.
+* Do not add recommendation logic.
+* Do not change enrollment/progress behavior.
+* Do not touch payments/auth/onboarding.
+
+T006 — Tests
+Add/extend tests for:
+
+API:
+
+* no difficulty param returns the existing visible project set
+* `difficulty=beginner` returns only beginner visible projects
+* `difficulty=intermediate` returns only intermediate visible projects
+* `difficulty=advanced` returns only advanced visible projects
+* invalid difficulty returns 400
+* hidden/archive projects never appear under any filter
+* filter counts match expected global distribution:
+
+  * beginner: 6
+  * intermediate: 1
+  * advanced: 45
+
+Frontend/unit/component tests, using existing test tooling only:
+
+* badge renders correct label for each difficulty
+* filter selection updates URL query param
+* “All” clears difficulty query param
+* empty state renders for a zero-result filter
+* anchor/internal metadata is not shown publicly
+
+If no frontend test harness exists, do not introduce a new large test stack. Instead, add the strongest available API tests plus typecheck/build verification and document the frontend smoke verification.
+
+T007 — Final gates
+Run:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* audit:difficulty-labels
+* wave-report
+* pedagogy audit
+* anchor-check
+* lineage inverse check
+* runtime mapToCourse guard
+* frontend build/typecheck
+* architect review
+
+Expected final state:
+
+* visible projects: 52 unchanged
+* hidden projects: 32 unchanged
+* beginner: 6 unchanged
+* intermediate: 1 unchanged
+* advanced: 45 unchanged
+* visible pedagogy KPI: 52/52 unchanged
+* wave-report: 50/50 unchanged
+* anchorCount: 2 unchanged
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* no DB writes
+* no authoring
+* no archive/delete
+* no project difficulty mutation
+* learner-facing project cards now show difficulty badges
+* learners can filter projects by difficulty
+
+Hard stop conditions:
+
+* visible/hidden counts change
+* difficulty distribution changes
+* audit:difficulty-labels mismatchCount becomes nonzero
+* hidden rows appear in any filtered learner-facing response
+* invalid difficulty does not return 400
+* anchor/internal metadata leaks publicly
+* anchor drift exceeds ±1.0
+* lineage counters regress
+* wave-report changes from 50/50
+* visible pedagogy changes from 52/52
+* runtime mapToCourse guard fails
+* typecheck/build/tests fail
+* architect finds severe/blocking issue
+
+Out of scope:
+
+* Do not author new projects.
+* Do not add beginner projects.
+* Do not mutate project difficulty labels.
+* Do not implement “Start Here.”
+* Do not implement search.
+* Do not implement broad card redesign.
+* Do not implement onboarding/auth/payment changes.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not archive or delete rows.
+* Do not touch cloud credentials.
+* Do not start Phase 17.
+
+Final report must include:
+
+1. Phase 16 implementation summary
+2. API filter behavior
+3. UI surfaces updated
+4. DifficultyBadge behavior
+5. DifficultyFilter behavior
+6. Empty-state behavior
+7. Test/typecheck results
+8. Frontend build/typecheck result
+9. audit:difficulty-labels result
+10. Wave-report result
+11. Pedagogy audit result
+12. Anchor-check result
+13. Lineage check result
+14. Runtime mapToCourse result
+15. Confirmation that counts/distribution did not change
+16. Architect verdict
+17. Changed files
+18. DB writes performed, expected zero
+19. Final checkpoint/commit hash
+20. Confirmation that Phase 17 was not started
+
+Then close Phase 16 as:
+Phase 16 — Learner-Facing Difficulty Badges + Filters · CLOSED / SHIP

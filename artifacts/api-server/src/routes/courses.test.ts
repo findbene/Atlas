@@ -33,6 +33,7 @@ vi.mock("@workspace/db", () => ({
     course: { __col: "course" },
     learnerVisible: { __col: "learner_visible" },
     orderIndex: { __col: "order_index" },
+    difficultyLevel: { __col: "difficulty_level" },
   },
 }));
 
@@ -144,5 +145,72 @@ describe("GET /api/courses/:slug", () => {
     // orderBy asc(orderIndex) is wired (deterministic learner ordering).
     const call = findMany.mock.calls[0][0] as { orderBy: Array<{ __op: string; col: unknown }> };
     expect(call.orderBy).toEqual([{ __op: "asc", col: { __col: "order_index" } }]);
+  });
+});
+
+// Phase 16 — Difficulty filter behavior on GET /api/courses/:slug.
+describe("GET /api/courses/:slug — Phase 16 difficulty filter", () => {
+  it("rejects unknown difficulty with 400 and does not query the DB", async () => {
+    const res = await request(makeApp()).get("/api/courses/ai-engineer?difficulty=wizard");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid difficulty");
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects the legacy `expert` value with 400 (not a learner-facing tier)", async () => {
+    const res = await request(makeApp()).get("/api/courses/ai-engineer?difficulty=expert");
+    expect(res.status).toBe(400);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("with no difficulty param uses the existing 2-predicate WHERE (regression)", async () => {
+    findMany.mockResolvedValue([]);
+    await request(makeApp()).get("/api/courses/ai-engineer");
+    expect(eqCalls).toHaveLength(2);
+    expect(eqCalls).toEqual([
+      { col: { __col: "course" }, val: "ai-engineer" },
+      { col: { __col: "learner_visible" }, val: true },
+    ]);
+  });
+
+  for (const level of ["beginner", "intermediate", "advanced"] as const) {
+    it(`difficulty=${level} adds a third eq() predicate for difficulty_level=${level}`, async () => {
+      findMany.mockResolvedValue([]);
+      const res = await request(makeApp()).get(`/api/courses/ai-engineer?difficulty=${level}`);
+      expect(res.status).toBe(200);
+      expect(eqCalls).toHaveLength(3);
+      expect(eqCalls[0]).toEqual({ col: { __col: "course" }, val: "ai-engineer" });
+      expect(eqCalls[1]).toEqual({ col: { __col: "learner_visible" }, val: true });
+      expect(eqCalls[2]).toEqual({ col: { __col: "difficulty_level" }, val: level });
+    });
+  }
+
+  it("learner_visible=true is preserved when filtering by difficulty (hidden rows never leak)", async () => {
+    findMany.mockResolvedValue([]);
+    await request(makeApp()).get("/api/courses/data-engineering?difficulty=beginner");
+    const learnerVisiblePred = eqCalls.find(c => (c.col as { __col: string }).__col === "learner_visible");
+    expect(learnerVisiblePred).toEqual({ col: { __col: "learner_visible" }, val: true });
+  });
+
+  it("response shape stays public — no anchor/internal flags leak", async () => {
+    findMany.mockResolvedValue([
+      {
+        id: "p1", slug: "x", title: "X", shortDescription: "x",
+        difficultyLevel: "beginner", isPremium: false, xpReward: 100,
+        estimatedMinutes: 60, totalSteps: 2, enrolledCount: 0,
+        completionRate: 0, tags: [], orderIndex: 1, jobOutcomes: null,
+        course: "sql", courseSource: "authored",
+        // Internal fields below — must NOT appear in the response.
+        isAnchor: true, learnerVisible: true,
+      },
+    ]);
+    const res = await request(makeApp()).get("/api/courses/sql?difficulty=beginner");
+    expect(res.status).toBe(200);
+    const project = res.body.projects[0];
+    expect(project).not.toHaveProperty("isAnchor");
+    expect(project).not.toHaveProperty("is_anchor");
+    expect(project).not.toHaveProperty("learnerVisible");
+    expect(project).not.toHaveProperty("learner_visible");
+    expect(project).not.toHaveProperty("courseSource");
   });
 });

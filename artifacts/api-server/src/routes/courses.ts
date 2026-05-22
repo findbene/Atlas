@@ -20,6 +20,12 @@ import {
   type AtlasCourseSlug,
 } from "@workspace/curriculum-quality";
 
+// Phase 16 — Learner-facing difficulty filter values. Mirrors the OpenAPI
+// enum on GET /courses/:slug. The `expert` tier exists in the DB enum but is
+// intentionally NOT a learner-facing value (no visible project is expert).
+const LEARNER_DIFFICULTIES = ["beginner", "intermediate", "advanced"] as const;
+type LearnerDifficulty = (typeof LEARNER_DIFFICULTIES)[number];
+
 const router = Router();
 
 type CourseMetadata = {
@@ -141,8 +147,29 @@ router.get("/courses/:slug", async (req, res) => {
     const courseSlug = slug as AtlasCourseSlug;
     const meta = COURSE_METADATA[courseSlug];
 
+    // Phase 16 — Optional difficulty filter. Validated against the learner-
+    // facing allowlist (no `expert`). Invalid values → 400, never silently
+    // ignored. Note: `learner_visible=true` is preserved regardless.
+    const rawDifficulty = req.query.difficulty;
+    let difficulty: LearnerDifficulty | undefined;
+    if (rawDifficulty !== undefined) {
+      if (typeof rawDifficulty !== "string" ||
+          !LEARNER_DIFFICULTIES.includes(rawDifficulty as LearnerDifficulty)) {
+        res.status(400).json({
+          error: "Invalid difficulty",
+          message: `difficulty must be one of: ${LEARNER_DIFFICULTIES.join(", ")}`,
+        });
+        return;
+      }
+      difficulty = rawDifficulty as LearnerDifficulty;
+    }
+
     const rows = await db.query.projects.findMany({
-      where: and(eq(projects.course, courseSlug), eq(projects.learnerVisible, true)),
+      where: and(
+        eq(projects.course, courseSlug),
+        eq(projects.learnerVisible, true),
+        difficulty ? eq(projects.difficultyLevel, difficulty) : undefined,
+      ),
       orderBy: [asc(projects.orderIndex)],
     });
 

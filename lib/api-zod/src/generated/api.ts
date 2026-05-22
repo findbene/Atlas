@@ -174,6 +174,15 @@ export const GetCourseParams = zod.object({
   ]),
 });
 
+export const GetCourseQueryParams = zod.object({
+  difficulty: zod
+    .enum(["beginner", "intermediate", "advanced"])
+    .optional()
+    .describe(
+      "Phase 16 — Optional learner-facing difficulty filter. Composes with\nthe always-on `learner_visible=true` filter; hidden rows never leak.\nInvalid values return 400. Omit to return all difficulties.\n",
+    ),
+});
+
 export const GetCourseResponse = zod
   .object({
     slug: zod.enum([

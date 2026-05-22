@@ -30,6 +30,7 @@ import type {
   ExecuteCodeBody,
   ExecuteCodeResult,
   GetAiChatHistoryParams,
+  GetCourseParams,
   GetLeaderboardParams,
   GradingResult,
   HealthStatus,
@@ -391,8 +392,21 @@ export const getGetCourseUrl = (
     | "cloud-data-engineer"
     | "python-libraries"
     | "sql",
+  params?: GetCourseParams,
 ) => {
-  return `/api/courses/${slug}`;
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/courses/${slug}?${stringifiedParams}`
+    : `/api/courses/${slug}`;
 };
 
 export const getCourse = async (
@@ -406,9 +420,10 @@ export const getCourse = async (
     | "cloud-data-engineer"
     | "python-libraries"
     | "sql",
+  params?: GetCourseParams,
   options?: RequestInit,
 ): Promise<CourseDetail> => {
-  return customFetch<CourseDetail>(getGetCourseUrl(slug), {
+  return customFetch<CourseDetail>(getGetCourseUrl(slug, params), {
     ...options,
     method: "GET",
   });
@@ -425,8 +440,9 @@ export const getGetCourseQueryKey = (
     | "cloud-data-engineer"
     | "python-libraries"
     | "sql",
+  params?: GetCourseParams,
 ) => {
-  return [`/api/courses/${slug}`] as const;
+  return [`/api/courses/${slug}`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetCourseQueryOptions = <
@@ -443,6 +459,7 @@ export const getGetCourseQueryOptions = <
     | "cloud-data-engineer"
     | "python-libraries"
     | "sql",
+  params?: GetCourseParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof getCourse>>,
@@ -454,11 +471,11 @@ export const getGetCourseQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCourseQueryKey(slug);
+  const queryKey = queryOptions?.queryKey ?? getGetCourseQueryKey(slug, params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getCourse>>> = ({
     signal,
-  }) => getCourse(slug, { signal, ...requestOptions });
+  }) => getCourse(slug, params, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -493,6 +510,7 @@ export function useGetCourse<
     | "cloud-data-engineer"
     | "python-libraries"
     | "sql",
+  params?: GetCourseParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof getCourse>>,
@@ -502,7 +520,7 @@ export function useGetCourse<
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetCourseQueryOptions(slug, options);
+  const queryOptions = getGetCourseQueryOptions(slug, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
