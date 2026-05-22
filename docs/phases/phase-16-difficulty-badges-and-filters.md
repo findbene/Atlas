@@ -1,6 +1,7 @@
 # Phase 16 — Learner-Facing Difficulty Badges + Filters
 
-**Status:** CLOSED · SHIP
+**Status:** UI / filter implementation **SHIP** (commit `671af63`). Catalog-quality gate **NOT GREEN** — pre-existing wave-report drift discovered (47/50 vs documented 50/50). Phase 16 did not cause the drift (zero authoring / scoring / rubric files touched), but the gate is still failing and is handed to Phase 17 to repair before further UX/product work.
+
 **Scope:** Surface the Phase-15-trusted `projects.difficulty_level` to learners. Add a difficulty badge on every project card in `/courses/:slug` and a filter on the course-detail page. No DB writes, no authoring, no archive/delete.
 
 ## What shipped
@@ -59,15 +60,23 @@
 | Total | **186 / 186** |
 | `pnpm --filter @workspace/atlas run typecheck` | ✓ |
 | `author:project anchor-check` | drift 0.00, both anchors OK |
-| `author:project wave-report` | 47/50 (see Wave-report note below) |
+| `author:project wave-report` | **47/50 — NOT GREEN** (see Wave-report note below; handed to Phase 17) |
 | `audit:pedagogy` | 52/52 visible enriched |
 | `audit:difficulty-labels` | anchor immutability 2/2, no new mismatches |
 | Live smoke (`/api/courses/sql?difficulty=beginner` returns 1; `?difficulty=wizard` returns 400) | ✓ |
 | Architect review (code_review skill) | **PASS** — no severe findings |
 
-## Wave-report note (47/50, not 50/50)
+## Wave-report drift — discovered, not caused (handed to Phase 17)
 
-Phase 14 closed at 50/50; Phase 15 documented 50/50 unchanged; Phase 16 observed 47/50. The 3 sub-70 rows are the **Phase-14 beginner-tier authored projects** scoring 65.3 / 69.1 / 67.1 (`sql-beginner-select-where-join-essentials`, `data-engineering-beginner-csv-cleanup-pipeline`, `data-scientist-beginner-eda-and-summary-stats`). Phase 16's diff touches **zero** authoring / scoring / rubric code (verified via `git diff --stat`: only OpenAPI spec, generated client, API route validation, tests, and frontend UI). This is therefore **pre-existing scoring drift introduced before Phase 16**, not a Phase-16 regression. Flagged for a future Phase-17 candidate ("beginner-tier scoring uplift").
+Phase 14 closed at 50/50; Phase 15 documented 50/50 unchanged; Phase 16 observed **47/50**. The 3 sub-70 rows are the **Phase-14 beginner-tier authored projects**:
+
+| Slug | Score | Job | Realism | Depth | Pedagogy | Portfolio | Unique |
+|---|---|---|---|---|---|---|---|
+| `sql-beginner-select-where-join-essentials` | 65.3 | 39 | 82 | 68 | 100 | 30 | 89 |
+| `data-engineering-beginner-csv-cleanup-pipeline` | 69.1 | 38 | 82 | 68 | 100 | 60 | 81 |
+| `data-scientist-beginner-eda-and-summary-stats` | 67.1 | 45 | 82 | 68 | 100 | 30 | 94 |
+
+Phase 16's diff touches **zero** authoring / scoring / rubric code (verified via `git diff --stat`: only OpenAPI spec, generated client, API route validation, tests, and frontend UI). This is **pre-existing scoring drift introduced before Phase 16, discovered during the Phase 16 wave-report run** — not a Phase-16 regression. Because the wave-report gate is not green, Phase 16's catalog-quality gate is **NOT GREEN**, even though the UI/filter implementation itself is sound. The repair is handed to **Phase 17 — Beginner-Tier Scoring Uplift** (decision brief: `.local/phase17-decision-brief.md`).
 
 ## Files changed
 

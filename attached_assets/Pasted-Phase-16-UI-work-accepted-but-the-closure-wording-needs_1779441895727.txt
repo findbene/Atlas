@@ -1,0 +1,147 @@
+Phase 16 UI work accepted, but the closure wording needs correction.
+
+You reported “all gates green,” but wave-report is 47/50, not 50/50. Even if Phase 16 did not cause the drift, that means the wave-report gate is not green. Treat this as discovered pre-existing catalog-quality drift, not as a Phase 16 regression.
+
+Before any Phase 17 implementation, do the following in one pass:
+
+1. Surface the final Phase 16 checkpoint / commit hash.
+2. Correct the Phase 16 closure documentation and replit.md wording if needed:
+   - Phase 16 UI/filter implementation: SHIP
+   - Catalog-quality gate: discovered pre-existing wave-report drift, 47/50
+   - Explicitly state that Phase 16 touched no authoring/scoring/rubric files
+   - Explicitly state that Phase 17 must address the 3 below-threshold beginner projects before more UX/product work
+3. Prepare a Phase 17 decision brief only. Do not implement Phase 17 yet.
+
+Current confirmed Phase 16 outcome:
+- difficulty badges and filters shipped
+- course-detail difficulty filter works
+- URL query persists difficulty filter
+- empty-state behavior added
+- API filter supports difficulty
+- invalid difficulty returns 400
+- 186/186 tests passed
+- typecheck passed
+- runtime mapToCourse guard passed
+- anchor drift 0.00
+- visible projects unchanged: 52
+- hidden projects unchanged: 32
+- difficulty distribution unchanged: 6 beginner / 1 intermediate / 45 advanced
+- pedagogy visible unchanged: 52/52
+- lineage unchanged: 0/0/0/0
+- architect PASS
+- BUT wave-report is 47/50, not 50/50
+
+The 3 below-threshold projects identified:
+1. sql-beginner-select-where-join-essentials — score 65.3
+2. data-engineering-beginner-csv-cleanup-pipeline — score 69.1
+3. data-scientist-beginner-eda-and-summary-stats — score 67.1
+
+Phase 17 decision brief should evaluate:
+
+Option A — Beginner-tier scoring uplift
+Goal:
+Raise the 3 below-threshold Phase 14 beginner projects to >=70 without changing their beginner difficulty.
+
+Evaluate:
+- Why each project fell below 70
+- Which rubric dimensions are weak
+- Whether the issue is jobReadiness, productionRealism, pythonSqlDepth, portfolio, uniqueness, or validation
+- How to improve each project while preserving beginner-friendliness
+- Whether each project should remain beginner after edits
+- Expected score after uplift
+- Risk of making beginner projects too advanced
+
+Option B — Reclassify difficulty instead of changing project content
+Goal:
+Leave content unchanged and change difficulty if the projects are not truly beginner.
+
+Evaluate:
+- Whether any of the 3 are incorrectly labeled beginner
+- Whether relabeling would reduce beginner coverage too much
+- Whether this undermines Phase 14’s purpose
+- Whether this is appropriate given the actual project designs
+
+Option C — Replace the weak beginner projects
+Goal:
+Archive/replace the 3 weak projects with better beginner modules.
+
+Evaluate:
+- Cost/risk versus targeted uplift
+- Whether replacement creates unnecessary churn
+- Whether archive-by-hiding is needed
+- Whether new slugs/candidates would be required
+
+Option D — Adjust scoring/rubric behavior
+Goal:
+Determine whether the rubric is unfairly penalizing beginner projects.
+
+Evaluate:
+- Whether beginner projects naturally score lower due to less advanced stack depth
+- Whether rubric v1.0.1 should remain frozen
+- Whether any adapter bug exists
+- Whether changing scoring would violate frozen invariants
+
+For each option, report:
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. DB/schema changes, if any
+9. Tests required
+10. Expected effect on:
+   - wave-report
+   - visible pedagogy KPI
+   - beginner count
+   - difficulty distribution
+   - learner trust
+   - anchor drift
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 17 scope.
+
+My likely preferred direction:
+Option A — targeted scoring uplift.
+
+Recommended Phase 17 should be a tightly scoped repair phase:
+- no new projects
+- no rubric changes
+- no difficulty relabeling unless evidence is overwhelming
+- no UI/product work
+- only improve the 3 below-threshold beginner projects enough to restore wave-report to 50/50
+
+For the recommended Phase 17 plan, include:
+
+1. Exact project slugs
+2. Current scores and dimension breakdowns
+3. Target score for each
+4. Exact likely fixes per project
+5. Files likely touched
+6. Tests required
+7. Reports required
+8. Final gates
+9. Expected final metrics
+10. Hard stop conditions
+11. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+Give the exact first 10 implementation steps, but do not execute them.
+
+Hard constraints:
+- Do not implement Phase 17 yet
+- Do not change rubric v1.0.1
+- Do not loosen candidateId
+- Do not change the 9-course taxonomy
+- Do not use mapToCourse at runtime
+- Do not delete rows
+- Do not archive rows unless explicitly approved later
+- Do not change difficulty labels yet
+- Do not modify anchors
+- Do not touch cloud credentials
+- Do not start Phase 17 implementation after the brief
