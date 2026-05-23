@@ -17,6 +17,7 @@ import {
   ALL_COURSES,
   type AtlasCourseSlug, type Scorecard,
 } from "@workspace/curriculum-quality";
+import { pickStartHere, type StartHereCandidate } from "../lib/startHere";
 
 const router = Router();
 
@@ -136,7 +137,36 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
         reason: string;
       }>,
     },
+    // Phase 20 — read-only Start Here coverage rider. Mirrors the same
+    // `pickStartHere` rule the learner-facing `GET /api/courses/:slug`
+    // route applies, but evaluated per course across all 9 courses so ops
+    // can see in one glance which courses currently surface a true
+    // beginner ("start_here") vs which still fall back to
+    // "most_approachable_available". Computed in-process from the same
+    // visible-row set used by `difficultyDistribution`. NEVER reads
+    // `is_anchor`, never re-runs the audit, never calls heuristic course
+    // inference. The frontend does NOT consume this surface — the
+    // learner-facing `startHere` payload is computed inside the courses
+    // route. This rider is for admin reporting only.
+    startHereCoverage: {
+      totalCourses: ALL_COURSES.length,
+      withBeginner: 0,
+      withFallback: 0,
+      zeroBeginnerCourses: [] as AtlasCourseSlug[],
+      startHereByCourse: Object.fromEntries(
+        ALL_COURSES.map(c => [c, null]),
+      ) as Record<
+        AtlasCourseSlug,
+        { kind: "start_here" | "most_approachable_available"; slug: string; reasonKey: "beginner_available" | "no_beginner_available" } | null
+      >,
+    },
   };
+
+  // Phase-20 helper buckets: collect StartHereCandidate-shaped rows per
+  // course as we iterate. Populated inside the main project loop below.
+  const startHereCandidatesByCourse = Object.fromEntries(
+    ALL_COURSES.map(c => [c, [] as StartHereCandidate[]]),
+  ) as Record<AtlasCourseSlug, StartHereCandidate[]>;
 
   // Pre-build slug → learnerVisible lookup for the Phase-12A pairs surface.
   const learnerVisibleBySlug = new Map(projectRows.map(p => [p.slug, p.learnerVisible !== false]));
@@ -216,6 +246,36 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
       sourceCandidateId: p.sourceCandidateId ?? null,
       sourceCandidateTitle: p.sourceCandidateId ? candidateTitle.get(p.sourceCandidateId) ?? null : null,
     });
+    // Phase 20 — accrue Start Here candidate rows. Same gate as the
+    // courses route: learner_visible=true only. Anchors are NOT excluded
+    // (the courses route doesn't exclude them either; pickStartHere is
+    // purely a sort-and-rank helper over visible rows).
+    if (p.learnerVisible !== false && course && course in startHereCandidatesByCourse) {
+      startHereCandidatesByCourse[course].push({
+        slug: p.slug,
+        title: p.title ?? p.slug,
+        difficulty: p.difficultyLevel ?? "intermediate",
+        estimatedHours: (p.estimatedMinutes ?? 0) / 60,
+        stepCount: p.totalSteps ?? 0,
+      });
+    }
+  }
+
+  // Phase 20 — fold per-course buckets through pickStartHere once each.
+  for (const course of ALL_COURSES) {
+    const bucket = startHereCandidatesByCourse[course];
+    const result = pickStartHere(bucket);
+    if (!result) continue;
+    summary.startHereCoverage.startHereByCourse[course] = {
+      kind: result.kind,
+      slug: result.project.slug,
+      reasonKey: result.reasonKey,
+    };
+    if (result.kind === "start_here") summary.startHereCoverage.withBeginner++;
+    else {
+      summary.startHereCoverage.withFallback++;
+      summary.startHereCoverage.zeroBeginnerCourses.push(course);
+    }
   }
 
   summary.weakest = projectRows
