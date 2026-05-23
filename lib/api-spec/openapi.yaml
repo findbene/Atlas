@@ -679,6 +679,105 @@ paths:
               schema:
                 $ref: "#/components/schemas/ExecuteCodeResult"
 
+  /enrollments:
+    post:
+      operationId: createEnrollment
+      tags: [user-projects]
+      summary: Enroll in a project by slug (Phase 21)
+      description: |
+        Phase 21 — Slug-based idempotent enrollment overlay for the onboarding
+        and Start Here flows. Resolves `projectSlug` → projectId, enforces
+        `learner_visible=true` (hidden/archived slugs return 404 with no
+        existence leak), and creates a `user_progress` row only if one does
+        not already exist for `(userId, projectId)`. Repeated calls are safe:
+        same response, no duplicate rows.
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrollmentRequest"
+      responses:
+        "200":
+          description: Enrollment created or existing enrollment returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrollmentResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Project requires Pro subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found or hidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [user-projects]
+      summary: Learner dashboard payload (Phase 21)
+      description: |
+        Phase 21 — Single-call learner dashboard: resume card, in-progress
+        and completed enrollments, plus an optional Start Here recommendation
+        for first-time learners. Hidden/archived projects are excluded
+        symmetrically with `GET /api/courses/:slug`.
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+
+  /onboarding/state:
+    get:
+      operationId: getOnboardingState
+      tags: [user-projects]
+      summary: Get learner onboarding state (Phase 21)
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Onboarding state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingState"
+
+  /onboarding/complete:
+    post:
+      operationId: completeOnboarding
+      tags: [user-projects]
+      summary: Mark learner onboarding complete (Phase 21)
+      description: |
+        Idempotent — flips `users.onboarding_completed=true` on first call;
+        subsequent calls are no-ops and return the same payload.
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Onboarding state after the call
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingState"
+
 components:
   securitySchemes:
     clerkAuth:
@@ -872,6 +971,180 @@ components:
         - kind
         - reasonKey
         - hasBeginner
+
+    EnrollmentRequest:
+      type: object
+      properties:
+        projectSlug:
+          type: string
+          minLength: 1
+          description: Learner-visible project slug. Hidden/archived slugs return 404.
+      required:
+        - projectSlug
+
+    EnrollmentResponse:
+      type: object
+      description: |
+        Phase 21 — Slug-based enrollment response. `currentStepId` resolves
+        the project's step at `currentStepNumber`; both are nullable when the
+        project has no steps (defensive; should not happen for catalog rows).
+      properties:
+        projectId:
+          type: string
+        projectSlug:
+          type: string
+        currentStepNumber:
+          type: integer
+        currentStepId:
+          type: string
+          nullable: true
+        created:
+          type: boolean
+          description: True if this call inserted a new row; false if an existing enrollment was returned.
+      required:
+        - projectId
+        - projectSlug
+        - currentStepNumber
+        - created
+
+    DashboardEnrollment:
+      type: object
+      description: |
+        Phase 21 — One row of the learner's enrollment list (in-progress or
+        completed). Always references a `learner_visible=true` project.
+      properties:
+        projectId:
+          type: string
+        projectSlug:
+          type: string
+        projectTitle:
+          type: string
+        shortDescription:
+          type: string
+        course:
+          type: string
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        status:
+          type: string
+          enum: [in_progress, completed]
+        currentStep:
+          type: integer
+        totalSteps:
+          type: integer
+        completionPercent:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - projectId
+        - projectSlug
+        - projectTitle
+        - shortDescription
+        - course
+        - difficulty
+        - status
+        - currentStep
+        - totalSteps
+        - completionPercent
+        - lastUpdatedAt
+
+    DashboardResume:
+      type: object
+      properties:
+        projectId:
+          type: string
+        projectSlug:
+          type: string
+        projectTitle:
+          type: string
+        course:
+          type: string
+        currentStep:
+          type: integer
+        totalSteps:
+          type: integer
+        completionPercent:
+          type: integer
+        lastUpdatedAt:
+          type: string
+          format: date-time
+      required:
+        - projectId
+        - projectSlug
+        - projectTitle
+        - course
+        - currentStep
+        - totalSteps
+        - completionPercent
+        - lastUpdatedAt
+
+    DashboardRecommendation:
+      type: object
+      description: |
+        Phase 21 — Onboarding-time Start Here suggestion for a fresh learner
+        (zero enrollments). Returned only when `inProgress` and `completed`
+        are both empty.
+      properties:
+        courseSlug:
+          type: string
+        startHere:
+          $ref: "#/components/schemas/StartHereRecommendation"
+      required:
+        - courseSlug
+        - startHere
+
+    DashboardResponse:
+      type: object
+      properties:
+        resume:
+          allOf:
+            - $ref: "#/components/schemas/DashboardResume"
+          nullable: true
+        inProgress:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardEnrollment"
+        completed:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardEnrollment"
+        recommendedStartHere:
+          allOf:
+            - $ref: "#/components/schemas/DashboardRecommendation"
+          nullable: true
+      required:
+        - inProgress
+        - completed
+
+    OnboardingState:
+      type: object
+      description: |
+        Phase 21 — Onboarding state for the 3-step flow. `lastSeenStep` is
+        derived from `users.onboarding_completed` + whether the learner has
+        any enrollments. The frontend uses this to resume mid-flow.
+      properties:
+        completed:
+          type: boolean
+        hasEnrollments:
+          type: boolean
+        lastSeenStep:
+          type: string
+          enum: [pick_course, pick_project, first_enroll]
+          nullable: true
+      required:
+        - completed
+        - hasEnrollments
 
     ProjectSummary:
       type: object

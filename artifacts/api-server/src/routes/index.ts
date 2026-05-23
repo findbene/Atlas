@@ -15,6 +15,9 @@ import publicProfileRouter from "./public-profile";
 import certVerifyRouter from "./cert-verify";
 import hintsRouter from "./hints";
 import adminRouter from "./admin";
+import enrollmentRouter from "./enrollment";
+import dashboardRouter from "./dashboard";
+import onboardingRouter from "./onboarding";
 
 const router: IRouter = Router();
 
@@ -34,5 +37,8 @@ router.use(publicProfileRouter);
 router.use(certVerifyRouter);
 router.use(hintsRouter);
 router.use(adminRouter);
+router.use(enrollmentRouter);
+router.use(dashboardRouter);
+router.use(onboardingRouter);
 
 export default router;

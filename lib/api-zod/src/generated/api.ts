@@ -1316,3 +1316,211 @@ export const ExecutePythonResponse = zod.object({
   executionTimeMs: zod.number().optional(),
   timedOut: zod.boolean(),
 });
+
+/**
+ * Phase 21 — Slug-based idempotent enrollment overlay for the onboarding
+and Start Here flows. Resolves `projectSlug` → projectId, enforces
+`learner_visible=true` (hidden/archived slugs return 404 with no
+existence leak), and creates a `user_progress` row only if one does
+not already exist for `(userId, projectId)`. Repeated calls are safe:
+same response, no duplicate rows.
+
+ * @summary Enroll in a project by slug (Phase 21)
+ */
+
+export const CreateEnrollmentBody = zod.object({
+  projectSlug: zod
+    .string()
+    .min(1)
+    .describe(
+      "Learner-visible project slug. Hidden\/archived slugs return 404.",
+    ),
+});
+
+export const CreateEnrollmentResponse = zod
+  .object({
+    projectId: zod.string(),
+    projectSlug: zod.string(),
+    currentStepNumber: zod.number(),
+    currentStepId: zod.string().nullish(),
+    created: zod
+      .boolean()
+      .describe(
+        "True if this call inserted a new row; false if an existing enrollment was returned.",
+      ),
+  })
+  .describe(
+    "Phase 21 — Slug-based enrollment response. `currentStepId` resolves\nthe project's step at `currentStepNumber`; both are nullable when the\nproject has no steps (defensive; should not happen for catalog rows).\n",
+  );
+
+/**
+ * Phase 21 — Single-call learner dashboard: resume card, in-progress
+and completed enrollments, plus an optional Start Here recommendation
+for first-time learners. Hidden/archived projects are excluded
+symmetrically with `GET /api/courses/:slug`.
+
+ * @summary Learner dashboard payload (Phase 21)
+ */
+export const GetDashboardResponse = zod.object({
+  resume: zod
+    .object({
+      projectId: zod.string(),
+      projectSlug: zod.string(),
+      projectTitle: zod.string(),
+      course: zod.string(),
+      currentStep: zod.number(),
+      totalSteps: zod.number(),
+      completionPercent: zod.number(),
+      lastUpdatedAt: zod.coerce.date(),
+    })
+    .nullish(),
+  inProgress: zod.array(
+    zod
+      .object({
+        projectId: zod.string(),
+        projectSlug: zod.string(),
+        projectTitle: zod.string(),
+        shortDescription: zod.string(),
+        course: zod.string(),
+        difficulty: zod.enum(["beginner", "intermediate", "advanced"]),
+        status: zod.enum(["in_progress", "completed"]),
+        currentStep: zod.number(),
+        totalSteps: zod.number(),
+        completionPercent: zod.number(),
+        startedAt: zod.coerce.date().nullish(),
+        lastUpdatedAt: zod.coerce.date(),
+        completedAt: zod.coerce.date().nullish(),
+      })
+      .describe(
+        "Phase 21 — One row of the learner's enrollment list (in-progress or\ncompleted). Always references a `learner_visible=true` project.\n",
+      ),
+  ),
+  completed: zod.array(
+    zod
+      .object({
+        projectId: zod.string(),
+        projectSlug: zod.string(),
+        projectTitle: zod.string(),
+        shortDescription: zod.string(),
+        course: zod.string(),
+        difficulty: zod.enum(["beginner", "intermediate", "advanced"]),
+        status: zod.enum(["in_progress", "completed"]),
+        currentStep: zod.number(),
+        totalSteps: zod.number(),
+        completionPercent: zod.number(),
+        startedAt: zod.coerce.date().nullish(),
+        lastUpdatedAt: zod.coerce.date(),
+        completedAt: zod.coerce.date().nullish(),
+      })
+      .describe(
+        "Phase 21 — One row of the learner's enrollment list (in-progress or\ncompleted). Always references a `learner_visible=true` project.\n",
+      ),
+  ),
+  recommendedStartHere: zod
+    .object({
+      courseSlug: zod.string(),
+      startHere: zod
+        .object({
+          project: zod.object({
+            id: zod.string(),
+            slug: zod.string(),
+            title: zod.string(),
+            description: zod.string(),
+            difficulty: zod.enum([
+              "beginner",
+              "intermediate",
+              "advanced",
+              "expert",
+            ]),
+            tier: zod.enum(["free", "pro"]),
+            xpReward: zod.number(),
+            estimatedHours: zod.number(),
+            stepCount: zod.number(),
+            enrolledCount: zod.number(),
+            completionRate: zod.number(),
+            tags: zod.array(zod.string()),
+            position: zod.number(),
+            jobOutcomes: zod
+              .object({
+                roles: zod
+                  .array(zod.string())
+                  .describe("Real-world job titles this project maps to."),
+                skillsForResume: zod
+                  .array(zod.string())
+                  .describe(
+                    "Concrete skills suitable for a Skills section on a resume.",
+                  ),
+                resumeBullets: zod
+                  .array(zod.string())
+                  .describe(
+                    "Action-oriented resume bullet points based on the project work.",
+                  ),
+                interviewQuestions: zod
+                  .array(zod.string())
+                  .describe(
+                    "Common interview questions this project prepares the learner to answer.",
+                  ),
+                portfolioReadiness: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Short paragraph explaining how this project becomes a portfolio piece.",
+                  ),
+                marketSignal: zod
+                  .string()
+                  .optional()
+                  .describe(
+                    "Why this skill matters in the 2026+ data engineering job market.",
+                  ),
+              })
+              .optional()
+              .describe(
+                "Career-readiness signals demonstrated by completing this project.",
+              ),
+          }),
+          kind: zod.enum(["start_here", "most_approachable_available"]),
+          reasonKey: zod.enum(["beginner_available", "no_beginner_available"]),
+          hasBeginner: zod.boolean(),
+        })
+        .describe(
+          "Phase 18 — Start Here recommendation. `kind=start_here` when at\nleast one beginner project exists in the course; otherwise\n`kind=most_approachable_available` and the frontend renders an\nhonest fallback message (no beginner projects yet).\n",
+        ),
+    })
+    .describe(
+      "Phase 21 — Onboarding-time Start Here suggestion for a fresh learner\n(zero enrollments). Returned only when `inProgress` and `completed`\nare both empty.\n",
+    )
+    .nullish(),
+});
+
+/**
+ * @summary Get learner onboarding state (Phase 21)
+ */
+export const GetOnboardingStateResponse = zod
+  .object({
+    completed: zod.boolean(),
+    hasEnrollments: zod.boolean(),
+    lastSeenStep: zod
+      .enum(["pick_course", "pick_project", "first_enroll"])
+      .nullish(),
+  })
+  .describe(
+    "Phase 21 — Onboarding state for the 3-step flow. `lastSeenStep` is\nderived from `users.onboarding_completed` + whether the learner has\nany enrollments. The frontend uses this to resume mid-flow.\n",
+  );
+
+/**
+ * Idempotent — flips `users.onboarding_completed=true` on first call;
+subsequent calls are no-ops and return the same payload.
+
+ * @summary Mark learner onboarding complete (Phase 21)
+ */
+export const CompleteOnboardingResponse = zod
+  .object({
+    completed: zod.boolean(),
+    hasEnrollments: zod.boolean(),
+    lastSeenStep: zod
+      .enum(["pick_course", "pick_project", "first_enroll"])
+      .nullish(),
+  })
+  .describe(
+    "Phase 21 — Onboarding state for the 3-step flow. `lastSeenStep` is\nderived from `users.onboarding_completed` + whether the learner has\nany enrollments. The frontend uses this to resume mid-flow.\n",
+  );

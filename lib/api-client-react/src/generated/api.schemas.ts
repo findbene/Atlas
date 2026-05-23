@@ -189,6 +189,118 @@ Null only if the course has zero visible projects.
   startHere?: StartHereRecommendation | null;
 };
 
+export interface EnrollmentRequest {
+  /**
+   * Learner-visible project slug. Hidden/archived slugs return 404.
+   * @minLength 1
+   */
+  projectSlug: string;
+}
+
+/**
+ * Phase 21 — Slug-based enrollment response. `currentStepId` resolves
+the project's step at `currentStepNumber`; both are nullable when the
+project has no steps (defensive; should not happen for catalog rows).
+
+ */
+export interface EnrollmentResponse {
+  projectId: string;
+  projectSlug: string;
+  currentStepNumber: number;
+  currentStepId?: string | null;
+  /** True if this call inserted a new row; false if an existing enrollment was returned. */
+  created: boolean;
+}
+
+export type DashboardEnrollmentDifficulty =
+  (typeof DashboardEnrollmentDifficulty)[keyof typeof DashboardEnrollmentDifficulty];
+
+export const DashboardEnrollmentDifficulty = {
+  beginner: "beginner",
+  intermediate: "intermediate",
+  advanced: "advanced",
+} as const;
+
+export type DashboardEnrollmentStatus =
+  (typeof DashboardEnrollmentStatus)[keyof typeof DashboardEnrollmentStatus];
+
+export const DashboardEnrollmentStatus = {
+  in_progress: "in_progress",
+  completed: "completed",
+} as const;
+
+/**
+ * Phase 21 — One row of the learner's enrollment list (in-progress or
+completed). Always references a `learner_visible=true` project.
+
+ */
+export interface DashboardEnrollment {
+  projectId: string;
+  projectSlug: string;
+  projectTitle: string;
+  shortDescription: string;
+  course: string;
+  difficulty: DashboardEnrollmentDifficulty;
+  status: DashboardEnrollmentStatus;
+  currentStep: number;
+  totalSteps: number;
+  completionPercent: number;
+  startedAt?: string | null;
+  lastUpdatedAt: string;
+  completedAt?: string | null;
+}
+
+export interface DashboardResume {
+  projectId: string;
+  projectSlug: string;
+  projectTitle: string;
+  course: string;
+  currentStep: number;
+  totalSteps: number;
+  completionPercent: number;
+  lastUpdatedAt: string;
+}
+
+/**
+ * Phase 21 — Onboarding-time Start Here suggestion for a fresh learner
+(zero enrollments). Returned only when `inProgress` and `completed`
+are both empty.
+
+ */
+export interface DashboardRecommendation {
+  courseSlug: string;
+  startHere: StartHereRecommendation;
+}
+
+export interface DashboardResponse {
+  resume?: DashboardResume | null;
+  inProgress: DashboardEnrollment[];
+  completed: DashboardEnrollment[];
+  recommendedStartHere?: DashboardRecommendation | null;
+}
+
+export type OnboardingStateLastSeenStep =
+  | (typeof OnboardingStateLastSeenStep)[keyof typeof OnboardingStateLastSeenStep]
+  | null;
+
+export const OnboardingStateLastSeenStep = {
+  pick_course: "pick_course",
+  pick_project: "pick_project",
+  first_enroll: "first_enroll",
+} as const;
+
+/**
+ * Phase 21 — Onboarding state for the 3-step flow. `lastSeenStep` is
+derived from `users.onboarding_completed` + whether the learner has
+any enrollments. The frontend uses this to resume mid-flow.
+
+ */
+export interface OnboardingState {
+  completed: boolean;
+  hasEnrollments: boolean;
+  lastSeenStep?: OnboardingStateLastSeenStep;
+}
+
 export interface PaginatedProjects {
   data: ProjectSummary[];
   total: number;

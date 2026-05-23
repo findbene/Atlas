@@ -24,8 +24,11 @@ import type {
   Course,
   CourseDetail,
   CreateCheckoutBody,
+  DashboardResponse,
   Domain,
   DomainDetail,
+  EnrollmentRequest,
+  EnrollmentResponse,
   ErrorResponse,
   ExecuteCodeBody,
   ExecuteCodeResult,
@@ -43,6 +46,7 @@ import type {
   ListProjectsParams,
   Module,
   ModuleDetail,
+  OnboardingState,
   PaginatedProjects,
   PortalResponse,
   ProjectDetail,
@@ -2493,4 +2497,336 @@ export const useExecutePython = <
   TContext
 > => {
   return useMutation(getExecutePythonMutationOptions(options));
+};
+
+/**
+ * Phase 21 — Slug-based idempotent enrollment overlay for the onboarding
+and Start Here flows. Resolves `projectSlug` → projectId, enforces
+`learner_visible=true` (hidden/archived slugs return 404 with no
+existence leak), and creates a `user_progress` row only if one does
+not already exist for `(userId, projectId)`. Repeated calls are safe:
+same response, no duplicate rows.
+
+ * @summary Enroll in a project by slug (Phase 21)
+ */
+export const getCreateEnrollmentUrl = () => {
+  return `/api/enrollments`;
+};
+
+export const createEnrollment = async (
+  enrollmentRequest: EnrollmentRequest,
+  options?: RequestInit,
+): Promise<EnrollmentResponse> => {
+  return customFetch<EnrollmentResponse>(getCreateEnrollmentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(enrollmentRequest),
+  });
+};
+
+export const getCreateEnrollmentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createEnrollment>>,
+    TError,
+    { data: BodyType<EnrollmentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createEnrollment>>,
+  TError,
+  { data: BodyType<EnrollmentRequest> },
+  TContext
+> => {
+  const mutationKey = ["createEnrollment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createEnrollment>>,
+    { data: BodyType<EnrollmentRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createEnrollment(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateEnrollmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createEnrollment>>
+>;
+export type CreateEnrollmentMutationBody = BodyType<EnrollmentRequest>;
+export type CreateEnrollmentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Enroll in a project by slug (Phase 21)
+ */
+export const useCreateEnrollment = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createEnrollment>>,
+    TError,
+    { data: BodyType<EnrollmentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createEnrollment>>,
+  TError,
+  { data: BodyType<EnrollmentRequest> },
+  TContext
+> => {
+  return useMutation(getCreateEnrollmentMutationOptions(options));
+};
+
+/**
+ * Phase 21 — Single-call learner dashboard: resume card, in-progress
+and completed enrollments, plus an optional Start Here recommendation
+for first-time learners. Hidden/archived projects are excluded
+symmetrically with `GET /api/courses/:slug`.
+
+ * @summary Learner dashboard payload (Phase 21)
+ */
+export const getGetDashboardUrl = () => {
+  return `/api/dashboard`;
+};
+
+export const getDashboard = async (
+  options?: RequestInit,
+): Promise<DashboardResponse> => {
+  return customFetch<DashboardResponse>(getGetDashboardUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDashboardQueryKey = () => {
+  return [`/api/dashboard`] as const;
+};
+
+export const getGetDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDashboardQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboard>>> = ({
+    signal,
+  }) => getDashboard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDashboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDashboard>>
+>;
+export type GetDashboardQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Learner dashboard payload (Phase 21)
+ */
+
+export function useGetDashboard<
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDashboardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get learner onboarding state (Phase 21)
+ */
+export const getGetOnboardingStateUrl = () => {
+  return `/api/onboarding/state`;
+};
+
+export const getOnboardingState = async (
+  options?: RequestInit,
+): Promise<OnboardingState> => {
+  return customFetch<OnboardingState>(getGetOnboardingStateUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOnboardingStateQueryKey = () => {
+  return [`/api/onboarding/state`] as const;
+};
+
+export const getGetOnboardingStateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOnboardingState>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOnboardingState>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOnboardingStateQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOnboardingState>>
+  > = ({ signal }) => getOnboardingState({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOnboardingState>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOnboardingStateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOnboardingState>>
+>;
+export type GetOnboardingStateQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get learner onboarding state (Phase 21)
+ */
+
+export function useGetOnboardingState<
+  TData = Awaited<ReturnType<typeof getOnboardingState>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOnboardingState>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOnboardingStateQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Idempotent — flips `users.onboarding_completed=true` on first call;
+subsequent calls are no-ops and return the same payload.
+
+ * @summary Mark learner onboarding complete (Phase 21)
+ */
+export const getCompleteOnboardingUrl = () => {
+  return `/api/onboarding/complete`;
+};
+
+export const completeOnboarding = async (
+  options?: RequestInit,
+): Promise<OnboardingState> => {
+  return customFetch<OnboardingState>(getCompleteOnboardingUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCompleteOnboardingMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["completeOnboarding"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    void
+  > = () => {
+    return completeOnboarding(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteOnboardingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeOnboarding>>
+>;
+
+export type CompleteOnboardingMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark learner onboarding complete (Phase 21)
+ */
+export const useCompleteOnboarding = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCompleteOnboardingMutationOptions(options));
 };
