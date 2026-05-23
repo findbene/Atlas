@@ -1,0 +1,201 @@
+Phase 18 accepted. Excellent execution.
+
+Before any Phase 19 implementation, complete two things in one pass:
+
+1. Surface the final Phase 18 auto-checkpoint / commit hash.
+2. Prepare a Phase 19 decision brief only. Do not implement anything.
+
+First confirm:
+
+* Final Phase 18 checkpoint hash
+* git/status equivalent: confirm no unexpected uncommitted implementation files
+* docs/phases/phase-18-start-here-learner-path.md exists
+* replit.md marks Phase 18 CLOSED / SHIP
+* Phase 19 is NOT STARTED
+
+Current confirmed state after Phase 18:
+
+* visible projects: 52
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 6
+  * intermediate: 1
+  * advanced: 45
+* visible pedagogy KPI: 52/52
+* wave-report: 50/50
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* tests: 208/208 passing
+* runtime mapToCourse guard: green
+* rubric v1.0.1 unchanged
+* candidateId remains required
+* 9-course taxonomy unchanged
+* zero DB writes during Phase 18
+* Start Here guidance shipped
+* courses with beginner projects show a real Start Here recommendation
+* zero-beginner courses show honest fallback guidance
+* Phase 19 NOT STARTED
+
+Now prepare a Phase 19 decision brief only.
+
+Analyze the best next move across these options:
+
+Option A — Complete beginner/foundations coverage for the 4 zero-beginner courses
+Goal:
+Add honest beginner or foundations projects for:
+
+* ai-engineer
+* cloud-data-engineer
+* applied-llm-engineer
+* mlops-engineer
+
+Evaluate:
+
+* whether each course can support a true beginner project
+* whether “foundations” is a better label/framing than beginner for these courses
+* how to avoid fake-beginner complexity
+* whether projects should be local-only, no cloud credentials, no paid APIs, no heavyweight infra
+* expected effect on Start Here behavior
+* expected effect on beginner coverage
+* safe batch size: 2 vs 4 projects
+
+Option B — Course/project card polish after Start Here
+Goal:
+Improve the visual hierarchy of project cards and course pages now that badges, filters, and Start Here exist.
+
+Evaluate:
+
+* whether the current cards are good enough
+* what small changes would improve learner trust
+* whether to show duration, steps, difficulty, portfolio artifact, and role relevance more clearly
+* whether this can be done without a broad redesign
+
+Option C — Search/sort improvements
+Goal:
+Add search and sorting across the project catalog.
+
+Evaluate:
+
+* whether 52 projects justify search now
+* whether local/client-side search is enough
+* sort by difficulty, recommended/start-here, duration, course, newest
+* test burden and UX value
+
+Option D — Product onboarding readiness
+Goal:
+Shift from catalog/content improvement to learner onboarding.
+
+Evaluate:
+
+* onboarding flow
+* course enrollment flow
+* dashboard/resume behavior
+* first project selection
+* progress clarity
+* whether this is too broad for one phase
+
+Option E — Start Here telemetry / analytics
+Goal:
+Instrument learner interactions around Start Here, difficulty filters, and project starts.
+
+Evaluate:
+
+* whether telemetry exists already
+* what events should be captured
+* whether this helps decide what to build next
+* privacy and noise concerns
+* whether this is more valuable after more learners use the platform
+
+Option F — Admin/reporting polish
+Goal:
+Improve admin visibility for course coverage, beginner coverage, Start Here availability, difficulty distribution, and phase lineage.
+
+Evaluate:
+
+* whether reporting gaps still slow planning
+* whether admin views should expose zero-beginner courses
+* whether this should be bundled with another phase instead of standalone
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Tests required
+10. Expected effect on:
+
+* learner-visible count
+* hidden/archive count
+* pedagogy KPI
+* wave-report
+* difficulty distribution
+* beginner coverage
+* Start Here behavior
+* learner trust
+* product readiness
+* implementation cost
+
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 19 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement while preserving the high-quality, low-iteration execution pattern.
+
+The recommended Phase 19 must be executable in one cohesive implementation pass after approval.
+
+Important:
+If recommending beginner/foundations authoring for the 4 zero-beginner courses, do not assume all 4 should be done in one pass. Evaluate whether a 2-project pilot is safer.
+
+For the recommended Phase 19 plan, include:
+
+1. Exact scope
+2. Exact project slugs involved, if any
+3. Exact courses involved
+4. Whether each project is “beginner” or “foundations”
+5. Whether work is:
+
+   * new authoring
+   * frontend UX
+   * API logic
+   * metadata/reporting
+   * tests only
+6. Required files
+7. Required scripts
+8. Required tests
+9. Required reports
+10. Final gates
+11. Expected final metrics
+12. Hard stop conditions
+13. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Hard constraints:
+
+* Do not implement Phase 19 yet.
+* Do not author new projects unless Phase 19 is later explicitly approved.
+* Do not mutate project difficulty labels unless explicitly approved.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Do not archive rows unless explicitly approved.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not touch cloud credentials.
+* Do not start Phase 19 implementation after the brief.
