@@ -77,6 +77,13 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   "data-engineering-beginner-csv-cleanup-pipeline":         "data-engineering",
   "analytics-engineer-beginner-spreadsheet-to-sql-models":  "analytics-engineer",
   "data-scientist-beginner-eda-and-summary-stats":          "data-scientist",
+  // Phase 19 — 2-project beginner/foundations pilot for the zero-beginner
+  // courses cloud-data-engineer ("foundations" framing — DuckDB local) and
+  // applied-llm-engineer ("beginner" framing — structured prompting + JSON
+  // schema with a deterministic fixture-mock LLM, no API credentials).
+  // Synthetic candidates marked `source='phase19_beginner_pilot'`.
+  "cloud-data-engineer-foundations-duckdb-local-warehouse":            "cloud-data-engineer",
+  "applied-llm-engineer-beginner-structured-prompting-with-json-schema": "applied-llm-engineer",
 };
 
 /**
@@ -217,6 +224,25 @@ export const BEGINNER_CANDIDATE_FOR_SLUG_PHASE14: Record<string, string> = {
   "data-scientist-beginner-eda-and-summary-stats":          "100f741c-1ca3-4dcd-8b85-84d0d54b3258",
 };
 
+/**
+ * Phase 19 — 2-project beginner/foundations pilot for two of the four
+ * zero-beginner courses (cloud-data-engineer, applied-llm-engineer).
+ * UNLIKE revise/upgrade phases, these are brand-new slugs (no legacy twin
+ * to archive). Synthetic candidates marked `source='phase19_beginner_pilot'`
+ * by `backfill:phase19-candidates`.
+ *
+ * The other two zero-beginner courses (ai-engineer, mlops-engineer) are
+ * EXPLICITLY out of scope for Phase 19; deferred to Phase 20+ pending the
+ * pilot's outcome.
+ *
+ * Map keys = authored slug. Values = pinned candidate UUIDs (idempotent
+ * across environments).
+ */
+export const BEGINNER_CANDIDATE_FOR_SLUG_PHASE19: Record<string, string> = {
+  "cloud-data-engineer-foundations-duckdb-local-warehouse":            "c19d4e7a-1b2c-4d3e-9f5a-6b7c8d9e0f12",
+  "applied-llm-engineer-beginner-structured-prompting-with-json-schema": "a19e5f8b-2c3d-4e4f-8a6b-7c8d9e0f1234",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -296,6 +322,9 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   "data-engineering-beginner-csv-cleanup-pipeline":         "86667efa-bf0c-47eb-8803-3f016cc53784",
   "analytics-engineer-beginner-spreadsheet-to-sql-models":  "601eb400-64c3-4e5f-921b-75e4cff1606f",
   "data-scientist-beginner-eda-and-summary-stats":          "100f741c-1ca3-4dcd-8b85-84d0d54b3258",
+  // Phase 19 — 2-project beginner/foundations pilot (source='phase19_beginner_pilot').
+  "cloud-data-engineer-foundations-duckdb-local-warehouse":            "c19d4e7a-1b2c-4d3e-9f5a-6b7c8d9e0f12",
+  "applied-llm-engineer-beginner-structured-prompting-with-json-schema": "a19e5f8b-2c3d-4e4f-8a6b-7c8d9e0f1234",
 };
 
 /**

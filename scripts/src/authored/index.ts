@@ -52,6 +52,9 @@ import { pythonLibrariesBeginnerPandasEssentials } from "./python-libraries__beg
 import { dataEngineeringBeginnerCsvCleanupPipeline } from "./data-engineering__beginner-csv-cleanup-pipeline";
 import { analyticsEngineerBeginnerSpreadsheetToSqlModels } from "./analytics-engineer__beginner-spreadsheet-to-sql-models";
 import { dataScientistBeginnerEdaAndSummaryStats } from "./data-scientist__beginner-eda-and-summary-stats";
+// Phase 19 — 2-project beginner/foundations pilot (cloud-DE + applied-LLM).
+import { cloudDataEngineerFoundationsDuckdbLocalWarehouse } from "./cloud-data-engineer__foundations-duckdb-local-warehouse";
+import { appliedLlmEngineerBeginnerStructuredPromptingWithJsonSchema } from "./applied-llm-engineer__beginner-structured-prompting-with-json-schema";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -130,6 +133,10 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   dataEngineeringBeginnerCsvCleanupPipeline,
   analyticsEngineerBeginnerSpreadsheetToSqlModels,
   dataScientistBeginnerEdaAndSummaryStats,
+  // Phase 19 — 2-project beginner/foundations pilot (lifts beginner 6 → 8;
+  // closes Start Here gap for cloud-DE + applied-LLM).
+  cloudDataEngineerFoundationsDuckdbLocalWarehouse,
+  appliedLlmEngineerBeginnerStructuredPromptingWithJsonSchema,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

@@ -1,0 +1,327 @@
+Approved. Proceed with Phase 19: Beginner/Foundations Pilot for Two Zero-Beginner Courses.
+
+Important operating instruction:
+Complete the full approved Phase 19 scope in one cohesive implementation pass. Do not pause after each small file edit if gates are green. Stop only if a hard stop condition triggers.
+
+Chosen Phase 19 scope:
+Implement a 2-project pilot to close beginner/foundations gaps for two currently zero-beginner courses:
+
+1. cloud-data-engineer
+2. applied-llm-engineer
+
+Also include the small admin/reporting rider for Start Here coverage if it is low-risk and additive.
+
+Do not implement all 4 zero-beginner courses in this phase. Defer ai-engineer and mlops-engineer to a later phase.
+
+Current confirmed baseline:
+
+* Phase 18 checkpoint: 19de2151e8c8288ca1b1d60820a97009f69ef08b
+* visible projects: 52
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 6
+  * intermediate: 1
+  * advanced: 45
+* visible pedagogy KPI: 52/52
+* wave-report: 50/50
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* tests: 208/208 passing
+* Start Here shipped and verified
+* Phase 19 NOT STARTED
+
+Approved project 1:
+Course: cloud-data-engineer
+Slug: cloud-data-engineer-foundations-duckdb-local-warehouse
+Difficulty: beginner
+Framing label: foundations
+Goal:
+A true beginner-safe Cloud Data Engineering foundations project using DuckDB, local files, Parquet/CSV, basic warehouse-style modeling, and SQL validation — no real cloud credentials, no paid services, no AWS/GCP/Azure dependency.
+
+Important:
+The title/framing may say “Foundations,” but the project difficulty_level must be beginner so Start Here can select it for cloud-data-engineer.
+
+Approved project 2:
+Course: applied-llm-engineer
+Slug: applied-llm-engineer-beginner-structured-prompting-with-json-schema
+Difficulty: beginner
+Framing label: beginner
+Goal:
+A true beginner-safe Applied LLM Engineering project teaching structured prompting, JSON-schema-style output validation, small test cases, simple evaluation, and a portfolio-ready prompt/eval harness.
+
+Credential rule:
+Prefer a local/deterministic mock or fixture-based LLM response flow if that fits existing sandbox conventions. If using the existing Replit/Anthropic proxy is already supported by current Atlas project conventions, do not add new credentials, new provider setup, paid API requirements, or cloud secrets. The project must remain runnable and understandable without requiring the learner to provision external accounts.
+
+Phase 19 goals:
+
+* learner-visible projects: 52 → 54
+* hidden projects: remain 32
+* beginner projects: 6 → 8
+* zero-beginner courses: 4 → 2
+* affected courses’ Start Here behavior:
+
+  * cloud-data-engineer should flip from most_approachable_available to start_here
+  * applied-llm-engineer should flip from most_approachable_available to start_here
+* visible pedagogy KPI: 54/54 target
+* wave-report: 52/52 target
+* anchor drift: 0.00 target, ±1.0 hard max
+* lineage: 0/0/0/0
+* no schema changes
+* no archive/delete
+* no rubric changes
+
+T000 — Preflight and minor docs hygiene
+Before implementation:
+
+1. Confirm no slug collisions for the two approved slugs.
+2. Confirm both target courses currently have zero beginner projects.
+3. Confirm Start Here currently uses fallback for both target courses.
+4. Confirm current counts: visible 52, hidden 32, beginner 6.
+5. If the duplicate/older Phase 17 paragraph in replit.md is real and easy to remove safely, perform one surgical docs cleanup edit. Do not reorganize replit.md broadly.
+
+T001 — Candidate and lineage setup
+Add Phase 19 candidate/lineage support for exactly the 2 approved slugs:
+
+* cloud-data-engineer-foundations-duckdb-local-warehouse
+* applied-llm-engineer-beginner-structured-prompting-with-json-schema
+
+Requirements:
+
+* Add a Phase 19 candidate map with exactly 2 entries.
+* Add both slugs to COURSE_FOR_AUTHORED_SLUG.
+* Create an idempotent backfill script for Phase 19 synthetic candidates.
+* Add package script for the backfill.
+* candidateId remains required.
+* Do not change rubric v1.0.1.
+* Do not use mapToCourse at runtime.
+* Do not alter the 9-course taxonomy.
+
+T002 — Author the 2 beginner/foundations projects
+Create and register:
+
+1. scripts/src/authored/cloud-data-engineer__foundations-duckdb-local-warehouse.ts
+   slug: cloud-data-engineer-foundations-duckdb-local-warehouse
+   course: cloud-data-engineer
+   difficulty: beginner
+   framing: foundations
+
+2. scripts/src/authored/applied-llm-engineer__beginner-structured-prompting-with-json-schema.ts
+   slug: applied-llm-engineer-beginner-structured-prompting-with-json-schema
+   course: applied-llm-engineer
+   difficulty: beginner
+   framing: beginner
+
+Each module must include:
+
+* native course
+* difficulty_level beginner
+* candidateId
+* source_candidate_id lineage support
+* full beginner-safe step sequence
+* validation_config
+* expected_outputs
+* pedagogy_config
+* 5 progressive hint levels
+* success_feedback
+* failure_feedback
+* portfolio_relevance
+* README outline
+* portfolioArtifact preserved
+* real validation kinds
+* no self_attest/manual_review shortcuts unless already accepted by existing framework conventions
+
+Beginner/foundations quality rules:
+
+* Step 1 must not require advanced prerequisites.
+* No cloud credentials.
+* No paid API setup.
+* No heavyweight infra.
+* No Kafka, Kubernetes, Spark, Airflow, or cloud deployment.
+* No fake production claims.
+* Keep tasks local, concrete, testable, and portfolio-relevant.
+* Teach foundational professional habits: validation, repeatability, clear outputs, small tests, clean README, and interpretation.
+
+Promote internally in this order:
+
+1. cloud-data-engineer-foundations-duckdb-local-warehouse
+2. applied-llm-engineer-beginner-structured-prompting-with-json-schema
+
+After each promote:
+
+* verify score >=70
+* verify difficulty remains beginner
+* verify course matches intended course
+* verify candidateId/sourceCandidateId present
+* verify validationCoverage=100%
+* verify pedagogyComplete=true
+* verify portfolioReady=true
+* run anchor-check
+* verify anchor drift <= ±1.0
+
+T003 — Start Here behavior verification
+Because Phase 18 already computes Start Here from project data, no UI/API code should be required unless the existing behavior fails.
+
+Verify:
+
+* cloud-data-engineer now returns kind=start_here and selects cloud-data-engineer-foundations-duckdb-local-warehouse
+* applied-llm-engineer now returns kind=start_here and selects applied-llm-engineer-beginner-structured-prompting-with-json-schema
+* ai-engineer still uses most_approachable_available
+* mlops-engineer still uses most_approachable_available
+* no internal anchor metadata is exposed
+
+T004 — Admin/reporting rider
+If low-risk and additive, extend admin/reporting with Start Here coverage:
+
+* startHereCoverage.totalCourses
+* startHereCoverage.withBeginner
+* startHereCoverage.withFallback
+* startHereCoverage.zeroBeginnerCourses
+* startHereCoverage.startHereByCourse if straightforward
+
+Expected after Phase 19:
+
+* withBeginner: 7
+* withFallback: 2
+* zeroBeginnerCourses:
+
+  * ai-engineer
+  * mlops-engineer
+
+Do not add this rider if it risks delaying or destabilizing the core authoring work.
+
+T005 — Tests
+Add or update tests verifying:
+
+* both new slugs return 200 on learner-facing routes
+* both new projects are learner_visible=true
+* both new projects are difficulty=beginner
+* both target courses now have Start Here kind=start_here
+* both target courses select the new beginner project
+* ai-engineer and mlops-engineer remain fallback courses
+* visible count becomes 54
+* hidden count remains 32
+* beginner count becomes 8
+* wave-report becomes 52/52
+* visible pedagogy becomes 54/54
+* lineage counters remain 0/0/0/0
+* runtime mapToCourse guard remains green
+
+T006 — Final gates
+Run:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* wave-report
+* pedagogy audit
+* audit:difficulty-labels
+* anchor-check
+* lineage check
+* runtime mapToCourse guard
+* Start Here live smoke test for cloud-data-engineer and applied-llm-engineer
+* architect review
+
+Expected final state:
+
+* visible projects: 54
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 8
+  * intermediate: 1
+  * advanced: 45
+* zero-beginner courses:
+
+  * ai-engineer
+  * mlops-engineer
+* visible pedagogy KPI: 54/54
+* wave-report: 52/52
+* anchorCount: 2 unchanged
+* anchor drift: 0.00 target
+* lineage: 0/0/0/0
+* no DB schema changes
+* no archive/delete
+* no rubric changes
+* no difficulty relabeling outside the 2 new projects
+* no UI redesign
+* no Phase 20 implementation
+
+Hard stop conditions:
+
+* any slug collision
+* any new project scores <70
+* any project becomes fake-beginner or requires advanced prerequisites in Step 1
+* any project requires cloud credentials or paid external setup
+* difficulty is not beginner for either new project
+* Start Here does not flip for the two target courses
+* hidden count changes unexpectedly
+* visible count does not become 54
+* beginner count does not become 8
+* wave-report does not become 52/52
+* visible pedagogy does not become 54/54
+* anchor drift exceeds ±1.0
+* lineage counters regress
+* runtime mapToCourse guard fails
+* typecheck/tests fail
+* architect finds severe/blocking issue
+
+Out of scope:
+
+* Do not add ai-engineer beginner/foundations project in Phase 19.
+* Do not add mlops-engineer beginner/foundations project in Phase 19.
+* Do not add more than the 2 approved projects.
+* Do not implement search/sort.
+* Do not redesign cards or course pages.
+* Do not add onboarding/auth/payment work.
+* Do not mutate existing difficulty labels.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Do not archive rows.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not touch cloud credentials.
+* Do not start Phase 20.
+
+Closure:
+If all gates pass, close as:
+
+Phase 19 — Beginner/Foundations Pilot for Zero-Beginner Courses · CLOSED / SHIP
+
+Write:
+docs/phases/phase-19-beginner-foundations-pilot.md
+
+Update replit.md:
+
+* Mark Phase 19 CLOSED / SHIP.
+* Keep Phase 20 NOT STARTED.
+* Note that Phase 19 reduced zero-beginner courses from 4 to 2 and validated the foundations framing for prerequisite-heavy courses.
+
+Final report must include:
+
+1. Preflight baseline
+2. Project slugs and course assignments
+3. Candidate IDs and lineage status
+4. Score and dimension breakdown for each new project
+5. Difficulty confirmation for each new project
+6. Start Here behavior before/after for affected courses
+7. Zero-beginner courses before/after
+8. Admin/reporting rider status, if included
+9. Wave-report result
+10. Pedagogy audit result
+11. audit:difficulty-labels result
+12. Anchor-check result
+13. Lineage check result
+14. Test/typecheck results
+15. Runtime mapToCourse result
+16. Architect verdict
+17. Changed files
+18. DB writes performed
+19. Final checkpoint/commit hash
+20. Confirmation that Phase 20 was not started
