@@ -1,0 +1,356 @@
+Approved. Proceed with Phase 21: Onboarding + Enrollment + Resume.
+
+Important operating instruction:
+Complete the full approved Phase 21 scope in one cohesive implementation pass. Do not pause after each small file edit if gates are green. Stop only if a hard stop condition triggers.
+
+Chosen Phase 21 scope:
+Implement the smallest useful learner activation loop:
+
+1. First-run onboarding
+2. Course/project enrollment
+3. Dashboard resume card
+4. My Courses / in-progress project visibility
+
+This is not broad productization. This is not billing. This is not a full dashboard redesign.
+
+Current confirmed baseline:
+
+* Phase 20 commit: 21da6c2
+* visible projects: 56
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 10
+  * intermediate: 1
+  * advanced: 45
+* zero-beginner courses: 0
+* all 9 courses have Start Here coverage
+* wave-report: 56/56
+* visible pedagogy KPI: 56/56
+* tests: 232/232
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* rubric v1.0.1 unchanged
+* candidateId remains required
+* 9-course taxonomy unchanged
+* Phase 21 NOT STARTED
+
+Primary goal:
+Turn Atlas from a clean catalog into a usable learner product where a user can:
+
+1. Arrive
+2. Pick a course
+3. See the Start Here project
+4. Enroll
+5. Land on the correct project/step
+6. Return later and resume from the dashboard
+
+T000 — Preflight
+Before implementation:
+
+1. Inspect existing auth middleware and user model.
+2. Inspect existing user_progress and user_step_completions schema.
+3. Inspect existing project detail / step routes.
+4. Inspect existing StartHereCard behavior.
+5. Inspect current dashboard/home route.
+6. Confirm current phase metrics:
+
+   * visible 56
+   * hidden 32
+   * wave-report 56/56
+   * pedagogy 56/56
+   * anchor drift 0.00
+7. Confirm no Phase 21 files already exist from prior attempts.
+
+T001 — Decide minimal schema
+Prefer using existing schema if possible.
+
+If user_progress already supports everything needed:
+
+* Do not add schema.
+
+If onboarding needs explicit state:
+
+* Add only one nullable additive column:
+
+  * users.onboarding_completed_at timestamp nullable
+
+Requirements:
+
+* Additive only.
+* No destructive migration.
+* No changes to project/catalog tables.
+* No changes to rubric/candidate/taxonomy.
+* If schema push is needed, verify it is purely additive.
+
+T002 — API endpoints
+Implement minimal authenticated API endpoints.
+
+Endpoint 1:
+POST /api/enrollments
+
+Body:
+{ projectSlug: string }
+
+Behavior:
+
+* requireAuth
+* projectSlug must resolve to learner_visible=true project
+* hidden/archive slugs return 404, not 403
+* creates or reuses user_progress for (userId, projectId)
+* idempotent: repeated enrollment does not create duplicates
+* sets or returns currentStepId as the first step if no progress exists
+* returns projectId, projectSlug, currentStepId, currentStepNumber if available
+
+Endpoint 2:
+GET /api/dashboard
+
+Behavior:
+
+* requireAuth
+* returns inProgress projects
+* returns completed projects if already supported
+* returns a Resume card payload:
+
+  * project title
+  * project slug
+  * course
+  * current step
+  * total steps
+  * deep link target
+* excludes hidden/archive projects
+* never exposes internal anchor metadata
+
+Endpoint 3:
+GET /api/onboarding/state
+
+Behavior:
+
+* requireAuth
+* returns whether onboarding is complete
+* returns enough state for frontend onboarding stepper
+
+Endpoint 4:
+POST /api/onboarding/complete
+
+Behavior:
+
+* requireAuth
+* idempotently marks onboarding complete
+* if using onboarding_completed_at, sets it once or updates safely depending on existing conventions
+
+T003 — OpenAPI / typed client
+If the repo uses OpenAPI/codegen for API routes:
+
+* add the endpoint contracts and schemas
+* regenerate typed client using the existing command
+* do not invent a new API-client flow
+
+If codegen is not used for these routes:
+
+* follow the existing API-client/hook pattern
+
+T004 — Frontend onboarding page
+Create a focused onboarding page.
+
+Route:
+
+* /onboarding
+
+Behavior:
+
+* simple 3-step flow:
+
+  1. Choose a course
+  2. Review Start Here project
+  3. Enroll and begin
+* use existing course and Start Here data
+* after enrollment, navigate to the appropriate project/step route
+* do not redesign the whole app
+* do not add payments/auth changes
+* do not add AI recommendation logic
+
+T005 — Dashboard / resume surface
+Create or extend dashboard/home page with:
+
+1. ResumeCard
+
+   * Continue: project title
+   * Course
+   * Step N of M
+   * CTA: Continue project
+
+2. My Courses / In Progress list
+
+   * shows enrolled projects
+   * shows progress state
+   * excludes hidden/archive projects
+
+Route:
+
+* /dashboard if existing routing supports it cleanly
+* otherwise extend the existing authenticated home/dashboard surface
+
+T006 — Start Here CTA wiring
+Wire existing StartHereCard CTA so:
+
+* first-run or not-enrolled user can enroll in the recommended project
+* enrolled user can continue
+* CTA does not create duplicate progress rows
+* zero hidden/archive leakage
+* no changes to Start Here recommendation algorithm unless absolutely necessary
+
+Do not edit pickStartHere rules unless required to consume existing payload safely.
+
+T007 — Tests
+Add focused tests.
+
+API tests:
+
+* enrollment success path
+* enrollment idempotency
+* hidden/archive project enrollment returns 404
+* missing project returns 404
+* unauthenticated enrollment returns 401
+* dashboard returns resume payload after enrollment
+* dashboard excludes hidden/archive projects
+* onboarding state returns expected default
+* onboarding complete is idempotent
+
+Frontend / component tests if existing harness supports them:
+
+* onboarding page renders course selection
+* Start Here project appears in onboarding flow
+* enroll button calls the expected endpoint
+* ResumeCard renders Step N of M
+* dashboard renders in-progress project
+
+If no frontend test harness exists:
+
+* do not add a large new test framework
+* use API tests, typecheck, build, and live smoke verification
+
+T008 — Live smoke tests
+After tests pass, run live smoke checks if supported:
+
+1. Enroll in a visible Start Here project.
+2. Repeat enrollment and confirm idempotency.
+3. Fetch dashboard and confirm resume row.
+4. Complete onboarding and confirm state changes.
+5. Try hidden/archive project enrollment and confirm 404.
+
+T009 — Final gates
+Run:
+
+* pnpm run typecheck
+* API tests
+* curriculum-quality tests
+* execution-core tests
+* frontend typecheck/build if applicable
+* wave-report
+* pedagogy audit
+* audit:difficulty-labels
+* anchor-check
+* lineage check
+* runtime mapToCourse guard
+* live enrollment/dashboard/onboarding smoke tests
+* architect review
+
+Expected final state:
+
+* visible projects: 56 unchanged
+* hidden projects: 32 unchanged
+* difficulty distribution unchanged:
+
+  * beginner: 10
+  * intermediate: 1
+  * advanced: 45
+* zero-beginner courses: 0 unchanged
+* wave-report: 56/56 unchanged
+* visible pedagogy KPI: 56/56 unchanged
+* anchorCount: 2 unchanged
+* anchor drift: 0.00
+* lineage: 0/0/0/0
+* no content authoring
+* no archive/delete
+* no rubric changes
+* learner can enroll
+* learner can resume from dashboard
+* onboarding state works
+
+Hard stop conditions:
+
+* enrollment creates duplicate user_progress rows for the same user/project
+* hidden/archive project appears in dashboard or enrollment
+* hidden/archive enrollment returns anything other than 404
+* learner can be routed to non-existent project or step
+* dashboard resume points to wrong project/step
+* onboarding state cannot be made idempotent
+* visible/hidden counts change
+* wave-report drops below 56/56
+* visible pedagogy drops below 56/56
+* anchor drift exceeds ±1.0
+* lineage counters regress
+* runtime mapToCourse guard fails
+* typecheck/tests fail
+* architect finds severe/blocking issue
+
+Out of scope:
+
+* Do not author new projects.
+* Do not mutate difficulty labels.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Do not archive rows.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not implement Stripe/billing.
+* Do not change auth provider behavior beyond using existing requireAuth.
+* Do not add AI tutor changes.
+* Do not add cloud credentials.
+* Do not implement search/sort.
+* Do not redesign the whole dashboard.
+* Do not start Phase 22.
+
+Closure:
+If all gates pass, close as:
+
+Phase 21 — Onboarding + Enrollment + Resume · CLOSED / SHIP
+
+Write:
+docs/phases/phase-21-onboarding-enrollment-resume.md
+
+Update replit.md:
+
+* Mark Phase 21 CLOSED / SHIP.
+* Keep Phase 22 NOT STARTED.
+* Note that Phase 21 converted the clean catalog into an active learner flow: onboard, enroll, resume.
+
+Final report must include:
+
+1. Preflight findings
+2. Schema decision and migration result, if any
+3. API endpoints added
+4. Frontend surfaces added
+5. Enrollment idempotency behavior
+6. Dashboard/resume behavior
+7. Onboarding state behavior
+8. Hidden/archive no-leak confirmation
+9. Test/typecheck results
+10. Wave-report result
+11. Pedagogy audit result
+12. audit:difficulty-labels result
+13. Anchor-check result
+14. Lineage check result
+15. Runtime mapToCourse result
+16. Live smoke test results
+17. Architect verdict
+18. Changed files
+19. DB writes/migrations performed
+20. Final checkpoint/commit hash
+21. Confirmation that Phase 22 was not started
