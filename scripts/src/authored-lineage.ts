@@ -84,6 +84,13 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   // Synthetic candidates marked `source='phase19_beginner_pilot'`.
   "cloud-data-engineer-foundations-duckdb-local-warehouse":            "cloud-data-engineer",
   "applied-llm-engineer-beginner-structured-prompting-with-json-schema": "applied-llm-engineer",
+  // Phase 20 — 2-project beginner/foundations final cohort. Closes the
+  // last 2 of the 4 zero-beginner courses (ai-engineer + mlops-engineer)
+  // that Phase 19 deferred. Synthetic candidates marked
+  // `source='phase20_foundations_final'`. Both modules are deterministic,
+  // local-only, no cloud/API-key dependencies.
+  "ai-engineer-foundations-classify-and-explain-locally":                  "ai-engineer",
+  "mlops-engineer-foundations-reproducible-local-training-pipeline":       "mlops-engineer",
 };
 
 /**
@@ -243,6 +250,26 @@ export const BEGINNER_CANDIDATE_FOR_SLUG_PHASE19: Record<string, string> = {
   "applied-llm-engineer-beginner-structured-prompting-with-json-schema": "a19e5f8b-2c3d-4e4f-8a6b-7c8d9e0f1234",
 };
 
+/**
+ * Phase 20 — 2-project beginner/foundations final cohort. Closes the
+ * last 2 of the 4 zero-beginner courses (ai-engineer + mlops-engineer)
+ * that Phase 19 explicitly deferred. UNLIKE revise/upgrade phases, these
+ * are brand-new slugs (no legacy twin to archive). Synthetic candidates
+ * marked `source='phase20_foundations_final'` by
+ * `backfill:phase20-candidates`.
+ *
+ * Both modules are deterministic, fully-local (no cloud, no API keys, no
+ * Docker / K8s) so a reviewer can clone + `make all` in 60 seconds. The
+ * transferable mental models map 1:1 to the next module in each course.
+ *
+ * Map keys = authored slug. Values = pinned candidate UUIDs (idempotent
+ * across environments).
+ */
+export const BEGINNER_CANDIDATE_FOR_SLUG_PHASE20: Record<string, string> = {
+  "ai-engineer-foundations-classify-and-explain-locally":            "b20f6a9c-3d4e-4f50-9b7c-8d9e0f123456",
+  "mlops-engineer-foundations-reproducible-local-training-pipeline": "c20a7b0d-4e5f-4a61-8c8d-9e0f12345678",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -325,6 +352,9 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   // Phase 19 — 2-project beginner/foundations pilot (source='phase19_beginner_pilot').
   "cloud-data-engineer-foundations-duckdb-local-warehouse":            "c19d4e7a-1b2c-4d3e-9f5a-6b7c8d9e0f12",
   "applied-llm-engineer-beginner-structured-prompting-with-json-schema": "a19e5f8b-2c3d-4e4f-8a6b-7c8d9e0f1234",
+  // Phase 20 — 2-project beginner/foundations final cohort (source='phase20_foundations_final').
+  "ai-engineer-foundations-classify-and-explain-locally":            "b20f6a9c-3d4e-4f50-9b7c-8d9e0f123456",
+  "mlops-engineer-foundations-reproducible-local-training-pipeline": "c20a7b0d-4e5f-4a61-8c8d-9e0f12345678",
 };
 
 /**

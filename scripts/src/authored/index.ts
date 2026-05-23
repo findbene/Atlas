@@ -55,6 +55,9 @@ import { dataScientistBeginnerEdaAndSummaryStats } from "./data-scientist__begin
 // Phase 19 — 2-project beginner/foundations pilot (cloud-DE + applied-LLM).
 import { cloudDataEngineerFoundationsDuckdbLocalWarehouse } from "./cloud-data-engineer__foundations-duckdb-local-warehouse";
 import { appliedLlmEngineerBeginnerStructuredPromptingWithJsonSchema } from "./applied-llm-engineer__beginner-structured-prompting-with-json-schema";
+// Phase 20 — 2-project beginner/foundations final cohort (ai-engineer + mlops-engineer).
+import { aiEngineerFoundationsClassifyAndExplainLocally } from "./ai-engineer__foundations-classify-and-explain-locally";
+import { mlopsEngineerFoundationsReproducibleLocalTrainingPipeline } from "./mlops-engineer__foundations-reproducible-local-training-pipeline";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -137,6 +140,11 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   // closes Start Here gap for cloud-DE + applied-LLM).
   cloudDataEngineerFoundationsDuckdbLocalWarehouse,
   appliedLlmEngineerBeginnerStructuredPromptingWithJsonSchema,
+  // Phase 20 — 2-project beginner/foundations final cohort (lifts beginner
+  // 8 → 10; closes Start Here gap for the last 2 of 4 zero-beginner
+  // courses: ai-engineer + mlops-engineer).
+  aiEngineerFoundationsClassifyAndExplainLocally,
+  mlopsEngineerFoundationsReproducibleLocalTrainingPipeline,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {
