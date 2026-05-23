@@ -1,0 +1,207 @@
+Phase 20 accepted. Excellent execution.
+
+Before any Phase 21 implementation, complete two things in one pass:
+
+1. Surface the final Phase 20 auto-checkpoint / commit hash.
+2. Prepare a Phase 21 decision brief only. Do not implement anything.
+
+First confirm:
+
+* Final Phase 20 checkpoint / commit hash
+* git/status equivalent: confirm no unexpected uncommitted implementation files
+* docs/phases/phase-20-final-beginner-foundations-coverage.md exists
+* replit.md marks Phase 20 CLOSED / SHIP
+* Phase 21 is NOT STARTED
+
+Current confirmed state after Phase 20:
+
+* visible projects: 56
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 10
+  * intermediate: 1
+  * advanced: 45
+* zero-beginner courses: 0
+* all 9 courses now have Start Here coverage
+* wave-report: 56/56
+* visible pedagogy KPI: 56/56
+* tests: 232/232
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* rubric v1.0.1 unchanged
+* candidateId remains required
+* 9-course taxonomy unchanged
+* no schema changes in Phase 20
+* no archive/delete in Phase 20
+* Start Here behavior:
+
+  * all 9 courses now return start_here
+* Phase 21 NOT STARTED
+
+Now prepare a Phase 21 decision brief only.
+
+Analyze the best next move across these options:
+
+Option A — Product onboarding readiness
+Goal:
+Move from catalog/content quality into actual learner onboarding and usage.
+
+Evaluate:
+
+* first-run learner onboarding
+* course enrollment flow
+* dashboard/resume behavior
+* recommended first course/project
+* progress clarity
+* how Start Here should feed into onboarding
+* whether this can be scoped to one cohesive phase
+* whether this is now the highest-leverage next move
+
+Option B — Course/project card polish
+Goal:
+Improve visual hierarchy and professional feel after badges, filters, and Start Here are shipped.
+
+Evaluate:
+
+* project card clarity
+* course card clarity
+* step count / duration / difficulty / portfolio artifact visibility
+* CTA wording
+* role relevance
+* whether this can be done without a broad redesign
+* whether this is more urgent than onboarding
+
+Option C — Search/sort improvements
+Goal:
+Add search and sorting across the catalog.
+
+Evaluate:
+
+* whether 56 projects justify search now
+* local/client-side search versus API search
+* sort by difficulty, Start Here/recommended, duration, course, newest
+* interaction with difficulty filters
+* test burden and UX value
+
+Option D — Admin/reporting stabilization
+Goal:
+Improve operational visibility after many catalog phases.
+
+Evaluate:
+
+* course coverage reporting
+* beginner coverage reporting
+* Start Here coverage reporting
+* difficulty distribution
+* hidden/archive counts
+* lineage integrity
+* phase lineage
+* whether this should be standalone or bundled
+
+Option E — Platform stabilization / technical debt pass
+Goal:
+Pause feature work and harden docs, scripts, tests, and route consistency.
+
+Evaluate:
+
+* whether many high-velocity phases have accumulated risk
+* replit.md line budget
+* duplicated phase history
+* scripts naming consistency
+* test coverage gaps
+* generated API/client drift
+* whether this is too conservative or necessary before productization
+
+Option F — Continue content expansion
+Goal:
+Add more projects now that beginner coverage is complete.
+
+Evaluate:
+
+* whether to lift all courses toward 5+ visible projects
+* whether to add intermediate bridge projects
+* whether content is now “enough” for product testing
+* risk of delaying product readiness by continuing content work
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Catalog-quality impact
+5. Product-readiness impact
+6. Risk level
+7. Implementation complexity
+8. Likely files touched
+9. Required DB/schema changes, if any
+10. Tests required
+11. Expected effect on:
+
+* learner-visible count
+* hidden/archive count
+* pedagogy KPI
+* wave-report
+* difficulty distribution
+* Start Here behavior
+* learner trust
+* product readiness
+* implementation cost
+
+12. Stop conditions
+13. Why this option should or should not be chosen
+
+Then recommend one Phase 21 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing/product-readiness improvement while preserving the high-quality, low-iteration execution pattern.
+
+Important:
+Now that catalog quality is clean and all courses have beginner/foundations Start Here coverage, strongly consider whether Phase 21 should shift from more content to learner onboarding/product readiness.
+
+For the recommended Phase 21 plan, include:
+
+1. Exact scope
+2. Exact UI/API surfaces involved
+3. Exact files likely touched
+4. Whether work is:
+
+   * frontend UX
+   * API logic
+   * DB/schema
+   * metadata/reporting
+   * content authoring
+   * tests only
+   * docs cleanup
+5. Required files
+6. Required scripts
+7. Required tests
+8. Required reports
+9. Final gates
+10. Expected final metrics
+11. Hard stop conditions
+12. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Hard constraints:
+
+* Do not implement Phase 21 yet.
+* Do not author new projects unless Phase 21 is later explicitly approved.
+* Do not mutate existing project difficulty labels unless explicitly approved.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Do not archive rows unless explicitly approved.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not touch cloud credentials unless Phase 21 is explicitly approved for productization and the plan includes a safe credentials policy.
+* Do not start Phase 21 implementation after the brief.
