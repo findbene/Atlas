@@ -1,0 +1,221 @@
+Phase 19 accepted. Excellent execution.
+
+Before any Phase 20 implementation, complete three things in one cohesive pass:
+
+1. Surface the final Phase 19 auto-checkpoint / commit hash.
+2. Perform the small replit.md hygiene cleanup you flagged.
+3. Prepare a Phase 20 decision brief only. Do not implement anything.
+
+First confirm:
+
+* Final Phase 19 checkpoint hash
+* git/status equivalent: confirm no unexpected uncommitted implementation files
+* docs/phases/phase-19-beginner-foundations-pilot.md exists
+* replit.md marks Phase 19 CLOSED / SHIP
+* Phase 20 is NOT STARTED
+
+Then perform the replit.md hygiene cleanup:
+
+* Keep Current Phase Status concise.
+* Keep only the most recent 1–2 phases in detailed form.
+* Move older phase detail into Phase History only.
+* Remove any accidental duplicate Phase 17 paragraph or stale duplicate entries.
+* Do not remove important links to phase docs.
+* Do not rewrite the whole file.
+* Keep it tidy, compact, and below the intended line budget.
+
+After that, prepare a Phase 20 decision brief only.
+
+Current confirmed state after Phase 19:
+
+* visible projects: 54
+* hidden projects: 32
+* difficulty distribution:
+
+  * beginner: 8
+  * intermediate: 1
+  * advanced: 45
+* zero-beginner courses remaining:
+
+  * ai-engineer
+  * mlops-engineer
+* wave-report: 52/52
+* visible pedagogy KPI: 54/54
+* tests: 218/218
+* anchorCount: 2
+* anchor drift: 0.00
+* lineage integrity: 0/0/0/0
+* rubric v1.0.1 unchanged
+* candidateId remains required
+* 9-course taxonomy unchanged
+* no schema changes in Phase 19
+* no archive/delete in Phase 19
+* no Start Here code changes needed in Phase 19
+* Start Here behavior now:
+
+  * cloud-data-engineer: start_here
+  * applied-llm-engineer: start_here
+  * ai-engineer: still most_approachable_available
+  * mlops-engineer: still most_approachable_available
+
+Analyze the best next move across these options:
+
+Option A — Complete beginner/foundations coverage for the final 2 zero-beginner courses
+Goal:
+Add beginner/foundations projects for:
+
+* ai-engineer
+* mlops-engineer
+
+Evaluate:
+
+* whether each can be honestly beginner/foundations without fake-beginner complexity
+* whether AI Engineer should be “AI foundations” rather than “beginner AI engineering”
+* whether MLOps should be local model training/serving foundations rather than real production MLOps
+* whether to do both in one pass or only one
+* expected effect on Start Here behavior
+* expected effect on beginner coverage
+* expected effect on wave-report and pedagogy
+* risk compared with Phase 19
+
+Option B — Product onboarding readiness
+Goal:
+Shift from catalog building to learner onboarding.
+
+Evaluate:
+
+* first-run onboarding
+* course enrollment
+* dashboard/resume behavior
+* recommended first course/project
+* learner progress clarity
+* whether this is too broad for one phase
+* whether catalog is now strong enough to justify productization work
+
+Option C — Course/project card polish
+Goal:
+Improve the visual hierarchy of course/project browsing after badges, filters, and Start Here.
+
+Evaluate:
+
+* project card clarity
+* course card clarity
+* step count / duration / difficulty / portfolio artifact visibility
+* CTA wording
+* whether this can be done without a broad redesign
+* whether this should wait until beginner coverage is complete
+
+Option D — Search/sort improvements
+Goal:
+Add search and sorting across the catalog.
+
+Evaluate:
+
+* whether 54 projects justify search now
+* whether local/client-side search is enough
+* sort by difficulty, Start Here/recommended, duration, course, newest
+* risk of unnecessary complexity
+
+Option E — Admin/reporting rider
+Goal:
+Add Start Here coverage and beginner coverage reporting to admin.
+
+Evaluate:
+
+* startHereCoverage.totalCourses
+* startHereCoverage.withBeginner
+* startHereCoverage.withFallback
+* zeroBeginnerCourses
+* beginnerCoverageByCourse
+* whether this should be bundled with Option A rather than standalone
+
+Option F — Phase 20 pause / stabilization
+Goal:
+Avoid new feature work and run a deeper stabilization audit.
+
+Evaluate:
+
+* whether enough high-velocity phases have accumulated risk
+* whether docs, scripts, test coverage, and admin reports need consolidation
+* whether this is valuable now or too conservative
+
+For each option, report:
+
+1. Goal
+2. Why it matters now
+3. Expected learner impact
+4. Catalog-quality impact
+5. Risk level
+6. Implementation complexity
+7. Likely files touched
+8. Required DB/schema changes, if any
+9. Tests required
+10. Expected effect on:
+
+* learner-visible count
+* hidden/archive count
+* pedagogy KPI
+* wave-report
+* difficulty distribution
+* beginner coverage
+* Start Here behavior
+* learner trust
+* product readiness
+* implementation cost
+
+11. Stop conditions
+12. Why this option should or should not be chosen
+
+Then recommend one Phase 20 scope.
+
+Preference:
+Choose the smallest scope that creates the largest learner-facing improvement while preserving the high-quality, low-iteration execution pattern.
+
+Important:
+If recommending final beginner/foundations coverage, be very strict about fake-beginner risk. AI Engineer and MLOps are harder than Cloud Data Engineer and Applied LLM Engineer. The recommendation should prove that the projects can be local, beginner-safe, and honest.
+
+For the recommended Phase 20 plan, include:
+
+1. Exact scope
+2. Exact project slugs involved, if any
+3. Exact courses involved
+4. Whether each project is “beginner” or “foundations”
+5. Whether work is:
+
+   * new authoring
+   * frontend UX
+   * API logic
+   * metadata/reporting
+   * tests only
+   * docs cleanup
+6. Required files
+7. Required scripts
+8. Required tests
+9. Required reports
+10. Final gates
+11. Expected final metrics
+12. Hard stop conditions
+13. Out-of-scope boundaries
+
+Include a section titled:
+
+“What I would do next if approved”
+
+In that section, give the exact first 10 implementation steps, but do not execute them.
+
+Hard constraints:
+
+* Do not implement Phase 20 yet.
+* Do not author new projects unless Phase 20 is later explicitly approved.
+* Do not mutate existing project difficulty labels unless explicitly approved.
+* Do not change rubric v1.0.1.
+* Do not loosen candidateId.
+* Do not change the 9-course taxonomy.
+* Do not use mapToCourse at runtime.
+* Do not delete rows.
+* Do not archive rows unless explicitly approved.
+* Do not recalibrate anchors.
+* Do not modify csv-to-postgres-pipeline.
+* Do not modify dbt-data-models.
+* Do not touch cloud credentials.
+* Do not start Phase 20 implementation after the brief.
