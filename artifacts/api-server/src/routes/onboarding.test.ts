@@ -24,7 +24,7 @@ vi.mock("@workspace/db", () => ({
     query: {
       userProgress: { findFirst: (...a: unknown[]) => userProgressFindFirst(...a) },
     },
-    update: (...a: unknown[]) => updateFn(...a),
+    update: (_table: unknown) => updateFn(),
   },
   users: { id: "id" },
   userProgress: { userId: "userId" },

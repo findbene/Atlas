@@ -1,9 +1,10 @@
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
-import { Sparkles, Compass } from "lucide-react";
-import type { StartHereRecommendation } from "@workspace/api-client-react";
+import { Sparkles, Compass, Loader2 } from "lucide-react";
+import { useCreateEnrollment, type StartHereRecommendation } from "@workspace/api-client-react";
+import { useAuth } from "@clerk/react";
 
 /**
  * Phase 18 — Start Here card.
@@ -26,6 +27,9 @@ export interface StartHereCardProps {
 export function StartHereCard({ recommendation }: StartHereCardProps) {
   const { project, reasonKey } = recommendation;
   const isStartHere = reasonKey === "beginner_available";
+  const [, navigate] = useLocation();
+  const { isSignedIn } = useAuth();
+  const enroll = useCreateEnrollment();
 
   const heading = isStartHere ? "Start Here" : "Most approachable project available";
   const body = isStartHere
@@ -33,6 +37,26 @@ export function StartHereCard({ recommendation }: StartHereCardProps) {
     : "Beginner projects for this course are coming soon. This is the gentlest available starting point for now.";
   const cta = isStartHere ? "Start this project" : "View project";
   const Icon = isStartHere ? Sparkles : Compass;
+
+  // Phase 21: CTA enrolls (slug-based, idempotent) then deep-links to the
+  // workspace. Anonymous users skip enrollment and go to the public
+  // project route, which gates them into sign-in itself.
+  const onClick = () => {
+    if (!isSignedIn) {
+      navigate(`/projects/${project.slug}`);
+      return;
+    }
+    enroll.mutate(
+      { data: { projectSlug: project.slug } },
+      {
+        onSettled: () => {
+          // Idempotent — regardless of created vs existing, the right
+          // landing place is the project workspace.
+          navigate(`/projects/${project.slug}`);
+        },
+      },
+    );
+  };
 
   return (
     <Card
@@ -61,10 +85,20 @@ export function StartHereCard({ recommendation }: StartHereCardProps) {
               <DifficultyBadge difficulty={project.difficulty} />
             </div>
             <p className="text-sm text-muted-foreground mb-4">{body}</p>
-            <Button asChild size="sm">
-              <Link href={`/projects/${project.slug}`} data-testid="start-here-cta">
-                {cta}
-              </Link>
+            <Button
+              size="sm"
+              onClick={onClick}
+              disabled={enroll.isPending}
+              data-testid="start-here-cta"
+            >
+              {enroll.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enrolling…
+                </>
+              ) : (
+                cta
+              )}
             </Button>
           </div>
         </div>

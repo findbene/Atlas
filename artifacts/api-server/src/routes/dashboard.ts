@@ -115,9 +115,12 @@ router.get("/dashboard", requireAuth, async (req, res) => {
         }
       : null;
 
-    // Onboarding-time recommendation: only fire for truly fresh learners.
+    // Onboarding-time recommendation: only fire for truly fresh learners
+    // (zero enrollment rows total — NOT zero visible enrollments). A user
+    // whose only enrollment points at a since-hidden slug is still "not
+    // fresh"; recommending a new project would silently double-enroll them.
     let recommendedStartHere = null;
-    if (enriched.length === 0) {
+    if (progressRows.length === 0) {
       const courseRows = await db.query.projects.findMany({
         where: and(eq(projects.learnerVisible, true), eq(projects.course, RECOMMENDED_FIRST_COURSE)),
         columns: {

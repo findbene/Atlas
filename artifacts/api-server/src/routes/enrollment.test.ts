@@ -28,7 +28,7 @@ vi.mock("@workspace/db", () => ({
       userProgress: { findFirst: (...a: unknown[]) => userProgressFindFirst(...a) },
       projectSteps: { findFirst: (...a: unknown[]) => stepsFindFirst(...a) },
     },
-    insert: (...a: unknown[]) => insertFn(...a),
+    insert: (_table: unknown) => insertFn(),
   },
   projects: { slug: "slug", id: "id" },
   projectSteps: { projectId: "projectId", stepNumber: "stepNumber" },
@@ -157,6 +157,52 @@ describe("POST /api/enrollments", () => {
       created: false,
     });
     expect(insertFn).not.toHaveBeenCalled();
+  });
+
+  it("idempotent under concurrent insert race: 23505 unique violation → re-read → 200 created:false", async () => {
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    // First findFirst: no row yet (the race window).
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    // INSERT fails with the unique-index violation.
+    insertReturning.mockRejectedValueOnce(Object.assign(new Error("dup"), { code: "23505" }));
+    // Second findFirst (recovery re-read): now sees the winning row.
+    userProgressFindFirst.mockResolvedValueOnce({ id: "prog-1", currentStep: 2 });
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-2" });
+    const app = await buildApp();
+    const res = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      projectId: "p-1",
+      currentStepNumber: 2,
+      currentStepId: "step-uuid-2",
+      created: false,
+    });
+  });
+
+  it("non-unique-violation insert errors still surface as 500 (regression guard)", async () => {
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    insertReturning.mockRejectedValueOnce(Object.assign(new Error("boom"), { code: "42P01" }));
+    const app = await buildApp();
+    const res = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(res.status).toBe(500);
+  });
+
+  it("missing-vs-hidden 404 body is byte-identical (no existence leak)", async () => {
+    const app = await buildApp();
+    projectsFindFirst.mockResolvedValueOnce(undefined);
+    const missing = await request(app).post("/enrollments").send({ projectSlug: "does-not-exist" });
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-hidden", slug: "hidden", isPremium: false, learnerVisible: false, totalSteps: 1,
+    });
+    const hidden = await request(app).post("/enrollments").send({ projectSlug: "hidden" });
+    expect(missing.status).toBe(404);
+    expect(hidden.status).toBe(404);
+    expect(missing.body).toEqual(hidden.body);
   });
 
   it("returns currentStepId=null when project has no matching step row (defensive)", async () => {

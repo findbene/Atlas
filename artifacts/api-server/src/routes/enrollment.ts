@@ -44,24 +44,40 @@ router.post("/enrollments", requireAuth, async (req, res) => {
       return;
     }
 
-    const existing = await db.query.userProgress.findFirst({
+    // Race-safe idempotency: pre-read first (fast path), but if a concurrent
+    // request slipped a row in between SELECT and INSERT, the (user_id,
+    // project_id) unique index (`progress_user_project_idx`) trips with
+    // Postgres SQLSTATE 23505 and we recover by re-reading. This preserves
+    // the "idempotent under double-click / retry" contract without needing
+    // a serializable transaction.
+    const findExisting = () => db.query.userProgress.findFirst({
       where: and(eq(userProgress.userId, user.id), eq(userProgress.projectId, project.id)),
       columns: { id: true, currentStep: true },
     });
+    const existing = await findExisting();
 
     let currentStepNumber: number;
     let created = false;
     if (existing) {
       currentStepNumber = existing.currentStep;
     } else {
-      const [row] = await db.insert(userProgress).values({
-        userId: user.id,
-        projectId: project.id,
-        status: "in_progress",
-        startedAt: new Date(),
-      }).returning({ currentStep: userProgress.currentStep });
-      currentStepNumber = row?.currentStep ?? 1;
-      created = true;
+      try {
+        const [row] = await db.insert(userProgress).values({
+          userId: user.id,
+          projectId: project.id,
+          status: "in_progress",
+          startedAt: new Date(),
+        }).returning({ currentStep: userProgress.currentStep });
+        currentStepNumber = row?.currentStep ?? 1;
+        created = true;
+      } catch (insertErr) {
+        const code = (insertErr as { code?: string } | null)?.code;
+        if (code !== "23505") throw insertErr;
+        const winner = await findExisting();
+        if (!winner) throw insertErr;
+        currentStepNumber = winner.currentStep;
+        // created stays false — the parallel request won the race.
+      }
     }
 
     // Resolve the step UUID for the learner's current position so the

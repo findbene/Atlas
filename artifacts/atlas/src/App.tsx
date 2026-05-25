@@ -29,6 +29,7 @@ import CertificatePrint from "@/pages/certificate-print";
 import Conversations from "@/pages/conversations";
 import TutorPage from "@/pages/tutor";
 import Upgrade from "@/pages/upgrade";
+import OnboardingPage from "@/pages/onboarding";
 import PythonMastery from "@/pages/python-mastery";
 import SqlMastery from "@/pages/sql-mastery";
 import PublicProfile from "@/pages/public-profile";
@@ -195,6 +196,7 @@ function ClerkProviderWithRoutes() {
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
 
+              <Route path="/onboarding"><ProtectedRoute component={OnboardingPage} /></Route>
               <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
               <Route path="/projects/:slug"><ProtectedRoute component={ProjectWorkspace} /></Route>
               <Route path="/python-mastery"><ProtectedRoute component={PythonMastery} /></Route>

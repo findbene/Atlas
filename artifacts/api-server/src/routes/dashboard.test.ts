@@ -142,6 +142,23 @@ describe("GET /api/dashboard", () => {
     expect(res.body.resume.currentStep).toBe(1);
   });
 
+  it("hidden-only enrollments: lists empty, recommendedStartHere null (not 'fresh')", async () => {
+    // The only progress row points at a since-hidden project — projectsFindMany
+    // returns no visible row for that id. Lists must be empty BUT the user is
+    // not treated as fresh, so no recommendation should fire.
+    userProgressFindMany.mockResolvedValueOnce([
+      { projectId: "p-hidden", status: "in_progress", currentStep: 1, completionPercent: 0,
+        startedAt: new Date("2026-01-01"), lastUpdatedAt: new Date("2026-01-02"), completedAt: null },
+    ]);
+    projectsFindMany.mockResolvedValueOnce([]); // hidden — not returned
+    const app = await buildApp();
+    const res = await request(app).get("/dashboard");
+    expect(res.body.inProgress).toEqual([]);
+    expect(res.body.completed).toEqual([]);
+    expect(res.body.resume).toBeNull();
+    expect(res.body.recommendedStartHere).toBeNull();
+  });
+
   it("completed enrollments land in completed[], not inProgress[]", async () => {
     userProgressFindMany.mockResolvedValueOnce([
       { projectId: "p-c", status: "completed", currentStep: 4, completionPercent: 100,
