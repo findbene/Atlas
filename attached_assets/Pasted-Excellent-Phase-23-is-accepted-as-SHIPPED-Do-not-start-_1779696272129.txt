@@ -1,0 +1,88 @@
+Excellent. Phase 23 is accepted as SHIPPED.
+
+Do not start Phase 24 yet.
+
+Before stopping, update or rewrite the project-root HANDOFF.md for the next session.
+
+Include:
+
+1. Goal we are working toward
+- Atlas learner-ready platform
+- Phase 21 shipped: Onboarding + Enrollment + Resume
+- Phase 22 shipped: Dashboard UI + Workspace Resume Wiring
+- Phase 23 shipped: Workspace Auto-Resume / Step Deep-Link Support
+- Proposed next phase: Phase 24 — Check vs Submit Separation / State Machine, but not started
+
+2. Current state of the code
+- What Phase 23 shipped
+- Workspace now supports safe auto-resume behavior
+- ?step=N wins when valid and is clamped/sanitized
+- otherwise workspace seeds from progress.currentStepPosition once enrollment/progress resolve
+- otherwise falls back to step 0
+- URL self-corrects on out-of-range step values
+- browser back/forward works
+- SPA slug-to-slug navigation resets cleanly
+- no step-0 flash
+- no schema/API/content/rubric/taxonomy changes
+
+3. Files changed
+- artifacts/atlas/src/lib/workspaceStepUrl.ts
+- artifacts/atlas/src/pages/project-workspace.tsx
+- artifacts/atlas/src/lib/workspaceStepUrl.test.ts
+- artifacts/atlas/src/pages/project-workspace.test.tsx
+- docs/phases/phase-23-workspace-auto-resume.md
+- replit.md
+
+4. Everything tried that failed or required correction
+- Architect round 1 failed due to:
+  - premature step resolution before enrollment/progress were loaded
+  - project-change race during SPA slug-to-slug navigation
+- Fixes:
+  - gated resume resolution until enrollment/progress state is ready
+  - reset workspace state on project identity change
+  - added lifecycle tests
+- Architect round 2 passed
+
+5. Final gates
+- Typecheck clean
+- heuristic guard OK
+- Tests: 281/281
+  - api-server 192
+  - curriculum-quality 60
+  - execution-core 4
+  - atlas 25
+- anchor drift 0.00 / 0.00
+- wave-report 54/54
+- audit:pedagogy visible 56/56
+- architect PASS
+
+6. Next step you would take
+Recommend Phase 24 as Check vs Submit Separation / State Machine.
+
+Phase 24 should be planned before implemented.
+
+Likely Phase 24 goal:
+- separate low-stakes step checks from high-stakes final project submission
+- define and implement a clear frontend state machine
+- ensure ordinary checks do not trigger final completion
+- prepare the foundation for validation-gated completion and earned confetti in later phases
+
+Also mention optional housekeeping:
+- replit.md is now around 167 lines
+- trimming/reorganizing older Phase History entries is useful at a natural pause
+- not blocking
+
+Also include:
+- current HEAD commit hash after Phase 23
+- whether all Phase 23 changes are committed
+- exact command/gate summary
+
+Hard stop:
+- Documentation/handoff only
+- No Phase 24 implementation
+- No new feature work
+- No schema changes
+- No API/server changes
+- No OpenAPI/codegen changes
+- No rubric/content/taxonomy changes
+- No PWA work
