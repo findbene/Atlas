@@ -27,6 +27,7 @@ export type GradingResult = {
   status: "passed" | "failed";
   feedback?: string;
   xpEarned?: number;
+  attempt?: number;
   isFirstPass?: boolean;
   projectComplete?: boolean;
 };

@@ -1,10 +1,8 @@
 # Atlas — Session Handoff
 
-**HEAD:** `270437a508d63ec18c861bfc5fd96f17a0b3f58f`
-**Commit message:** _Add ability to resume learning at the correct step_
-**Working tree:** clean (only untracked file is an `attached_assets/` paste from
-the user, not part of any phase deliverable). All Phase 23 changes are
-committed.
+**HEAD:** (Phase 24 commit — see `git log -1`)
+**Previous HEAD:** `270437a508d63ec18c861bfc5fd96f17a0b3f58f` (Phase 23)
+**Working tree:** clean after Phase 24 commit. All Phase 24 changes committed.
 
 ---
 
@@ -14,11 +12,74 @@ Atlas learner-ready platform.
 
 Phase ship history (most recent first):
 
+- **Phase 24 — Check vs Submit Separation / State Machine** — SHIPPED.
 - **Phase 23 — Workspace Auto-Resume / Step Deep-Link Support** — SHIPPED.
 - **Phase 22 — Dashboard UI + Workspace Resume Wiring** — SHIPPED.
 - **Phase 21 — Onboarding + Enrollment + Resume** — SHIPPED.
-- **Phase 24 — Check vs Submit Separation / State Machine** — PROPOSED, **NOT
-  STARTED**. Must be planned before implementation (see §6).
+
+## Phase 24 summary (this session)
+
+**Goal:** Separate "Check" (provisional, zero DB writes, no XP / no
+celebration) from "Submit" (committed grade, XP, confetti, auto-advance).
+Drive the workspace through an explicit reducer state machine so late
+async responses, edits, and local Run paths can never trigger false
+celebration or drop a committed result.
+
+**Server changes:**
+- New `artifacts/api-server/src/lib/grading.ts` — shared scoring helper
+  + `NO_CHECK_STEP_TYPES` allowlist (self_attest, reflection,
+  concept_check, file_upload all skip Check).
+- New `POST /api/user/projects/:projectId/steps/:stepId/check` returns
+  `CheckResult { status, feedback }` only. Zero DB writes. Enrollment
+  403 runs BEFORE step lookup; missing/wrong-project step → 404; skip
+  types → 400.
+- `/submit` refactored to call the helper. Response shape byte-identical.
+- OpenAPI extended; codegen regenerated → `useCheckStep` hook.
+
+**Frontend changes:**
+- New `artifacts/atlas/src/lib/workspaceStepMachine.ts` reducer:
+  phases `editing | checking | check_passed | check_failed | submitting
+  | submit_passed | submit_failed`. Terminal actions (CHECK_PASS/FAIL,
+  SUBMIT_PASS/FAIL) are PHASE-GUARDED — they no-op unless the matching
+  start phase is current. This makes late async responses after a
+  RESET (step nav) silently drop.
+- Local-grading paths (SQL Run, empty-input check, empty-input submit)
+  emit START before their terminal action so the phase-guard accepts
+  them from `editing`.
+- `EDIT` no-ops during `checking` or `submitting` to prevent a
+  learner typing in the editor from hijacking phase out of a pending
+  request and causing the submit response to be dropped.
+- `runCode()` early-returns when `!checkEnabled(stepState)`; Run
+  button disabled when any check/submit is in flight.
+- Display: `isProvisional(state) ? lastCheck : lastSubmit`.
+- `ValidationFeedbackPanel` shows a "Provisional" tag and suppresses
+  celebration UI when result is provisional.
+- Confetti / celebration / auto-advance fire EXCLUSIVELY when
+  reducer transitions to `submit_passed`.
+
+**Tests:** 281 → 313 passing.
+- api-server: 192 → 208 (+10 grading helper, +6 /check route).
+- atlas: 25 → 41 (+13 reducer unit tests, +3 regression tests covering
+  local-grading START pairing, Run/EDIT hijack defense, late-response
+  drop after RESET; workspace component test updated for `useCheckStep`
+  mock).
+- curriculum-quality: 60, execution-core: 4 (unchanged).
+
+**Architect rounds:** R1 → R2 → R3 → R4 FAIL, **R5 PASS**. Each round
+caught a phase-hijack class:
+- R1: display selection picked submit when provisional should win.
+- R2: 3 local-grading call sites dispatched terminal-only and were
+  silently dropped by the new phase-guard.
+- R3: Run during pending submit hijacked phase via the SQL local-grade
+  CHECK_START → SUBMIT_PASS dropped.
+- R4: EDIT during pending submit hijacked phase the same way.
+
+**Hard stops respected:** Zero changes to schema, content, rubric,
+taxonomy, anchors, PWA, Stripe, AI tutor, cloud creds.
+
+**Invariants:** visible 56, hidden 32, beginner 10, wave 56/56,
+pedagogy 56/56 visible, anchorCount=2, anchor drift 0.00, lineage
+0/0/0/0, 9-course taxonomy intact, rubric v1.0.1 frozen.
 
 ---
 

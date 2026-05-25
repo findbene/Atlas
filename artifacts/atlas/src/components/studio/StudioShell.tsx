@@ -49,14 +49,23 @@ export type StudioShellProps = {
   onActiveTabChange: (t: "instructions" | "editor" | "output") => void;
 
   grading: GradingResult | null;
+  /** Phase 24 — when true, the current `grading` came from /check (provisional);
+   *  when false, from /submit (committed). The panel uses this to hide XP and
+   *  completion celebration UI for provisional results. */
+  provisional: boolean;
   showCelebration: boolean;
 
   isPro: boolean;
+  checkPending: boolean;
+  /** Hide the Check button entirely for step types with no useful check
+   *  (self_attest, reflection, concept_check, file_upload). */
+  hideCheck: boolean;
   submitPending: boolean;
 
   onSelectStep: (i: number) => void;
   onRun: () => void;
   onReset: () => void;
+  onCheck: () => void;
   onSubmit: () => void;
   onAskTutor: (stderr: string) => void;
   onOpenSolution: () => void;
@@ -92,12 +101,16 @@ export function StudioShell(props: StudioShellProps) {
     activeTab,
     onActiveTabChange,
     grading,
+    provisional,
     showCelebration,
     isPro,
+    checkPending,
+    hideCheck,
     submitPending,
     onSelectStep,
     onRun,
     onReset,
+    onCheck,
     onSubmit,
     onAskTutor,
     onOpenSolution,
@@ -195,10 +208,13 @@ export function StudioShell(props: StudioShellProps) {
                   hasStarter={!!currentStep.starterCode}
                   hasCode={!!code}
                   isPro={isPro}
+                  checkPending={checkPending}
+                  hideCheck={hideCheck}
                   submitPending={submitPending}
                   onRun={onRun}
                   onReset={onReset}
                   onOpenSolution={onOpenSolution}
+                  onCheck={onCheck}
                   onSubmit={onSubmit}
                 />
                 <RunHistorySheet
@@ -212,15 +228,29 @@ export function StudioShell(props: StudioShellProps) {
                 />
               </>
             ) : (
-              <Button
-                size="sm"
-                className="h-7 text-xs"
-                onClick={onSubmit}
-                disabled={submitPending}
-                data-testid="studio-submit"
-              >
-                {submitPending ? "Grading..." : "Submit"}
-              </Button>
+              <>
+                {!hideCheck && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={onCheck}
+                    disabled={checkPending || submitPending}
+                    data-testid="studio-check"
+                  >
+                    {checkPending ? "Checking..." : "Check"}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={onSubmit}
+                  disabled={checkPending || submitPending}
+                  data-testid="studio-submit"
+                >
+                  {submitPending ? "Grading..." : "Submit"}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -275,6 +305,7 @@ export function StudioShell(props: StudioShellProps) {
         <div className="border-t border-border p-3 shrink-0 max-h-[40vh] overflow-y-auto">
           <ValidationFeedbackPanel
             grading={grading}
+            provisional={provisional}
             project={project}
             showCelebration={showCelebration}
             step={currentStep}

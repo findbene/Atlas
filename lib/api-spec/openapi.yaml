@@ -321,6 +321,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /user/projects/{projectId}/steps/{stepId}/check:
+    post:
+      operationId: checkStep
+      tags: [steps]
+      summary: Grade a step submission WITHOUT committing (no XP, no progress, no completion)
+      description: |
+        Phase 24 — Low-stakes Check. Uses the SAME server-side grading
+        rules as /submit but performs zero side effects: no DB writes,
+        no attempt counter, no XP, no streak, no progress mutation, no
+        project completion, no completion email. The CheckResult shape
+        intentionally omits xpEarned, attempt, isFirstPass, and
+        projectComplete as the contract guarantee that nothing was
+        committed.
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: stepId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitStepBody"
+      responses:
+        "200":
+          description: Provisional grading result (not committed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckResult"
+        "403":
+          description: Not enrolled in this project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Step not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /user/projects/{projectId}/steps/{stepId}/hint:
     post:
       operationId: requestStepHint
@@ -1506,6 +1558,28 @@ components:
         - feedback
         - xpEarned
         - attempt
+
+    CheckResult:
+      type: object
+      description: |
+        Phase 24 — Result of POST .../check. The omission of xpEarned,
+        attempt, isFirstPass, and projectComplete is the on-the-wire
+        contract that nothing was committed server-side.
+      properties:
+        status:
+          type: string
+          enum: [passed, failed]
+        feedback:
+          type: string
+        stdout:
+          type: string
+        stderr:
+          type: string
+        executionTimeMs:
+          type: integer
+      required:
+        - status
+        - feedback
 
     HintRequestBody:
       type: object

@@ -13,6 +13,8 @@ export * from "./aiChatMessageRole";
 export * from "./billingPlan";
 export * from "./billingPlanTier";
 export * from "./checkoutResponse";
+export * from "./checkResult";
+export * from "./checkResultStatus";
 export * from "./course";
 export * from "./courseDetail";
 export * from "./courseSlug";

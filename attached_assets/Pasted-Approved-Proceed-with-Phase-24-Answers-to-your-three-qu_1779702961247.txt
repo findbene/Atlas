@@ -1,0 +1,78 @@
+Approved. Proceed with Phase 24.
+
+Answers to your three questions:
+
+1. State machine approval
+Yes — the state machine in §3.2 is approved.
+
+Keep these UX rules:
+- Editing after a passed/failed check must clear stale check feedback.
+- Check is low-stakes and never commits progress.
+- Submit is the only committed action.
+- Confetti/celebration only fires after submit_passed, never after check_passed.
+- Auto-advance only happens after submit_passed on a non-final step.
+- Self-attest / reflection / file-upload / concept-check style steps should skip Check and show Submit only.
+
+2. New endpoint approval
+Yes — the controlled new endpoint is approved.
+
+Proceed with:
+POST /user/projects/:projectId/steps/:stepId/check
+
+Requirements:
+- same auth/enrollment gate as submit
+- same step-not-found handling as submit
+- reuse the same grading helper as submit
+- no DB writes
+- no user_step_completions insert/update
+- no attemptCount bump
+- no XP
+- no streak update
+- no project completion
+- no completion email
+- no confetti-triggering fields in the response
+- CheckResult must not contain xpEarned, attempt, isFirstPass, or projectComplete
+
+This endpoint is justified because server-side validation rules must remain the source of truth. Do not duplicate grading logic in the client.
+
+3. Phase 24 plan doc
+Yes — write docs/phases/phase-24-plan.md first, but do not stop after writing it.
+
+Then proceed directly into Phase 24 implementation in the same pass, unless a true blocker appears.
+
+Implementation scope:
+- Extract pure grading helper from the existing submit route.
+- Add the new check endpoint.
+- Update OpenAPI and regenerate codegen.
+- Add frontend check-vs-submit state machine.
+- Update workspace UI so Check and Submit are semantically separate.
+- Update ValidationFeedbackPanel to distinguish provisional check feedback from committed submit feedback.
+- Preserve existing submit behavior exactly except for the new UI separation.
+- Add API and atlas tests described in the plan.
+- Run full gates.
+- Run architect review.
+- Fix severe findings.
+- Write final Phase 24 docs and update replit.md.
+
+Hard constraints:
+- No schema changes.
+- No content changes.
+- No rubric changes.
+- No taxonomy changes.
+- No anchor changes.
+- No PWA work.
+- No Stripe/billing.
+- No AI tutor changes.
+- No cloud credentials.
+- No Phase 25 work.
+- Do not rerun Phase 11.
+
+Expected final behavior:
+- Run/local execution remains local and non-committing.
+- Check becomes server-validated but non-committing.
+- Submit remains committing and completion-capable.
+- Confetti is earned only after committed passing submit transitions.
+- Repeated checks do not change learner progress.
+- Repeated submits remain idempotent with existing first-pass/completion safeguards.
+
+Proceed Phase 24 now, batch independent edits, and report only after final gates pass or a real blocker occurs.

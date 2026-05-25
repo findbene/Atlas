@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useReducer } from "react";
 import { useParams, Link } from "wouter";
 import {
   useGetProject,
@@ -6,8 +6,21 @@ import {
   getGetUserProjectProgressQueryKey,
   useEnrollProject,
   useSubmitStep,
+  useCheckStep,
   useGetUserProfile,
 } from "@workspace/api-client-react";
+import {
+  workspaceStepReducer,
+  initialStepState,
+  isProvisional,
+  shouldAutoAdvance,
+  shouldConfetti,
+  shouldCelebrateProject,
+  checkEnabled,
+  submitEnabled,
+  NO_CHECK_STEP_TYPES,
+  type CheckResult,
+} from "@/lib/workspaceStepMachine";
 import {
   runPython,
   loadPyodideOnce,
@@ -74,6 +87,7 @@ export default function ProjectWorkspace() {
   );
   const enrollMutation = useEnrollProject();
   const submitMutation = useSubmitStep();
+  const checkMutation = useCheckStep();
   const { data: userProfile } = useGetUserProfile();
   const isPro = (userProfile as { tier?: string } | undefined)?.tier === "pro";
 
@@ -95,7 +109,23 @@ export default function ProjectWorkspace() {
   const [output, setOutput] = useState<OutputVM | null>(null);
   const [activeTab, setActiveTab] =
     useState<"instructions" | "editor" | "output">("instructions");
-  const [gradingResult, setGradingResult] = useState<GradingResult | null>(null);
+  // Phase 24 — Per-step state machine. Replaces the legacy `gradingResult`
+  // useState. The reducer is pure; side effects (confetti, celebration,
+  // auto-advance, query-invalidation) are derived in a useEffect by comparing
+  // the previous and current state via `prevStepStateRef`.
+  const [stepState, dispatchStep] = useReducer(
+    workspaceStepReducer,
+    initialStepState,
+  );
+  const prevStepStateRef = useRef(stepState);
+  // Phase 24 — Display selection. When the most recent transition is a
+  // /check (provisional), the provisional banner wins even if there's a
+  // stale committed `lastSubmit` lingering from an earlier submit on the
+  // same step. Otherwise show the committed submit result (or nothing).
+  const provisionalGrading = isProvisional(stepState);
+  const gradingResult: GradingResult | null = provisionalGrading
+    ? (stepState.lastCheck as GradingResult | null)
+    : stepState.lastSubmit;
   const [showAi, setShowAi] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [pyStatus, setPyStatus] = useState<PyodideStatus>("idle");
@@ -180,7 +210,7 @@ export default function ProjectWorkspace() {
   useEffect(() => {
     setCode(currentStep?.starterCode ?? "");
     setTextAnswer("");
-    setGradingResult(null);
+    dispatchStep({ type: "RESET" });
     setOutput(null);
     setActiveTab("instructions");
     setRunHistory(null);
@@ -336,6 +366,14 @@ export default function ProjectWorkspace() {
 
   async function runCode() {
     if (!code || isRunning) return;
+    // Phase 24 — Block Run while a /check or /submit is in flight. The SQL
+    // run path dispatches CHECK_START + CHECK_PASS/FAIL on parseable
+    // expectedOutputs; without this guard, a Run during pending submit
+    // would flip phase out of `submitting`, causing the phase-guarded
+    // SUBMIT_PASS/FAIL action to be dropped when the submit response
+    // finally lands — silently swallowing committed grading + XP +
+    // celebration + auto-advance.
+    if (!checkEnabled(stepState)) return;
     setOutput(null);
     setActiveTab("output");
     setIsRunning(true);
@@ -380,11 +418,19 @@ export default function ProjectWorkspace() {
             expected: parsedExpected.data as ExpectedOutputs,
             result,
           });
-          setGradingResult({
+          const provisional: CheckResult = {
             status: outcome.passed ? "passed" : "failed",
             feedback:
               outcome.summary +
               (outcome.feedback ? `\n\n${outcome.feedback}` : ""),
+          };
+          // SQL "Run" path produces a local, provisional grading result.
+          // Emit CHECK_START first so the phase-guarded CHECK_PASS /
+          // CHECK_FAIL transition is accepted from `editing`.
+          dispatchStep({ type: "CHECK_START" });
+          dispatchStep({
+            type: outcome.passed ? "CHECK_PASS" : "CHECK_FAIL",
+            result: provisional,
           });
         }
       } else {
@@ -436,18 +482,80 @@ export default function ProjectWorkspace() {
     }
   }
 
-  function submitStep() {
+  // Phase 24 — Low-stakes Check. Server-graded, NO commit. Confetti,
+  // celebration, XP, and auto-advance never fire on this path; those are
+  // exclusively wired to SUBMIT_PASS transitions in the effect below.
+  function checkStep() {
     if (!project?.id || !currentStep) return;
+    if (!checkEnabled(stepState)) return;
     const submission = isCodeStep ? code : textAnswer;
     if (!submission.trim()) {
-      setGradingResult({
-        status: "failed",
-        feedback: isCodeStep
-          ? "Write some code before submitting."
-          : "Enter your answer before submitting.",
+      // Local validation must still surface — emit CHECK_START first so
+      // the phase-guarded CHECK_FAIL transition is accepted.
+      dispatchStep({ type: "CHECK_START" });
+      dispatchStep({
+        type: "CHECK_FAIL",
+        result: {
+          status: "failed",
+          feedback: isCodeStep
+            ? "Write some code before checking."
+            : "Enter your answer before checking.",
+        },
       });
       return;
     }
+    dispatchStep({ type: "CHECK_START" });
+    checkMutation.mutate(
+      {
+        projectId: project.id,
+        stepId: currentStep.id,
+        data: {
+          submission,
+          submissionType: submissionTypeForStep(currentStep.type),
+        },
+      },
+      {
+        onSuccess: (result: unknown) => {
+          const r = result as CheckResult;
+          dispatchStep({
+            type: r.status === "passed" ? "CHECK_PASS" : "CHECK_FAIL",
+            result: r,
+          });
+        },
+        onError: (err: any) => {
+          dispatchStep({
+            type: "CHECK_FAIL",
+            result: {
+              status: "failed",
+              feedback:
+                err?.message ?? "Couldn't run the check. Please try again.",
+            },
+          });
+        },
+      },
+    );
+  }
+
+  function submitStep() {
+    if (!project?.id || !currentStep) return;
+    if (!submitEnabled(stepState)) return;
+    const submission = isCodeStep ? code : textAnswer;
+    if (!submission.trim()) {
+      // Local validation must still surface — emit SUBMIT_START first so
+      // the phase-guarded SUBMIT_FAIL transition is accepted.
+      dispatchStep({ type: "SUBMIT_START" });
+      dispatchStep({
+        type: "SUBMIT_FAIL",
+        result: {
+          status: "failed",
+          feedback: isCodeStep
+            ? "Write some code before submitting."
+            : "Enter your answer before submitting.",
+        },
+      });
+      return;
+    }
+    dispatchStep({ type: "SUBMIT_START" });
     submitMutation.mutate(
       {
         projectId: project.id,
@@ -458,43 +566,58 @@ export default function ProjectWorkspace() {
         },
       },
       {
-        onSuccess: (result: any) => {
+        onSuccess: (result: unknown) => {
           const r = result as GradingResult;
-          setGradingResult(r);
-          if (project?.id) {
-            queryClient.invalidateQueries({
-              queryKey: getGetUserProjectProgressQueryKey(project.id),
-            });
-          }
-          if (r.status === "passed" && r.isFirstPass) {
-            confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-          }
-          if (
-            r.status === "passed" &&
-            r.projectComplete &&
-            !celebratedRef.current
-          ) {
-            celebratedRef.current = true;
-            setShowCelebration(true);
-          }
-          if (
-            r.status === "passed" &&
-            !r.projectComplete &&
-            safeStepIdx < steps.length - 1
-          ) {
-            setTimeout(() => goToStep(safeStepIdx + 1), 1500);
-          }
+          dispatchStep({
+            type: r.status === "passed" ? "SUBMIT_PASS" : "SUBMIT_FAIL",
+            result: r,
+          });
         },
         onError: (err: any) => {
-          setGradingResult({
-            status: "failed",
-            feedback:
-              err?.message ?? "Couldn't submit your answer. Please try again.",
+          dispatchStep({
+            type: "SUBMIT_FAIL",
+            result: {
+              status: "failed",
+              feedback:
+                err?.message ?? "Couldn't submit your answer. Please try again.",
+            },
           });
         },
       },
     );
   }
+
+  // Phase 24 — Side effects driven by reducer transitions. Confetti,
+  // project-completion celebration, auto-advance, and progress-cache
+  // invalidation fire EXCLUSIVELY on SUBMIT_PASS. Checks never trigger
+  // any of these.
+  useEffect(() => {
+    const prev = prevStepStateRef.current;
+    if (prev === stepState) return;
+    if (stepState.phase === "submit_passed" && project?.id) {
+      queryClient.invalidateQueries({
+        queryKey: getGetUserProjectProgressQueryKey(project.id),
+      });
+    }
+    if (shouldConfetti(prev, stepState)) {
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+    }
+    if (
+      shouldCelebrateProject(prev, stepState) &&
+      !celebratedRef.current
+    ) {
+      celebratedRef.current = true;
+      setShowCelebration(true);
+    }
+    if (
+      shouldAutoAdvance(prev, stepState) &&
+      safeStepIdx < steps.length - 1
+    ) {
+      const target = safeStepIdx + 1;
+      setTimeout(() => goToStep(target), 1500);
+    }
+    prevStepStateRef.current = stepState;
+  }, [stepState, project?.id, queryClient, safeStepIdx, steps.length]);
 
   function askTutorAboutError(stderr: string) {
     const trimmed = stderr.slice(0, 1200);
@@ -570,21 +693,25 @@ export default function ProjectWorkspace() {
         isPythonStep={isPythonStep}
         isTextStep={isTextStep}
         code={code}
-        onCodeChange={setCode}
+        onCodeChange={(v) => { setCode(v); dispatchStep({ type: "EDIT" }); }}
         textAnswer={textAnswer}
-        onTextAnswerChange={setTextAnswer}
+        onTextAnswerChange={(v) => { setTextAnswer(v); dispatchStep({ type: "EDIT" }); }}
         output={output}
         isRunning={isRunning}
         pyLoading={pyStatus === "loading"}
         activeTab={activeTab}
         onActiveTabChange={setActiveTab}
         grading={gradingResult}
+        provisional={provisionalGrading}
         showCelebration={showCelebration}
         isPro={isPro}
+        checkPending={checkMutation.isPending}
+        hideCheck={NO_CHECK_STEP_TYPES.has(currentStep?.type ?? "")}
         submitPending={submitMutation.isPending}
         onSelectStep={goToStep}
         onRun={runCode}
-        onReset={() => setCode(currentStep?.starterCode ?? "")}
+        onReset={() => { setCode(currentStep?.starterCode ?? ""); dispatchStep({ type: "EDIT" }); }}
+        onCheck={checkStep}
         onSubmit={submitStep}
         onAskTutor={askTutorAboutError}
         onOpenSolution={() => {
@@ -599,6 +726,7 @@ export default function ProjectWorkspace() {
         diffRunId={diffRunId}
         onSelectHistoryCode={code => {
           setCode(code);
+          dispatchStep({ type: "EDIT" });
           setHistoryOpen(false);
           setActiveTab("editor");
         }}

@@ -503,6 +503,28 @@ export interface GradingResult {
   executionTimeMs?: number;
 }
 
+export type CheckResultStatus =
+  (typeof CheckResultStatus)[keyof typeof CheckResultStatus];
+
+export const CheckResultStatus = {
+  passed: "passed",
+  failed: "failed",
+} as const;
+
+/**
+ * Phase 24 — Result of POST .../check. The omission of xpEarned,
+attempt, isFirstPass, and projectComplete is the on-the-wire
+contract that nothing was committed server-side.
+
+ */
+export interface CheckResult {
+  status: CheckResultStatus;
+  feedback: string;
+  stdout?: string;
+  stderr?: string;
+  executionTimeMs?: number;
+}
+
 export interface HintRequestBody {
   currentCode?: string;
   errorMessage?: string;

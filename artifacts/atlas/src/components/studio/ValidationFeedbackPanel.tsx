@@ -7,6 +7,10 @@ import { useHintState } from "./useHintState";
 
 type Props = {
   grading: GradingResult;
+  /** Phase 24 — true when this result came from /check (provisional, not
+   *  committed). Provisional results hide XP, hide the project-complete
+   *  celebration block, and surface a "not yet submitted" tag. */
+  provisional?: boolean;
   project: any;
   showCelebration: boolean;
   step?: StepVM;
@@ -15,7 +19,7 @@ type Props = {
   refetchKey?: unknown;
 };
 
-export function ValidationFeedbackPanel({ grading, project, showCelebration, step, projectSlug, refetchKey }: Props) {
+export function ValidationFeedbackPanel({ grading, provisional = false, project, showCelebration, step, projectSlug, refetchKey }: Props) {
   const passed = grading.status === "passed";
   const { state: hintState, advance, advancing } = useHintState({
     projectSlug,
@@ -53,9 +57,21 @@ export function ValidationFeedbackPanel({ grading, project, showCelebration, ste
         )}
         <span className="flex-1">
           {passed
-            ? `Passed!${grading.xpEarned ? ` +${grading.xpEarned} XP` : ""}`
-            : "Try again"}
+            ? provisional
+              ? "Looks good — Submit when ready"
+              : `Passed!${grading.xpEarned ? ` +${grading.xpEarned} XP` : ""}`
+            : provisional
+              ? "Not quite — keep editing"
+              : "Try again"}
         </span>
+        {provisional && (
+          <span
+            className="text-[10px] uppercase tracking-wider font-semibold rounded px-1.5 py-0.5 bg-foreground/10 text-foreground/70 mr-1"
+            data-testid="check-provisional-tag"
+          >
+            Check · not submitted
+          </span>
+        )}
         {open ? (
           <ChevronDown className="h-4 w-4 opacity-60" />
         ) : (
@@ -105,7 +121,7 @@ export function ValidationFeedbackPanel({ grading, project, showCelebration, ste
               <span>{hintState.portfolioRelevance}</span>
             </div>
           )}
-          {passed && grading.projectComplete && showCelebration && (
+          {!provisional && passed && grading.projectComplete && showCelebration && (
             <div className="mt-3 pt-3 border-t border-emerald-500/20">
               <div className="font-bold text-emerald-300 mb-2">
                 🎉 Project Complete! Excellent work!

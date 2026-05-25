@@ -28,6 +28,7 @@ const useGetProjectMock = vi.fn();
 const useGetUserProjectProgressMock = vi.fn();
 const useEnrollProjectMock = vi.fn();
 const useSubmitStepMock = vi.fn();
+const useCheckStepMock = vi.fn();
 const useGetUserProfileMock = vi.fn();
 
 vi.mock("@workspace/api-client-react", () => ({
@@ -35,6 +36,7 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetUserProjectProgress: () => useGetUserProjectProgressMock(),
   useEnrollProject: () => useEnrollProjectMock(),
   useSubmitStep: () => useSubmitStepMock(),
+  useCheckStep: () => useCheckStepMock(),
   useGetUserProfile: () => useGetUserProfileMock(),
   getGetUserProjectProgressQueryKey: (id: string) => ["/api/user/projects", id, "progress"],
 }));
@@ -111,6 +113,7 @@ describe("Phase 23 — ProjectWorkspace resume lifecycle", () => {
     // Default safe stubs every test can override.
     useGetUserProfileMock.mockReturnValue({ data: { tier: "free" } });
     useSubmitStepMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    useCheckStepMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
     // Replace any leftover ?step= from previous tests.
     window.history.replaceState({}, "", "/");
   });

@@ -20,6 +20,7 @@ import type {
   AiChatBody,
   AiChatMessage,
   BillingPlan,
+  CheckResult,
   CheckoutResponse,
   Course,
   CourseDetail,
@@ -1054,6 +1055,102 @@ export const useSubmitStep = <
   TContext
 > => {
   return useMutation(getSubmitStepMutationOptions(options));
+};
+
+/**
+ * Phase 24 — Low-stakes Check. Uses the SAME server-side grading
+rules as /submit but performs zero side effects: no DB writes,
+no attempt counter, no XP, no streak, no progress mutation, no
+project completion, no completion email. The CheckResult shape
+intentionally omits xpEarned, attempt, isFirstPass, and
+projectComplete as the contract guarantee that nothing was
+committed.
+
+ * @summary Grade a step submission WITHOUT committing (no XP, no progress, no completion)
+ */
+export const getCheckStepUrl = (projectId: string, stepId: string) => {
+  return `/api/user/projects/${projectId}/steps/${stepId}/check`;
+};
+
+export const checkStep = async (
+  projectId: string,
+  stepId: string,
+  submitStepBody: SubmitStepBody,
+  options?: RequestInit,
+): Promise<CheckResult> => {
+  return customFetch<CheckResult>(getCheckStepUrl(projectId, stepId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitStepBody),
+  });
+};
+
+export const getCheckStepMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof checkStep>>,
+    TError,
+    { projectId: string; stepId: string; data: BodyType<SubmitStepBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof checkStep>>,
+  TError,
+  { projectId: string; stepId: string; data: BodyType<SubmitStepBody> },
+  TContext
+> => {
+  const mutationKey = ["checkStep"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof checkStep>>,
+    { projectId: string; stepId: string; data: BodyType<SubmitStepBody> }
+  > = (props) => {
+    const { projectId, stepId, data } = props ?? {};
+
+    return checkStep(projectId, stepId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CheckStepMutationResult = NonNullable<
+  Awaited<ReturnType<typeof checkStep>>
+>;
+export type CheckStepMutationBody = BodyType<SubmitStepBody>;
+export type CheckStepMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Grade a step submission WITHOUT committing (no XP, no progress, no completion)
+ */
+export const useCheckStep = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof checkStep>>,
+    TError,
+    { projectId: string; stepId: string; data: BodyType<SubmitStepBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof checkStep>>,
+  TError,
+  { projectId: string; stepId: string; data: BodyType<SubmitStepBody> },
+  TContext
+> => {
+  return useMutation(getCheckStepMutationOptions(options));
 };
 
 /**

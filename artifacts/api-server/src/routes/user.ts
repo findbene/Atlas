@@ -6,6 +6,7 @@ import { requireAuth, getCurrentUser, getOrCreateUser } from "../lib/auth";
 import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
+import { gradeSubmission } from "../lib/grading";
 
 const router = Router();
 
@@ -363,36 +364,9 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       return;
     }
 
-    // Simple grading logic
-    let passed = false;
-    let feedback = "";
-    const expected = step.expectedOutput?.trim();
-
-    if (step.validationType === "self_attest") {
-      passed = true;
-      feedback = "Great work! You've marked this step as complete.";
-    } else if (step.validationType === "exact" && expected) {
-      passed = submission?.trim() === expected;
-      feedback = passed ? "Correct!" : `Expected: ${expected}`;
-    } else if (step.validationType === "contains" && step.validationConfig) {
-      const config = step.validationConfig as { needle?: string };
-      const needle = config.needle ?? expected ?? "";
-      passed = submission?.includes(needle) ?? false;
-      feedback = passed ? "Correct!" : `Your output should contain: ${needle}`;
-    } else if (step.validationType === "regex" && step.validationConfig) {
-      const config = step.validationConfig as { pattern?: string; flags?: string };
-      try {
-        const re = new RegExp(config.pattern ?? "", config.flags ?? "");
-        passed = re.test(submission ?? "");
-        feedback = passed ? "Correct!" : "Your output doesn't match the expected pattern.";
-      } catch {
-        passed = false;
-        feedback = "Invalid regex pattern in grading config.";
-      }
-    } else {
-      passed = true;
-      feedback = "Step completed.";
-    }
+    // Phase 24 — shared grading helper (also used by POST .../check). The
+    // commit/persistence/XP/email side effects below remain unique to /submit.
+    const { passed, feedback } = gradeSubmission(step, submission);
 
     // Record completion
     const existing = await db.query.userStepCompletions.findFirst({
@@ -513,6 +487,49 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
   } catch (err) {
     req.log.error({ err }, "Failed to submit step");
     res.status(500).json({ error: "Failed to submit step" });
+  }
+});
+
+/**
+ * Phase 24 — Low-stakes "Check" endpoint. Grades a step submission using
+ * the SAME helper as /submit but performs ZERO side effects: no DB
+ * writes, no user_step_completions insert/update, no attemptCount bump,
+ * no XP, no streak update, no progress mutation, no project completion,
+ * no completion email. The response shape (CheckResult) intentionally
+ * omits xpEarned/attempt/isFirstPass/projectComplete as the on-the-wire
+ * guarantee that nothing was committed.
+ */
+router.post("/user/projects/:projectId/steps/:stepId/check", requireAuth, async (req, res) => {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const { projectId, stepId } = req.params as { projectId: string; stepId: string };
+    const { submission } = req.body ?? {};
+
+    // Same enrollment gate as /submit — a free user can't bypass the
+    // premium-project gate by hitting /check instead of /submit.
+    const enrollment = await db.query.userProgress.findFirst({
+      where: and(eq(userProgress.userId, user.id), eq(userProgress.projectId, projectId)),
+    });
+    if (!enrollment) {
+      res.status(403).json({ error: "Forbidden", message: "You must enroll in this project before checking." });
+      return;
+    }
+
+    const step = await db.query.projectSteps.findFirst({ where: eq(projectSteps.id, stepId) });
+    if (!step || step.projectId !== projectId) {
+      res.status(404).json({ error: "Step not found" });
+      return;
+    }
+
+    const { passed, feedback } = gradeSubmission(step, submission);
+    res.json({ status: passed ? "passed" : "failed", feedback });
+  } catch (err) {
+    req.log.error({ err }, "Failed to check step");
+    res.status(500).json({ error: "Failed to check step" });
   }
 });
 

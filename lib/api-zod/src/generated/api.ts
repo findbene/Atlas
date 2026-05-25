@@ -1015,6 +1015,41 @@ export const SubmitStepResponse = zod.object({
 });
 
 /**
+ * Phase 24 — Low-stakes Check. Uses the SAME server-side grading
+rules as /submit but performs zero side effects: no DB writes,
+no attempt counter, no XP, no streak, no progress mutation, no
+project completion, no completion email. The CheckResult shape
+intentionally omits xpEarned, attempt, isFirstPass, and
+projectComplete as the contract guarantee that nothing was
+committed.
+
+ * @summary Grade a step submission WITHOUT committing (no XP, no progress, no completion)
+ */
+export const CheckStepParams = zod.object({
+  projectId: zod.coerce.string(),
+  stepId: zod.coerce.string(),
+});
+
+export const CheckStepBody = zod.object({
+  submission: zod
+    .string()
+    .describe("Code, answer, or other submission content"),
+  submissionType: zod.enum(["code", "text", "choice", "file"]),
+});
+
+export const CheckStepResponse = zod
+  .object({
+    status: zod.enum(["passed", "failed"]),
+    feedback: zod.string(),
+    stdout: zod.string().optional(),
+    stderr: zod.string().optional(),
+    executionTimeMs: zod.number().optional(),
+  })
+  .describe(
+    "Phase 24 — Result of POST ...\/check. The omission of xpEarned,\nattempt, isFirstPass, and projectComplete is the on-the-wire\ncontract that nothing was committed server-side.\n",
+  );
+
+/**
  * @summary Request a hint for a step
  */
 export const RequestStepHintParams = zod.object({

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Play, RotateCcw, Eye, Lock } from "lucide-react";
+import { Play, RotateCcw, Eye, Lock, CheckCircle2 } from "lucide-react";
 
 type Props = {
   isRunning: boolean;
@@ -8,10 +8,15 @@ type Props = {
   hasStarter: boolean;
   hasCode: boolean;
   isPro: boolean;
+  /** Phase 24 — disable Check button while a check or submit is in flight. */
+  checkPending: boolean;
+  /** True when this step type has no useful check (self_attest etc.). */
+  hideCheck: boolean;
   submitPending: boolean;
   onRun: () => void;
   onReset: () => void;
   onOpenSolution: () => void;
+  onCheck: () => void;
   onSubmit: () => void;
 };
 
@@ -22,15 +27,23 @@ export function EditorToolbar({
   hasStarter,
   hasCode,
   isPro,
+  checkPending,
+  hideCheck,
   submitPending,
   onRun,
   onReset,
   onOpenSolution,
+  onCheck,
   onSubmit,
 }: Props) {
   // SQL never gated on Pyodide load. Python Run is disabled while the runtime
   // is downloading (first time only).
-  const runDisabled = isRunning || (isPythonStep && pyLoading) || !hasCode;
+  const actionInFlight = checkPending || submitPending;
+  // Phase 24 — Disable Run while a /check or /submit is in flight. SQL
+  // runs locally dispatch reducer actions that could otherwise hijack
+  // the `submitting` phase and cause a pending submit's response to be
+  // dropped by the reducer's phase-guard.
+  const runDisabled = isRunning || (isPythonStep && pyLoading) || !hasCode || actionInFlight;
   return (
     <div className="flex items-center gap-1">
       <Button
@@ -72,11 +85,25 @@ export function EditorToolbar({
         )}
         Solution
       </Button>
+      {!hideCheck && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onCheck}
+          disabled={actionInFlight}
+          title="Get fast feedback without committing your attempt"
+          data-testid="studio-check"
+        >
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {checkPending ? "Checking..." : "Check"}
+        </Button>
+      )}
       <Button
         size="sm"
         className="h-7 text-xs"
         onClick={onSubmit}
-        disabled={submitPending}
+        disabled={actionInFlight}
         data-testid="studio-submit"
       >
         {submitPending ? "Grading..." : "Submit"}
