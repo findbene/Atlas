@@ -1,8 +1,19 @@
 # Atlas — Session Handoff
 
-**HEAD:** (Phase 24 commit — see `git log -1`)
+**HEAD:** `65a0e1b571b5f7cc72c678d9a8cea13d71925b14`
+**Commit message:** _Introduce a separate check for step submissions without committing_
 **Previous HEAD:** `270437a508d63ec18c861bfc5fd96f17a0b3f58f` (Phase 23)
-**Working tree:** clean after Phase 24 commit. All Phase 24 changes committed.
+**Working tree:** clean. Phase 24 is COMMITTED.
+
+**Final gate summary:**
+- Tests: **313/313 passing** (api-server 208 + atlas 41 + curriculum-quality 60 + execution-core 4).
+- Typecheck: PASS.
+- `check:no-heuristic-runtime`: PASS.
+- Architect: **PASS** (round 5, after R1–R4 each caught a distinct phase-hijack class).
+- Invariants intact: visible 56, hidden 32, beginner 10, wave 56/56, pedagogy 56/56 visible, anchorCount=2, anchor drift 0.00/0.00, lineage 0/0/0/0, 9-course taxonomy intact, rubric v1.0.1 frozen.
+
+**Proposed next phase:**
+- **Phase 25 — Validation Result UI + Remediation Panel** — **NOT STARTED**. Build on the Phase-24 reducer surface to render richer feedback for `CheckResult` / `SubmitResult` (rubric breakdown, per-criterion remediation suggestions, "fix and re-check" affordance). No schema / API / content / rubric / taxonomy / PWA changes anticipated; purely a frontend overlay on `ValidationFeedbackPanel` + new remediation surface fed by data already on the wire. Plan before implement.
 
 ---
 
