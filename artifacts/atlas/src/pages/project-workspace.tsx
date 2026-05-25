@@ -16,6 +16,12 @@ import {
 } from "@/lib/pyodideRunner";
 import { runViaRegistry } from "@/lib/executionRegistry";
 import {
+  resolveInitialStepIdx,
+  buildStepSearch,
+  parseStepParam,
+  clampStepIdx,
+} from "@/lib/workspaceStepUrl";
+import {
   parseExecutionProfile,
   validateExpected,
   expectedOutputsSchema,
@@ -60,15 +66,30 @@ export default function ProjectWorkspace() {
   const { data: project, isLoading } = useGetProject(slug);
   const [enrolled, setEnrolled] = useState(false);
   const [enrollError, setEnrollError] = useState<string | null>(null);
-  const { data: progress } = useGetUserProjectProgress(project?.id ?? "", {
-    query: { enabled: !!project?.id && enrolled } as any,
-  });
+  const { data: progress, isFetched: progressFetched } = useGetUserProjectProgress(
+    project?.id ?? "",
+    {
+      query: { enabled: !!project?.id && enrolled } as any,
+    },
+  );
   const enrollMutation = useEnrollProject();
   const submitMutation = useSubmitStep();
   const { data: userProfile } = useGetUserProfile();
   const isPro = (userProfile as { tier?: string } | undefined)?.tier === "pro";
 
-  const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  // Phase 23 — Workspace auto-resume / step deep-link support.
+  //
+  // `currentStepIdx` stays null until we've resolved one of:
+  //   1. a valid `?step=N` URL param (1-indexed),
+  //   2. the server's `progress.currentStepPosition` (1-indexed), or
+  //   3. confirmation that progress has loaded with no usable position
+  //      (→ default to step 0).
+  // Until then we render the loading skeleton instead of flashing step 0,
+  // which would briefly hide whatever step the learner asked to land on.
+  // All 0↔1 conversion goes through `lib/workspaceStepUrl.ts` to prevent
+  // off-by-one drift between server, URL, and UI.
+  const [currentStepIdx, setCurrentStepIdx] = useState<number | null>(null);
+  const resumeAppliedRef = useRef(false);
   const [code, setCode] = useState("");
   const [textAnswer, setTextAnswer] = useState("");
   const [output, setOutput] = useState<OutputVM | null>(null);
@@ -87,7 +108,11 @@ export default function ProjectWorkspace() {
   const [tutorSeed, setTutorSeed] = useState<string>("");
 
   const steps = ((project?.steps ?? []) as Array<any>) as StepVM[];
-  const currentStep = steps[currentStepIdx];
+  // `currentStepIdx` is null until resume resolves; use 0 as the safe fallback
+  // for derived values so render paths stay defined, but the loading-skeleton
+  // branch below ensures we don't actually paint step 0 prematurely.
+  const safeStepIdx = currentStepIdx ?? 0;
+  const currentStep = steps[safeStepIdx];
   const isCodeStep = CODE_STEP_TYPES.has(currentStep?.type ?? "");
   const isSqlStep = SQL_STEP_TYPES.has(currentStep?.type ?? "");
   // Python-only flag: SQL runs via DuckDB-WASM and must not be gated on
@@ -125,6 +150,11 @@ export default function ProjectWorkspace() {
     if (!project?.id) return;
     setEnrolled(false);
     setEnrollError(null);
+    // Phase 23 — Reset resume state when the active project changes so a
+    // SPA navigation between `/projects/:slug` routes (no remount) doesn't
+    // carry the prior project's resolved step into the new one.
+    resumeAppliedRef.current = false;
+    setCurrentStepIdx(null);
     enrollMutation.mutate(
       { projectId: project.id },
       {
@@ -156,6 +186,71 @@ export default function ProjectWorkspace() {
     setRunHistory(null);
     setRunHistoryVersion(0);
   }, [currentStepIdx, currentStep?.id, currentStep?.starterCode]);
+
+  // Phase 23 — Apply initial resume exactly once per project mount.
+  // Precedence: ?step=N → progress.currentStepPosition → step 0. We wait
+  // until steps are loaded and either a URL param exists or progress has
+  // been fetched, so we never flash step 0 over the learner's intended
+  // landing step.
+  useEffect(() => {
+    if (resumeAppliedRef.current) return;
+    if (steps.length === 0) return;
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    // Phase 23 — `progressLoaded` distinguishes "we have an answer about
+    // progress" from "we're still waiting". A URL `?step=N` short-circuits
+    // this entirely (handled inside `resolveInitialStepIdx`), so the gating
+    // below only matters for the no-URL case. We treat progress as resolved
+    // when (a) the enrolled user's progress query has actually fetched, or
+    // (b) enrollment itself failed (no chance of getting progress, so fall
+    // back to step 0 — the enrollError banner will still render).
+    //
+    // Earlier draft used `progressFetched || !enrolled` which fired
+    // immediately on first mount (when `enrolled` is still false) and
+    // locked in step 0 before progress had a chance to load — defeating
+    // the whole point of the phase for returning learners.
+    const progressLoaded = enrolled ? progressFetched : enrollError !== null;
+    const resolved = resolveInitialStepIdx({
+      search,
+      totalSteps: steps.length,
+      progressPosition:
+        (progress as { currentStepPosition?: number | null } | undefined)
+          ?.currentStepPosition ?? null,
+      progressLoaded,
+    });
+    if (resolved === null) return;
+    resumeAppliedRef.current = true;
+    setCurrentStepIdx(resolved);
+    // Make sure the URL reflects the step we actually landed on (e.g. when
+    // we seeded from progress with no URL param, or clamped an out-of-range
+    // ?step=). replaceState avoids polluting back-button history.
+    if (typeof window !== "undefined") {
+      const nextSearch = buildStepSearch(resolved, window.location.search);
+      if (nextSearch !== window.location.search) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${nextSearch}${window.location.hash}`,
+        );
+      }
+    }
+  }, [steps.length, progress, progressFetched, enrolled, enrollError]);
+
+  // Phase 23 — Browser back/forward support. Re-parse `?step=N` from the
+  // URL on popstate so the active step follows history navigation. We only
+  // clamp; if the param is missing/invalid we leave the current step alone
+  // rather than snapping back to 0 (back-button from a non-workspace page
+  // shouldn't reset progress).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (steps.length === 0) return;
+    function onPopState() {
+      const pos = parseStepParam(window.location.search);
+      if (pos === null) return;
+      setCurrentStepIdx(clampStepIdx(pos, steps.length));
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [steps.length]);
 
   // Recent code-runs panel state. Lazily fetched the first time the user
   // opens the sheet, and re-fetched whenever a new run is recorded
@@ -222,8 +317,21 @@ export default function ProjectWorkspace() {
   }
 
   function goToStep(idx: number) {
-    const clamped = Math.max(0, Math.min(steps.length - 1, idx));
+    const clamped = clampStepIdx(idx + 1, steps.length);
     setCurrentStepIdx(clamped);
+    // Keep the URL in sync so reloads / shares land on the same step.
+    // replaceState (not pushState) preserves the back-button semantics
+    // (back from workspace → previous page, not previous step).
+    if (typeof window !== "undefined") {
+      const nextSearch = buildStepSearch(clamped, window.location.search);
+      if (nextSearch !== window.location.search) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}${nextSearch}${window.location.hash}`,
+        );
+      }
+    }
   }
 
   async function runCode() {
@@ -372,9 +480,9 @@ export default function ProjectWorkspace() {
           if (
             r.status === "passed" &&
             !r.projectComplete &&
-            currentStepIdx < steps.length - 1
+            safeStepIdx < steps.length - 1
           ) {
-            setTimeout(() => goToStep(currentStepIdx + 1), 1500);
+            setTimeout(() => goToStep(safeStepIdx + 1), 1500);
           }
         },
         onError: (err: any) => {
@@ -398,7 +506,13 @@ export default function ProjectWorkspace() {
     );
   }
 
-  if (isLoading) {
+  // Phase 23 — Hold the skeleton until resume has resolved so we never
+  // paint step 0 over the learner's intended landing step. Once
+  // `currentStepIdx` is non-null we know either a URL param or progress
+  // (or the empty-progress fallback) has been applied.
+  const resumePending = !isLoading && project != null && currentStepIdx === null;
+
+  if (isLoading || resumePending) {
     return (
       <div className="h-[calc(100vh-3.5rem)] flex flex-col">
         <div className="border-b border-border px-4 py-2.5 flex items-center gap-3 shrink-0 bg-card/80">
@@ -450,7 +564,7 @@ export default function ProjectWorkspace() {
         project={project}
         steps={steps}
         currentStep={currentStep}
-        currentStepIdx={currentStepIdx}
+        currentStepIdx={safeStepIdx}
         completedStepIds={completedStepIds}
         isCodeStep={isCodeStep}
         isPythonStep={isPythonStep}
