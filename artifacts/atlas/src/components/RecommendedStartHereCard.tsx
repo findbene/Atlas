@@ -1,65 +1,54 @@
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  useCreateEnrollment,
+  getGetDashboardQueryKey,
+  type DashboardRecommendation,
+} from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Sparkles, Compass, Loader2 } from "lucide-react";
-import {
-  useCreateEnrollment,
-  getGetDashboardQueryKey,
-  type StartHereRecommendation,
-} from "@workspace/api-client-react";
-import { useAuth } from "@clerk/react";
 
 /**
- * Phase 18 — Start Here card.
+ * Phase 22 — Dashboard Start-Here surface.
  *
- * Renders the rule-based first-project recommendation at the top of a
- * course detail page. Two visual states driven by the server's
- * `reasonKey`:
+ * Mirrors the visual contract of `StartHereCard` (course-detail.tsx) but
+ * sourced from `GET /api/dashboard.recommendedStartHere`. The server only
+ * returns a recommendation for fresh learners (raw progressRows.length === 0),
+ * so a hidden-only-enrolled user does NOT see this card.
  *
- *   - `beginner_available` → "Start Here" + "Best first project for this course."
- *   - `no_beginner_available` → "Most approachable project available" +
- *     honest fallback copy. Renders the project's real difficulty badge
- *     (typically Advanced) — never re-labels it as beginner-friendly.
- *
- * Never displays internal metadata (anchor flags, scores, etc.).
+ * CTA: idempotent enroll (slug-based) → invalidate dashboard cache →
+ * navigate to `/projects/:slug`. We do NOT promise an exact step landing —
+ * the workspace currently starts every session at step 0 (Phase 23 candidate).
  */
-export interface StartHereCardProps {
-  recommendation: StartHereRecommendation;
+export interface RecommendedStartHereCardProps {
+  recommendation: DashboardRecommendation;
 }
 
-export function StartHereCard({ recommendation }: StartHereCardProps) {
-  const { project, reasonKey } = recommendation;
+export function RecommendedStartHereCard({ recommendation }: RecommendedStartHereCardProps) {
+  const { startHere } = recommendation;
+  const { project, reasonKey } = startHere;
   const isStartHere = reasonKey === "beginner_available";
   const [, navigate] = useLocation();
-  const { isSignedIn } = useAuth();
   const qc = useQueryClient();
   const enroll = useCreateEnrollment();
 
   const heading = isStartHere ? "Start Here" : "Most approachable project available";
   const body = isStartHere
-    ? "Best first project for this course."
+    ? "Best first project to kick off your Atlas journey."
     : "Beginner projects for this course are coming soon. This is the gentlest available starting point for now.";
-  const cta = isStartHere ? "Start this project" : "View project";
   const Icon = isStartHere ? Sparkles : Compass;
 
-  // Phase 21: CTA enrolls (slug-based, idempotent) then deep-links to the
-  // workspace. Anonymous users skip enrollment and go to the public
-  // project route, which gates them into sign-in itself.
   const onClick = () => {
-    if (!isSignedIn) {
-      navigate(`/projects/${project.slug}`);
-      return;
-    }
     enroll.mutate(
       { data: { projectSlug: project.slug } },
       {
         onSettled: () => {
-          // Phase 22: invalidate the dashboard cache so the next visit
-          // reflects this new enrollment without a hard reload. Idempotent
-          // — regardless of created vs existing, the right landing place
-          // is the project workspace.
+          // Refresh dashboard so the next visit reflects the new enrollment
+          // without a hard reload. We invalidate even on error since the
+          // server is idempotent and may have committed before the response
+          // path failed.
           void qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
           navigate(`/projects/${project.slug}`);
         },
@@ -69,9 +58,9 @@ export function StartHereCard({ recommendation }: StartHereCardProps) {
 
   return (
     <Card
-      data-testid="start-here-card"
-      data-kind={recommendation.kind}
-      className="mb-6 border-primary/30 bg-primary/5"
+      data-testid="recommended-start-here-card"
+      data-kind={startHere.kind}
+      className="border-primary/30 bg-primary/5"
     >
       <CardContent className="py-5">
         <div className="flex items-start gap-4">
@@ -87,7 +76,7 @@ export function StartHereCard({ recommendation }: StartHereCardProps) {
             <div className="flex items-center gap-3 flex-wrap mb-1">
               <h3
                 className="text-lg font-semibold leading-tight"
-                data-testid="start-here-project-title"
+                data-testid="recommended-start-here-title"
               >
                 {project.title}
               </h3>
@@ -98,7 +87,7 @@ export function StartHereCard({ recommendation }: StartHereCardProps) {
               size="sm"
               onClick={onClick}
               disabled={enroll.isPending}
-              data-testid="start-here-cta"
+              data-testid="recommended-start-here-cta"
             >
               {enroll.isPending ? (
                 <>
@@ -106,7 +95,7 @@ export function StartHereCard({ recommendation }: StartHereCardProps) {
                   Enrolling…
                 </>
               ) : (
-                cta
+                "Start this project"
               )}
             </Button>
           </div>

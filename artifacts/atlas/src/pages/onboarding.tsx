@@ -17,12 +17,14 @@
  */
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetOnboardingState,
   useCompleteOnboarding,
   useCreateEnrollment,
   useGetCourse,
   useListCourses,
+  getGetDashboardQueryKey,
   type CourseDetail,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,7 @@ export default function OnboardingPage() {
   );
   const enroll = useCreateEnrollment();
   const complete = useCompleteOnboarding();
+  const qc = useQueryClient();
 
   // Already-completed users skip the flow entirely. Server is source of
   // truth; no client-side localStorage fallback.
@@ -74,6 +77,9 @@ export default function OnboardingPage() {
       { data: { projectSlug: targetSlug } },
       {
         onSettled: () => {
+          // Phase 22: invalidate dashboard cache so a returning visit
+          // immediately reflects this new enrollment.
+          void qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
           // Mark onboarding complete regardless of enroll success — the
           // user has at least picked a course; we don't want them stuck
           // in the flow on a transient failure. If enroll failed they'll
