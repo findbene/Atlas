@@ -1,0 +1,75 @@
+Excellent. Phase 22 is accepted as SHIPPED.
+
+Do not start Phase 23 yet.
+
+Before stopping, update or rewrite the project-root HANDOFF.md for the next session.
+
+Include:
+
+1. Goal we are working toward
+- Atlas learner-ready platform
+- Phase 21 shipped: Onboarding + Enrollment + Resume
+- Phase 22 shipped: Dashboard UI + Workspace Resume Wiring
+- Proposed next phase: Phase 23 — Workspace Auto-Resume / Step Deep-Link Support, but not started
+
+2. Current state of the code
+- What Phase 22 shipped
+- Dashboard migration details
+- New RecommendedStartHereCard
+- Completed section
+- Dashboard query invalidation points
+- New atlas test infra
+- Final test counts: 263/263
+- Architect review result: FAIL → fixed → PASS
+- Catalog invariants preserved:
+  - visible 56
+  - hidden 32
+  - beginner 10
+  - anchorCount 2
+  - anchor drift 0.00
+  - lineage 0/0/0/0
+  - 9-course taxonomy intact
+
+3. Files actively edited
+- artifacts/atlas/src/pages/dashboard.tsx
+- artifacts/atlas/src/components/RecommendedStartHereCard.tsx
+- artifacts/atlas/src/components/StartHereCard.tsx
+- artifacts/atlas/src/pages/onboarding.tsx
+- artifacts/atlas/src/pages/dashboard.test.tsx
+- artifacts/atlas/vitest.config.ts
+- artifacts/atlas/src/test/setup.ts
+- artifacts/atlas/package.json
+- docs/phases/phase-22-dashboard-ui-resume-wiring.md
+- replit.md
+
+4. Everything tried that failed or required correction
+- Workspace auto-resume does not currently exist:
+  - currentStepIdx starts at 0
+  - no ?step=N parsing
+  - no popstate support
+  - no sync from progress.currentStep
+- Phase 22 deliberately did not modify project-workspace.tsx
+- Architect initially failed due to false-empty dashboard states during dashboard fetch errors
+- Fixed by gating section empty states behind !dashboardError and showing load-error placeholders
+- Added/updated tests to cover this
+
+5. Next step you would take
+- Recommend Phase 23 as Workspace Auto-Resume / Step Deep-Link Support
+- Include scope, risks, hard stops, and gates
+- Also mention optional housekeeping:
+  - replit.md is now 165 lines
+  - trim/reorganize Current Phase Status at a natural pause
+  - not blocking
+
+Also include:
+- Current HEAD commit hash after Phase 22
+- Whether all Phase 22 changes are committed
+- Exact command/gate summary
+
+Hard stop:
+- Documentation/handoff only
+- No Phase 23 implementation
+- No new feature work
+- No schema changes
+- No API/server changes
+- No rubric/content/taxonomy changes
