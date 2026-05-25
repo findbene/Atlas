@@ -1,0 +1,414 @@
+We are continuing Atlas.
+
+Current confirmed state:
+- Phase 21 — Onboarding + Enrollment + Resume — CLOSED · SHIP.
+- Phase 22 — Dashboard UI + Workspace Resume Wiring — CLOSED · SHIP.
+- Latest HANDOFF.md is written at project root.
+- HEAD after Phase 22 handoff: f5799ac95f47a7fb90d075d7e60851e460b94cb0.
+- Phase 23 is proposed but NOT started.
+- Do not rerun Phase 11. Phase 11 is stale/closed.
+- Do not implement anything until you complete the read-only planning pass below.
+
+I want a grounded product/architecture planning pass for the next major direction of Atlas as a production-grade PWA learning platform.
+
+Atlas is not just a course catalog. It is a project-first, hands-on learning platform for Data Engineering, AI Engineering, MLOps, Analytics Engineering, Cloud Data Engineering, Data Science, Applied LLM Engineering, Python, and SQL-style technical mastery. The learner should build real systems, run real checks, receive structured feedback, resume progress, and earn completion only when validation proves the work is correct.
+
+Important: my attached business prompt may refer to 8 broad disciplines. The repo’s existing Atlas taxonomy is the source of truth. Do not rename, merge, reduce, or replace the live course taxonomy. If there is a mismatch between the business framing and the repo taxonomy, report it clearly and propose a safe mapping layer only.
+
+Core product concern:
+The platform must not reward fake progress. Confetti, completion, badges, project-complete states, and portfolio claims must be tied to real validation state, not button clicks. A learner should be able to check work frequently, submit final work intentionally, and receive earned rewards only when the backend validation result confirms eligibility.
+
+Act as:
+- Principal UX Architect
+- Senior Full-Stack Engineer
+- Technical Curriculum Director
+- Production PWA Architect
+- Replit implementation planner
+
+Your task in this pass:
+READ-ONLY PLANNING ONLY. Do not write code. Do not commit. Do not change files.
+
+First, inspect repo reality:
+1. Read HANDOFF.md.
+2. Read replit.md.
+3. Inspect the live course taxonomy.
+4. Inspect project-workspace.tsx.
+5. Inspect current step/progress/completion mechanics.
+6. Inspect current sandbox/execution/validation/overlay logic.
+7. Inspect current check/submit/complete/confetti behavior.
+8. Inspect current PWA setup, if any:
+   - manifest
+   - service worker
+   - Vite config
+   - installability support
+   - offline/cache behavior
+   - mobile/responsive shell behavior
+9. Inspect current tests around workspace, dashboard, progress, validation, and execution.
+
+Then return a grounded plan with the following sections.
+
+## 1. Current-state findings
+
+Explain what already exists in Atlas for:
+
+- project discovery
+- project preview/disclosure
+- enrollment
+- onboarding
+- dashboard resume
+- workspace resume
+- step navigation
+- mode selection, if any
+- validation checks
+- sandbox execution
+- final submission
+- step completion
+- project completion
+- confetti/reward behavior
+- progress persistence
+- hidden/archive no-leak behavior
+- PWA/install/offline support
+
+For each area, classify it as:
+
+- solid
+- partially implemented
+- broken or misleading
+- missing
+- unknown / needs deeper inspection
+
+Use repo-specific evidence. Do not give generic product advice.
+
+## 2. Core product gap
+
+Explain the difference between:
+
+- decorative progress
+- step-level validation
+- final project submission
+- earned completion
+- portfolio-ready proof
+
+Identify where Atlas currently stands and what is missing.
+
+Make this practical:
+- What should a “Check Step” button mean?
+- What should a “Submit Final Project” button mean?
+- When should progress be saved?
+- When should a step unlock?
+- When should project completion be recorded?
+- When should confetti fire?
+- When should the learner see remediation instead of celebration?
+
+## 3. Learner journey design
+
+Design the ideal learner journey from project selection to completion.
+
+### A. Project Preview / Disclosure
+
+Define what a learner should see before starting:
+
+- target role
+- project outcome
+- business context
+- architecture preview
+- tech stack
+- estimated time
+- expected artifact
+- validation criteria
+- prerequisites
+- local/cloud/API cost warnings
+- difficulty
+- mode options
+- completion evidence
+
+Explain how Atlas should hand off the project spec/README so the learner understands the enterprise context before coding.
+
+### B. Mode Selection Gateway
+
+Define Guided, Hint-Based, and Independent modes.
+
+For each mode, specify:
+
+- when the learner chooses the mode
+- what UI components show
+- what UI components hide
+- what the learner controls
+- what the system validates
+- how hints are tracked
+- how progress differs
+- how completion differs
+- what data must be persisted
+
+Guided Mode:
+- micro-step validation
+- step locking/unlocking
+- scaffolded explanation
+- check-before-next-step behavior
+
+Hint-Based Mode:
+- progressive hint reveal
+- hint usage tracking
+- autonomy-preserving feedback
+- learned-helplessness prevention
+
+Independent Mode:
+- black-box project contract
+- expected output/schema/API contract
+- no code-level scaffolding
+- stricter final validation
+
+### C. Workspace Flow
+
+Define the workspace shell:
+
+- project spec panel
+- step list
+- file/code panel if supported
+- terminal/log panel
+- Check Step button
+- Submit Final Project button
+- validation result panel
+- remediation panel
+- progress indicator
+- mode indicator
+- earned reward moment
+
+Make clear which parts already exist and which parts are proposed.
+
+### D. Resume Flow
+
+Define how returning learners resume:
+
+- dashboard resume card
+- workspace auto-resume
+- step deep-linking
+- mode persistence
+- validation state restoration
+- safe fallback if progress data is stale
+
+Important known issue from Phase 22:
+project-workspace.tsx currently starts currentStepIdx at 0, does not parse ?step=N, does not support popstate, and does not sync from progress.currentStep. Treat Workspace Auto-Resume / Step Deep-Link Support as the likely Phase 23 candidate unless repo inspection finds a safer next move.
+
+## 4. Check vs Submit architecture
+
+Formally separate two actions.
+
+### Run Check / Evaluate Step
+
+This is:
+- low-stakes
+- repeatable
+- step-scoped
+- used during learning
+- allowed many times
+- not final completion
+- not final confetti
+
+It should:
+- capture the learner’s current code/query/config/output
+- run relevant checks
+- return structured feedback
+- save step validation state
+- unlock the next step only when criteria pass
+
+### Submit Final Project
+
+This is:
+- high-stakes
+- project-scoped
+- intentional
+- completion-oriented
+- evidence-producing
+
+It should:
+- validate all required steps/checks
+- create a final validation run
+- snapshot completion evidence
+- record project completion only if criteria pass
+- trigger earned reward only once
+- return remediation if incomplete
+
+Define a state machine using TypeScript-style states, but do not implement it yet.
+
+Include states like:
+
+- idle
+- editing
+- checking
+- check_passed
+- check_failed
+- submitting
+- submitted_passed
+- submitted_failed
+- completed
+- needs_revision
+
+Also define transitions and invalid transitions.
+
+## 5. Validation engine contract
+
+Design a frontend/backend validation result contract.
+
+The response should support fields like:
+
+- validationRunId
+- projectSlug
+- stepId
+- mode
+- actionType: check_step | submit_project
+- status
+- score
+- passedChecks
+- failedChecks
+- criticalFailures
+- warnings
+- metrics
+- remediationHints
+- nextUnlockState
+- rewardEligible
+- completedAt
+- evidenceSnapshotId
+
+Map discipline-specific validation examples across the live Atlas taxonomy.
+
+Include examples for the repo’s actual course categories, such as:
+
+- Data Engineering
+- Cloud Data Engineering
+- AI Engineering
+- Applied LLM Engineering
+- MLOps
+- Data Science
+- Analytics Engineering
+- Python / SQL / library mastery tracks according to the live repo taxonomy
+
+Do not invent or mutate taxonomy.
+
+## 6. Earned confetti and reward rules
+
+Define strict reward rules:
+
+- No confetti on ordinary click.
+- No confetti on failed check.
+- No confetti on partial pass.
+- No confetti before backend validation confirms reward eligibility.
+- Confetti fires only when a step or project transitions from incomplete to complete.
+- Confetti must be idempotent.
+- Refreshes, retries, repeated clicks, and duplicate responses must not replay the same reward forever.
+- Hidden/archive projects must never create learner-visible reward artifacts.
+- Completion must not be recorded if validation has critical failures.
+
+Propose how Atlas should implement this safely.
+
+## 7. PWA direction
+
+Give a practical PWA roadmap for Atlas.
+
+Cover:
+
+- installable app shell
+- manifest
+- service worker
+- cache strategy
+- offline-readable project specs
+- online-required execution checks
+- stale data risks
+- authentication/session limitations
+- mobile workspace limitations
+- responsive workspace shell
+- safe offline states
+- “read offline, execute online” model
+- what should never be cached
+- how PWA work should be phased without destabilizing validation/progress
+
+Important:
+Do not implement PWA changes yet. This is planning only.
+
+## 8. Replit-optimized implementation roadmap
+
+Break the work into safe phases after Phase 22.
+
+Start from repo reality, but consider this likely sequence:
+
+- Phase 23: Workspace Auto-Resume / Step Deep-Link Support
+- Phase 24: Check vs Submit State Machine
+- Phase 25: Validation Result UI + Remediation Panel
+- Phase 26: Earned Reward / Confetti Gating
+- Phase 27: PWA App Shell / Offline Project Spec Cache
+
+Adjust the phase sequence if repo inspection proves a better order.
+
+For each phase include:
+
+- objective
+- why it matters
+- files likely touched
+- files explicitly not touched
+- tests needed
+- hard-stop conditions
+- final gates
+- risk level
+- whether it is frontend-only, backend-only, or full-stack
+- why it should happen before/after the others
+
+## 9. Safest next phase
+
+Recommend the single safest next phase to execute.
+
+Include:
+
+- exact scope
+- why it is the next best move
+- what not to include
+- implementation tasks
+- expected files
+- expected tests
+- final gates
+- hard stops
+
+Do not implement it yet.
+
+## 10. Clarifying questions
+
+Ask the normal follow-up question:
+
+1. “Do you want me to proceed with the next recommended phase?”
+
+Also ask this additional product-direction question:
+
+2. “Should Atlas prioritize production-correct learning mechanics first — workspace auto-resume, check/submit separation, validation-gated completion, and earned confetti — before PWA install/offline work, or should PWA installability become part of the next immediate phase?”
+
+Give your recommended answer to both questions.
+
+My expected bias:
+Recommend production-correct learning mechanics first, then PWA. A PWA wrapper is less valuable if the learning engine still has fake progress, weak validation, or decorative completion.
+
+## 11. Final output format
+
+Return:
+
+1. Brief summary of HANDOFF.md.
+2. Current-state findings.
+3. Core product gap.
+4. Recommended phase sequence.
+5. Safest next phase.
+6. Two clarifying questions.
+7. Your recommended answers.
+8. No code changes.
+9. No commits.
+
+Hard constraints:
+- Read-only planning only.
+- No implementation.
+- No commits.
+- No schema changes.
+- No API/server changes unless the plan explicitly says a future phase requires it.
+- No OpenAPI/codegen changes.
+- No taxonomy changes.
+- No content authoring.
+- No rubric changes.
+- No Stripe/billing.
+- No cloud credentials.
+- No Phase 11 rerun.
+- Preserve Phase 21 and Phase 22 invariants.
