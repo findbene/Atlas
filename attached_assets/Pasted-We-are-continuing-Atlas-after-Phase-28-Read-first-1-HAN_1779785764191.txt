@@ -1,0 +1,53 @@
+We are continuing Atlas after Phase 28.
+
+Read first:
+1. HANDOFF.md — live source of truth.
+2. replit.md — active invariants/control-plane rules.
+3. docs/phases/phase-28-cert-verify-evidence-enrichment.md.
+4. artifacts/api-server/src/routes/cert-verify.ts.
+5. artifacts/atlas/src/pages/verify.tsx.
+6. artifacts/atlas/src/pages/profile.tsx.
+7. Any dashboard/profile/certificate routes relevant to learner-facing evidence.
+
+First task:
+Produce a read-only Phase 29 recommendation and implementation plan. Do not edit files yet.
+
+Likely Phase 29 direction:
+Learner-facing Portfolio / Authenticated Evidence Surface.
+
+Goal:
+Reuse the VerifiedCert evidence model from Phase 28 inside an authenticated learner-facing profile/dashboard surface so learners can see and eventually share their completed project evidence, XP, step completion summary, and certificate status.
+
+Evaluate:
+1. Whether Phase 29 should extend profile.tsx, certificates.tsx, dashboard, or add a new dedicated portfolio route.
+2. Whether to reuse the VerifiedCert DTO directly or create an authenticated richer PortfolioEvidence DTO.
+3. Whether a new backend route is needed, such as GET /api/user/portfolio or GET /api/user/certificates/evidence.
+4. Privacy boundaries between public verification data and authenticated learner-only data.
+5. Test strategy for user isolation: user A must never see user B’s portfolio evidence.
+6. Whether profile.tsx should be decomposed before or during this phase, since it is already large.
+7. Whether any OpenAPI/codegen changes are needed.
+8. Whether this phase should remain schema-free.
+
+Hard constraints:
+- Read-only planning first.
+- No code changes until approved.
+- No schema/migration unless there is an unavoidable reason.
+- No taxonomy/content/rubric changes.
+- No PWA work.
+- No Stripe work.
+- No AI tutor work.
+- No /check or /submit behavior changes.
+- Preserve all Phase 21–28 invariants.
+- Keep public/private evidence boundaries strict.
+- HANDOFF.md remains source of truth.
+
+For the recommendation, report:
+- Proposed scope.
+- Files likely touched.
+- API shape proposal.
+- Frontend UI proposal.
+- Privacy/security risks.
+- Test plan.
+- Acceptance gates.
+- What should stay out of scope.
+- Whether you recommend Phase 29 now or a smaller intermediate cleanup first.
