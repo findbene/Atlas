@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "migrate": "tsx ./src/migrate.ts",
     "seed": "tsx ./src/seed.ts",
     "seed:stripe": "tsx ./src/seed-stripe-products.ts",
     "audit:pedagogy": "tsx ./src/audit-pedagogy.ts",

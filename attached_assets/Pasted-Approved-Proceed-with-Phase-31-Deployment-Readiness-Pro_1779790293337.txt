@@ -1,0 +1,114 @@
+Approved. Proceed with Phase 31 — Deployment Readiness / Production Launch Checklist.
+
+Also approved:
+Include the trivial HANDOFF.md staleness refresh in this phase.
+
+Primary goal:
+Make Atlas deploy-ready without actually deploying it.
+
+Important distinction:
+This phase prepares the project for production deployment. It does NOT deploy the app. Flipping the deployment switch remains my separate explicit action.
+
+Approved Phase 31 scope:
+1. Fix the production DB readiness gap:
+   - Generate a Drizzle baseline migration from the current dev schema.
+   - Ensure the migration DDL matches the current working schema.
+   - Add a safe production migration path so a fresh production Neon DB will not boot empty.
+   - Add or document a manual migration command if boot-time migration is not the safest option.
+
+2. Add deployment checklist documentation:
+   - Create docs/deployment-checklist.md.
+   - Include required production secrets and environment variables.
+   - Include Clerk production keys.
+   - Include Stripe production keys and webhook settings.
+   - Include Resend/domain email requirements.
+   - Include SESSION_SECRET rotation.
+   - Include Anthropic/AI integration env requirements.
+   - Include REPLIT_DOMAINS expectations.
+   - Include first-deploy steps.
+   - Include post-deploy verification steps.
+
+3. Add a migration runner only if safe:
+   - If using boot-time migration, gate it strictly behind REPLIT_DEPLOYMENT=1 or an explicit production/deploy environment check.
+   - It must log clearly.
+   - It must fail closed on migration error.
+   - It must not run during unit tests.
+   - It must not run during local dev unless explicitly invoked.
+   - If boot-time migration is too risky, prefer an explicit script such as scripts/src/migrate.ts and document it clearly.
+
+4. Preserve all existing behavior:
+   - No /submit behavior changes.
+   - No /check behavior changes.
+   - No cert-verify behavior changes.
+   - No portfolio behavior changes.
+   - No frontend feature work.
+   - No PWA work.
+   - No content/rubric/taxonomy changes.
+
+5. Refresh stale docs:
+   - HANDOFF.md currently says Phase 30B READY TO COMMIT, but Phase 30B is already committed.
+   - Update HANDOFF.md to reflect:
+     - Phase 30B committed at 30783bfe.
+     - Phase 30B+ control-plane cleanup committed at 621acf54.
+     - Phase 31 is now Deployment Readiness.
+   - Keep HANDOFF.md as the live source of truth.
+   - Update replit.md compactly.
+   - Create docs/phases/phase-31-deployment-readiness.md on close.
+
+Hard constraints:
+- Do not deploy.
+- Do not touch production.
+- Do not run against production DB.
+- Do not mutate production data.
+- Do not change schema meaning beyond generating a baseline migration that matches current schema.
+- Do not add product features.
+- Do not start Public-Profile Evidence in this phase.
+- Do not start PWA/install/offline in this phase.
+- Do not alter curriculum/content/rubric/taxonomy/anchor/wave files.
+- Do not change /submit, /check, grading, reward, certificate, or portfolio behavior.
+
+Migration safety requirements:
+- Baseline migration must represent the current schema, not invent a new schema.
+- Verify migration parity against current dev schema.
+- Running the migration path on an already-current DB should be safe/no-op.
+- If a generated migration is not clean or appears destructive, stop and report before proceeding.
+- Do not hand-edit generated migration DDL unless absolutely necessary and clearly documented.
+
+Testing / gates:
+- Typecheck clean.
+- Unit tests green.
+- api-server tests green.
+- atlas tests green.
+- curriculum-quality tests green.
+- execution-core tests green.
+- test:integration still passes: 3/3.
+- check:no-heuristic-runtime OK.
+- audit:pedagogy visible 56/56.
+- anchor drift 0.00.
+- Migration parity verification passes.
+- Architect PASS.
+
+Deployment checklist must include post-deploy verification:
+- /api/healthz responds.
+- Auth sign-in/sign-out works with production Clerk keys.
+- Dashboard loads for an authenticated user.
+- Enrollment works.
+- /check remains write-free.
+- /submit awards XP correctly.
+- /api/verify/:certId works.
+- /certificates and /profile portfolio evidence load.
+- Stripe billing endpoints use production Stripe values.
+- Resend/email path is configured or explicitly documented as pending.
+- Production bad-completions audit remains parked until real production traffic exists.
+
+Report on close:
+- Files touched.
+- Migration files generated.
+- Whether boot-time migration or manual migration was chosen and why.
+- Gate results.
+- Confirmation that no deployment occurred.
+- Confirmation that no production DB was touched.
+- Confirmation that no product behavior changed.
+- Confirmation that HANDOFF.md now reflects the true current state.
+
+Proceed with implementation.
