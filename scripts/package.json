@@ -30,6 +30,7 @@
     "backfill:phase19-candidates": "tsx ./src/backfill-phase19-candidates.ts",
     "backfill:phase20-candidates": "tsx ./src/backfill-phase20-candidates.ts",
     "audit:difficulty": "tsx ./src/audit-difficulty.ts",
+    "audit:bad-completions": "tsx ./src/audit-bad-completions.ts",
     "audit:difficulty-labels": "tsx ./src/audit-difficulty-labels.ts",
     "snapshot:phase15-pre": "tsx ./src/snapshot-phase15-pre.ts",
     "backfill:phase15-difficulty": "tsx ./src/backfill-phase15-difficulty.ts",

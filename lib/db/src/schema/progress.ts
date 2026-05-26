@@ -34,6 +34,20 @@ export const userStepCompletions = pgTable("user_step_completions", {
   validationOutput: text("validation_output"),
   attemptCount: integer("attempt_count").default(1).notNull(),
   completedAt: timestamp("completed_at").defaultNow().notNull(),
+  // Phase 26 — Submission evidence. Populated only by /submit (the
+  // /check endpoint stays write-free). `submission_excerpt` is the
+  // first N bytes of the learner's submission (server-side cap; see
+  // routes/user.ts). `submission_sha256` is the deterministic SHA-256
+  // of the FULL submission so two identical submissions hash equal
+  // even when the excerpt is truncated. Both columns are nullable so
+  // pre-Phase-26 rows stay null — no backfill is performed.
+  // Idempotency: once a step has been marked passed and an excerpt
+  // recorded, later re-submits do NOT overwrite (the original passing
+  // attempt is the canonical evidence). Re-submits that pass a
+  // previously-failed row DO populate, since the row had no passing
+  // evidence yet.
+  submissionExcerpt: text("submission_excerpt"),
+  submissionSha256: text("submission_sha256"),
 }, (t) => [
   uniqueIndex('step_completion_idx').on(t.userId, t.projectId, t.stepNumber),
 ]);

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createHash } from "node:crypto";
 import { db } from "@workspace/db";
 import { users, userProgress, userXp, userStreaks, xpTransactions, projects, projectSteps, userStepCompletions } from "@workspace/db";
 import { eq, and, desc, asc, isNull, ne, sql } from "drizzle-orm";
@@ -7,6 +8,34 @@ import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
 import { gradeSubmission } from "../lib/grading";
+
+/** Phase 26 — Server-side cap on persisted submission excerpts. Keeps the
+ *  table compact regardless of what a learner pastes; the full content is
+ *  still proven by `submission_sha256`. 4 KB matches typical learner-code
+ *  step sizes and is well below Postgres TOAST inline thresholds. */
+const SUBMISSION_EXCERPT_MAX_BYTES = 4096;
+
+/** Phase 26 — Capture submission evidence for the user_step_completions
+ *  row. Returns `{ excerpt, sha256 }` for a non-empty submission and
+ *  `{ excerpt: null, sha256: null }` otherwise (e.g. self_attest steps
+ *  with no learner-authored content). The hash is computed against the
+ *  FULL submission so two identical submissions hash equal even when the
+ *  excerpt is truncated. */
+function captureSubmissionEvidence(
+  submission: string | null | undefined,
+): { excerpt: string | null; sha256: string | null } {
+  if (typeof submission !== "string" || submission.length === 0) {
+    return { excerpt: null, sha256: null };
+  }
+  const sha256 = createHash("sha256").update(submission, "utf8").digest("hex");
+  let excerpt = submission;
+  // Truncate by UTF-8 byte length, not character count.
+  const buf = Buffer.from(submission, "utf8");
+  if (buf.byteLength > SUBMISSION_EXCERPT_MAX_BYTES) {
+    excerpt = buf.subarray(0, SUBMISSION_EXCERPT_MAX_BYTES).toString("utf8");
+  }
+  return { excerpt, sha256 };
+}
 
 const router = Router();
 
@@ -377,11 +406,49 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       ),
     });
 
+    // Phase 26 — Idempotency keys:
+    //   wasAlreadyPassed  → this step has already been marked passed in a
+    //                       prior submit. A re-submit must NOT award XP
+    //                       again, must NOT insert a new xp_transactions
+    //                       ledger row, and must NOT overwrite the
+    //                       canonical first-pass evidence.
+    //   isFreshPass       → this submission is the FIRST passing one for
+    //                       this (user, project, step). The only path
+    //                       that earns XP and writes evidence.
+    const wasAlreadyPassed = existing?.passed === true;
+    const isFreshPass = passed && !wasAlreadyPassed;
+    const evidence = isFreshPass
+      ? captureSubmissionEvidence(typeof submission === "string" ? submission : null)
+      : { excerpt: null, sha256: null };
+
     let attempt = 1;
     if (existing) {
       attempt = existing.attemptCount + 1;
+      // Phase 26 (architect R1 fix) — MONOTONIC pass state. Once a step
+      // has been demonstrated as passed, the `passed` column never
+      // downgrades to false on a subsequent failing attempt. Without
+      // this, a pass→fail→pass sequence on the same step would re-enter
+      // the fresh-pass branch on the third attempt and double-award XP
+      // / append a duplicate xp_transactions row / overwrite the
+      // canonical first-pass evidence. attemptCount + validationOutput
+      // still reflect the latest attempt so the learner sees fresh
+      // feedback, but the earned-reward state is immutable.
+      const updateSet: Record<string, unknown> = {
+        passed: passed || wasAlreadyPassed,
+        attemptCount: attempt,
+        validationOutput: feedback,
+        completedAt: new Date(),
+      };
+      // Only populate evidence on a FRESH pass (existing row was failed → now
+      // passes). Re-submits of an already-passed step keep the original
+      // canonical evidence — Atlas remembers the first time the learner
+      // actually demonstrated the answer.
+      if (isFreshPass) {
+        updateSet.submissionExcerpt = evidence.excerpt;
+        updateSet.submissionSha256 = evidence.sha256;
+      }
       await db.update(userStepCompletions)
-        .set({ passed, attemptCount: attempt, validationOutput: feedback, completedAt: new Date() })
+        .set(updateSet)
         .where(eq(userStepCompletions.id, existing.id));
     } else {
       await db.insert(userStepCompletions).values({
@@ -391,6 +458,8 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
         passed,
         validationOutput: feedback,
         attemptCount: 1,
+        submissionExcerpt: evidence.excerpt,
+        submissionSha256: evidence.sha256,
       });
     }
 
@@ -403,14 +472,36 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       const nextStep = step.stepNumber + 1;
       const totalSteps = project?.totalSteps ?? 1;
       const isLastStep = step.stepNumber >= totalSteps;
-      const completionPercent = Math.round((step.stepNumber / totalSteps) * 100);
+
+      // Phase 26 (H2 fix) — Count distinct passed steps for this learner
+      // AFTER recording the current step's pass. The old `isLastStep`
+      // gate let a learner deep-link to the last step, submit once, and
+      // claim project completion without doing any prior work.
+      // `allStepsPassed` is the authoritative completion signal — only
+      // when every required step has been passed does Atlas flip
+      // `user_progress.status` to `completed`, send the completion
+      // email, and report `projectComplete: true` to the client (which
+      // drives the project-celebration UI).
+      const [{ passedCount }] = await db
+        .select({ passedCount: sql<number>`count(*)::int` })
+        .from(userStepCompletions)
+        .where(
+          and(
+            eq(userStepCompletions.userId, user.id),
+            eq(userStepCompletions.projectId, projectId),
+            eq(userStepCompletions.passed, true),
+          ),
+        );
+      const allStepsPassed = passedCount >= totalSteps;
+      const completionPercent = Math.round((passedCount / totalSteps) * 100);
+
       // Use a conditional UPDATE so two concurrent last-step submissions cannot
       // both observe "not completed" and both trigger the completion email.
       // Only the row that actually transitions status from non-completed → completed
       // returns a row, and only that request fires the side effects.
       let didTransitionToCompleted = false;
       if (progress) {
-        if (isLastStep) {
+        if (allStepsPassed) {
           const updatedRows = await db.update(userProgress).set({
             currentStep: step.stepNumber,
             status: "completed",
@@ -429,8 +520,12 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
               .where(eq(userProgress.id, progress.id));
           }
         } else {
+          // Not yet complete. Advance the cursor to nextStep when there is
+          // one; on a non-final unpassed-prerequisite path (e.g. learner
+          // deep-linked to the last step), `nextStep` would overflow — keep
+          // the cursor at the current step instead.
           await db.update(userProgress).set({
-            currentStep: nextStep,
+            currentStep: isLastStep ? step.stepNumber : nextStep,
             status: "in_progress",
             completionPercent,
             completedAt: null,
@@ -461,24 +556,41 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
         req.log.warn({ err, userId: user.id }, "Failed to bump streak");
       }
 
-      // Award XP
-      const xpEarned = step.xpReward;
-      const xpRecord = await db.query.userXp.findFirst({ where: eq(userXp.userId, user.id) });
-      if (xpRecord) {
-        const newTotal = xpRecord.totalXp + xpEarned;
-        const newLevel = Math.floor(newTotal / 100) + 1;
-        await db.update(userXp).set({ totalXp: newTotal, level: newLevel, updatedAt: new Date() }).where(eq(userXp.userId, user.id));
-      } else {
-        await db.insert(userXp).values({ userId: user.id, totalXp: xpEarned, level: 1 });
+      // Phase 26 (H1 + H3 fix) — XP + ledger writes are gated on
+      // `isFreshPass`. Re-submits of an already-passed step are a no-op
+      // for both `user_xp.totalXp` AND `xp_transactions`, so the value
+      // returned to the client (`xpEarned: 0`) is now truthful and the
+      // ledger is an append-only audit trail of real awards.
+      const xpEarned = isFreshPass ? step.xpReward : 0;
+      if (isFreshPass) {
+        const xpRecord = await db.query.userXp.findFirst({ where: eq(userXp.userId, user.id) });
+        if (xpRecord) {
+          const newTotal = xpRecord.totalXp + xpEarned;
+          const newLevel = Math.floor(newTotal / 100) + 1;
+          await db.update(userXp).set({ totalXp: newTotal, level: newLevel, updatedAt: new Date() }).where(eq(userXp.userId, user.id));
+        } else {
+          await db.insert(userXp).values({ userId: user.id, totalXp: xpEarned, level: 1 });
+        }
+        await db.insert(xpTransactions).values({
+          userId: user.id,
+          amount: xpEarned,
+          reason: "step_pass",
+          metadata: {
+            projectId,
+            stepNumber: step.stepNumber,
+            stepId: step.id,
+            attempt,
+          },
+        });
       }
 
       res.json({
         status: "passed",
         feedback,
-        xpEarned: existing ? 0 : xpEarned,
+        xpEarned,
         attempt,
-        isFirstPass: !existing,
-        projectComplete: isLastStep,
+        isFirstPass: isFreshPass,
+        projectComplete: didTransitionToCompleted,
       });
       return;
     }

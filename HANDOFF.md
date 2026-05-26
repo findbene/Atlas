@@ -1,59 +1,83 @@
 # Atlas — Session Handoff
 
-**HEAD:** `7d054e98e00049a72625bac91aafef94e39c65ab` — Phase 25 ship.
-**Status:** Phase 25 **COMMITTED**. Working tree clean.
+**HEAD:** Phase 26 ship (commit pending).
+**Status:** Phase 26 **READY TO COMMIT**. Working tree carries Phase 26 changes.
 
 ---
 
-## Final gate summary (Phase 25)
+## Final gate summary (Phase 26)
 
 | Gate | Result |
 |---|---|
 | `pnpm run typecheck` | clean |
 | `check:no-heuristic-runtime` | OK |
+| `pnpm --filter @workspace/db run push` | applied (dev) |
 | atlas tests | **74/74** |
-| api-server tests | **208/208** |
+| api-server tests | **219/219** (+11) |
 | curriculum-quality tests | **60/60** |
 | execution-core tests | **4/4** |
-| **Total tests** | **346/346** |
-| `author:project anchor-check` | drift **0.00 / 0.00** |
+| **Total tests** | **357/357** (+11) |
 | `audit:pedagogy` (visible) | **56/56** |
-| Architect | **PASS** (round 1) |
+| `audit:bad-completions` (dev DB) | **0 bad rows / 2 completions** |
+| Architect | R1 FAIL → **R2 PASS** |
 
 ---
 
-## What Phase 25 shipped
+## What Phase 26 shipped
 
-- **`lib/remediationParser.ts`** — pure parser producing a discriminated
-  union (`exact-diff` | `contains-miss` | `regex-miss` | `generic`)
-  from the literal feedback strings emitted by `gradeSubmission`.
-- **`components/studio/RemediationPanel.tsx`** — new sibling panel
-  rendered below `ValidationFeedbackPanel` on failed checks/submits.
-- **`ValidationFeedbackPanel` region refactor** — split into 3 named
-  regions with `data-testid` markers
-  (`validation-status-header` / `validation-feedback-region` /
-  `validation-next-action`).
-- **Provisional vs committed feedback clarity** — provisional tag only
-  on Check results; XP, attempt counter, and completion celebration
-  only on committed Submit results (four-way gate preserved).
-- **Submit-when-ready CTA** — appears in `validation-next-action`
-  region after a passed Check, routed through the existing `onSubmit`
-  prop so the Phase-24 reducer phase-guard remains the sole gating.
-- **Structured exact/contains/regex/generic remediation** —
-  Expected/Got rows, needle chips, or generic-format hints depending
-  on the parsed kind; `generic` defers to the parent panel's raw
-  feedback (renders nothing in `RemediationPanel`).
+**Backend trust phase — `routes/user.ts /submit`.** Fixes 4 reward-integrity
+holes (H1 XP double-award, H2 premature projectComplete, H3 missing
+xp_transactions ledger, H4 discarded submission evidence) without any UX
+redesign.
+
+### Schema (additive only)
+
+- `user_step_completions.submission_excerpt text` — nullable, capped
+  server-side at 4 KB by UTF-8 byte length.
+- `user_step_completions.submission_sha256 text` — nullable, SHA-256
+  of the FULL submission (deterministic, stable across requests).
+- Pushed in dev via `pnpm --filter @workspace/db run push`.
+  Production push deferred per ops policy. Pre-P26 rows stay null —
+  no backfill.
+
+### `/submit` integrity fixes
+
+- **H1.** XP increment + `xp_transactions` insert gated on
+  `isFreshPass = passed && !wasAlreadyPassed`. Returned `xpEarned`
+  now matches persisted behavior.
+- **H2.** After writing the current step's completion, COUNT distinct
+  `passed=true` rows for (user, project); `allStepsPassed = passedCount
+  >= totalSteps` replaces the old `isLastStep` gate for status flip /
+  email send / `projectComplete` response. Conditional UPDATE
+  `WHERE status != 'completed'` still serializes concurrent transitions.
+- **H3.** One append-only `xp_transactions` row per real award.
+  `reason: 'step_pass'`, `metadata: { projectId, stepNumber, stepId, attempt }`.
+- **H4.** `captureSubmissionEvidence()` helper computes excerpt + sha256.
+  Written on first INSERT and on previously-failed → now-passes UPDATE
+  paths. Re-submits of an already-passed row OMIT the evidence keys
+  entirely — canonical first-pass evidence is immutable.
+- **Monotonic `passed` (architect R1 fix).** UPDATE set uses
+  `passed: passed || wasAlreadyPassed` so a pass→fail→pass sequence
+  cannot downgrade the row and re-qualify the third attempt as fresh.
+
+### Audit-only script
+
+- `scripts/src/audit-bad-completions.ts` + `audit:bad-completions` npm
+  entry. READ-ONLY. Reports `user_progress.status='completed'` rows
+  where distinct `user_step_completions(passed=true)` count <
+  `projects.totalSteps`. Dev DB clean.
 
 ---
 
 ## Untouched invariants
 
+- `lib/grading.ts` — behavior unchanged; only used via the existing
+  `gradeSubmission` import in /submit.
 - `lib/workspaceStepMachine.ts` — unchanged.
-- `artifacts/api-server/src/lib/grading.ts` — unchanged (feedback
-  strings are the parser's contract).
-- OpenAPI / codegen — unchanged.
-- All server routes — unchanged.
-- DB schema / migrations — unchanged.
+- `routes/user-check.ts` path — write-free contract verified by the
+  existing 6-test suite (still passing).
+- OpenAPI / codegen — unchanged (no surface additions).
+- `cert-verify.ts` response shape — unchanged.
 - Curriculum content / rubric / taxonomy / anchors — unchanged.
 - No PWA / Stripe / AI tutor / cloud-creds work.
 
@@ -63,19 +87,34 @@ lineage 0/0/0/0, 9-course taxonomy intact, rubric v1.0.1 frozen.
 
 ---
 
+## Known caveat (pre-existing, out-of-scope)
+
+Concurrent first-pass submits on the SAME step can still theoretically
+race the read-then-write evidence/award path. This is NOT introduced by
+Phase 26 — the prior code had the same exposure. A transaction-or-row-
+locking strategy is the natural follow-up if race-hardening is later
+prioritized. Architect explicitly accepted this as out-of-scope for R2.
+
+---
+
 ## Proposed next phase
 
-**Phase 26 — NOT STARTED.** No proposal authored, no implementation
-begun. The Phase 25 architect noted one nice-to-have follow-up: an
-integration-level test wiring `RemediationPanel` through `StudioShell`
-to assert it stays hidden when `hideCheck=true` even on a failed
-grading (the parser-level `hidden` prop is already unit-tested). Pick
-up or drop in the next session.
+**Phase 27 — NOT STARTED.** No proposal authored. Natural candidates:
+
+1. Race-harden first-pass award path with a DB transaction / `INSERT
+   ... ON CONFLICT DO UPDATE ... RETURNING (old.passed)` so the
+   "first transition to passed" is atomic.
+2. Surface submission evidence on the public cert-verify response
+   (deferred in P26 per scope). Would expose per-step `{ stepNumber,
+   completedAt, attemptCount, sha256 }` — excerpt stays private.
+3. One-shot repair script for any legacy bad completions the audit
+   script flags (currently none in dev). Would be opt-in / dry-run-
+   first / explicit operator approval.
 
 ---
 
 ## Housekeeping
 
-`replit.md` is ~172 lines (one chunky paragraph per recent phase).
+`replit.md` is now ~173 lines (one chunky paragraph per recent phase).
 Happy to compact Phase History entries to one-line links at a natural
 pause — not blocking. Carried since Phase 22.
