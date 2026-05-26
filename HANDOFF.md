@@ -1,139 +1,138 @@
 # Atlas — Session Handoff
 
-**HEAD:** Phase 29 ship (pending commit by platform).
-**Status:** Phase 29 **READY TO COMMIT**. Working tree changes: `artifacts/api-server/src/routes/user-portfolio.ts` (new), `artifacts/api-server/src/routes/user-portfolio.test.ts` (new), `artifacts/api-server/src/routes/index.ts` (+2 lines), `artifacts/atlas/src/pages/certificates.tsx` (rewritten on portfolio hook), `artifacts/atlas/src/pages/profile.tsx` (+ evidence chips in Completed + "View portfolio" link), `lib/api-spec/openapi.yaml` (+ `/user/portfolio` path + `PortfolioEvidence` + `UserPortfolioResponse` schemas), `lib/api-client-react/src/generated/*`, `lib/api-zod/src/generated/*`, `HANDOFF.md`, `replit.md`, `docs/phases/phase-29-portfolio-evidence-surface.md` (new).
+**HEAD:** Phase 30B ship (pending commit by platform). Last shipped: Phase 29 (commit `f22d7cd9`).
+**Status:** Phase 30B **READY TO COMMIT**. Working tree changes:
+- `lib/db/src/test-helpers.ts` (new — `createTestSchema`, `cleanupStaleTestSchemas`, strict schema-name allowlist before every DROP).
+- `lib/db/package.json` (+ `"./test-helpers"` subpath export).
+- `artifacts/api-server/vitest.integration.config.ts` (new — single-forked, scoped to `*.integration.test.ts`).
+- `artifacts/api-server/src/routes/user-submit.integration.test.ts` (new — 3 real-PG concurrency scenarios).
+- `artifacts/api-server/package.json` (`test` excludes `*.integration.test.ts`; new `test:integration` script).
+- `docs/phases/phase-30b-real-pg-concurrency-test.md` (new).
+- `HANDOFF.md`, `replit.md`.
 
 ---
 
-## Final gate summary (Phase 29)
+## Final gate summary (Phase 30B)
 
 | Gate | Result |
 |---|---|
 | `pnpm run typecheck` | clean |
 | `check:no-heuristic-runtime` | OK |
-| OpenAPI codegen | clean |
-| atlas tests | **74/74** (unchanged) |
-| api-server tests | **235 → 246/246** (+11 P29 portfolio) |
-| curriculum-quality tests | **60/60** (unchanged) |
-| execution-core tests | **4/4** (unchanged) |
-| **Total tests** | **373 → 384/384** |
-| Architect | **PASS** (2 test-coverage suggestions folded same session) |
-| `author:project anchor-check` | drift **0.00 / 0.00** (no anchor-relevant changes) |
+| OpenAPI codegen | unchanged (no spec edits) |
+| api-server unit tests | **246/246** (unchanged — integration suite excluded) |
+| **NEW** `test:integration` | **3/3** green (~5s end-to-end incl. schema setup + drop) |
+| Architect | PASS (pending review this turn) |
 | `audit:pedagogy` (visible) | **56/56** (no content/visibility changes) |
-| `audit:bad-completions` (dev DB) | **0 bad rows** (no /submit changes) |
+| Anchor drift | n/a (no anchor-relevant changes) |
 
 ---
 
-## What Phase 29 shipped
+## What Phase 30B shipped
 
-- **`GET /api/user/portfolio` (authenticated)** — Reuses the Phase 26/27
-  trustworthy completion model and the Phase 28 evidence SQL fragments
-  (`stepsCompleted`, `evidenceHashCount`, `firstStepCompletedAt`,
-  project-scoped `totalXpEarned` from
-  `xp_transactions.metadata->>'projectId'`) to return one
-  `PortfolioEvidence` row per completed project owned by the requester.
-  Adds learner-facing fields (`course`, `difficulty`, `topRole`,
-  `verifyUrl`, `printUrl`) instead of overloading `VerifiedCert`.
-  Same defensive clamps as cert-verify: `stepsCompleted ≤ totalSteps`
-  (including `totalSteps=0` edge), `evidenceHashCount ≤ stepsCompleted`,
-  `durationSeconds ≥ 0`. Items sorted by `completedAt DESC`. Hidden
-  (`learner_visible=false`) and soft-deleted projects are silently
-  dropped — same anti-leak posture as `/dashboard`.
-- **OpenAPI contract** — new `/user/portfolio` path + `PortfolioEvidence`
-  + `UserPortfolioResponse` schemas under `user-projects` tag; full
-  codegen regenerated for `api-client-react` + `api-zod`.
-- **`certificates.tsx` evidence chips** — Per-cert card now shows
-  `stepsCompleted/totalSteps`, `totalXpEarned`, evidence count (when
-  ≥1), and optional time-invested span. New top-line portfolio summary
-  (`completedCount` / `totalProjectXp` / `evidenceBackedCount`). Per
-  the user's explicit pin from Phase 28, language is **"evidence-backed
-  completion record"** — never "cryptographically attested". Adds a
-  Verify link button (deep-link to existing `/verify/:certId` page).
-- **`profile.tsx` Completed section** — compact evidence line under
-  each completed item (`X/Y steps · Z XP · evidence recorded`) when
-  the project is still visible, plus a "View portfolio →" link to
-  `/certificates`. No decomposition of the 596-line page (pure
-  additive overlay).
-- **11 new backend tests** (`user-portfolio.test.ts`, new file) pinning:
-  T1 happy-path ordering + summary aggregation; T2 empty state +
-  `projects.findMany` not called; T3a/T3b user-isolation mirror (asserts
-  `USER_A` in WHERE, `USER_B` absent — and vice versa); T4 401
-  anonymous + zero portfolio queries; T5 privacy denylist (no `email`,
-  `clerkId`, `userId`, `stripeCustomerId`, `submissionExcerpt`,
-  `submissionSha256`, raw hashes) + serialized-string nested check (no
-  `USER_A`/`USER_B`/`STRIPE_CUST`/internal `projectId` leak);
-  T6 `totalSteps=0` clamp; T7 XP scoping (per-user × per-project);
-  T8 hidden / soft-deleted projects silently dropped (no leak);
-  T9 relative `verifyUrl` / `printUrl` (no scheme/host coupling);
-  **T10** negative-duration clock-skew clamp (folded after architect
-  review). T7 additionally pins captured `stepAggs` / `xpAggs` WHERE
-  clauses include the authenticated `userId` AND the scoped
-  `projectIds` (also folded after architect review).
+**Real-Postgres integration test proving Phase 27's `pg_advisory_xact_lock` actually serializes concurrent `/submit`.**
 
-## Privacy contract (pinned by T3 + T5 + T8)
+Phase 27 introduced the per-user advisory lock
+(`pg_advisory_xact_lock(hashtextextended('atlas-submit:'||userId, 0))`)
+as the first statement inside the `/submit` transaction. The existing
+unit suite proves the lock SQL is emitted, but a unit mock cannot prove
+real-Postgres collapses concurrent transactions on the lock key. Phase
+30B closes that gap with an opt-in real-PG integration suite.
 
-- `userId` is sourced EXCLUSIVELY from `getCurrentUser(req)`. No path /
-  query / body parameter accepts a userId, username, or
-  project-ownership claim.
-- All four data queries (`progressRows`, `projectRows`, `stepAggs`,
-  `xpAggs`) are scoped by `userId = user.id` AND by the
-  `projectIds` derived from the user's own completed enrollments.
-- Response never contains: `email`, `clerkId`, internal user IDs,
-  `stripeCustomerId`, `subscriptionTier`, `submissionExcerpt`,
-  `submissionSha256`, raw submission content, raw per-step hashes, or
-  data from any project other than the user's own completed visible
-  projects.
-- Hidden (`learner_visible=false`) and soft-deleted (`deletedAt IS NOT
-  NULL`) projects render NO item — symmetric with `/dashboard` and
-  `/courses/:slug`.
+### Fixture (per-run namespaced schema)
+
+`lib/db/src/test-helpers.ts:createTestSchema()`:
+
+- Generates a random schema name `p30b_test_<Date.now()>_<6chr-base36>`.
+- `CREATE SCHEMA "p30b_test_..."`.
+- Clones the narrow table set the `/submit` path touches via
+  `CREATE TABLE x.<t> (LIKE public.<t> INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING INDEXES)`.
+  Tables cloned: `users`, `domains`, `tracks`, `projects`,
+  `project_steps`, `user_progress`, `user_step_completions`, `user_xp`,
+  `xp_transactions`, `user_streaks`. FK constraints are NOT copied
+  (LIKE never copies FKs); the test owns all seed data so FK enforcement
+  is unnecessary.
+- Returns a `drizzle(testPool, { schema })` instance whose pool is bound
+  to `options=-c search_path=<schema>,public` so unqualified table names
+  resolve to the test schema; enum types (in public) and
+  `pg_advisory_xact_lock` (in `pg_catalog`) still resolve.
+- `cleanup()` runs `DROP SCHEMA ... CASCADE` after strict name
+  validation (`/^p30b_test_\d+_[a-z0-9]+$/`).
+- `cleanupStaleTestSchemas(24)` is a best-effort janitor that drops only
+  schemas whose embedded timestamp is older than the cutoff and whose
+  name matches the strict allowlist.
+
+### Test runner
+
+`vitest.integration.config.ts` — single-forked, `*.integration.test.ts`
+only. The default `test` script EXCLUDES integration tests so unit
+runtime stays unchanged.
+
+- Opt-in: `pnpm --filter @workspace/api-server run test:integration`.
+- Default unit suite: `pnpm --filter @workspace/api-server run test`
+  (excludes `*.integration.test.ts`).
+- `pnpm run typecheck` does NOT trigger the integration suite.
+
+### Scenarios (3/3 green)
+
+1. **Same-step storm** — N=20 concurrent submits for same
+   (user, project, step). Asserts: 20× HTTP 200, 20× passed, exactly
+   one `isFirstPass=true` carrying `xpEarned=50`, others `xpEarned=0`,
+   exactly one `xp_transactions` row, `user_xp.totalXp=50`, exactly one
+   `user_step_completions` row.
+2. **Cross-step same-user storm** — 2 concurrent submits × 3 steps = 6
+   calls all racing the same lock key. Asserts: 6× passed, 3 first-passes
+   (one per step), exactly one `projectComplete=true`, 3 ledger rows,
+   `totalXp=150`, 3 completion rows, `user_progress.status="completed"`.
+3. **Cross-user negative control** — two users submit in parallel.
+   Asserts each user gets their own valid first-pass + ledger row + 50
+   XP; lock is per-user, not global.
+
+### What the test mocks
+
+ONLY the route's auth + post-commit side-effect modules:
+
+- `../lib/auth` — `requireAuth` becomes `next()`; `getCurrentUser`
+  returns the test fixture user.
+- `../lib/email`, `../lib/streak` — spied no-ops.
+- `@workspace/db` — `db` swapped for the test-schema-bound drizzle
+  instance; all schema exports preserved by spreading the real module.
+  Mock installed via `vi.doMock` BEFORE the route is dynamically
+  imported (the route captures `db` at module-load time).
+
+Everything else — the entire `/submit` handler, the transaction, the
+advisory lock SQL, the read-modify-write of `user_xp`, the ledger
+insert, the `allStepsPassed` count, the conditional progress update —
+runs verbatim against real Postgres.
 
 ## Hard stops respected
 
-- Zero schema / migration changes.
-- Zero `/check` or `/submit` behavior changes.
-- Zero rubric / anchor / taxonomy / content / wave / archive changes.
-- Zero dashboard / cert-verify / public-profile behavior changes.
-- Zero Stripe / AI tutor / PWA work.
-- No new portfolio **page** — surfacing is on existing `/certificates`
-  and `/profile`. No decomposition of `profile.tsx`.
+- Zero `/submit` behavior changes.
+- Zero `/check` behavior changes.
+- Zero schema / migration / OpenAPI / codegen changes.
+- Zero frontend / content / rubric / anchor / wave / archive changes.
+- Zero PWA / Stripe / AI tutor / dashboard / cert-verify / portfolio /
+  public-profile changes.
+- Zero production access. The test runs only against the dev DB and
+  drops its private schema on teardown.
 
-## Files touched
-
-- `artifacts/api-server/src/routes/user-portfolio.ts` (new, ~230 lines).
-- `artifacts/api-server/src/routes/user-portfolio.test.ts` (new, 11 tests).
-- `artifacts/api-server/src/routes/index.ts` (+2 lines: import + use).
-- `artifacts/atlas/src/pages/certificates.tsx` (rewritten on
-  `useGetUserPortfolio`; evidence chips + Verify button +
-  portfolio summary).
-- `artifacts/atlas/src/pages/profile.tsx` (+ `useGetUserPortfolio`
-  hook + `evidenceBySlug` map + per-row evidence line +
-  "View portfolio →" link).
-- `lib/api-spec/openapi.yaml` (+ `/user/portfolio` path +
-  `PortfolioEvidence` + `UserPortfolioResponse` schemas).
-- `lib/api-client-react/src/generated/*` (codegen).
-- `lib/api-zod/src/generated/*` (codegen).
-- `HANDOFF.md`, `replit.md` (one-line phase entry),
-  `docs/phases/phase-29-portfolio-evidence-surface.md` (new).
-
-## Active invariants (post-Phase-29)
+## Active invariants (unchanged post-30B)
 
 - Visible projects: **56**, hidden: 32, beginner: 10
 - Zero-beginner courses: **0**
 - Wave coverage: **56/56**
 - Pedagogy (visible): **56/56**
 - Lineage failures: **0 / 0 / 0 / 0**
-- 9-course taxonomy intact; rubric `v1.0.1` frozen
+- 9-course taxonomy intact; `RUBRIC_VERSION='1.0.1'` frozen
 - Anchor drift: **0.00 / 0.00**
 
-## Phase 29 NOT addressed (deferred)
+## Operating note
 
-- **Print/PDF route at `/certificates/:slug/print`** — the
-  `printUrl` returned by the portfolio endpoint references the existing
-  per-cert page; a dedicated print-stylesheet route is a follow-up.
-- **Bad-completions repair** — still read-only; defer until a
-  production run shows non-zero.
-- **Dashboard portfolio chip** — natural follow-up if we want the
-  evidence summary on `/dashboard` as well.
-- **PWA / install / offline shell** — deferred; no integrity dividend.
-- **Real-Postgres concurrent /submit integration test** — still
-  deferred from Phase 27 (infra-only).
+`test:integration` is an **opt-in pre-deploy gate**, NOT a default
+pre-commit / typecheck gate. Run it before shipping any change that
+touches the `/submit` handler, the per-user advisory lock convention,
+the reward tables (`user_xp`, `xp_transactions`,
+`user_step_completions`), or `user_progress` completion semantics.
+
+Future writers to reward tables MUST use the same per-user lock
+namespace (`atlas-submit:${userId}`) — that convention is what Phase
+30B verifies actually works.

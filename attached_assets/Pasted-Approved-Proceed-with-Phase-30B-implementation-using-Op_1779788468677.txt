@@ -1,0 +1,89 @@
+Approved. Proceed with Phase 30B implementation using Option A: namespaced schema on the existing dev DB.
+
+Goal:
+Add an opt-in real-Postgres integration test proving the Phase 27 pg_advisory_xact_lock actually serializes concurrent /submit traffic and prevents duplicate XP awards, duplicate ledger rows, lost XP updates, and completion-state corruption.
+
+Approved fixture strategy:
+- Use a per-run namespaced schema in the existing dev database.
+- Schema name must be random and clearly test-scoped, e.g. p30b_test_<timestamp>_<rand>.
+- Seed only test data into that schema.
+- Drop the schema in afterAll using DROP SCHEMA ... CASCADE.
+- Add a cleanup helper for stale p30b_test_* schemas older than 24 hours if needed.
+- Do not touch production.
+- Do not use Docker/testcontainers.
+- Do not use pglite.
+- Do not use Option C as the main solution. Option C may be added only as a complementary small assertion if useful.
+
+Approved test runner strategy:
+- Add a separate opt-in script:
+  pnpm --filter @workspace/api-server run test:integration
+- Do not include integration tests in the default api-server test suite.
+- Do not chain integration tests into pnpm run typecheck.
+- Keep the existing unit suite runtime unchanged.
+- Use *.integration.test.ts naming and a separate vitest.integration.config.ts.
+- Make the integration config serial/single-forked to avoid shared DB fixture conflicts.
+
+Approved test scope:
+Add 3 real-Postgres scenarios:
+1. Same-step storm:
+   - N concurrent submits for the same user/project/step.
+   - Assert exactly one first-pass award.
+   - Assert one xp_transactions row.
+   - Assert user_xp.totalXp increments exactly once.
+   - Assert one user_step_completions row.
+   - Assert no 500s.
+
+2. Cross-step same-user storm:
+   - Concurrent submits across all required steps for the same user/project.
+   - Assert per-user lock preserves coherent progress.
+   - Assert project completion happens once.
+   - Assert ledger and XP totals match expected first-pass awards only.
+
+3. Cross-user negative control:
+   - Concurrent submits for two different users.
+   - Assert both users receive their own valid XP/ledger rows.
+   - Assert user isolation holds.
+   - Assert the lock is not accidentally global.
+
+Important behavior constraints:
+- No /submit behavior changes.
+- No /check behavior changes.
+- No app route changes unless absolutely required for test injection and approved by architecture.
+- No schema/migration changes.
+- No OpenAPI/codegen changes.
+- No frontend changes.
+- No content/rubric/taxonomy/anchor/wave changes.
+- No PWA, Stripe, AI tutor, dashboard, cert-verify, portfolio, public-profile work.
+- No production access.
+
+Implementation constraints:
+- If the integration test exposes a real /submit bug, stop and report. Do not patch /submit in this phase without explicit approval.
+- If namespaced-schema setup proves brittle, stop and report. Do not silently fall back to a weak mock-only phase.
+- It is acceptable to add lib/db/src/test-helpers.ts and a package subpath export only for test support.
+- Keep any fixture.sql clearly marked as test fixture, not migration.
+- Do not document secrets or connection strings.
+- Do not leave test data in public schema.
+
+Acceptance gates:
+- Existing api-server unit tests remain green: 246/246.
+- Existing total test suite remains green.
+- Typecheck clean.
+- check:no-heuristic-runtime OK.
+- audit:pedagogy visible 56/56.
+- anchor drift 0.00.
+- New integration gate passes:
+  pnpm --filter @workspace/api-server run test:integration
+- Expected integration result: 3/3 scenarios green.
+- Architect PASS.
+
+Documentation on close:
+- HANDOFF.md updated with test:integration as an opt-in pre-deploy gate, not a default pre-commit/typecheck gate.
+- replit.md updated compactly.
+- Create docs/phases/phase-30b-real-pg-concurrency-test.md.
+- Report files touched, integration runtime, test results, and confirmation of:
+  - zero production touch
+  - zero /submit behavior changes
+  - zero schema/migration changes
+  - namespaced schema cleanup completed
+
+Proceed with implementation.
