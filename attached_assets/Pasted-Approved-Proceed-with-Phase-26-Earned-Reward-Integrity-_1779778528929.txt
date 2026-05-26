@@ -1,0 +1,120 @@
+Approved. Proceed with Phase 26 — Earned Reward Integrity & Completion Evidence.
+
+Use the read-only plan you produced as the implementation source of truth.
+
+Approved scope:
+- Backend integrity hardening.
+- XP award idempotency fix.
+- Project completion gating fix.
+- XP transaction ledger usage.
+- Submission evidence persistence.
+- Regression tests for all identified integrity holes.
+- No UX redesign.
+- Minimal FE regression pin only.
+
+Answers to your three scope questions:
+
+1. Legacy bad-completion audit
+Yes — add a READ-ONLY audit script.
+
+Requirements:
+- report only
+- no mutations
+- no auto-repair
+- no backfill writes
+- no status rewrites
+- no XP rewrites
+
+Goal:
+Identify any existing user_progress rows where:
+- status='completed'
+- but distinct passed step count < project.totalSteps
+
+Suggested output:
+- userId
+- projectId
+- passedCount
+- totalSteps
+- completedAt
+
+Place under scripts/src/ or equivalent audit location.
+
+2. Schema push
+Yes — proceed with the additive nullable schema push in dev only.
+
+Approved additive columns:
+- submission_excerpt text nullable
+- submission_sha256 char(64) nullable
+
+Requirements:
+- additive only
+- no destructive changes
+- no backfill
+- no migration of old rows
+- old rows remain null
+- cap submission_excerpt server-side
+- populate only from /submit
+- /check remains fully write-free
+
+Production rollout remains deferred per existing ops policy.
+
+3. Cert-verify enrichment
+Keep deferred.
+
+Do NOT expand cert-verify response shape in Phase 26.
+Do NOT expose submission evidence publicly yet.
+Treat evidence persistence as backend groundwork only.
+
+Additional requirements:
+- Fix H1 completely:
+  - no XP increment on re-submit of already-passed step
+  - no xp_transactions row on re-submit
+  - returned xpEarned must match actual persisted behavior
+- Fix H2 completely:
+  - last-step submit alone must never complete the project
+  - all required steps must be passed before projectComplete=true
+  - completion email must only fire after true completion transition
+- Use xp_transactions as append-only ledger entries for real awards only.
+- submission_sha256 should be deterministic and stable for identical submissions.
+- submission evidence should not be overwritten by later re-submits unless the row was previously empty and the step had not yet passed.
+
+Hard constraints:
+- No OpenAPI/codegen changes.
+- No content changes.
+- No rubric changes.
+- No taxonomy changes.
+- No anchor changes.
+- No PWA work.
+- No Stripe/billing.
+- No AI tutor work.
+- No cloud credentials.
+- No reducer/workspaceStepMachine changes unless a true defect blocks integrity.
+- No grading.ts behavior changes beyond plumbing/persistence.
+- No Phase 27 work.
+
+Implementation order:
+1. Additive schema update.
+2. XP idempotency fix.
+3. projectComplete gating fix.
+4. xp_transactions writes.
+5. submission evidence persistence.
+6. audit-only script.
+7. regression tests.
+8. FE regression pin.
+9. full gates.
+10. architect review.
+11. docs/HANDOFF/replit updates.
+
+Expected final behavior:
+- Re-submit of already-passed step cannot inflate XP.
+- Re-submit cannot create duplicate ledger entries.
+- Project completion requires all required steps.
+- Completion email fires once on real completion transition only.
+- Confetti remains submit-pass-first-pass only.
+- Atlas can now retain cryptographic evidence of learner submissions.
+
+Proceed in one implementation pass and report only after:
+- all gates pass
+- architect passes
+- schema push completes successfully in dev
+or a real blocker appears.
