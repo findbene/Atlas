@@ -54,6 +54,68 @@ contribute 0 here.
   issuer: string;
 }
 
+export type PortfolioEvidenceDifficulty =
+  (typeof PortfolioEvidenceDifficulty)[keyof typeof PortfolioEvidenceDifficulty];
+
+export const PortfolioEvidenceDifficulty = {
+  beginner: "beginner",
+  intermediate: "intermediate",
+  advanced: "advanced",
+} as const;
+
+/**
+ * Phase 29 — Single completed project for the authenticated learner.
+Reuses Phase 28 evidence semantics (same SQL aggregates, same
+clamps) but adds learner-facing fields (`course`, `difficulty`,
+`topRole`, `verifyUrl`, `printUrl`). Excludes the
+public-cert-only fields (`recipientName`, `recipientUsername`,
+`issuer`) since the surface is the learner's own.
+
+ */
+export interface PortfolioEvidence {
+  /** UUID of the user_progress row — shareable via /verify/{certId} */
+  certId: string;
+  projectSlug: string;
+  projectTitle: string;
+  /** Course slug from projects.course (no heuristics) */
+  course: string;
+  difficulty: PortfolioEvidenceDifficulty;
+  completedAt: string;
+  firstStepCompletedAt: string | null;
+  /** completedAt − firstStepCompletedAt, clamped ≥ 0 */
+  durationSeconds: number | null;
+  /** Always ≤ totalSteps */
+  stepsCompleted: number;
+  totalSteps: number;
+  /** Count of passed rows with non-null submission_sha256. Raw hashes never exposed. Always ≤ stepsCompleted. */
+  evidenceHashCount: number;
+  /** Sum of project-scoped xp_transactions for this learner. Legacy pre-P26 rows contribute 0. */
+  totalXpEarned: number;
+  /** Relative URL — /verify/{certId} */
+  verifyUrl: string;
+  /** Relative URL — /certificates/{projectSlug}/print */
+  printUrl: string;
+  /** First entry of project.jobOutcomes.roles, if any */
+  topRole: string | null;
+}
+
+/**
+ * Phase 29 — Authenticated portfolio payload. `userId` is intentionally
+absent — clients already know who they are. Summary aggregates are
+computed over `items[]` so any future hidden/deleted-project drop
+is reflected consistently.
+
+ */
+export interface UserPortfolioResponse {
+  /** Length of items[] (post hidden/deleted drop) */
+  completedCount: number;
+  /** Sum over items[].totalXpEarned */
+  totalProjectXp: number;
+  /** Count of items where evidenceHashCount ≥ 1 */
+  evidenceBackedCount: number;
+  items: PortfolioEvidence[];
+}
+
 export interface ErrorResponse {
   error: string;
   message?: string;

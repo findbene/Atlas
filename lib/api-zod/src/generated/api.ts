@@ -1614,6 +1614,85 @@ export const VerifyCertificateResponse = zod
   );
 
 /**
+ * Phase 29 — Authenticated learner-facing portfolio. Returns one
+`PortfolioEvidence` row per completed project owned by the
+requesting user, enriched with the Phase 26/27 trustworthy
+completion evidence (passed-step count, evidence-hash count,
+project-scoped XP ledger rollup, first-step → completed span)
+using the same SQL fragments and clamps as the public Phase 28
+`/verify/:certId` route.
+
+Privacy contract: `userId` is sourced EXCLUSIVELY from the
+authenticated session. No path/query/body parameter accepts a
+userId, username, or project-ownership claim. Response never
+contains `email`, `clerkId`, internal user IDs, Stripe
+identifiers, raw submissions, raw evidence hashes, or any
+data scoped to a different user or project. Hidden
+(`learner_visible=false`) and soft-deleted projects are
+silently dropped — same anti-leak posture as `/dashboard`.
+
+ * @summary Authenticated learner portfolio (Phase 29)
+ */
+export const GetUserPortfolioResponse = zod
+  .object({
+    completedCount: zod
+      .number()
+      .describe("Length of items[] (post hidden\/deleted drop)"),
+    totalProjectXp: zod.number().describe("Sum over items[].totalXpEarned"),
+    evidenceBackedCount: zod
+      .number()
+      .describe("Count of items where evidenceHashCount ≥ 1"),
+    items: zod.array(
+      zod
+        .object({
+          certId: zod
+            .string()
+            .describe(
+              "UUID of the user_progress row — shareable via \/verify\/{certId}",
+            ),
+          projectSlug: zod.string(),
+          projectTitle: zod.string(),
+          course: zod
+            .string()
+            .describe("Course slug from projects.course (no heuristics)"),
+          difficulty: zod.enum(["beginner", "intermediate", "advanced"]),
+          completedAt: zod.coerce.date(),
+          firstStepCompletedAt: zod.coerce.date().nullable(),
+          durationSeconds: zod
+            .number()
+            .nullable()
+            .describe("completedAt − firstStepCompletedAt, clamped ≥ 0"),
+          stepsCompleted: zod.number().describe("Always ≤ totalSteps"),
+          totalSteps: zod.number(),
+          evidenceHashCount: zod
+            .number()
+            .describe(
+              "Count of passed rows with non-null submission_sha256. Raw hashes never exposed. Always ≤ stepsCompleted.",
+            ),
+          totalXpEarned: zod
+            .number()
+            .describe(
+              "Sum of project-scoped xp_transactions for this learner. Legacy pre-P26 rows contribute 0.",
+            ),
+          verifyUrl: zod.string().describe("Relative URL — \/verify\/{certId}"),
+          printUrl: zod
+            .string()
+            .describe("Relative URL — \/certificates\/{projectSlug}\/print"),
+          topRole: zod
+            .string()
+            .nullable()
+            .describe("First entry of project.jobOutcomes.roles, if any"),
+        })
+        .describe(
+          "Phase 29 — Single completed project for the authenticated learner.\nReuses Phase 28 evidence semantics (same SQL aggregates, same\nclamps) but adds learner-facing fields (`course`, `difficulty`,\n`topRole`, `verifyUrl`, `printUrl`). Excludes the\npublic-cert-only fields (`recipientName`, `recipientUsername`,\n`issuer`) since the surface is the learner's own.\n",
+        ),
+    ),
+  })
+  .describe(
+    "Phase 29 — Authenticated portfolio payload. `userId` is intentionally\nabsent — clients already know who they are. Summary aggregates are\ncomputed over `items[]` so any future hidden\/deleted-project drop\nis reflected consistently.\n",
+  );
+
+/**
  * Idempotent — flips `users.onboarding_completed=true` on first call;
 subsequent calls are no-ops and return the same payload.
 

@@ -1,0 +1,134 @@
+Approved. Proceed with Phase 29 — Learner-facing Portfolio / Authenticated Evidence Surface.
+
+Goal:
+Bring the Phase 28 evidence-backed completion model into the authenticated learner experience, so learners can see their completed projects, certificate links, XP earned, step completion summary, evidence count, and portfolio-ready proof of work.
+
+Approved scope:
+1. Add one new authenticated endpoint:
+   GET /api/user/portfolio
+
+2. Return a new authenticated DTO:
+   UserPortfolioResponse
+   PortfolioEvidence[]
+
+3. Enrich the existing /certificates page:
+   - Use the new portfolio endpoint.
+   - Add evidence chips/cards:
+     - stepsCompleted / totalSteps
+     - totalXpEarned
+     - evidenceHashCount
+     - durationSeconds / time-invested span when available
+     - verifyUrl
+     - printUrl
+   - Keep existing print and LinkedIn behavior intact.
+
+4. Add a compact evidence summary to /profile:
+   - Inside the existing Completed section only.
+   - Add a short line like:
+     “4/4 steps · 425 XP · evidence recorded”
+   - Add a “View portfolio” link to /certificates.
+
+5. Add OpenAPI path/schema entries and run codegen.
+
+6. Add backend tests for user isolation, privacy, evidence correctness, hidden-project filtering, empty state, and share URL generation.
+
+Approved API design:
+GET /api/user/portfolio
+
+Response:
+{
+  completedCount: number,
+  totalProjectXp: number,
+  evidenceBackedCount: number,
+  items: PortfolioEvidence[]
+}
+
+PortfolioEvidence:
+{
+  certId: string,
+  projectSlug: string,
+  projectTitle: string,
+  course: string,
+  difficulty: "beginner" | "intermediate" | "advanced",
+  completedAt: string,
+  firstStepCompletedAt: string | null,
+  durationSeconds: number | null,
+  stepsCompleted: number,
+  totalSteps: number,
+  evidenceHashCount: number,
+  totalXpEarned: number,
+  verifyUrl: string,
+  printUrl: string,
+  topRole: string | null
+}
+
+Important corrections / constraints:
+- Use a new PortfolioEvidence DTO. Do not reuse VerifiedCert directly.
+- Reuse Phase 28 evidence semantics, clamps, and privacy posture.
+- Keep verify.tsx and cert-verify.ts unchanged unless absolutely necessary for shared helper extraction.
+- Keep profile.tsx decomposition out of scope. Only make the small additive Completed-section change.
+- Keep /certificates as the main portfolio surface. Do not create a new third portfolio page in this phase.
+
+Privacy/security requirements:
+- userId must come only from the authenticated current user.
+- Do not accept userId, username, or project ownership as query/path params.
+- User A must never see User B’s portfolio evidence.
+- Hidden or soft-deleted projects must not leak.
+- Do not return or render:
+  - email
+  - clerkId
+  - internal user IDs
+  - Stripe/customer fields
+  - raw submissionExcerpt
+  - raw submission content
+  - raw submissionSha256 values
+  - raw hashes
+  - other-user or unrelated-project data
+
+Testing requirements:
+Add backend tests covering:
+1. Happy path with multiple completed projects, ordered by completedAt DESC.
+2. Empty state: zero completions returns 200 with empty items and zero summary counts.
+3. User isolation: user A sees only user A projects.
+4. User isolation mirror: user B sees only user B projects.
+5. Unauthenticated request returns 401 and does not query portfolio data.
+6. Privacy denylist: no email, clerkId, userId, submissionExcerpt, submissionSha256, raw hashes, Stripe fields, or sensitive nested values.
+7. Clamp behavior: stepsCompleted <= totalSteps, including totalSteps=0 edge.
+8. XP scoping: only project-specific xp_transactions for the authenticated user count.
+9. Hidden/deleted projects are silently dropped.
+10. verifyUrl and printUrl are relative and correct.
+
+Implementation constraints:
+- No schema changes.
+- No migrations.
+- No /check changes.
+- No /submit changes.
+- No cert-verify behavior changes unless extracting shared read-only helper code is clearly safer.
+- No dashboard payload changes.
+- No public-profile evidence enrichment.
+- No bad-completions repair.
+- No PWA work.
+- No Stripe work.
+- No AI tutor work.
+- No taxonomy/content/rubric/anchor/wave changes.
+
+Acceptance gates:
+- Typecheck clean.
+- OpenAPI/codegen clean.
+- api-server tests green with new Phase 29 tests.
+- atlas tests green.
+- curriculum-quality tests green.
+- execution-core tests green.
+- check:no-heuristic-runtime OK.
+- audit:pedagogy visible 56/56.
+- audit:bad-completions dev remains 0 rows.
+- anchor drift 0.00.
+- Architect PASS.
+
+Documentation on close:
+- Update HANDOFF.md.
+- Update replit.md compactly.
+- Create docs/phases/phase-29-portfolio-evidence-surface.md.
+- Report files touched, tests added, final gate summary, and caveats.
+
+Proceed with implementation.

@@ -55,6 +55,7 @@ import type {
   SubmitStepBody,
   Subscription,
   UpdateUserProfileBody,
+  UserPortfolioResponse,
   UserProfile,
   UserProject,
   UserProjectProgress,
@@ -2941,6 +2942,98 @@ export function useVerifyCertificate<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getVerifyCertificateQueryOptions(certId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Phase 29 — Authenticated learner-facing portfolio. Returns one
+`PortfolioEvidence` row per completed project owned by the
+requesting user, enriched with the Phase 26/27 trustworthy
+completion evidence (passed-step count, evidence-hash count,
+project-scoped XP ledger rollup, first-step → completed span)
+using the same SQL fragments and clamps as the public Phase 28
+`/verify/:certId` route.
+
+Privacy contract: `userId` is sourced EXCLUSIVELY from the
+authenticated session. No path/query/body parameter accepts a
+userId, username, or project-ownership claim. Response never
+contains `email`, `clerkId`, internal user IDs, Stripe
+identifiers, raw submissions, raw evidence hashes, or any
+data scoped to a different user or project. Hidden
+(`learner_visible=false`) and soft-deleted projects are
+silently dropped — same anti-leak posture as `/dashboard`.
+
+ * @summary Authenticated learner portfolio (Phase 29)
+ */
+export const getGetUserPortfolioUrl = () => {
+  return `/api/user/portfolio`;
+};
+
+export const getUserPortfolio = async (
+  options?: RequestInit,
+): Promise<UserPortfolioResponse> => {
+  return customFetch<UserPortfolioResponse>(getGetUserPortfolioUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUserPortfolioQueryKey = () => {
+  return [`/api/user/portfolio`] as const;
+};
+
+export const getGetUserPortfolioQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserPortfolio>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getUserPortfolio>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserPortfolioQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getUserPortfolio>>
+  > = ({ signal }) => getUserPortfolio({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserPortfolio>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUserPortfolioQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserPortfolio>>
+>;
+export type GetUserPortfolioQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Authenticated learner portfolio (Phase 29)
+ */
+
+export function useGetUserPortfolio<
+  TData = Awaited<ReturnType<typeof getUserPortfolio>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getUserPortfolio>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserPortfolioQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

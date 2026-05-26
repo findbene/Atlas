@@ -18,6 +18,7 @@ import adminRouter from "./admin";
 import enrollmentRouter from "./enrollment";
 import dashboardRouter from "./dashboard";
 import onboardingRouter from "./onboarding";
+import userPortfolioRouter from "./user-portfolio";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(adminRouter);
 router.use(enrollmentRouter);
 router.use(dashboardRouter);
 router.use(onboardingRouter);
+router.use(userPortfolioRouter);
 
 export default router;

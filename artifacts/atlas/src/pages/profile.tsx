@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@clerk/react";
 import {
+  useGetUserPortfolio,
   useGetUserProfile,
   useGetUserStats,
   useListUserProjects,
@@ -253,10 +254,18 @@ export default function Profile() {
   const { data: profile } = useGetUserProfile();
   const { data: stats, isLoading: statsLoading } = useGetUserStats();
   const { data: projects } = useListUserProjects();
+  const { data: portfolio } = useGetUserPortfolio();
   const [editOpen, setEditOpen] = useState(false);
 
   const completed =
     (projects as any[])?.filter((p: any) => p.status === "completed") ?? [];
+  // Phase 29 — evidence lookup by project slug for the Completed list.
+  // Hidden/soft-deleted projects are excluded from `portfolio.items`, so
+  // any completion that no longer has a visible project simply renders
+  // without an evidence line (no leak).
+  const evidenceBySlug = new Map(
+    (portfolio?.items ?? []).map((it) => [it.projectSlug, it]),
+  );
 
   const badgeItems = buildBadgeCatalog({
     totalXp: stats?.totalXp ?? 0,
@@ -550,31 +559,55 @@ export default function Profile() {
           )}
 
           <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-emerald-400" /> Completed
-              <span className="ml-1 text-xs font-normal text-muted-foreground">
-                ({completed.length})
-              </span>
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-emerald-400" /> Completed
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({completed.length})
+                </span>
+              </h3>
+              {completed.length > 0 && (
+                <Link href="/certificates">
+                  <span className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer">
+                    View portfolio
+                    <ChevronRight className="h-3 w-3" />
+                  </span>
+                </Link>
+              )}
+            </div>
             {completed.length === 0 ? (
               <div className="text-sm text-muted-foreground">
                 <p>Finish your first project to earn a certificate.</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {completed.slice(0, 6).map((up: any) => (
-                  <Link key={up.id} href={`/projects/${up.project.slug}`}>
-                    <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/40 transition-colors text-sm cursor-pointer">
-                      <span className="text-emerald-400 shrink-0">✓</span>
-                      <span className="truncate flex-1">{up.project.title}</span>
-                      {up.earnedXp ? (
-                        <span className="text-xs text-amber-400 shrink-0">
-                          +{up.earnedXp} XP
-                        </span>
-                      ) : null}
-                    </div>
-                  </Link>
-                ))}
+              <div className="space-y-1.5">
+                {completed.slice(0, 6).map((up: any) => {
+                  const ev = evidenceBySlug.get(up.project?.slug);
+                  return (
+                    <Link key={up.id} href={`/projects/${up.project.slug}`}>
+                      <div
+                        className="p-2 rounded-lg hover:bg-muted/40 transition-colors text-sm cursor-pointer"
+                        data-testid={`completed-row-${up.project?.slug ?? "unknown"}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-400 shrink-0">✓</span>
+                          <span className="truncate flex-1">{up.project.title}</span>
+                          {up.earnedXp ? (
+                            <span className="text-xs text-amber-400 shrink-0">
+                              +{up.earnedXp} XP
+                            </span>
+                          ) : null}
+                        </div>
+                        {ev && (
+                          <p className="ml-6 mt-0.5 text-[11px] text-muted-foreground">
+                            {ev.stepsCompleted}/{ev.totalSteps} steps · {ev.totalXpEarned} XP
+                            {ev.evidenceHashCount >= 1 ? " · evidence recorded" : ""}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
