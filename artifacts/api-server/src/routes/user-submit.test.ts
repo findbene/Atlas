@@ -64,52 +64,71 @@ let nextPassedCount = 0;
 const sendEmailSpy = vi.fn().mockResolvedValue(undefined);
 const bumpStreakSpy = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("@workspace/db", () => ({
-  db: {
-    query: {
-      userProgress: { findFirst: (...a: unknown[]) => userProgressFindFirst(...a) },
-      projectSteps: { findFirst: (...a: unknown[]) => projectStepsFindFirst(...a) },
-      userStepCompletions: { findFirst: (...a: unknown[]) => userStepCompletionsFindFirst(...a) },
-      projects: { findFirst: (...a: unknown[]) => projectsFindFirst(...a) },
-      userXp: { findFirst: (...a: unknown[]) => userXpFindFirst(...a) },
-    },
-    insert: vi.fn((table: unknown) => ({
-      values: (values: unknown) => {
-        insertCalls.push({ table, values });
-        return Promise.resolve();
-      },
-    })),
-    update: vi.fn((table: unknown) => ({
-      set: (values: unknown) => {
-        // Drizzle chain: .set().where(...).returning(...) OR .set().where(...)
-        // The conditional UPDATE path uses .returning(); the unconditional
-        // path doesn't. We track both shapes; `returning` resolves to
-        // an empty array (= "row no longer matched" = already completed).
-        return {
-          where: (_w: unknown) => {
-            updateCalls.push({ table, values, conditional: false });
-            return {
-              returning: () => {
-                // Mark this as a conditional update (the only call site that
-                // appends .returning is the status flip with `ne(status,'completed')`).
-                const last = updateCalls[updateCalls.length - 1];
-                if (last) last.conditional = true;
-                // Default: row WAS updated (transition happened). Tests can
-                // override via overrideReturning hook below if needed.
-                return Promise.resolve(returningOverride());
-              },
-            };
-          },
-        };
-      },
-    })),
-    // Used for the post-write COUNT query for `allStepsPassed`.
-    select: vi.fn(() => ({
-      from: () => ({
-        where: () => Promise.resolve([{ passedCount: nextPassedCount }]),
-      }),
-    })),
+// Phase 27 — Capture every advisory-lock / raw SQL call via tx.execute.
+const executeCalls: Array<{ sql: unknown }> = [];
+
+// Phase 27 — Capture every db.transaction(cb) invocation. The mock
+// runs the callback synchronously-ish against the SAME mock db object
+// so all `tx.insert/update/select/query/execute` calls are recorded by
+// the existing capture infrastructure with no per-test rewiring.
+const transactionCalls: Array<{ ran: true }> = [];
+
+const dbMock: any = {
+  query: {
+    userProgress: { findFirst: (...a: unknown[]) => userProgressFindFirst(...a) },
+    projectSteps: { findFirst: (...a: unknown[]) => projectStepsFindFirst(...a) },
+    userStepCompletions: { findFirst: (...a: unknown[]) => userStepCompletionsFindFirst(...a) },
+    projects: { findFirst: (...a: unknown[]) => projectsFindFirst(...a) },
+    userXp: { findFirst: (...a: unknown[]) => userXpFindFirst(...a) },
   },
+  insert: vi.fn((table: unknown) => ({
+    values: (values: unknown) => {
+      insertCalls.push({ table, values });
+      return Promise.resolve();
+    },
+  })),
+  update: vi.fn((table: unknown) => ({
+    set: (values: unknown) => {
+      // Drizzle chain: .set().where(...).returning(...) OR .set().where(...)
+      return {
+        where: (_w: unknown) => {
+          updateCalls.push({ table, values, conditional: false });
+          return {
+            returning: () => {
+              const last = updateCalls[updateCalls.length - 1];
+              if (last) last.conditional = true;
+              return Promise.resolve(returningOverride());
+            },
+          };
+        },
+      };
+    },
+  })),
+  // Used for the post-write COUNT query for `allStepsPassed`.
+  select: vi.fn(() => ({
+    from: () => ({
+      where: () => Promise.resolve([{ passedCount: nextPassedCount }]),
+    }),
+  })),
+  // Phase 27 — advisory lock + any raw SQL the route may issue. Resolves
+  // to an empty rowset, matching pg_advisory_xact_lock's void return.
+  execute: vi.fn((s: unknown) => {
+    executeCalls.push({ sql: s });
+    return Promise.resolve([]);
+  }),
+  // Phase 27 — `db.transaction(cb)` runs the callback against THIS same
+  // mock so the existing tx.insert/update/select/query/execute calls
+  // are recorded by the existing capture arrays with zero per-test
+  // rewiring. We do NOT model rollback — failing tests should throw
+  // out of the callback directly if they want to assert error paths.
+  transaction: vi.fn(async (cb: (tx: any) => Promise<unknown>) => {
+    transactionCalls.push({ ran: true });
+    return cb(dbMock);
+  }),
+};
+
+vi.mock("@workspace/db", () => ({
+  db: dbMock,
   users: {},
   userProgress: { _t: "userProgress", userId: "u", projectId: "p", id: "id", status: "status" },
   userXp: { _t: "userXp", userId: "u" },
@@ -134,7 +153,23 @@ vi.mock("drizzle-orm", () => ({
   asc: (...a: unknown[]) => ({ asc: a }),
   isNull: (...a: unknown[]) => ({ isNull: a }),
   ne: (...a: unknown[]) => ({ ne: a }),
-  sql: Object.assign(() => ({}), {}),
+  // Phase 27 — tagged-template-aware sql mock so concurrency tests
+  // can inspect the literal SQL fragments the route emits (especially
+  // the advisory lock). Non-template calls (e.g. `sql<number>` type
+  // assertions) return `{}` as before.
+  sql: Object.assign(
+    (strings: unknown, ...values: unknown[]) => {
+      if (
+        strings &&
+        typeof strings === "object" &&
+        Array.isArray((strings as { raw?: unknown }).raw)
+      ) {
+        return { _sql: (strings as TemplateStringsArray).join("?"), _values: values };
+      }
+      return {};
+    },
+    {},
+  ),
 }));
 
 vi.mock("@clerk/express", () => ({ getAuth: vi.fn() }));
@@ -181,6 +216,8 @@ beforeEach(() => {
   userXpFindFirst.mockReset();
   insertCalls.length = 0;
   updateCalls.length = 0;
+  executeCalls.length = 0;
+  transactionCalls.length = 0;
   sendEmailSpy.mockClear();
   bumpStreakSpy.mockClear();
   nextPassedCount = 0;
@@ -624,5 +661,201 @@ describe("POST /user/projects/:projectId/steps/:stepId/submit — Phase 26 integ
       expect(h1).toBe(h2);
       expect(h1).toMatch(/^[a-f0-9]{64}$/);
     });
+  });
+});
+
+// ===================================================================
+// Phase 27 — Concurrent Submit Race Hardening / Transactional Reward
+// Integrity.
+//
+// Pins the new transactional boundary around /submit:
+//
+//   - All persistence side effects run inside a single `db.transaction`
+//     callback (advisory lock + completion row + count + progress +
+//     xp + ledger).
+//   - bumpStreak + completion email stay OUTSIDE the tx as best-effort
+//     post-commit work.
+//   - Concurrent /submit requests for the same (user, project, step)
+//     award XP at most once and write at most one xp_transactions row
+//     per real first-pass.
+//
+// LIMITATION: this is a mock-level harness. The mock `db.transaction`
+// runs the callback against the same mock db (no real serialization /
+// rollback). True concurrency requires a real Postgres + parallel
+// requests; that's intentionally out-of-scope for this test file —
+// the runtime guarantee comes from the `pg_advisory_xact_lock(...)`
+// SQL emitted via `tx.execute` (which we DO assert here) and the
+// transactional boundary. The tests below pin the route's
+// observable behavior under a simulated-race ordering: a "loser"
+// request that arrives AFTER a "winner" has already persisted the
+// pass must take the wasAlreadyPassed branch and award nothing
+// further.
+// ===================================================================
+describe("POST /user/projects/:projectId/steps/:stepId/submit — Phase 27 transactional integrity", () => {
+  it("first-pass /submit runs inside db.transaction AND issues pg_advisory_xact_lock keyed on user.id", async () => {
+    userProgressFindFirst.mockResolvedValue({ id: "prog-1", userId: TEST_USER.id, projectId: PROJECT_ID });
+    projectStepsFindFirst.mockResolvedValue({
+      id: STEP_ID,
+      projectId: PROJECT_ID,
+      validationType: "exact",
+      expectedOutput: "42",
+      validationConfig: null,
+      stepNumber: 1,
+      xpReward: 50,
+    });
+    userStepCompletionsFindFirst.mockResolvedValue(undefined);
+    projectsFindFirst.mockResolvedValue({ id: PROJECT_ID, totalSteps: 1, title: "T", slug: "s", jobOutcomes: [] });
+    userXpFindFirst.mockResolvedValue({ userId: TEST_USER.id, totalXp: 0, level: 1 });
+    nextPassedCount = 1;
+
+    const app = await buildApp();
+    const res = await request(app)
+      .post(`/user/projects/${PROJECT_ID}/steps/${STEP_ID}/submit`)
+      .send({ submission: "42", submissionType: "text" });
+
+    expect(res.status).toBe(200);
+    // The route invoked db.transaction exactly once.
+    expect(transactionCalls).toHaveLength(1);
+    // Architect R1 — pin the SQL content AND statement ordering: the
+    // advisory lock MUST be the FIRST tx.execute call, MUST call
+    // pg_advisory_xact_lock + hashtextextended, and MUST bind a key
+    // scoped to this learner with the `atlas-submit:` prefix. If a
+    // future edit reorders the tx body, weakens the lock, or drops
+    // the per-user scoping, this fails loudly.
+    expect(executeCalls.length).toBeGreaterThanOrEqual(1);
+    const lockCall = executeCalls[0]!.sql as { _sql: string; _values: unknown[] };
+    expect(lockCall._sql).toContain("pg_advisory_xact_lock");
+    expect(lockCall._sql).toContain("hashtextextended");
+    expect(lockCall._values[0]).toBe(`atlas-submit:${TEST_USER.id}`);
+  });
+
+  it("best-effort post-commit work (bumpStreak + completion email) runs OUTSIDE the tx, AFTER persistence", async () => {
+    // Set up a real completion-transition path so the email branch
+    // would normally fire.
+    userProgressFindFirst.mockResolvedValue({ id: "prog-1", userId: TEST_USER.id, projectId: PROJECT_ID, status: "in_progress", completedAt: null });
+    projectStepsFindFirst.mockResolvedValue({
+      id: STEP_ID,
+      projectId: PROJECT_ID,
+      validationType: "exact",
+      expectedOutput: "42",
+      validationConfig: null,
+      stepNumber: 1,
+      xpReward: 50,
+    });
+    userStepCompletionsFindFirst.mockResolvedValue(undefined);
+    projectsFindFirst.mockResolvedValue({ id: PROJECT_ID, totalSteps: 1, title: "T", slug: "s", jobOutcomes: [] });
+    userXpFindFirst.mockResolvedValue({ userId: TEST_USER.id, totalXp: 0, level: 1 });
+    nextPassedCount = 1;
+
+    // Force bumpStreak to throw. The tx must still have committed the
+    // XP / ledger / completion writes (the streak failure is logged
+    // and swallowed). This proves bumpStreak is OUTSIDE the tx — if
+    // it ran inside, the throw would bubble through db.transaction
+    // and roll back the writes, leaving xp_transactions empty.
+    bumpStreakSpy.mockRejectedValueOnce(new Error("streak boom"));
+
+    const app = await buildApp();
+    const res = await request(app)
+      .post(`/user/projects/${PROJECT_ID}/steps/${STEP_ID}/submit`)
+      .send({ submission: "42", submissionType: "text" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.xpEarned).toBe(50);
+    expect(res.body.projectComplete).toBe(true);
+    // XP + ledger writes persisted (would be 0 if streak throw had
+    // rolled back a streak-inside-tx implementation).
+    expect(rowsInsertedInto("xpTransactions")).toHaveLength(1);
+    expect(rowsUpdatedIn("userXp")).toHaveLength(1);
+    // Email fired exactly once after the commit transition.
+    expect(sendEmailSpy).toHaveBeenCalledTimes(1);
+    // Streak attempt was made.
+    expect(bumpStreakSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("concurrent first-pass race: the LOSER (arrives after the winner persisted passed=true) awards NOTHING further", async () => {
+    // Simulated race ordering using two sequential requests:
+    //
+    //   - Request A (winner): existing row not found, INSERTs the
+    //     first-pass row, credits 50 XP, writes 1 ledger row.
+    //
+    //   - Request B (loser): would-be-concurrent /submit arrives
+    //     immediately after A committed; under the user-level
+    //     advisory lock, B blocks until A commits, then re-reads and
+    //     sees existing.passed=true → takes the wasAlreadyPassed
+    //     branch.
+    //
+    // The mock can't actually serialize, but the BEHAVIORAL CONTRACT
+    // we pin is: once the row is `{passed: true}`, every subsequent
+    // /submit is a no-op for XP + ledger and returns xpEarned=0 /
+    // isFirstPass=false / projectComplete=false. This is the same
+    // re-submit invariant under the (post-lock) loser's view.
+    const baseStep = {
+      id: STEP_ID,
+      projectId: PROJECT_ID,
+      validationType: "exact" as const,
+      expectedOutput: "42",
+      validationConfig: null,
+      stepNumber: 1,
+      xpReward: 50,
+    };
+    const baseProject = { id: PROJECT_ID, totalSteps: 1, title: "T", slug: "s", jobOutcomes: [] };
+    const app = await buildApp();
+
+    // ── Request A (winner) ─────────────────────────────────────────
+    userProgressFindFirst.mockResolvedValue({ id: "prog-1", userId: TEST_USER.id, projectId: PROJECT_ID, status: "in_progress" });
+    projectStepsFindFirst.mockResolvedValue(baseStep);
+    userStepCompletionsFindFirst.mockResolvedValue(undefined);
+    projectsFindFirst.mockResolvedValue(baseProject);
+    userXpFindFirst.mockResolvedValue({ userId: TEST_USER.id, totalXp: 0, level: 1 });
+    nextPassedCount = 1;
+
+    const winner = await request(app)
+      .post(`/user/projects/${PROJECT_ID}/steps/${STEP_ID}/submit`)
+      .send({ submission: "42", submissionType: "text" });
+    expect(winner.body.xpEarned).toBe(50);
+    expect(winner.body.isFirstPass).toBe(true);
+    expect(rowsInsertedInto("xpTransactions")).toHaveLength(1);
+    expect(rowsUpdatedIn("userXp")).toHaveLength(1);
+
+    insertCalls.length = 0;
+    updateCalls.length = 0;
+    sendEmailSpy.mockClear();
+
+    // ── Request B (loser, post-lock view) ──────────────────────────
+    // B's tx acquired the user-level advisory lock AFTER A committed,
+    // so B's read of user_step_completions returns the row A just
+    // wrote, with passed=true. attemptCount=1 → loser sees attempt=2.
+    userProgressFindFirst.mockResolvedValue({ id: "prog-1", userId: TEST_USER.id, projectId: PROJECT_ID, status: "completed", completedAt: new Date() });
+    projectStepsFindFirst.mockResolvedValue(baseStep);
+    userStepCompletionsFindFirst.mockResolvedValue({ id: "uc-1", passed: true, attemptCount: 1 });
+    projectsFindFirst.mockResolvedValue(baseProject);
+    userXpFindFirst.mockResolvedValue({ userId: TEST_USER.id, totalXp: 50, level: 1 });
+    nextPassedCount = 1;
+    // Conditional completion UPDATE finds nothing (already completed
+    // by A) → empty array.
+    returningOverride = () => [];
+
+    const loser = await request(app)
+      .post(`/user/projects/${PROJECT_ID}/steps/${STEP_ID}/submit`)
+      .send({ submission: "42", submissionType: "text" });
+
+    expect(loser.body.status).toBe("passed");
+    expect(loser.body.xpEarned).toBe(0); // NO double-award
+    expect(loser.body.isFirstPass).toBe(false);
+    expect(loser.body.projectComplete).toBe(false); // already completed by A
+    // Loser writes NO XP + NO ledger.
+    expect(rowsUpdatedIn("userXp")).toHaveLength(0);
+    expect(rowsInsertedInto("userXp")).toHaveLength(0);
+    expect(rowsInsertedInto("xpTransactions")).toHaveLength(0);
+    // Loser does NOT re-send the completion email (gated on
+    // didTransitionToCompleted, which the conditional UPDATE
+    // returned empty for).
+    expect(sendEmailSpy).not.toHaveBeenCalled();
+    // Loser's UPDATE of the completion row must preserve monotonic
+    // passed=true AND must NOT touch evidence keys.
+    const loserCompletionUpdate = rowsUpdatedIn("userStepCompletions")[0]!.values as any;
+    expect(loserCompletionUpdate.passed).toBe(true);
+    expect(loserCompletionUpdate).not.toHaveProperty("submissionExcerpt");
+    expect(loserCompletionUpdate).not.toHaveProperty("submissionSha256");
   });
 });

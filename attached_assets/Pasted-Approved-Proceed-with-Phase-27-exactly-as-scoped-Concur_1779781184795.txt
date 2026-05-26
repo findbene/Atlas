@@ -1,0 +1,54 @@
+Approved. Proceed with Phase 27 exactly as scoped: Concurrent Submit Race Hardening / Transactional Reward Integrity.
+
+Implementation constraints:
+
+1. Keep this phase narrowly focused on /submit reward integrity.
+   - No frontend changes.
+   - No /check changes.
+   - No OpenAPI/codegen changes.
+   - No schema columns or migrations.
+   - No cert-verify enrichment.
+   - No PWA, Stripe, AI tutor, cloud credentials, content, rubric, taxonomy, archive, anchor, or Wave work.
+   - No Phase 28.
+
+2. Transactional boundary is approved:
+   - Pure grading stays outside the transaction.
+   - The side-effecting submit block goes inside db.transaction(async (tx) => ...).
+   - Use SELECT ... FOR UPDATE or equivalent tx.execute(sql`... FOR UPDATE`) for the user_step_completions row.
+   - On missing completion row, use INSERT ... ON CONFLICT DO NOTHING RETURNING, then re-select FOR UPDATE when needed.
+   - Compute wasAlreadyPassed / isFreshPass only after the locked row or conflict-safe insert path is resolved.
+   - xp_transactions INSERT must be gated only by that transactional isFreshPass decision.
+   - user_xp must use atomic arithmetic increment / upsert, not read-then-write.
+   - Keep bumpStreak and completion email outside the transaction as best-effort post-commit work.
+
+3. Preserve Phase 26 behavior:
+   - Monotonic passed remains immutable.
+   - Evidence remains first-pass-only.
+   - XP is awarded only for real first-pass transitions.
+   - Ledger row count must match real award count.
+   - Project completion still requires all required steps passed.
+   - Response shape remains unchanged.
+
+4. Tests:
+   - Add 2–3 additive regression tests in user-submit.test.ts.
+   - Mock-level concurrency tests are acceptable if the current infra cannot support a clean real Promise.all integration test.
+   - If mock-level only, add a brief comment documenting the limitation.
+   - Pin that duplicate/concurrent first-pass submits produce at most one XP ledger insert and exactly one XP increment.
+
+5. Documentation:
+   - Add a short invariant comment above /submit explaining the transactional reward boundary.
+   - On close, update HANDOFF.md and replit.md with Phase 27 summary, gates, files touched, and any remaining caveats.
+
+Required close gates:
+- typecheck clean
+- check:no-heuristic-runtime OK
+- atlas tests unchanged/green
+- api-server tests green with additive Phase 27 tests
+- curriculum-quality unchanged/green
+- execution-core unchanged/green
+- audit:pedagogy visible 56/56
+- audit:bad-completions dev: 0 bad rows
+- anchor drift 0.00
+- Architect PASS
+
+Proceed with implementation.
