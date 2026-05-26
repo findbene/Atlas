@@ -1,0 +1,76 @@
+Approved. Proceed with Phase 28 — Cert-verify Evidence Enrichment.
+
+Goal:
+Turn the public certificate verification page from a bare completion assertion into a recruiter-facing evidence summary backed by the Phase 26/27 trustworthy completion model.
+
+Scope approved:
+1. Extend /api/verify/:certId using existing data only.
+2. Extend the VerifiedCert OpenAPI schema and run codegen.
+3. Update the public verify page to render the new evidence summary.
+4. Add/extend cert-verify backend tests.
+5. Update HANDOFF.md, replit.md, and docs/phases on close.
+
+Approved evidence fields:
+- stepsCompleted
+- totalSteps
+- evidenceHashCount
+- totalXpEarned for this project
+- firstStepCompletedAt, if available
+- completedAt
+- optional completion duration/span derived from firstStepCompletedAt → completedAt
+
+Important privacy constraint:
+Do NOT return or render:
+- email
+- clerkId
+- internal user IDs
+- stripeCustomerId
+- raw submissionExcerpt
+- raw submission content
+- raw per-step submissionSha256 values
+- other-project data
+- private attempt bodies or learner workspace content
+
+It is acceptable to show an evidence hash count, but do not expose raw hashes unless we explicitly approve that later.
+
+Implementation constraints:
+- No schema changes.
+- No migrations.
+- No content/rubric/taxonomy changes.
+- No PWA work.
+- No Stripe work.
+- No AI tutor work.
+- No dashboard/profile/portfolio expansion in this phase.
+- No /check changes.
+- No /submit behavior changes unless a read-only helper is needed and does not alter behavior.
+- Keep this narrowly focused on public certificate verification.
+
+Testing requirements:
+Add/extend tests for:
+1. Valid completed certificate returns enriched fields.
+2. Incomplete or invalid certificate still returns 404, not 403.
+3. Response field allowlist prevents leakage of email, clerkId, submissionExcerpt, submission content, raw hashes, Stripe/customer fields, or unrelated project data.
+4. evidenceHashCount equals passed completion rows for that user/project where submission_sha256 is not null.
+5. stepsCompleted <= totalSteps and matches passed required-step count.
+6. totalXpEarned equals the xp_transactions project-specific sum for that user/project.
+7. Existing response fields remain backward compatible.
+
+Acceptance gates:
+- Typecheck clean.
+- OpenAPI/codegen clean.
+- api-server tests green with new cert-verify tests.
+- atlas tests green with verify page updates.
+- curriculum-quality unchanged/green.
+- execution-core unchanged/green.
+- audit:pedagogy visible 56/56.
+- audit:bad-completions dev remains 0 rows.
+- anchor drift 0.00.
+- Architect PASS.
+
+Documentation on close:
+- HANDOFF.md updated.
+- replit.md updated compactly.
+- docs/phases/phase-28-cert-verify-evidence-enrichment.md created.
+- Report files touched, tests added, final gate summary, and any caveats.
+
+Proceed with implementation.

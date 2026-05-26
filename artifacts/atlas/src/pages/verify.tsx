@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
-import { Award, CheckCircle2, XCircle, Loader2, Briefcase } from "lucide-react";
+import { Award, CheckCircle2, XCircle, Loader2, Briefcase, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface VerifiedCert {
@@ -10,7 +10,27 @@ interface VerifiedCert {
   projectTitle: string;
   projectSlug: string;
   completedAt: string;
+  firstStepCompletedAt: string | null;
+  durationSeconds: number | null;
+  stepsCompleted: number;
+  totalSteps: number;
+  evidenceHashCount: number;
+  totalXpEarned: number;
   issuer: string;
+}
+
+function formatDuration(seconds: number | null): string | null {
+  if (seconds === null || seconds < 60) return null;
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  if (days >= 1) {
+    return days === 1 && hours === 0
+      ? "1 day"
+      : `${days} day${days === 1 ? "" : "s"}${hours ? ` ${hours}h` : ""}`;
+  }
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours >= 1) return `${hours}h ${minutes}m`;
+  return `${minutes} min`;
 }
 
 type State =
@@ -120,6 +140,62 @@ export default function Verify() {
                 </p>
                 <p className="text-xs font-mono mt-1 break-all">{state.cert.certId.slice(0, 8).toUpperCase()}</p>
               </div>
+            </div>
+
+            <div
+              className="mt-6 pt-6 border-t border-border text-left"
+              data-testid="verify-evidence"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">
+                  Completion evidence recorded
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Steps completed
+                  </p>
+                  <p className="mt-1" data-testid="verify-steps">
+                    {state.cert.stepsCompleted} / {state.cert.totalSteps}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    XP earned
+                  </p>
+                  <p className="mt-1" data-testid="verify-xp">
+                    {state.cert.totalXpEarned.toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Evidence records
+                  </p>
+                  <p className="mt-1" data-testid="verify-evidence-count">
+                    {state.cert.evidenceHashCount} of {state.cert.stepsCompleted} submissions
+                  </p>
+                </div>
+                {(() => {
+                  const span = formatDuration(state.cert.durationSeconds);
+                  return span ? (
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                        Time invested
+                      </p>
+                      <p className="mt-1" data-testid="verify-duration">
+                        {span}
+                      </p>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-4 leading-relaxed">
+                Each submission is recorded as an evidence-backed completion
+                record at the time the learner passed the step. Counts only —
+                no learner submission content is exposed.
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-2 justify-center mt-8">

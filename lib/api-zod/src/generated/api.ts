@@ -1543,6 +1543,77 @@ export const GetOnboardingStateResponse = zod
   );
 
 /**
+ * Phase 28 — Public, unauthenticated certificate verification. Anyone
+with the `certId` (the `user_progress.id` UUID of a completed
+project) can confirm authenticity and view an evidence summary
+derived from the Phase 26/27 trustworthy completion model
+(step-level passed counts, evidence-hash counts, and project-scoped
+XP ledger rollup).
+
+Privacy contract: never returns `email`, `clerkId`, internal user
+IDs, Stripe identifiers, raw `submissionExcerpt`, raw submission
+content, raw per-step `submissionSha256` values, or data from any
+project other than the one the certificate is for. The
+`evidenceHashCount` is a non-leaky integer (count only).
+
+Returns 404 — never 403 — for malformed, missing, or non-completed
+certificates (no existence leak).
+
+ * @summary Public certificate verification (Phase 28)
+ */
+export const VerifyCertificateParams = zod.object({
+  certId: zod.coerce
+    .string()
+    .describe("UUID of the `user_progress` row for a completed project"),
+});
+
+export const VerifyCertificateResponse = zod
+  .object({
+    certId: zod
+      .string()
+      .describe("UUID of the user_progress row for this completion"),
+    recipientName: zod.string(),
+    recipientUsername: zod.string().nullable(),
+    projectTitle: zod.string(),
+    projectSlug: zod.string(),
+    completedAt: zod.coerce.date(),
+    firstStepCompletedAt: zod.coerce
+      .date()
+      .nullable()
+      .describe(
+        "Earliest passed step completion timestamp for this learner on\nthis project. Null when no step-completion rows exist (legacy\npre-Phase-26 completions).\n",
+      ),
+    durationSeconds: zod
+      .number()
+      .nullable()
+      .describe(
+        "completedAt − firstStepCompletedAt, in whole seconds. Null\nwhen firstStepCompletedAt is null. Clamped to ≥ 0.\n",
+      ),
+    stepsCompleted: zod
+      .number()
+      .describe(
+        "Count of distinct passed steps for this learner on this\nproject. Always ≤ totalSteps.\n",
+      ),
+    totalSteps: zod
+      .number()
+      .describe("Required step count from the project definition."),
+    evidenceHashCount: zod
+      .number()
+      .describe(
+        "Count of passed step rows whose submission_sha256 is\nnon-null. Phase 26 evidence; legacy pre-P26 rows are null and\ndo not count. Always ≤ stepsCompleted. Raw hash values are\nnever exposed.\n",
+      ),
+    totalXpEarned: zod
+      .number()
+      .describe(
+        "Sum of xp_transactions.amount for this learner scoped to this\nproject (metadata.projectId match). Reflects the Phase 26 XP\nledger; legacy pre-P26 awards (which were not ledger-written)\ncontribute 0 here.\n",
+      ),
+    issuer: zod.string(),
+  })
+  .describe(
+    "Phase 28 — Public certificate verification payload. Strictly\nnon-private; never contains email, clerkId, internal user IDs,\nStripe identifiers, raw submissions, raw evidence hashes, or\ncross-project data.\n",
+  );
+
+/**
  * Idempotent — flips `users.onboarding_completed=true` on first call;
 subsequent calls are no-ops and return the same payload.
 

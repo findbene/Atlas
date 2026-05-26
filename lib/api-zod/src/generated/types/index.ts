@@ -96,4 +96,5 @@ export * from "./userProjectStatus";
 export * from "./userProjectSummary";
 export * from "./userStats";
 export * from "./userStatsWeeklyXpItem";
+export * from "./verifiedCert";
 export * from "./webhookResponse";

@@ -9,6 +9,51 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Phase 28 — Public certificate verification payload. Strictly
+non-private; never contains email, clerkId, internal user IDs,
+Stripe identifiers, raw submissions, raw evidence hashes, or
+cross-project data.
+
+ */
+export interface VerifiedCert {
+  /** UUID of the user_progress row for this completion */
+  certId: string;
+  recipientName: string;
+  recipientUsername: string | null;
+  projectTitle: string;
+  projectSlug: string;
+  completedAt: string;
+  /** Earliest passed step completion timestamp for this learner on
+this project. Null when no step-completion rows exist (legacy
+pre-Phase-26 completions).
+ */
+  firstStepCompletedAt: string | null;
+  /** completedAt − firstStepCompletedAt, in whole seconds. Null
+when firstStepCompletedAt is null. Clamped to ≥ 0.
+ */
+  durationSeconds: number | null;
+  /** Count of distinct passed steps for this learner on this
+project. Always ≤ totalSteps.
+ */
+  stepsCompleted: number;
+  /** Required step count from the project definition. */
+  totalSteps: number;
+  /** Count of passed step rows whose submission_sha256 is
+non-null. Phase 26 evidence; legacy pre-P26 rows are null and
+do not count. Always ≤ stepsCompleted. Raw hash values are
+never exposed.
+ */
+  evidenceHashCount: number;
+  /** Sum of xp_transactions.amount for this learner scoped to this
+project (metadata.projectId match). Reflects the Phase 26 XP
+ledger; legacy pre-P26 awards (which were not ledger-written)
+contribute 0 here.
+ */
+  totalXpEarned: number;
+  issuer: string;
+}
+
 export interface ErrorResponse {
   error: string;
   message?: string;

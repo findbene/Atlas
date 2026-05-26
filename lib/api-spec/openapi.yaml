@@ -812,6 +812,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/OnboardingState"
 
+  /verify/{certId}:
+    get:
+      operationId: verifyCertificate
+      tags: [user-projects]
+      summary: Public certificate verification (Phase 28)
+      description: |
+        Phase 28 — Public, unauthenticated certificate verification. Anyone
+        with the `certId` (the `user_progress.id` UUID of a completed
+        project) can confirm authenticity and view an evidence summary
+        derived from the Phase 26/27 trustworthy completion model
+        (step-level passed counts, evidence-hash counts, and project-scoped
+        XP ledger rollup).
+
+        Privacy contract: never returns `email`, `clerkId`, internal user
+        IDs, Stripe identifiers, raw `submissionExcerpt`, raw submission
+        content, raw per-step `submissionSha256` values, or data from any
+        project other than the one the certificate is for. The
+        `evidenceHashCount` is a non-leaky integer (count only).
+
+        Returns 404 — never 403 — for malformed, missing, or non-completed
+        certificates (no existence leak).
+      parameters:
+        - in: path
+          name: certId
+          required: true
+          schema:
+            type: string
+          description: UUID of the `user_progress` row for a completed project
+      responses:
+        "200":
+          description: Certificate is valid and verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifiedCert"
+        "404":
+          description: Certificate not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /onboarding/complete:
     post:
       operationId: completeOnboarding
@@ -845,6 +887,82 @@ components:
           type: string
       required:
         - status
+
+    VerifiedCert:
+      type: object
+      description: |
+        Phase 28 — Public certificate verification payload. Strictly
+        non-private; never contains email, clerkId, internal user IDs,
+        Stripe identifiers, raw submissions, raw evidence hashes, or
+        cross-project data.
+      properties:
+        certId:
+          type: string
+          description: UUID of the user_progress row for this completion
+        recipientName:
+          type: string
+        recipientUsername:
+          type: string
+          nullable: true
+        projectTitle:
+          type: string
+        projectSlug:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+        firstStepCompletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Earliest passed step completion timestamp for this learner on
+            this project. Null when no step-completion rows exist (legacy
+            pre-Phase-26 completions).
+        durationSeconds:
+          type: integer
+          nullable: true
+          description: |
+            completedAt − firstStepCompletedAt, in whole seconds. Null
+            when firstStepCompletedAt is null. Clamped to ≥ 0.
+        stepsCompleted:
+          type: integer
+          description: |
+            Count of distinct passed steps for this learner on this
+            project. Always ≤ totalSteps.
+        totalSteps:
+          type: integer
+          description: Required step count from the project definition.
+        evidenceHashCount:
+          type: integer
+          description: |
+            Count of passed step rows whose submission_sha256 is
+            non-null. Phase 26 evidence; legacy pre-P26 rows are null and
+            do not count. Always ≤ stepsCompleted. Raw hash values are
+            never exposed.
+        totalXpEarned:
+          type: integer
+          description: |
+            Sum of xp_transactions.amount for this learner scoped to this
+            project (metadata.projectId match). Reflects the Phase 26 XP
+            ledger; legacy pre-P26 awards (which were not ledger-written)
+            contribute 0 here.
+        issuer:
+          type: string
+      required:
+        - certId
+        - recipientName
+        - recipientUsername
+        - projectTitle
+        - projectSlug
+        - completedAt
+        - firstStepCompletedAt
+        - durationSeconds
+        - stepsCompleted
+        - totalSteps
+        - evidenceHashCount
+        - totalXpEarned
+        - issuer
 
     ErrorResponse:
       type: object

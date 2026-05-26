@@ -60,6 +60,7 @@ import type {
   UserProjectProgress,
   UserProjectSummary,
   UserStats,
+  VerifiedCert,
   WebhookResponse,
 } from "./api.schemas";
 
@@ -2836,6 +2837,110 @@ export function useGetOnboardingState<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetOnboardingStateQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Phase 28 — Public, unauthenticated certificate verification. Anyone
+with the `certId` (the `user_progress.id` UUID of a completed
+project) can confirm authenticity and view an evidence summary
+derived from the Phase 26/27 trustworthy completion model
+(step-level passed counts, evidence-hash counts, and project-scoped
+XP ledger rollup).
+
+Privacy contract: never returns `email`, `clerkId`, internal user
+IDs, Stripe identifiers, raw `submissionExcerpt`, raw submission
+content, raw per-step `submissionSha256` values, or data from any
+project other than the one the certificate is for. The
+`evidenceHashCount` is a non-leaky integer (count only).
+
+Returns 404 — never 403 — for malformed, missing, or non-completed
+certificates (no existence leak).
+
+ * @summary Public certificate verification (Phase 28)
+ */
+export const getVerifyCertificateUrl = (certId: string) => {
+  return `/api/verify/${certId}`;
+};
+
+export const verifyCertificate = async (
+  certId: string,
+  options?: RequestInit,
+): Promise<VerifiedCert> => {
+  return customFetch<VerifiedCert>(getVerifyCertificateUrl(certId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getVerifyCertificateQueryKey = (certId: string) => {
+  return [`/api/verify/${certId}`] as const;
+};
+
+export const getVerifyCertificateQueryOptions = <
+  TData = Awaited<ReturnType<typeof verifyCertificate>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  certId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof verifyCertificate>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getVerifyCertificateQueryKey(certId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof verifyCertificate>>
+  > = ({ signal }) => verifyCertificate(certId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!certId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof verifyCertificate>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type VerifyCertificateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof verifyCertificate>>
+>;
+export type VerifyCertificateQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Public certificate verification (Phase 28)
+ */
+
+export function useVerifyCertificate<
+  TData = Awaited<ReturnType<typeof verifyCertificate>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  certId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof verifyCertificate>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getVerifyCertificateQueryOptions(certId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
