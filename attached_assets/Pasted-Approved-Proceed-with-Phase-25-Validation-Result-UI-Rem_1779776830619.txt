@@ -1,0 +1,82 @@
+Approved. Proceed with Phase 25 — Validation Result UI + Remediation Panel.
+
+Use the plan you produced as the implementation source of truth.
+
+Approved Phase 25 scope:
+- Frontend-only validation feedback improvement.
+- Refactor ValidationFeedbackPanel into clearer named regions:
+  - Status header
+  - Feedback region
+  - Next-action region
+- Add RemediationPanel as a sibling below ValidationFeedbackPanel.
+- Add pure remediation parser for current grading feedback strings.
+- Add expected-vs-actual / contains-missing / regex-miss / generic remediation displays.
+- Move existing hint escalation affordance into the remediation context when appropriate.
+- Add “Submit when ready” CTA after passed Check, routed through the existing submit handler.
+- Preserve provisional vs committed distinction.
+- Preserve Phase 24 check/submit state machine behavior.
+
+Important clarifications:
+- Do NOT touch lib/workspaceStepMachine.ts unless a true defect blocks Phase 25. It is a Phase 24 invariant.
+- Do NOT change grading.ts feedback strings to make parsing easier.
+- Do NOT add a new dependency for diff rendering. If diff-match-patch is already present, use it carefully; otherwise write a small local helper.
+- Do NOT change OpenAPI, codegen, server routes, schemas, migrations, validation rules, rubric, content, taxonomy, anchors, or project data.
+- Do NOT change confetti/celebration logic except to preserve and test the existing committed-submit-only gating.
+- Do NOT start Phase 26.
+- Do NOT start PWA work.
+
+Implementation tasks:
+1. Add lib/remediationParser.ts and unit tests.
+2. Add components/studio/RemediationPanel.tsx and tests.
+3. Add or update ValidationFeedbackPanel tests for:
+   - provisional tag
+   - committed attempt counter
+   - XP display only for committed submit results
+   - Submit-when-ready CTA after check_passed
+   - celebration block only when committed submit passed and projectComplete/showCelebration are true
+4. Refactor ValidationFeedbackPanel internally without breaking its public contract unless strictly necessary.
+5. Thread only the minimal data needed from StudioShell / project-workspace into RemediationPanel.
+6. Keep all Phase 24 reducer tests passing unchanged.
+7. Run full gates.
+8. Run architect review.
+9. Fix severe/high findings.
+10. Update docs, replit.md, and HANDOFF.md after gates pass.
+
+Expected tests:
+- Add parser tests for exact, contains, regex, generic, whitespace, colon/newline, missing config, and unknown validationType cases.
+- Add component tests for exact diff, contains miss, regex miss, generic fallback, no-check step types, and hidden-on-passed behavior.
+- Preserve all existing Phase 24 tests.
+
+Final gates required:
+- pnpm run typecheck clean
+- heuristic guard clean
+- atlas tests increased and passing
+- api-server tests unchanged and passing
+- curriculum-quality tests passing
+- execution-core tests passing
+- anchor drift 0.00 / 0.00
+- wave-report unchanged
+- audit:pedagogy visible unchanged
+- architect PASS
+
+Hard constraints:
+- No schema changes.
+- No API/server changes.
+- No OpenAPI/codegen changes.
+- No content changes.
+- No rubric changes.
+- No taxonomy changes.
+- No anchor changes.
+- No PWA work.
+- No Stripe/billing.
+- No AI tutor work.
+- No cloud credentials.
+- No Phase 26.
+
+After implementation:
+- If commits are allowed, commit with:
+  Phase 25: Validation feedback and remediation panel
+
+- If commits are not allowed from the main agent, report the exact git commands I should run, plus the final gate summary.
+
+Proceed in one implementation pass and report only after final gates pass or a real blocker occurs.

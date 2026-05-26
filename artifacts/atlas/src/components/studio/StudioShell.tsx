@@ -21,6 +21,7 @@ import { EditorPanel } from "./EditorPanel";
 import { EditorToolbar } from "./EditorToolbar";
 import { OutputPanel } from "./OutputPanel";
 import { ValidationFeedbackPanel } from "./ValidationFeedbackPanel";
+import { RemediationPanel } from "./RemediationPanel";
 import { DatasetRefsBar } from "./DatasetRefsBar";
 import { RunHistorySheet } from "./RunHistorySheet";
 import { AiTutorPanel } from "@/components/AiTutorPanel";
@@ -311,6 +312,13 @@ export function StudioShell(props: StudioShellProps) {
             step={currentStep}
             projectSlug={project?.slug}
             refetchKey={`${grading.status}:${grading.feedback ?? ""}`}
+            onSubmit={onSubmit}
+            submitPending={submitPending}
+          />
+          <RemediationPanel
+            feedback={grading.feedback}
+            submission={isCodeStep ? code : textAnswer}
+            hidden={grading.status !== "failed" || hideCheck}
           />
         </div>
       )}
