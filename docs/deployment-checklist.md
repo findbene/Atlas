@@ -16,6 +16,7 @@ Single source of truth for taking Atlas from "deploy-ready" (current state, end 
 - [ ] `pnpm --filter @workspace/scripts run audit:pedagogy` — visible 56/56.
 - [ ] `pnpm run check:no-heuristic-runtime` — OK (root script; delegates to `@workspace/scripts`).
 - [ ] Baseline migration present at `lib/db/drizzle/0000_phase31_baseline.sql` (+ `meta/_journal.json`, `meta/0000_snapshot.json`).
+- [ ] Confirmed: production Neon DB has been freshly provisioned (i.e., empty — no prior `db:push` or manual DDL applied). See §2 warning.
 
 ---
 
@@ -64,7 +65,24 @@ Expected output:
 [migrate] OK (NNNms)
 ```
 
-The migrate script is idempotent — re-running it against an already-current DB is a no-op (Drizzle tracks applied migrations in `drizzle.__drizzle_migrations`).
+The migrate script is idempotent **once at least one migration has been recorded** — re-running against an already-migrated DB is a no-op (Drizzle tracks applied migrations in `drizzle.__drizzle_migrations`).
+
+> **⚠ Do not run `migrate` against a `db:push`-built database.** The dev workspace was built with `pnpm --filter @workspace/db run push`, which creates schema objects without writing rows into `drizzle.__drizzle_migrations`. Running `migrate` against such a DB will fail with `42710 type "atlas_course" already exists` (or similar) because the migrator believes the baseline has not been applied and tries to recreate everything from scratch.
+>
+> This is **only** safe for genuinely empty databases — which production Neon is, by definition, on first provision.
+>
+> **Recovery (not needed for the production first-deploy path):** if you ever need to flip a push-built environment over to migrate-based, manually stamp the baseline as applied:
+> ```sql
+> CREATE SCHEMA IF NOT EXISTS drizzle;
+> CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
+>   id SERIAL PRIMARY KEY,
+>   hash text NOT NULL,
+>   created_at bigint
+> );
+> -- hash value: read from lib/db/drizzle/meta/_journal.json (the "tag" → "hash" mapping)
+> INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('<baseline-hash-from-journal>', extract(epoch from now())*1000);
+> ```
+> Then re-run `migrate`; it will see the baseline as applied and skip it.
 
 > **Why explicit, not boot-time?** Boot-time migration would couple migration health to api-server liveness — a bad migration would hard-down the app. An explicit script lets the operator see the failure, roll back the deploy, and re-run when ready. The Stripe `runMigrations` call at boot remains unchanged; it's scoped to the `stripe.*` schema (a separate package) and pre-creates the `stripe.subscription_status` ENUM to avoid collision with our `public.subscription_status`.
 
