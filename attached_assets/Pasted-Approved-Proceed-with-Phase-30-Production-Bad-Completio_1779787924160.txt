@@ -1,0 +1,87 @@
+Approved. Proceed with Phase 30 — Production Bad-Completions Audit + Remediation Planning.
+
+Goal:
+Retire the remaining production integrity unknown: determine whether any legacy user_progress.completed rows exist in production without the required passed step-completion evidence.
+
+Strict scope:
+- Read-only audit.
+- Read-only documentation.
+- No production mutations.
+- No repair script execution.
+- No demotion of completions.
+- No completedAt clearing.
+- No XP changes.
+- No certificate changes.
+- No hidden/deleted project changes.
+- No schema changes.
+- No OpenAPI/codegen changes unless only documenting script output and absolutely necessary, which should not be needed.
+- No frontend/backend route behavior changes.
+- No /check or /submit changes.
+- No PWA, Stripe, AI tutor, content, rubric, taxonomy, anchor, wave, dashboard, cert-verify, portfolio, or public-profile changes.
+
+Approved work:
+1. Run the existing audit:bad-completions logic against production using read-only DB access only.
+2. Capture:
+   - total bad-completion count
+   - project-level breakdown
+   - severity buckets, such as missing 1 step, missing multiple steps, zero passed steps
+   - whether affected projects are learner-visible or hidden/deleted
+   - whether each row has certificate-facing impact
+3. If useful, enrich the existing audit script with read-only output only:
+   - grouping summary
+   - optional CSV export
+   - no write mode
+   - no repair mode
+   - no mutation flag
+4. Create:
+   docs/phases/phase-30-bad-completions-prod-audit.md
+5. Update:
+   - HANDOFF.md
+   - replit.md compactly
+
+Production safety requirements:
+- Use read-only production credentials or a read replica.
+- If read-only access is unavailable, stop and report that explicitly.
+- Do not run against production with a user/role capable of mutation unless there is no alternative and the script itself is verified to contain no writes.
+- Do not include email, clerkId, raw submission content, raw hashes, or sensitive learner data in docs.
+- Use redacted IDs or aggregate counts in documentation.
+- Do not paste secrets, connection strings, or environment values into docs.
+
+Remediation planning only:
+If bad rows are found, produce a decision matrix with options, not code:
+A. Keep if the row is actually honest after evidence review.
+B. Demote to in_progress in a future approved repair phase.
+C. Hide from certificate/portfolio surfaces in a future approved phase.
+D. Add admin review queue in a future approved phase.
+
+For each option, document:
+- user impact
+- recruiter/certificate impact
+- data integrity impact
+- reversibility
+- required files/routes/scripts
+- risks
+- recommended choice
+
+Acceptance gates:
+- Existing tests remain green.
+- Typecheck clean.
+- check:no-heuristic-runtime OK.
+- audit:pedagogy visible remains 56/56.
+- anchor drift remains 0.00.
+- No non-documentation files changed unless the audit script is enriched in a read-only way.
+- If the script is changed, add or update tests proving it is read-only.
+- Architect review required if any script logic changes.
+- Final report must clearly state:
+  - production bad-completion count
+  - whether Phase 31 repair is needed
+  - files touched
+  - confirmation of zero production mutations
+  - confirmation that no private learner data was documented
+
+Backup option if production read-only access is unavailable:
+Switch to Phase 30B planning only:
+Real-Postgres concurrent-submit integration test hardening for Phase 27.
+Do not start that backup implementation without reporting the production-audit blocker first.
+
+Proceed with Phase 30 read-only audit and planning.
