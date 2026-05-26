@@ -1,0 +1,52 @@
+Approved. Proceed with the Phase 30B+ control-plane cleanup exactly as scoped.
+
+Approved changes:
+
+1. Create:
+   docs/phases/INDEX.md
+
+Purpose:
+- Canonical chronological index of all Atlas phases.
+- One-line title + link + short summary per phase.
+- Oldest-first ordering.
+- Keep it flat for now. Do not split into eras yet.
+
+2. Create:
+   docs/phases/phase-30-production-audit-parked.md
+
+Purpose:
+- Document that Phase 30 production bad-completions audit was attempted read-only.
+- Document that it was blocked because no production Neon database exists yet.
+- Confirm no mutations, no private data returned, and no files changed during the attempted audit.
+- State the unblock condition clearly: first deployment/provisioned production DB plus real production /submit traffic.
+- State that Phase 30B became the integrity follow-up instead.
+
+3. Trim replit.md Phase History:
+- Keep latest 8 operational phases plus a pointer to docs/phases/INDEX.md.
+- Approved kept range: Phase 23 → Phase 30B.
+- Remove older Phase 4 → Phase 22 entries from replit.md only.
+- Do not delete or alter their existing docs/phases archive files.
+- Add a clear pointer line:
+  “Latest 8 phases below. Full phase index: docs/phases/INDEX.md.”
+
+Hard constraints:
+- Documentation-only.
+- No code changes.
+- No test changes.
+- No schema changes.
+- No OpenAPI/codegen changes.
+- No frontend/backend behavior changes.
+- HANDOFF.md remains untouched and remains the live source of truth.
+- No historical detail deleted.
+- Existing docs/phases files remain unchanged except for adding INDEX.md and the Phase 30 parked note.
+
+Before editing:
+- Spot-check for any links pointing to replit.md Phase History anchors.
+- If found, repoint them to docs/phases/INDEX.md or the relevant docs/phases/phase-*.md file.
+
+After completion, report:
+- Files touched.
+- Before/after replit.md line count.
+- Confirmation HANDOFF.md was untouched.
+- Confirmation no non-documentation files changed.
+- Confirmation every phase in INDEX.md links to an existing docs/phases file.
