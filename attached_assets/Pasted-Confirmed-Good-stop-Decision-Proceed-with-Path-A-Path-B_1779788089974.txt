@@ -1,0 +1,56 @@
+Confirmed. Good stop.
+
+Decision:
+Proceed with Path A + Path B in sequence.
+
+Path A:
+Park Phase 30 — Production bad-completions audit — until Atlas has a provisioned production database and real production /submit traffic.
+
+Do not deploy just to run a tautological empty audit.
+Do not write a production-audit phase doc claiming success, because no production DB exists yet.
+Do not change HANDOFF.md as if Phase 30 shipped.
+Instead, leave the production audit as a deferred post-deploy integrity check.
+
+Path B:
+Proceed with Phase 30B planning only:
+Real-Postgres concurrent-submit integration test hardening for Phase 27.
+
+Goal:
+Close the remaining Phase 27 testing gap by designing a real PostgreSQL concurrency test that proves pg_advisory_xact_lock serializes concurrent /submit requests and prevents duplicate XP ledger inserts / lost XP updates.
+
+First task:
+Produce a read-only Phase 30B plan. Do not edit files yet.
+
+Plan must cover:
+1. Whether existing test infrastructure can run a real PostgreSQL integration test.
+2. Whether this should be a separate test script, e.g. test:integration, rather than part of the normal unit suite.
+3. Required database fixture strategy.
+4. How to seed one user, one project, required steps, progress row, and XP state.
+5. How to fire N concurrent /submit requests for the same user/project/step.
+6. Expected assertions:
+   - exactly one real first-pass award
+   - exactly one xp_transactions row for that logical first pass
+   - user_xp.totalXp increments exactly once
+   - user_step_completions has one row
+   - no 500s from duplicate insert/conflict paths
+   - final project/progress state remains coherent
+7. Whether to test same-step concurrency only or also different-step same-user concurrency.
+8. Runtime budget and CI gating strategy.
+9. How to avoid slowing the default unit test suite.
+10. Risk register and fallback if real-Postgres fixture setup is too heavy.
+
+Hard constraints:
+- Planning only first.
+- No code changes until approved.
+- No production database access.
+- No deploy.
+- No schema changes.
+- No /submit behavior changes unless the planning pass discovers a real bug and asks for approval.
+- No frontend/OpenAPI/codegen/content/rubric/taxonomy/PWA/Stripe/AI work.
+- Preserve all Phase 21–29 invariants.
+
+End with:
+- Recommended Phase 30B scope.
+- Files likely touched.
+- Acceptance gates.
+- Whether implementation should proceed.
