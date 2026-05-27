@@ -33,6 +33,7 @@ import { projects } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { PHASE12B_LEGACY_SLUG_MAP } from "./authored-lineage";
 import { getActualEnrollmentCounts } from "./lib/enrollment-check";
+import { findProjectsWithCandidates } from "./lib/candidate-check";
 
 const LEGACY_SLUGS: readonly string[] = [
   "kafka-streaming-pipeline",
@@ -134,6 +135,19 @@ async function main(): Promise<void> {
     );
   }
 
+  // Phase 40 — candidate-lineage safety gate (see archive-thin-stubs.ts for rationale).
+  const candidateLinks = await findProjectsWithCandidates(targetRows.map(r => r.id));
+  if (candidateLinks.length > 0) {
+    const lines = candidateLinks.map(({ projectId, candidateCount }) => {
+      const slug = targetRows.find(r => r.id === projectId)?.slug ?? projectId;
+      return `${slug} (candidate_rows=${candidateCount})`;
+    });
+    throw new Error(
+      `[archive-p12b] ABORT — ${candidateLinks.length} legacy row(s) are the promoted target of a project_candidates row; ` +
+      `hiding would orphan the lineage:\n  - ${lines.join("\n  - ")}`,
+    );
+  }
+
   // ── Before snapshot ───────────────────────────────────────────────────
   const allBefore = await db.query.projects.findMany({ columns: { learnerVisible: true } });
   const hiddenBefore = allBefore.filter(r => r.learnerVisible === false).length;
@@ -144,7 +158,10 @@ async function main(): Promise<void> {
   for (const slug of LEGACY_SLUGS) {
     const r = bySlug.get(slug)!;
     const upgraded = Object.entries(PHASE12B_LEGACY_SLUG_MAP).find(([k]) => k === slug)?.[1] ?? "?";
-    console.log(`  - ${slug}  steps=${r.totalSteps}  enrolled=${r.enrolledCount}  learnerVisible=${r.learnerVisible}  → upgraded twin: ${upgraded}`);
+    // Phase 40 — `staleCounter=` (not `enrolled=`) makes it explicit that
+    // this number is the denormalized display-only projects.enrolled_count
+    // field, NOT the live user_progress count used by the safety gate above.
+    console.log(`  - ${slug}  steps=${r.totalSteps}  staleCounter=${r.enrolledCount}  learnerVisible=${r.learnerVisible}  → upgraded twin: ${upgraded}`);
   }
   for (const slug of LEGACY_SLUGS) {
     const r = bySlug.get(slug)!;

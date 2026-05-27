@@ -106,23 +106,91 @@ async function main() {
 
   console.log(`[backfill-enrolled-count] updated=${updated} failed=${failed} skipped=${allProjects.length - drift.length}`);
 
-  // Verification re-read — confirm post-state matches the planned target.
-  const verify = await db.query.projects.findMany({
+  // Phase 40 — two-pass verification.
+  //
+  // Phase 39 verified post-write values against the script's INITIAL target
+  // snapshot. That caught "did my UPDATE write the value I planned?" but it
+  // could not catch the case where new enrollments landed in user_progress
+  // DURING the backfill — the writer would have correctly bumped
+  // enrolled_count, but the script's planned `after` was already stale, so a
+  // post-write check against the stale plan would (incorrectly) flag drift.
+  //
+  // Phase 40 recomputes from user_progress AGAIN here and compares the
+  // stored enrolled_count to that fresh live count. Two possible outcomes:
+  //   - Match: full convergence, even under concurrent writes.
+  //   - Mismatch: a concurrent enrollment slipped in AFTER we computed our
+  //     plan AND the writer landed (which is fine — the column reflects
+  //     reality), but our `after` plan didn't include it. We surface this
+  //     as a clear "concurrent drift detected" log, not as an error, and
+  //     suggest a re-run. A re-run is fully idempotent and will either be a
+  //     no-op (truly converged) or fix the remaining offset.
+  const verifyProjects = await db.query.projects.findMany({
     columns: { id: true, slug: true, enrolledCount: true },
   });
-  const verifyById = new Map(verify.map((p) => [p.id, p.enrolledCount ?? 0]));
-  let mismatches = 0;
-  for (const d of drift) {
-    if (verifyById.get(d.id) !== d.after) {
-      mismatches++;
-      console.error(`[backfill-enrolled-count] post-write mismatch on ${d.slug}: expected=${d.after} actual=${verifyById.get(d.id)}`);
+  const freshLive = await getActualEnrollmentCounts(verifyProjects.map((p) => p.id));
+  const storedById = new Map(verifyProjects.map((p) => [p.id, p.enrolledCount ?? 0]));
+
+  // Architect P40 fix: the first verification pass reads `stored` and
+  // `live` in two separate roundtrips, so a concurrent enrollment landing
+  // between them on a planned-mismatch row could be misclassified as a
+  // real write failure. Mitigation: for every observed mismatch, do a
+  // targeted single-project re-read of BOTH stored and live and only
+  // escalate to exit 1 if the mismatch is STABLE across the re-check.
+  // A stable mismatch means the writer truly failed (or someone clobbered
+  // our value). An unstable one is just read-skew over a concurrent write
+  // landing — exactly the case we already classify as "concurrent drift".
+  type Mismatch = { id: string; slug: string; stored: number; live: number };
+  const firstPass: Mismatch[] = [];
+  for (const p of verifyProjects) {
+    const stored = storedById.get(p.id) ?? 0;
+    const live = freshLive.get(p.id) ?? 0;
+    if (stored !== live) firstPass.push({ id: p.id, slug: p.slug, stored, live });
+  }
+
+  let stillDriftedById = 0;
+  let concurrentDrift = 0;
+  for (const m of firstPass) {
+    // Re-read this single row's stored + live in tight succession. If the
+    // mismatch resolved itself, the first read was racing a concurrent
+    // commit and the column is actually fine.
+    const reReadStoredRows = await db.query.projects.findMany({
+      columns: { enrolledCount: true }, where: eq(projects.id, m.id),
+    });
+    const reReadLive = await getActualEnrollmentCounts([m.id]);
+    const storedNow = reReadStoredRows[0]?.enrolledCount ?? 0;
+    const liveNow = reReadLive.get(m.id) ?? 0;
+
+    if (storedNow === liveNow) {
+      // First-pass read-skew over a concurrent commit; column is correct now.
+      concurrentDrift++;
+      console.warn(`[backfill-enrolled-count] transient drift on ${m.slug}: first-pass stored=${m.stored} live=${m.live}, re-read stored=${storedNow} live=${liveNow} (concurrent enrollment race; resolved)`);
+      continue;
+    }
+
+    const planned = drift.find((d) => d.id === m.id);
+    if (planned) {
+      stillDriftedById++;
+      console.error(`[backfill-enrolled-count] post-write FAILURE on ${m.slug}: re-read stored=${storedNow} live=${liveNow} planned_after=${planned.after}`);
+    } else {
+      // Stable mismatch on a row that was NOT in our plan. Most commonly this
+      // means a concurrent enrollment landed and continued moving between
+      // re-reads, but it could also indicate an external writer failure on a
+      // row we never touched. Either way the backfill itself did its job; a
+      // re-run is the right next step.
+      concurrentDrift++;
+      console.warn(`[backfill-enrolled-count] external drift during run on ${m.slug}: stored=${storedNow} live=${liveNow} (row was not in plan; re-run to converge)`);
     }
   }
-  if (mismatches > 0) {
-    console.error(`[backfill-enrolled-count] ${mismatches} post-write mismatch(es) — investigate.`);
+
+  if (stillDriftedById > 0) {
+    console.error(`[backfill-enrolled-count] ${stillDriftedById} planned row(s) failed to converge — investigate.`);
     process.exit(1);
   }
-  console.log("[backfill-enrolled-count] verified converged.");
+  if (concurrentDrift > 0) {
+    console.warn(`[backfill-enrolled-count] ${concurrentDrift} row(s) acquired enrollments mid-backfill (fully expected under live traffic). Re-run is idempotent and will converge.`);
+    process.exit(0);
+  }
+  console.log("[backfill-enrolled-count] verified converged against live user_progress.");
   process.exit(0);
 }
 

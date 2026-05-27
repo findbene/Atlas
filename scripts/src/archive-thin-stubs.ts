@@ -24,6 +24,7 @@ import { db } from "@workspace/db";
 import { projects } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { getActualEnrollmentCounts } from "./lib/enrollment-check";
+import { findProjectsWithCandidates } from "./lib/candidate-check";
 
 const ARCHIVE_SLUGS: readonly string[] = [
   // data-engineering (16)
@@ -88,6 +89,23 @@ async function main(): Promise<void> {
     throw new Error(
       `[archive] ABORT — ${violations.length} slug(s) failed the zero-exposure check; ` +
       `NO rows changed. Investigate before hiding:\n  - ${violations.join("\n  - ")}`,
+    );
+  }
+
+  // Phase 40 — candidate-lineage safety gate.
+  // Refuse to hide any project that is the promoted target of a
+  // project_candidates row. Hiding it would silently break the bidirectional
+  // lineage invariant (see replit.md § Active Invariants / Gates and
+  // scripts/src/lib/candidate-check.ts for full rationale).
+  const candidateLinks = await findProjectsWithCandidates(rows.map(r => r.id));
+  if (candidateLinks.length > 0) {
+    const lines = candidateLinks.map(({ projectId, candidateCount }) => {
+      const slug = rows.find(r => r.id === projectId)?.slug ?? projectId;
+      return `${slug} (candidate_rows=${candidateCount})`;
+    });
+    throw new Error(
+      `[archive] ABORT — ${candidateLinks.length} slug(s) are the promoted target of a project_candidates row; ` +
+      `hiding would orphan the lineage:\n  - ${lines.join("\n  - ")}`,
     );
   }
 

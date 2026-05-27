@@ -283,7 +283,11 @@ router.post("/user/projects/:projectId/enroll", requireAuth, async (req, res) =>
         .set({ enrolledCount: sql`${projects.enrolledCount} + 1` })
         .where(eq(projects.id, projectId));
     } catch (counterErr) {
-      req.log.warn({ err: counterErr, projectId }, "enrolled_count increment failed (non-fatal; run backfill:enrolled-count to reconcile)");
+      // Phase 40 — structured fields for downstream alerting/log filtering.
+      req.log.warn(
+        { err: counterErr, evt: "enrolled_count.increment_failed", route: "POST /api/user/projects/:projectId/enroll", phase: "P40", projectId, projectSlug: project.slug, userId: user.id },
+        "enrolled_count increment failed (non-fatal; run backfill:enrolled-count to reconcile)",
+      );
     }
     res.json({ id: created!.id, projectId: created!.projectId, userId: created!.userId, status: created!.status, currentStepPosition: created!.currentStep, earnedXp: 0 });
   } catch (err) {

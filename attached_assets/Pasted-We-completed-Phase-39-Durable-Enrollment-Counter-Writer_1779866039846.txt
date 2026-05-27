@@ -1,0 +1,141 @@
+We completed Phase 39: Durable Enrollment Counter Writer + Backfill.
+
+Current state:
+- projects.enrolled_count now has a durable writer.
+- Atomic SQL-level increment happens only on successful new enrollment insert.
+- Idempotent re-enroll does not double-increment.
+- 23505 race recovery does not double-increment.
+- Backfill script exists:
+  scripts/src/backfill-enrolled-count.ts
+- NPM alias exists:
+  pnpm --filter @workspace/scripts run backfill:enrolled-count
+- Dev dry-run found 9 drift rows.
+- Dev live backfill updated 9 rows.
+- Immediate re-run converged.
+- Gates green:
+  - typecheck OK
+  - no-heuristic OK
+  - api-server 278/278
+  - atlas 102/102
+  - curriculum-quality green
+  - execution-core green
+  - integration 3/3
+  - audit:authoring 56/56
+  - audit:pedagogy 56/56
+  - seed converges
+  - Architect PASS
+
+Start Phase 40.
+
+PHASE 40 — Enrollment Counter Finalization + Archive Candidate Gate
+
+Goal:
+Close the remaining Phase 39 caveats without dropping the enrolled_count column yet. Keep this small, additive, and schema-free.
+
+Do NOT drop the column in this phase.
+
+Why:
+Phase 39 made enrolled_count durable enough for display/API surfaces. Dropping it now would require migration/codegen/frontend/API churn. Before returning to project production, do a small hardening pass only.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-38-archive-safety-counter-hygiene.md
+5. docs/phases/phase-39-enrollment-counter-writer.md
+6. scripts/src/lib/enrollment-check.ts
+7. scripts/src/backfill-enrolled-count.ts
+8. artifacts/api-server/src/routes/enrollment.ts
+9. artifacts/api-server/src/routes/user.ts
+10. archive scripts touched in Phase 38
+
+Audit remaining Phase 39 risks:
+1. Backfill verification compares against planned target snapshot, not a fresh post-write user_progress recompute.
+2. Legacy route writer is byte-identical but not directly unit-tested.
+3. Older archive scripts still print cosmetic enrolled= log lines even though the value is stale/counter metadata.
+4. Archive scripts do not check project_candidates rows.
+5. Counter-write warning logs could include more useful route/context fields.
+
+Preferred implementation:
+
+A. Backfill two-pass verification
+Update backfill-enrolled-count so post-write verification recomputes actual counts from user_progress again, then compares projects.enrolled_count against that fresh source of truth.
+
+Requirement:
+- If concurrent enrollments occur during backfill, script should either converge or report a clear mismatch.
+- Keep script idempotent and safe to rerun.
+- Preserve --dry-run and --allow-prod behavior.
+
+B. Legacy enrollment route direct test
+Add at least one direct test proving the legacy enrollment route increments enrolled_count once on successful new enrollment and does not increment on idempotent re-enroll.
+
+C. Counter warning logs
+Improve non-fatal counter-write warning logs in enrollment routes:
+- include route/source
+- include projectId
+- include userId if current logging patterns allow it
+- do not leak anything sensitive beyond existing route logs
+
+D. Archive cosmetic log clarity
+Rename archive script diagnostic text from enrolled=... to staleCounter=... or similar where it refers to projects.enrolled_count display-only metadata.
+
+E. Project candidates archive gate
+Add a shared helper or direct check so archive scripts do not archive/hide a project if project_candidates rows exist for that project.
+
+Requirement:
+- Read from the real candidate table/schema if present.
+- If table/schema is absent or not relevant, document why.
+- Keep archive-by-hide behavior.
+- Do not delete rows.
+- Do not use projects.enrolled_count for archive safety.
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- Do not drop enrolled_count.
+- No production DB touch.
+- No deployment.
+- No /check changes.
+- No /submit changes.
+- No cert-verify changes.
+- No portfolio changes.
+- No billing/Stripe changes.
+- No OpenAPI/codegen changes unless absolutely unavoidable.
+- No frontend changes.
+- No project content changes.
+- No new project seeding.
+- No rubric/taxonomy/anchor/pedagogy invariant changes.
+
+Acceptance gates:
+- typecheck clean
+- api-server tests green
+- atlas tests green
+- curriculum-quality tests green
+- execution-core tests green
+- real-PG integration 3/3
+- audit:authoring 56/56
+- audit:pedagogy 56/56
+- no-heuristic OK
+- seed converges
+- backfill dry-run works
+- Architect PASS
+
+Deliverables:
+1. Backfill two-pass verification.
+2. Direct legacy route counter test.
+3. Improved counter warning logs.
+4. Archive diagnostic log clarity.
+5. Candidate-row archive safety gate if applicable.
+6. docs/phases/phase-40-enrollment-counter-finalization.md.
+7. HANDOFF.md update.
+8. replit.md update.
+9. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 40 final status
+2. exact risks closed
+3. files changed
+4. tests/gates run
+5. remaining risks
+6. recommended Phase 41
+7. suggested commit message
