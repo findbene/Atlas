@@ -1,0 +1,188 @@
+We completed Phase 44: Runtime Validation Trust Model + Signed RunResult Plan.
+
+Current state:
+
+* Phase 44 was planning-only.
+* New docs:
+
+  * docs/runtime-validation-threat-model.md
+  * docs/signed-run-result-design.md
+  * docs/phases/phase-44-runtime-validation-plan.md
+* Control plane updated:
+
+  * HANDOFF.md
+  * replit.md
+  * docs/phases/INDEX.md
+* Honest claim ceiling is H3:
+  “Atlas verified the runtime output matched the expected result.”
+* Unacceptable claims are documented.
+* Accepted residual risks A2 and A5 are documented.
+* Hard stops were respected.
+* No runtime behavior changed.
+* Architect PASS.
+
+Start Phase 45.
+
+PHASE 45 — Signed RunResult Envelope Library
+
+Goal:
+Implement the core signed RunResult envelope primitives in lib/execution-core only, with no product behavior change.
+
+This phase should create the reusable, well-tested foundation for later runtime validation. It should not wire anything into /check, /submit, frontend, OpenAPI, or project content yet.
+
+Read first:
+
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/runtime-validation-threat-model.md
+5. docs/signed-run-result-design.md
+6. docs/phases/phase-44-runtime-validation-plan.md
+7. existing lib/execution-core structure
+8. existing test patterns in lib/execution-core
+9. current RunResult-related types, if any
+
+Start with a read-only audit.
+
+Audit:
+
+1. Current execution-core package structure.
+2. Current type export patterns.
+3. Current test patterns.
+4. Whether crypto APIs are already used anywhere.
+5. Whether Node crypto is acceptable for this package.
+6. Best place for:
+
+   * RunCapture type
+   * RunEnvelope type
+   * canonicalizer
+   * signer
+   * verifier
+   * hash helpers
+7. How to keep this library server-oriented and avoid frontend bundling surprises.
+
+Implementation scope:
+
+A. Types
+Add types matching Phase 44 design:
+
+* RunCapture
+* RunEnvelope
+* SignedRunEnvelope
+* ValidationKind allow-list type if needed
+* VerificationResult
+
+RunCapture should include at minimum:
+
+* userId
+* projectId
+* stepId
+* code
+* stdout
+* stderr
+* exitCode
+* validationKind
+* issuedAt
+* expiresAt
+* nonce
+
+Envelope/hash material should include:
+
+* submissionSha256
+* outputSha256
+* canonical payload string or canonical object
+* signature
+* key id / version if useful
+
+B. Canonicalization
+Implement deterministic canonical serialization:
+
+* stable object key ordering
+* explicit handling of arrays
+* no hidden Date/string ambiguity
+* no mutation of caller input
+* consistent UTF-8 encoding expectations
+
+C. Hashing
+Implement SHA-256 helper:
+
+* stable output
+* hex or base64url format, but choose one and document it
+* test deterministic behavior
+
+D. Signing and verification
+Implement HMAC-based signing unless Phase 44 design says otherwise:
+
+* signRunEnvelope(payload, secret)
+* verifyRunEnvelope(envelope, secret, options)
+* constant-time signature comparison where practical
+* expiry check
+* project/step/user binding check if options provide expected bindings
+* nonce hook or callback shape, but do not require DB integration yet
+
+E. Tests
+Add unit tests covering:
+
+1. canonicalization is stable across object key order.
+2. arrays preserve order.
+3. signer/verifier round trip passes.
+4. tampered stdout fails.
+5. tampered code fails.
+6. tampered projectId/stepId/userId fails.
+7. expired envelope fails.
+8. wrong secret fails.
+9. malformed envelope fails safely.
+10. caller input is not mutated.
+11. signature comparison does not use plain equality if avoidable.
+12. output hash and submission hash are deterministic.
+
+Hard stops:
+
+* No /check changes.
+* No /submit changes.
+* No frontend changes.
+* No OpenAPI/codegen changes.
+* No schema changes.
+* No migrations.
+* No project content changes.
+* No seed changes.
+* No deployment.
+* No production DB.
+* No billing/Stripe/cert/portfolio changes.
+* Do not claim this proves honest execution.
+* Do not classify json_equal as enforced yet.
+* Do not change audit:authoring enforcement counts yet.
+
+Acceptance gates:
+
+* execution-core tests green with new tests.
+* typecheck clean.
+* no-heuristic OK.
+* audit:authoring remains 58/58 with same enforcement/advisory posture.
+* audit:pedagogy remains 58/58.
+* Existing api-server/atlas tests only need to run if imports or workspace typecheck indicate risk.
+* Architect PASS.
+
+Deliverables:
+
+1. RunResult envelope types.
+2. canonicalizer.
+3. hash helper.
+4. signer.
+5. verifier.
+6. unit tests.
+7. docs/phases/phase-45-signed-run-result-envelope-library.md.
+8. HANDOFF.md update.
+9. replit.md update.
+10. docs/phases/INDEX.md update.
+
+End with:
+
+1. Phase 45 final status
+2. exact primitives implemented
+3. security properties achieved
+4. what this still does not prove
+5. files changed
+6. tests/gates run
+7. recommended Phase 46
+8. suggested commit message

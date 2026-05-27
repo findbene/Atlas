@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./adapters": "./src/adapters/index.ts"
+    "./adapters": "./src/adapters/index.ts",
+    "./run-envelope": "./src/runEnvelope.ts"
   },
   "scripts": {
     "test": "vitest run",

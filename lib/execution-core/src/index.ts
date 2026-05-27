@@ -60,3 +60,13 @@ export type {
   TutorContract,
   HelpBoundary,
 } from "./tutorContract.js";
+
+// NOTE: `./runEnvelope.js` is *not* re-exported here on purpose. It imports
+// `node:crypto` and the root `index.ts` is consumed by the browser-bundled
+// `@workspace/atlas` artifact. Server callers must import the signer / verifier
+// from the dedicated subpath:
+//
+//   import { signRunEnvelope, verifyRunEnvelope } from "@workspace/execution-core/run-envelope";
+//
+// This keeps the cryptographic primitives reachable to api-server while
+// leaving the frontend bundle free of `node:crypto`.
