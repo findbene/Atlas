@@ -30,11 +30,20 @@ beforeEach(() => {
 });
 
 function mockRecommendation(rec: Rec) {
+  // Phase 33: useLearningMode refetches after a PATCH-triggered event, so
+  // the mock must reflect the new currentMode the way the real server
+  // would (otherwise the refetch reverts the optimistic update).
+  let liveCurrentMode = rec.signals.currentMode;
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     if (typeof url === "string" && url.includes("/learning-mode/recommendation")) {
-      return new Response(JSON.stringify(rec), { status: 200, headers: { "Content-Type": "application/json" } });
+      const body = { ...rec, signals: { ...rec.signals, currentMode: liveCurrentMode } };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     if (init?.method === "PATCH" && typeof url === "string" && url.includes("/learning-mode")) {
+      try {
+        const parsed = JSON.parse(init.body as string) as { mode?: string };
+        if (parsed?.mode) liveCurrentMode = parsed.mode;
+      } catch { /* leave unchanged */ }
       return new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     return new Response("nope", { status: 500 });

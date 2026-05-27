@@ -13,11 +13,12 @@
  *   - Provisional tag visible only when `provisional === true`.
  */
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Award, ChevronDown, ChevronRight, Lightbulb, Briefcase, Send } from "lucide-react";
+import { CheckCircle, XCircle, Award, ChevronDown, ChevronRight, Lightbulb, Briefcase, Send, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
 import type { GradingResult, StepVM } from "./types";
 import { useHintState } from "./useHintState";
+import type { DbLearningMode } from "./useLearningMode";
 
 type Props = {
   grading: GradingResult;
@@ -38,6 +39,14 @@ type Props = {
   /** Phase 25 — disables the in-panel Submit CTA while a submit is
    *  already in flight (parent owns the mutation pending flag). */
   submitPending?: boolean;
+  /** Phase 33 — current learning mode. `null` / undefined falls back to
+   *  the pre-P33 default (hint-style nudge button). */
+  mode?: DbLearningMode | null;
+  /** Phase 33 — in independent mode the in-panel nudge button is
+   *  rewired to ask Ada instead of revealing the next progressive
+   *  hint. Optional; if missing the panel falls back to the standard
+   *  hint-offer button. */
+  onRequestTutorNudge?: () => void;
 };
 
 export function ValidationFeedbackPanel({
@@ -50,6 +59,8 @@ export function ValidationFeedbackPanel({
   refetchKey,
   onSubmit,
   submitPending,
+  mode,
+  onRequestTutorNudge,
 }: Props) {
   const passed = grading.status === "passed";
   const { state: hintState, advance, advancing } = useHintState({
@@ -146,17 +157,30 @@ export function ValidationFeedbackPanel({
               <p className="text-sm whitespace-pre-wrap">{grading.feedback}</p>
             )}
             {!passed && hintState?.shouldOffer && hintState.canEscalate && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10 hover:text-amber-100 h-7 text-xs"
-                onClick={() => void advance()}
-                disabled={advancing}
-                data-testid="hint-offer"
-              >
-                <Lightbulb className="h-3 w-3 mr-1" />
-                Want a nudge? Reveal hint {hintState.level + 1}/{hintState.maxLevel}
-              </Button>
+              mode === "independent" && onRequestTutorNudge ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-sky-500/40 text-sky-200 hover:bg-sky-500/10 hover:text-sky-100 h-7 text-xs"
+                  onClick={onRequestTutorNudge}
+                  data-testid="independent-ada-nudge"
+                >
+                  <Bot className="h-3 w-3 mr-1" />
+                  Ask Ada for a nudge
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10 hover:text-amber-100 h-7 text-xs"
+                  onClick={() => void advance()}
+                  disabled={advancing}
+                  data-testid="hint-offer"
+                >
+                  <Lightbulb className="h-3 w-3 mr-1" />
+                  Want a nudge? Reveal hint {hintState.level + 1}/{hintState.maxLevel}
+                </Button>
+              )
             )}
             {passed && hintState?.successFeedback && (
               <div

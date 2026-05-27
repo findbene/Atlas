@@ -75,3 +75,53 @@ describe("RemediationPanel", () => {
     expect(actual.textContent).toContain("(empty)");
   });
 });
+
+describe("RemediationPanel — Phase 33 mode-aware dampening", () => {
+  it("independent mode + exact-diff renders the dampened variant (no expected echo)", () => {
+    render(
+      <RemediationPanel
+        feedback="Expected: hello world"
+        submission="hello"
+        mode="independent"
+      />,
+    );
+    expect(
+      screen.getByTestId("remediation-exact-diff-dampened"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("remediation-exact-diff")).toBeNull();
+    expect(screen.queryByTestId("remediation-expected")).toBeNull();
+    // The expected string must NOT appear verbatim anywhere in the dampened branch.
+    expect(screen.queryByText("hello world")).toBeNull();
+    // Length metadata is surfaced instead.
+    const dampened = screen.getByTestId("remediation-exact-diff-dampened");
+    expect(dampened.textContent).toMatch(/11 characters/);
+    expect(dampened.textContent).toMatch(/you produced 5/);
+    expect(dampened.textContent).toMatch(/First divergence at character 6/);
+  });
+
+  it("non-independent modes still render the full exact-diff", () => {
+    render(
+      <RemediationPanel
+        feedback="Expected: hello world"
+        submission="hello"
+        mode="guided"
+      />,
+    );
+    expect(screen.getByTestId("remediation-exact-diff")).toBeInTheDocument();
+    expect(screen.queryByTestId("remediation-exact-diff-dampened")).toBeNull();
+  });
+
+  it("independent mode does NOT dampen contains-miss (needle is intentional)", () => {
+    render(
+      <RemediationPanel
+        feedback="Your output should contain: SELECT *"
+        submission="select 1"
+        mode="independent"
+      />,
+    );
+    expect(screen.getByTestId("remediation-contains-miss")).toBeInTheDocument();
+    expect(screen.getByTestId("remediation-needle").textContent).toBe(
+      "SELECT *",
+    );
+  });
+});

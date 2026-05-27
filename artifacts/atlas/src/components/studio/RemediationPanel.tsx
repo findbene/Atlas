@@ -14,17 +14,27 @@
  */
 import { AlertTriangle, Code } from "lucide-react";
 import { parseRemediation } from "@/lib/remediationParser";
+import type { DbLearningMode } from "./useLearningMode";
 
 type Props = {
   feedback: string | null | undefined;
   submission: string | null | undefined;
   hidden?: boolean;
+  /** Phase 33 — current learning mode. In "independent" mode the
+   *  panel dampens the exact-diff branch to avoid revealing the exact
+   *  expected output, while still showing length + first-divergence
+   *  metadata so the learner has something actionable. Other branches
+   *  (`contains-miss` is already a single needle, `regex-miss` doesn't
+   *  reveal the pattern) render unchanged. */
+  mode?: DbLearningMode | null;
 };
 
-export function RemediationPanel({ feedback, submission, hidden }: Props) {
+export function RemediationPanel({ feedback, submission, hidden, mode }: Props) {
   if (hidden) return null;
   const r = parseRemediation(feedback, submission);
   if (r.kind === "generic") return null;
+
+  const dampenExactDiff = mode === "independent" && r.kind === "exact-diff";
 
   return (
     <div
@@ -38,13 +48,36 @@ export function RemediationPanel({ feedback, submission, hidden }: Props) {
         <span>How to fix this</span>
       </div>
 
-      {r.kind === "exact-diff" && (
+      {r.kind === "exact-diff" && !dampenExactDiff && (
         <div className="space-y-2" data-testid="remediation-exact-diff">
           <RemediationRow label="Expected" value={r.expected} tone="expected" />
           <RemediationRow label="Got" value={r.actual} tone="actual" />
           <p className="text-xs text-foreground/60 mt-1">
             The output must match the expected value exactly (after trimming).
           </p>
+        </div>
+      )}
+
+      {r.kind === "exact-diff" && dampenExactDiff && (
+        <div
+          className="space-y-2"
+          data-testid="remediation-exact-diff-dampened"
+        >
+          <p className="text-xs text-foreground/80">
+            Your output didn't exactly match. Re-read the step's expected
+            format — exact characters, whitespace, and casing all matter.
+          </p>
+          <div className="text-xs text-foreground/60">
+            Expected {r.expected.length} characters · you produced{" "}
+            {r.actual.length}.
+            {firstDivergenceIndex(r.expected, r.actual) >= 0 && (
+              <>
+                {" "}
+                First divergence at character{" "}
+                {firstDivergenceIndex(r.expected, r.actual) + 1}.
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -74,6 +107,18 @@ export function RemediationPanel({ feedback, submission, hidden }: Props) {
       )}
     </div>
   );
+}
+
+/** Phase 33 — small helper for the independent-mode dampened exact-diff:
+ *  reveal the position of the first character that diverges without
+ *  echoing the expected value back. Returns -1 when the strings agree
+ *  on the overlap (e.g., one is a prefix of the other). */
+function firstDivergenceIndex(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    if (a[i] !== b[i]) return i;
+  }
+  return a.length === b.length ? -1 : n;
 }
 
 function RemediationRow({

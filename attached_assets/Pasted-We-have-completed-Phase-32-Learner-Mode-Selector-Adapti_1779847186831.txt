@@ -1,0 +1,94 @@
+We have completed Phase 32: Learner Mode Selector + Adaptive Recommender.
+
+First, commit Phase 32 if it has not already been committed.
+
+Suggested commit message:
+Phase 32 learner mode selector and adaptive recommender
+
+After commit, begin Phase 33.
+
+PHASE 33 — Mode-Aware Project Workspace UX
+
+Goal:
+Now that learners can select Guided / Hint-Based / Independent / Adaptive modes, make the project workspace visibly and behaviorally respond to the selected mode.
+
+Current confirmed Phase 32 state:
+- 4-button mode picker exists in the project workspace top bar.
+- “Choose for me” adaptive recommender exists.
+- Backend mode update and recommendation endpoints exist.
+- Tutor tone and hint cadence already read learning_mode.
+- Schema changes were not needed.
+- Phase 32 gates were green.
+- Deferred items include mode-aware InstructionsPanel / RemediationPanel rendering, stronger recommendation-reason surfacing, and server-side hint endpoint mode-gating.
+
+Phase 33 scope:
+1. Inspect the current project workspace components.
+2. Identify where InstructionsPanel, RemediationPanel, hint controls, validation feedback, and Ada tutor entry points are rendered.
+3. Implement additive mode-aware UI behavior without changing schema.
+
+Required behavior:
+
+Guided Mode:
+- Show full instructions.
+- Surface a starter nudge when available.
+- Encourage use of Ada.
+- Make the mode feel beginner-safe.
+
+Hint-Based Mode:
+- Preserve current default experience.
+- Keep progressive hints visible and easy to access.
+- Make hint ladder behavior clear.
+
+Independent Mode:
+- Collapse long instructions by default.
+- Allow learner to expand instructions manually.
+- Hide hint controls until at least one failed check if possible using existing state.
+- Keep validation feedback focused, but avoid over-revealing exact answer patterns.
+- Add an “Ask Ada for a nudge” CTA instead of direct solution-style help.
+
+Adaptive Mode:
+- Show a compact badge explaining the currently recommended underlying mode.
+- Example: “Adaptive: currently using Hint-Based because you used several hints recently.”
+- Use the existing recommender endpoint where appropriate.
+- Do not create a new schema or persistent adaptive-state table.
+
+Hard constraints:
+- No schema changes unless absolutely necessary.
+- No migration.
+- No /submit integrity changes.
+- No /check contract changes.
+- No certificate, portfolio, billing, deployment, Stripe, or production changes.
+- No project mass-seeding.
+- No rubric, taxonomy, anchor, or pedagogy invariant changes.
+- Preserve Phase 26–32 invariants.
+- Keep changes additive and reversible.
+
+Testing requirements:
+- Frontend tests for each mode rendering behavior.
+- Existing ModeSelector tests remain green.
+- Existing api-server mode tests remain green.
+- Typecheck clean.
+- Atlas tests green.
+- API tests green.
+- Real-Postgres integration test remains green.
+- check:no-heuristic-runtime OK.
+- audit:pedagogy visible 56/56.
+- Architect review PASS.
+
+Deliverables:
+1. Mode-aware InstructionsPanel behavior.
+2. Mode-aware hint visibility behavior.
+3. Mode-aware RemediationPanel behavior where safe.
+4. Adaptive-mode explanation badge.
+5. Tests.
+6. docs/phases/phase-33-mode-aware-project-workspace-ux.md.
+7. HANDOFF.md update.
+8. replit.md update.
+9. docs/phases/INDEX.md update.
+
+End with:
+- summary of changes
+- files touched
+- tests run
+- risks remaining
+- recommended Phase 34

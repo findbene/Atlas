@@ -326,3 +326,4 @@ describe("ValidationFeedbackPanel — region structure", () => {
     expect(screen.getByTestId("validation-next-action")).toBeInTheDocument();
   });
 });
+

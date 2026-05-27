@@ -1,31 +1,26 @@
 /**
  * Phase 32 — Learner mode selector + adaptive "Choose for me" CTA.
+ * Phase 33 — Uses `useLearningMode` (shared) + dispatches change event
+ * so the workspace panels react immediately. Adds an Adaptive-mode
+ * badge that explains the currently recommended underlying mode.
  *
- * Self-contained. Fetches its own state from
- *   GET  /api/user/projects/:slug/learning-mode/recommendation  (also gives currentMode via signals)
- *   PATCH /api/user/projects/:slug/learning-mode
- *
- * Renders nothing while not enrolled (404 on first fetch) — keeps the
+ * Self-contained. Renders nothing while not enrolled (404) — keeps the
  * top bar uncluttered until the learner is actually in a project.
  *
  * Mode changes take effect immediately via the existing server-side
- * hint-policy (hints.ts) and AI-tutor wiring (ai.ts), both of which
- * already read user_progress.learning_mode at request time. This
- * component does NOT rewrite hint/instruction panels — that's an
- * intentional Phase 32 boundary.
+ * hint policy + AI tutor wiring (mode-aware since P4/P8), AND via the
+ * Phase-33 mode-aware UI in InstructionsPanel / ValidationFeedbackPanel
+ * / RemediationPanel (which subscribe to the same `useLearningMode`
+ * state).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
-
-type DbLearningMode = "guided" | "hint" | "independent" | "dynamic_ai_adaptive";
-
-type Recommendation = {
-  recommendedMode: DbLearningMode;
-  reasonCode: string;
-  reason: string;
-  signals: { currentMode: DbLearningMode } & Record<string, unknown>;
-};
+import {
+  useLearningMode,
+  dispatchLearningModeChanged,
+  type DbLearningMode,
+} from "./useLearningMode";
 
 const MODE_LABELS: Record<DbLearningMode, string> = {
   guided: "Guided",
@@ -35,79 +30,68 @@ const MODE_LABELS: Record<DbLearningMode, string> = {
 };
 
 const MODE_TOOLTIPS: Record<DbLearningMode, string> = {
-  guided: "Full step-by-step support — explicit instructions and proactive nudges.",
+  guided:
+    "Full step-by-step support — explicit instructions and proactive nudges.",
   hint: "Attempt first; hints unlock progressively when you get stuck.",
-  independent: "Minimal scaffolding. Portfolio-grade expectations. Ask for help on demand.",
-  dynamic_ai_adaptive: "Atlas calibrates depth based on how the work is going.",
+  independent:
+    "Minimal scaffolding. Portfolio-grade expectations. Ask for help on demand.",
+  dynamic_ai_adaptive:
+    "Atlas calibrates depth based on how the work is going.",
 };
 
-const ALL_MODES: DbLearningMode[] = ["guided", "hint", "independent", "dynamic_ai_adaptive"];
+const ALL_MODES: DbLearningMode[] = [
+  "guided",
+  "hint",
+  "independent",
+  "dynamic_ai_adaptive",
+];
 
 type Props = {
   projectSlug: string | undefined;
 };
 
 export function ModeSelector({ projectSlug }: Props) {
-  const [currentMode, setCurrentMode] = useState<DbLearningMode | null>(null);
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
-  const [enrolled, setEnrolled] = useState<boolean | null>(null);
+  const { mode: currentMode, recommendation, ready } = useLearningMode(projectSlug);
   const [pending, setPending] = useState(false);
 
-  const fetchState = useCallback(async () => {
-    if (!projectSlug) return;
-    try {
-      const r = await fetch(
-        `${import.meta.env.BASE_URL}api/user/projects/${encodeURIComponent(projectSlug)}/learning-mode/recommendation`,
-        { credentials: "include" },
-      );
-      if (r.status === 404) { setEnrolled(false); return; }
-      if (!r.ok) return;
-      const body = (await r.json()) as Recommendation;
-      setRecommendation(body);
-      setCurrentMode(body.signals.currentMode);
-      setEnrolled(true);
-    } catch {
-      // best-effort — silently hide on transport error
-    }
-  }, [projectSlug]);
-
-  useEffect(() => {
-    setRecommendation(null);
-    setCurrentMode(null);
-    setEnrolled(null);
-    void fetchState();
-  }, [fetchState]);
-
-  const setMode = useCallback(async (mode: DbLearningMode) => {
-    if (!projectSlug || pending || mode === currentMode) return;
-    setPending(true);
-    try {
-      const r = await fetch(
-        `${import.meta.env.BASE_URL}api/user/projects/${encodeURIComponent(projectSlug)}/learning-mode`,
-        {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode }),
-        },
-      );
-      if (r.ok) setCurrentMode(mode);
-    } finally {
-      setPending(false);
-    }
-  }, [projectSlug, pending, currentMode]);
+  const setMode = useCallback(
+    async (mode: DbLearningMode) => {
+      if (!projectSlug || pending || mode === currentMode) return;
+      setPending(true);
+      try {
+        const r = await fetch(
+          `${import.meta.env.BASE_URL}api/user/projects/${encodeURIComponent(projectSlug)}/learning-mode`,
+          {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode }),
+          },
+        );
+        if (r.ok) dispatchLearningModeChanged(projectSlug, mode);
+      } finally {
+        setPending(false);
+      }
+    },
+    [projectSlug, pending, currentMode],
+  );
 
   const chooseForMe = useCallback(async () => {
     if (!recommendation) return;
     await setMode(recommendation.recommendedMode);
   }, [recommendation, setMode]);
 
-  if (!projectSlug || enrolled === false || enrolled === null) return null;
+  // Hide while the fetch is in flight or when the learner isn't enrolled
+  // (mode === null after `ready`). Same self-hide behavior as P32.
+  if (!projectSlug || !ready || currentMode === null) return null;
 
   const showChooseForMe =
     recommendation !== null &&
     recommendation.reasonCode !== "stay-the-course" &&
     recommendation.recommendedMode !== currentMode;
+
+  const showAdaptiveBadge =
+    currentMode === "dynamic_ai_adaptive" && recommendation !== null;
 
   return (
     <div
@@ -115,9 +99,11 @@ export function ModeSelector({ projectSlug }: Props) {
       data-testid="mode-selector"
       aria-label="Learning mode"
     >
-      <span className="text-xs text-muted-foreground mr-1 hidden sm:inline">Mode:</span>
+      <span className="text-xs text-muted-foreground mr-1 hidden sm:inline">
+        Mode:
+      </span>
       <div className="inline-flex rounded-md border border-border bg-card/40 p-0.5">
-        {ALL_MODES.map((m) => {
+        {ALL_MODES.map(m => {
           const active = m === currentMode;
           return (
             <button
@@ -140,19 +126,30 @@ export function ModeSelector({ projectSlug }: Props) {
           );
         })}
       </div>
+      {showAdaptiveBadge && (
+        <span
+          data-testid="adaptive-mode-badge"
+          title={recommendation.reason}
+          className="text-[11px] ml-1 px-2 py-0.5 rounded bg-purple-500/10 text-purple-200 border border-purple-500/20"
+        >
+          Adaptive: using {MODE_LABELS[recommendation.recommendedMode]}
+        </span>
+      )}
       {showChooseForMe && (
         <Button
           variant="ghost"
           size="sm"
           disabled={pending}
           onClick={() => void chooseForMe()}
-          title={recommendation!.reason}
+          title={recommendation.reason}
           data-testid="mode-choose-for-me"
           className="text-xs text-amber-300 hover:text-amber-200 ml-1"
         >
-          {pending
-            ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-            : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+          )}
           Choose for me
         </Button>
       )}

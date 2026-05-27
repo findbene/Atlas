@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLearningMode } from "./useLearningMode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ResizablePanelGroup,
@@ -127,6 +128,54 @@ export function StudioShell(props: StudioShellProps) {
 
   const isMobile = useIsMobile();
   const [stepsSheetOpen, setStepsSheetOpen] = useState(false);
+
+  // Phase 33 — mode-aware UI subscribes to the same state the
+  // top-bar ModeSelector mutates (via the LEARNING_MODE_CHANGED_EVENT
+  // bridge in `useLearningMode.ts`).
+  const { mode: learningMode } = useLearningMode(project?.slug);
+
+  // Latch: once the current step has produced a failed result, remember
+  // it so the independent-mode hint suppression releases. The latch is
+  // step-scoped — stored as the step id a failure was last observed
+  // for, derived `hasFailedCheck = failedStepId === currentStep?.id`.
+  //
+  // Step-change race: the parent (`pages/project-workspace.tsx`) clears
+  // `grading` via a `dispatchStep({type:"RESET"})` in a useEffect on
+  // step change. Effects run AFTER render, so there is exactly one
+  // render where `currentStep.id` has already flipped but `grading`
+  // still holds the previous step's `failed` snapshot. We must NOT
+  // re-latch the new step from that stale snapshot.
+  //
+  // The guard: latch only on a FRESH `grading` reference. `prevGradingRef`
+  // remembers the last grading object we observed; the latch effect
+  // commits only when the reference has actually changed (a real new
+  // /check or /submit response), which by construction can only happen
+  // AFTER the parent's RESET has nulled the stale value. The latch flip
+  // is committed via useEffect (after render, never during render) —
+  // concurrent-mode safe.
+  const [failedStepId, setFailedStepId] = useState<string | null>(null);
+  const prevGradingRef = useRef<typeof grading>(grading);
+  useEffect(() => {
+    if (
+      grading !== prevGradingRef.current &&
+      grading?.status === "failed" &&
+      currentStep?.id
+    ) {
+      setFailedStepId(currentStep.id);
+    }
+    prevGradingRef.current = grading;
+  }, [grading, currentStep?.id]);
+  const hasFailedCheck =
+    failedStepId !== null && failedStepId === currentStep?.id;
+
+  // Bridge to the existing `onAskTutor(stderr)` plumbing in
+  // pages/project-workspace.tsx — that handler builds the prompt and
+  // opens the Ada side panel. Reuse it for the mode-aware nudge CTAs
+  // without changing the page contract.
+  const requestTutorNudge = () =>
+    onAskTutor(
+      "I'd like a small nudge on this step — please help me think it through without giving away the full solution.",
+    );
 
   if (!currentStep) {
     return (
@@ -263,6 +312,9 @@ export function StudioShell(props: StudioShellProps) {
             totalSteps={steps.length}
             projectSlug={project?.slug}
             refetchKey={grading?.status ? `${grading.status}:${grading.feedback ?? ""}` : currentStep.id}
+            mode={learningMode}
+            hasFailedCheck={hasFailedCheck}
+            onRequestTutorNudge={requestTutorNudge}
           />
         </TabsContent>
         {isCodeStep && (
@@ -314,11 +366,14 @@ export function StudioShell(props: StudioShellProps) {
             refetchKey={`${grading.status}:${grading.feedback ?? ""}`}
             onSubmit={onSubmit}
             submitPending={submitPending}
+            mode={learningMode}
+            onRequestTutorNudge={requestTutorNudge}
           />
           <RemediationPanel
             feedback={grading.feedback}
             submission={isCodeStep ? code : textAnswer}
             hidden={grading.status !== "failed" || hideCheck}
+            mode={learningMode}
           />
         </div>
       )}
