@@ -133,6 +133,18 @@ This is **deliberate**: most authored projects depend on Postgres / Kafka / Spar
 - Never label a contract-shaped step `'exact'` or `'contains'` to "feel more enforced". Either the server grader CAN actually check it (and then the kind tells the truth) or it can't (and then the matching kind tells the truth). The audit's enforcement breakdown surfaces the mix per catalog — silent overclaiming would be caught the first time someone re-runs `audit:authoring`.
 - The DB enum (`lib/db/src/schema/enums.ts` → `validation_type`) rejects unknown strings at insert. The classifier's `'unknown'` bucket exists for defense-in-depth and surfaces typo'd values verbatim in the audit's WARNING line so the operator can grep and fix.
 
+#### 5.1.1 Submission-shape limit (Phase 43B-prime)
+
+The Phase 42 "Contract-shaped" tier above is honest about server enforcement, but a Phase 43B audit found it understates *why*: even if a future operator added a `json_equal` arm to `lib/grading.ts`, **the `submission` payload the server receives for a `code_python` / `code_sql` / `multi_file` step is the learner's source code, not a JSON value**. A naive `JSON.parse(submission)` would throw on every one of the 174 visible `json_equal` steps (all `code_python` today) and every one of the 36 `numeric_tolerance` steps (also all `code_python`).
+
+The real fix is **not** a `grading.ts` patch — it is a multi-phase initiative (provisionally Phase 44 / Shape γ) that signs the client-captured RunResult and ships it inside `submission` so the server can verify + parse the actual program output rather than the source code. Until that ships:
+
+- `validationType: 'json_equal'` (and `'numeric_tolerance'`) on a `code_python` / `code_sql` / `multi_file` step is **acceptable and honest** — it documents the contract for human reviewers + local repro. It is NOT a publish-ready blocker.
+- The `audit:authoring` "Authoring advisories" section surfaces the per-step list under `json_equal submission-shape mismatch` (informational; does not affect `publishReady`).
+- A separate informational advisory (`Legacy validation.spec keys`) flags `validation_config.spec` payloads still using the Phase 7-era `stdoutMustEqualJson` / `stdoutMustContainShape` keys instead of the Phase 41 canonical `{ expected: {...} }` shape. No runner consumes either shape today; the advisory exists so a future normalization pass can converge them without breaking content.
+
+Authoritative helpers and unit-tested classification live in `lib/curriculum-quality/src/validationEnforcement.ts` (`jsonEqualHasSubmissionShapeMismatch`, `detectLegacyJsonEqualSpecKeys`, `NON_TEXT_SUBMISSION_STEP_TYPES`, `LEGACY_JSON_EQUAL_SPEC_KEYS`). Full rationale: `docs/phases/phase-43b-prime-json-equal-audit-warning.md`.
+
 ---
 
 ## 6. Pedagogy — required for `/api/ai/chat` + hint ladder + remediation

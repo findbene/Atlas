@@ -29,8 +29,8 @@ This is not a regression — every Phase 7+ intermediate/advanced project uses t
 | `sql_resultset`     | client-provisional      | falls through → auto-pass with generic "Step completed."             | `validateExpected` checks rows/columns/order against `expectedOutputs.rows` (DuckDB-WASM adapter) | **medium** — learner gets accurate Run feedback in the UI but Submit always passes regardless | SQL steps that produce structured tabular output; ALWAYS pair with `expectedOutputs.rows` | server grader for SQL (Phase 43+ candidate) — could re-use `validateExpected` over a serialized RunResult     |
 | `csv_set_equal`     | client-provisional      | same as `sql_resultset`                                              | same as `sql_resultset` (treats CSV as rows; multiset compare) | **medium** — same caveat                                                                     | SQL steps where row order doesn't matter; ALWAYS pair with `expectedOutputs.rows`   | same as `sql_resultset`                                                                                       |
 | `csv_ordered`       | client-provisional      | same as `sql_resultset`                                              | same as `csv_set_equal` but `validateExpected` enforces row order WHEN `expected.orderSensitive = true`; otherwise falls back to set-equal semantics — author MUST set the flag or the kind is silently downgraded | **medium** — same caveat as `csv_set_equal`, plus the orderSensitive footgun | SQL steps where row order is part of the contract (e.g. ORDER BY tests); REQUIRES `expectedOutputs.orderSensitive = true` | same as `sql_resultset` |
-| `json_equal`        | contract-shaped         | falls through → auto-pass                                            | none — Python Run path does not call `validateExpected`   | **medium** — `expectedOutputs` exists in DB but neither server nor client checks it             | Python steps emitting structured JSON; the matrix the learner sees in instructions/remediation is honest; reviewer/local repro relies on `docker-compose up` | server grader for `json_equal` (Phase 43+ candidate) — a single 30-line `JSON.parse(submission) deepEquals expectedOutputs` would cover 174 of 288 steps |
-| `numeric_tolerance` | contract-shaped         | falls through → auto-pass                                            | none                                                      | **medium** — same as `json_equal`                                                                | Python steps emitting one or more numeric values where ±epsilon matters             | server grader for `numeric_tolerance` (Phase 43+ candidate) — small JSON parse + per-key tolerance check        |
+| `json_equal`        | contract-shaped         | falls through → auto-pass                                            | none — Python Run path does not call `validateExpected`   | **medium** — `expectedOutputs` exists in DB but neither server nor client checks it             | Python steps emitting structured JSON; the matrix the learner sees in instructions/remediation is honest; reviewer/local repro relies on `docker-compose up` | **NOT a 30-LOC `grading.ts` change** — see "Submission-shape blocker" below. Real fix requires Phase 44 / Shape γ signed RunResult round-trip. |
+| `numeric_tolerance` | contract-shaped         | falls through → auto-pass                                            | none                                                      | **medium** — same as `json_equal`                                                                | Python steps emitting one or more numeric values where ±epsilon matters             | same submission-shape blocker as `json_equal` (36 of 36 authored numeric_tolerance steps are `code_python`); same Phase 44 / Shape γ fix       |
 | _(any unknown)_     | unknown                 | falls through → auto-pass                                            | none                                                      | **high** — silent misclassification; author thinks they specified a real grader                  | none; the audit surfaces "unknown" so the typo can be fixed                          | the classifier returns `'unknown'` and the audit prints the offending kind verbatim                            |
 
 ---
@@ -52,7 +52,7 @@ The two anchors of the catalog (`csv-to-postgres-pipeline`, `dbt-data-models`) a
 - The human reviewer reading the README + the `expectedOutputs` JSON.
 - A learner running locally with `docker-compose up` (which is the realistic execution environment for a Postgres+Kafka+Spark pipeline).
 
-The platform's commitment is **"this is what the right answer looks like"**, not **"the cloud judge has scored your laptop's psycopg2 run."** Phase 42 makes that boundary visible in `audit:authoring` so the next operator can choose whether to (a) implement real graders for `json_equal` / `numeric_tolerance` in `grading.ts` (which would migrate ~210 steps from contract-shaped → enforced in one commit), or (b) keep the convention and rely on the matrix + the audit summary to keep authors honest.
+The platform's commitment is **"this is what the right answer looks like"**, not **"the cloud judge has scored your laptop's psycopg2 run."** Phase 42 makes that boundary visible in `audit:authoring`. The Phase 42 close-out originally suggested option (a) would be a "one-commit `grading.ts` arm migrating ~210 steps from contract-shaped → enforced"; **Phase 43B's audit retired that claim** — see "Submission-shape blocker" below. The honest path forward is the multi-phase Phase 44 / Shape γ signed RunResult round-trip, not a `grading.ts` patch.
 
 ## When the convention IS a problem
 
@@ -72,11 +72,42 @@ When choosing a validation kind:
 
 ---
 
-## Future actions (Phase 43+)
+## Submission-shape blocker (Phase 43B-prime correction to the Phase 42 matrix)
 
-Two cleanly-separable shapes, either can ship without the other:
+The Phase 42 "future action" column originally suggested a "~30-line `JSON.parse(submission) deepEquals expectedOutputs`" arm in `lib/grading.ts` would migrate 210 of 288 steps from contract-shaped → enforced. **Phase 43B's pre-implementation audit found this estimate wrong.** Recording the correction here so no future operator burns the same cycle.
 
-- **Shape A — Implement `json_equal` + `numeric_tolerance` in the server commit-grader.** ~30 lines in `lib/grading.ts`: `JSON.parse(submission)` + `deepEquals(expected, parsed)` for `json_equal`; per-key tolerance + epsilon check for `numeric_tolerance`. Would migrate **210 of 288 steps** from contract-shaped → enforced. Requires a `test:integration`-style spot check across the 5 most-leaky steps (no silent regressions).
-- **Shape B — Implement `sql_resultset` + `csv_set_equal` on the server.** Re-use `validateExpected` on a serialized RunResult shipped from the client — server still doesn't run SQL itself, but it can verify the client-side RunResult matches `expectedOutputs.rows` and reject if the learner forged a passing payload. ~50 lines + a payload signature.
+### What the server actually receives as `submission`
 
-Both shapes preserve the current `self_attest` / `exact` / `contains` / `regex` semantics byte-for-byte.
+`artifacts/api-server/src/routes/user.ts` extracts `submission` straight from `req.body` and passes it to `gradeSubmission(step, submission)`. The Atlas frontend (`artifacts/atlas/src/pages/project-workspace.tsx` → `submissionTypeForStep`) routes by step `type`:
+
+| step `type`      | `submissionType` | `submission` body                                              |
+| ---------------- | ---------------- | -------------------------------------------------------------- |
+| `code_python`    | `"code"`         | the learner's **Python source code** as a string               |
+| `code_sql`       | `"code"`         | the learner's **SQL source** as a string                       |
+| `multi_file`     | `"text"`         | a per-file blob serialization (not a single JSON value either) |
+| `writeup`        | `"text"`         | freeform text (could be a JSON value if the learner pastes one)|
+
+**All 174 visible `json_equal` steps are `code_python`.** A naive `JSON.parse(submission)` would throw on every single one — the source code is not a JSON value, and the actual program output never reaches the server. The 36 `numeric_tolerance` steps are in the same shape (all 36 are `code_python`).
+
+### Why a "conditional parse" doesn't help
+
+`if (submissionType === 'text') JSON.parse(submission) else fallthrough` is structurally safe but functionally inert: **zero authored steps currently use `text` as the submission shape for `json_equal`**. The classifier would still report all 210 steps as contract-shaped, because the per-step matrix can't encode "depends on the per-submission shape." The audit advisories added in Phase 43B-prime (see `docs/phases/phase-43b-prime-json-equal-audit-warning.md`) surface this gap at the per-step level so the operator can target Phase 44 candidates.
+
+### The real fix
+
+**Phase 44 — Shape γ — Signed RunResult Round-Trip.** Client captures the Pyodide / DuckDB-WASM run output, signs it server-side on Run, and ships the signed envelope as part of `submission` on Submit. Server verifies the signature, parses the captured output JSON, and runs `deepEquals(expected, runResult)` for `json_equal` / per-key epsilon for `numeric_tolerance`. Touches `lib/execution-core` (RunResult signing), `/submit` route signature, OpenAPI/codegen, frontend submit handlers, and the authoring spec. Multi-phase initiative — plan separately with a pre-build decision brief and architect review BEFORE any code.
+
+**Critical trust-boundary caveat:** envelope signing alone does NOT prove the captured RunResult came from honestly executing the learner's source — a motivated client can request a signature on a forged payload after running anything (or nothing) in the local browser. Shape γ MUST publish a threat-model addendum BEFORE any code, defining what is being attested, in-scope vs out-of-scope attacks (browser-side Pyodide tampering, signature replay, expected-output exfiltration via the signing surface), and acceptable residual risk for a portfolio-grading product. Without it, Shape γ ships the appearance of enforcement while leaving the same trust gap Shape A had.
+
+Shape γ also unlocks the original Phase-42 Shape B (server-side `sql_resultset` / `csv_set_equal` verification) as a free side-effect, since the same envelope can carry SQL RunResults.
+
+---
+
+## Phase 43B-prime audit advisories (informational only)
+
+The `audit:authoring` "Authoring advisories" section reports two per-step categories that **do not** affect `publishReady`:
+
+- **`json_equal` submission-shape mismatch** — every visible step where `validation_type='json_equal'` AND step `type ∈ {code_python, code_sql, multi_file}`. Today: **174 steps across 49 projects.** These are precisely the steps that would silently misclassify if a future operator shipped a naive `grading.ts` arm without solving the submission shape first.
+- **Legacy `validation.spec` keys** — Phase 7-era `stdoutMustEqualJson` / `stdoutMustContainShape` keys instead of Phase 41 canonical `{ expected: {...} }`. Today: **3 steps in `ai-engineer-rag-baseline-pgvector`.** No runner consumes either shape; the advisory makes the divergence visible so a future normalization pass can converge them without breaking content.
+
+Authoritative helpers: `lib/curriculum-quality/src/validationEnforcement.ts` → `jsonEqualHasSubmissionShapeMismatch` + `detectLegacyJsonEqualSpecKeys` (each with full unit-test coverage).

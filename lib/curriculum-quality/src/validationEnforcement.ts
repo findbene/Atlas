@@ -177,3 +177,110 @@ export function tallyValidationKinds(
   }
   return tally;
 }
+
+// ── Phase 43B-prime — Submission-shape advisories ─────────────────────────
+//
+// Background (see `docs/phases/phase-43b-prime-json-equal-audit-warning.md`):
+// `validation_type='json_equal'` is *contract-shaped* not because the
+// grader logic is missing, but because the server NEVER receives a JSON
+// value for these steps. The Atlas frontend
+// (`artifacts/atlas/src/pages/project-workspace.tsx`) sends the learner's
+// SOURCE CODE as `submission` for `code_python` / `code_sql` / `multi_file`
+// steps. A naive `JSON.parse(submission)` would throw on 100% of authored
+// `json_equal` steps. The honest fix is signed RunResult round-trip
+// (Phase 44 / Shape γ) — out of scope for the Phase 43B-prime audit pass.
+//
+// The two helpers below power INFORMATIONAL audit advisories. They do NOT
+// affect `publishReady` and they do NOT add to `ProjectFinding`. They make
+// the gap visible per-step so the operator can target Phase 44 candidates.
+
+/**
+ * Step types whose `submission` body, as sent by the Atlas frontend, is
+ * NOT structured runtime output the server could parse + compare. Mirrors
+ * `CODE_STEP_TYPES` in `artifacts/atlas/src/pages/project-workspace.tsx`
+ * plus `multi_file` (whose submission is a per-file blob, also not a JSON
+ * value to deep-equal against `expected_outputs`).
+ *
+ * Frozen at the lib layer so the audit can detect the
+ * "json_equal + code-shaped step" mismatch without a frontend dependency.
+ * If the frontend ever starts shipping a captured RunResult as the
+ * submission for any of these step types, REMOVE that string from this
+ * set in the same commit that updates the submit path — otherwise the
+ * advisory will silently mislabel real Shape-γ rollouts as unenforced.
+ */
+export const NON_TEXT_SUBMISSION_STEP_TYPES = [
+  "code_python",
+  "code_sql",
+  "multi_file",
+] as const;
+
+export type NonTextSubmissionStepType =
+  (typeof NON_TEXT_SUBMISSION_STEP_TYPES)[number];
+
+/**
+ * True iff this (validation_type, step type) pair makes server-side
+ * `json_equal` enforcement structurally impossible under the current
+ * submission shape (Python/SQL/multi-file submissions are source-code
+ * payloads, not JSON values).
+ *
+ * Returns `false` for `validationType !== 'json_equal'` (other kinds have
+ * their own enforcement story; this helper is scoped to the Phase
+ * 43B-prime json_equal advisory).
+ */
+export function jsonEqualHasSubmissionShapeMismatch(
+  validationType: string | null | undefined,
+  stepType: string | null | undefined,
+): boolean {
+  if (validationType !== "json_equal") return false;
+  if (!stepType) return false;
+  return (NON_TEXT_SUBMISSION_STEP_TYPES as readonly string[]).includes(
+    stepType,
+  );
+}
+
+/**
+ * Phase 7-era `validation.spec` keys that pre-date the Phase 41 canonical
+ * `{ expected: {...} }` shape. The legacy keys (`stdoutMustEqualJson`,
+ * `stdoutMustContainShape`) imply "the runner should compare program
+ * stdout to this", but no runner consumes them — they are documentation
+ * only. The audit surfaces them so an author can either normalize to
+ * `{ expected }` or accept the mixed-shape contract explicitly.
+ *
+ * Found today in `scripts/src/authored/ai-engineer__rag-baseline-pgvector.ts`
+ * (3 steps total: 2 × stdoutMustEqualJson, 1 × stdoutMustContainShape).
+ */
+export const LEGACY_JSON_EQUAL_SPEC_KEYS = [
+  "stdoutMustEqualJson",
+  "stdoutMustContainShape",
+] as const;
+
+export type LegacyJsonEqualSpecKey =
+  (typeof LEGACY_JSON_EQUAL_SPEC_KEYS)[number];
+
+/**
+ * Inspect a stored `project_steps.validation_config` JSONB value and
+ * return the subset of `LEGACY_JSON_EQUAL_SPEC_KEYS` it uses.
+ *
+ * The persisted shape is `{kind, description, spec}` (see
+ * `validationConfig()` in `./authoring.ts`); the spec object is the
+ * payload the runner would read. The helper checks BOTH `spec.<key>` and
+ * the top-level `<key>` (defensive — older authored rows may have a
+ * flattened shape) and returns the matching keys in declaration order.
+ *
+ * Returns `[]` for nullish / non-object input, for an empty spec, or
+ * when only the canonical `{ expected }` key is present.
+ */
+export function detectLegacyJsonEqualSpecKeys(
+  validationConfig: unknown,
+): readonly LegacyJsonEqualSpecKey[] {
+  if (!validationConfig || typeof validationConfig !== "object") return [];
+  const top = validationConfig as Record<string, unknown>;
+  const spec =
+    top.spec && typeof top.spec === "object"
+      ? (top.spec as Record<string, unknown>)
+      : null;
+  const present = new Set<string>();
+  for (const k of Object.keys(top)) present.add(k);
+  if (spec) for (const k of Object.keys(spec)) present.add(k);
+  return LEGACY_JSON_EQUAL_SPEC_KEYS.filter((k) => present.has(k));
+}

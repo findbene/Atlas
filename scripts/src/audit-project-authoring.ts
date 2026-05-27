@@ -40,7 +40,10 @@ import {
   classifyValidationKind,
   describeEnforcement,
   tallyValidationKinds,
+  jsonEqualHasSubmissionShapeMismatch,
+  detectLegacyJsonEqualSpecKeys,
   type EnforcementStatus,
+  type LegacyJsonEqualSpecKey,
 } from "@workspace/curriculum-quality";
 
 type ProjectFinding =
@@ -63,6 +66,33 @@ type ProjectFinding =
   | "step-missing-instruction"
   | "hint-leak-suspected";
 
+/**
+ * Phase 43B-prime — Per-step submission-shape advisory. Informational only.
+ * NOT added to `ProjectFinding`; NOT counted toward `publishReady`. Exists so
+ * the audit can surface, per visible step, when a `validation_type='json_equal'`
+ * step has a step `type` whose `submission` body is learner source code (not
+ * a JSON value the server could parse). See
+ * `docs/phases/phase-43b-prime-json-equal-audit-warning.md` for why the honest
+ * fix is signed RunResult round-trip (Phase 44 / Shape γ), not a naive
+ * `JSON.parse(submission)` in `lib/grading.ts`.
+ */
+type JsonEqualSubmissionShapeAdvisory = {
+  stepNumber: number;
+  stepType: string | null;
+};
+
+/**
+ * Phase 43B-prime — Per-step spec-shape advisory. Flags `validation_config`
+ * payloads that use the Phase 7-era `stdoutMustEqualJson` /
+ * `stdoutMustContainShape` keys instead of the Phase 41 canonical
+ * `{ expected: {...} }` shape. Informational; same NOT-in-publishReady
+ * treatment as the submission-shape advisory above.
+ */
+type ValidationSpecShapeAdvisory = {
+  stepNumber: number;
+  legacyKeys: readonly LegacyJsonEqualSpecKey[];
+};
+
 type ProjectReport = {
   slug: string;
   title: string;
@@ -75,6 +105,10 @@ type ProjectReport = {
    * enforcement-breakdown section of the audit summary. NOT used in any
    * publish-ready finding; reported as informational metadata only. */
   validationTypes: Array<string | null>;
+  /** Phase 43B-prime — informational only; never affects publishReady. */
+  jsonEqualSubmissionShapeAdvisories: JsonEqualSubmissionShapeAdvisory[];
+  /** Phase 43B-prime — informational only; never affects publishReady. */
+  validationSpecShapeAdvisories: ValidationSpecShapeAdvisory[];
 };
 
 const MIN_STEPS = 4;
@@ -123,6 +157,8 @@ async function auditProject(
       findings,
       publishReady: false,
       validationTypes: [],
+      jsonEqualSubmissionShapeAdvisories: [],
+      validationSpecShapeAdvisories: [],
     };
   }
 
@@ -144,6 +180,9 @@ async function auditProject(
   }
 
   let allSelfAttest = true;
+  // Phase 43B-prime — informational, NOT findings, NOT in publishReady.
+  const jsonEqualSubmissionShapeAdvisories: JsonEqualSubmissionShapeAdvisory[] = [];
+  const validationSpecShapeAdvisories: ValidationSpecShapeAdvisory[] = [];
   for (const step of steps) {
     if (!step.validationType) findings.push("step-missing-validation-type");
     if (step.validationType !== "self_attest") allSelfAttest = false;
@@ -163,6 +202,23 @@ async function auditProject(
     if (hintLeakSuspected(cfg, step.expectedOutputs)) {
       findings.push("hint-leak-suspected");
     }
+    // Phase 43B-prime — submission-shape advisory (json_equal + code step).
+    // `project_steps.type` (column name `type`) holds the step-type string.
+    const stepType = (step as { type?: string | null }).type ?? null;
+    if (jsonEqualHasSubmissionShapeMismatch(step.validationType, stepType)) {
+      jsonEqualSubmissionShapeAdvisories.push({
+        stepNumber: step.stepNumber,
+        stepType,
+      });
+    }
+    // Phase 43B-prime — spec-shape advisory (legacy Phase-7 keys).
+    const legacyKeys = detectLegacyJsonEqualSpecKeys(step.validationConfig);
+    if (legacyKeys.length > 0) {
+      validationSpecShapeAdvisories.push({
+        stepNumber: step.stepNumber,
+        legacyKeys,
+      });
+    }
   }
   if (allSelfAttest && steps.length > 0) findings.push("all-steps-self-attest");
 
@@ -178,6 +234,8 @@ async function auditProject(
     findings: dedupedFindings,
     publishReady: dedupedFindings.length === 0,
     validationTypes: steps.map((s) => s.validationType ?? null),
+    jsonEqualSubmissionShapeAdvisories,
+    validationSpecShapeAdvisories,
   };
 }
 
@@ -296,8 +354,62 @@ async function main() {
     }
   }
 
+  // --- Phase 43B-prime — Authoring advisories (informational only) ----------
+  //
+  // Two per-step advisory categories that DO NOT affect publishReady and DO
+  // NOT add a `ProjectFinding`. They exist so the operator can see, before
+  // any Phase-44 runtime work begins, exactly which steps the existing
+  // contract-shape classification understates the gap on:
+  //
+  //   (1) json_equal + code-shaped step type — server CANNOT enforce because
+  //       `submission` is learner source code, not a JSON value.
+  //   (2) validation.spec uses Phase 7-era `stdoutMustEqualJson` /
+  //       `stdoutMustContainShape` keys — divergent from the Phase 41
+  //       canonical `{ expected: {...} }` payload shape.
+  //
+  // See `docs/phases/phase-43b-prime-json-equal-audit-warning.md` for the
+  // full rationale and why this is documented-only (no grading.ts edit).
+  const submissionAdvisoryProjects = visible.filter(
+    (r) => r.jsonEqualSubmissionShapeAdvisories.length > 0,
+  );
+  const submissionAdvisoryStepTotal = submissionAdvisoryProjects.reduce(
+    (acc, r) => acc + r.jsonEqualSubmissionShapeAdvisories.length,
+    0,
+  );
+  const specShapeAdvisoryProjects = visible.filter(
+    (r) => r.validationSpecShapeAdvisories.length > 0,
+  );
+  const specShapeAdvisoryStepTotal = specShapeAdvisoryProjects.reduce(
+    (acc, r) => acc + r.validationSpecShapeAdvisories.length,
+    0,
+  );
+
+  console.log("\n  Authoring advisories (informational — NOT publishReady gates):");
   console.log(
-    "\nNote: read-only audit. No data was modified. See `docs/project-authoring-spec.md` for the contract this report checks against, and `docs/validation-kind-matrix.md` for the Phase 42 enforcement contract behind the breakdown section above.\n",
+    `    json_equal submission-shape mismatch:    ${submissionAdvisoryStepTotal} steps across ${submissionAdvisoryProjects.length} projects`,
+  );
+  console.log(
+    `      (validation_type='json_equal' on a step.type whose submission body is source code, not JSON — server cannot JSON.parse it. Honest fix: Phase 44 / Shape γ signed RunResult round-trip.)`,
+  );
+  console.log(
+    `    Legacy validation.spec keys (Phase 7-era): ${specShapeAdvisoryStepTotal} steps across ${specShapeAdvisoryProjects.length} projects`,
+  );
+  console.log(
+    `      (validation_config.spec uses stdoutMustEqualJson / stdoutMustContainShape instead of the Phase 41 canonical { expected: {...} } shape. No runner reads these keys today.)`,
+  );
+
+  if (specShapeAdvisoryProjects.length > 0) {
+    console.log("\n    Projects with legacy spec-shape keys:");
+    for (const r of specShapeAdvisoryProjects) {
+      const detail = r.validationSpecShapeAdvisories
+        .map((a) => `step ${a.stepNumber} [${a.legacyKeys.join(", ")}]`)
+        .join("; ");
+      console.log(`      - ${r.slug}: ${detail}`);
+    }
+  }
+
+  console.log(
+    "\nNote: read-only audit. No data was modified. See `docs/project-authoring-spec.md` for the contract this report checks against, `docs/validation-kind-matrix.md` for the Phase 42 enforcement contract behind the breakdown section, and `docs/phases/phase-43b-prime-json-equal-audit-warning.md` for the Phase 43B-prime advisory rationale.\n",
   );
 
   process.exit(0);

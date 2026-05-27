@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ENFORCEMENT_VALIDATION_KINDS,
+  LEGACY_JSON_EQUAL_SPEC_KEYS,
+  NON_TEXT_SUBMISSION_STEP_TYPES,
   classifyValidationKind,
   describeEnforcement,
+  detectLegacyJsonEqualSpecKeys,
+  jsonEqualHasSubmissionShapeMismatch,
   tallyValidationKinds,
 } from "./validationEnforcement";
 
@@ -89,5 +93,113 @@ describe("tallyValidationKinds", () => {
 
   it("returns an empty map for an empty input", () => {
     expect(tallyValidationKinds([]).size).toBe(0);
+  });
+});
+
+// ── Phase 43B-prime — submission-shape advisories ────────────────────────
+
+describe("NON_TEXT_SUBMISSION_STEP_TYPES", () => {
+  it("contains exactly the 3 step types whose submission is source code, not JSON output", () => {
+    expect([...NON_TEXT_SUBMISSION_STEP_TYPES].sort()).toEqual([
+      "code_python",
+      "code_sql",
+      "multi_file",
+    ]);
+  });
+});
+
+describe("jsonEqualHasSubmissionShapeMismatch", () => {
+  it("flags json_equal with each code-shaped step type", () => {
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "code_python")).toBe(true);
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "code_sql")).toBe(true);
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "multi_file")).toBe(true);
+  });
+
+  it("does NOT flag json_equal with writeup (text submission — server can JSON.parse)", () => {
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "writeup")).toBe(false);
+  });
+
+  it("returns false for any non-json_equal validation kind", () => {
+    expect(jsonEqualHasSubmissionShapeMismatch("exact", "code_python")).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("numeric_tolerance", "code_python")).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("sql_resultset", "code_sql")).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("self_attest", "code_python")).toBe(false);
+  });
+
+  it("returns false for nullish inputs (defensive)", () => {
+    expect(jsonEqualHasSubmissionShapeMismatch(null, "code_python")).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch(undefined, "code_python")).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", null)).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", undefined)).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "")).toBe(false);
+  });
+
+  it("returns false for an unknown step type (defensive — only flags KNOWN code-shaped types)", () => {
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "freeform")).toBe(false);
+    expect(jsonEqualHasSubmissionShapeMismatch("json_equal", "code_haskell")).toBe(false);
+  });
+});
+
+describe("detectLegacyJsonEqualSpecKeys", () => {
+  it("detects stdoutMustEqualJson at spec level", () => {
+    expect(
+      detectLegacyJsonEqualSpecKeys({
+        kind: "json_equal",
+        description: "x",
+        spec: { stdoutMustEqualJson: { foo: 1 } },
+      }),
+    ).toEqual(["stdoutMustEqualJson"]);
+  });
+
+  it("detects stdoutMustContainShape at spec level", () => {
+    expect(
+      detectLegacyJsonEqualSpecKeys({
+        kind: "json_equal",
+        description: "x",
+        spec: { stdoutMustContainShape: { foo: 1 } },
+      }),
+    ).toEqual(["stdoutMustContainShape"]);
+  });
+
+  it("detects BOTH legacy keys when present in the same spec", () => {
+    expect(
+      detectLegacyJsonEqualSpecKeys({
+        spec: {
+          stdoutMustEqualJson: { a: 1 },
+          stdoutMustContainShape: { b: 2 },
+        },
+      }),
+    ).toEqual(["stdoutMustEqualJson", "stdoutMustContainShape"]);
+  });
+
+  it("detects legacy keys flattened at the top level (defensive)", () => {
+    expect(
+      detectLegacyJsonEqualSpecKeys({ stdoutMustEqualJson: { foo: 1 } }),
+    ).toEqual(["stdoutMustEqualJson"]);
+  });
+
+  it("returns [] for the canonical { expected } shape", () => {
+    expect(
+      detectLegacyJsonEqualSpecKeys({
+        kind: "json_equal",
+        description: "x",
+        spec: { expected: { foo: 1 } },
+      }),
+    ).toEqual([]);
+  });
+
+  it("returns [] for empty / nullish / non-object input", () => {
+    expect(detectLegacyJsonEqualSpecKeys(null)).toEqual([]);
+    expect(detectLegacyJsonEqualSpecKeys(undefined)).toEqual([]);
+    expect(detectLegacyJsonEqualSpecKeys({})).toEqual([]);
+    expect(detectLegacyJsonEqualSpecKeys("")).toEqual([]);
+    expect(detectLegacyJsonEqualSpecKeys(42)).toEqual([]);
+  });
+
+  it("returns the constant key strings (not author-typed variants)", () => {
+    const out = detectLegacyJsonEqualSpecKeys({
+      spec: { stdoutMustEqualJson: {} },
+    });
+    expect(LEGACY_JSON_EQUAL_SPEC_KEYS).toContain(out[0]!);
   });
 });
