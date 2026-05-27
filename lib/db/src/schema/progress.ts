@@ -150,6 +150,22 @@ export const userProjectStepHints = pgTable("user_project_step_hints", {
   index('user_step_hints_user_idx').on(t.userId),
 ]);
 
+// Phase 46 — Signed RunResult nonce store. Each row is a single-use nonce
+// emitted by `signRunEnvelope` and consumed by the verifier (Phase 47+).
+// Minimal shape per docs/signed-run-result-design.md §"Nonce store":
+// (nonce text PK, expires_at timestamptz). The expires_at index supports the
+// nightly janitor (`scripts/cleanup-run-envelope-nonces.ts`). No FK to
+// users/projects — the nonce is opaque and self-contained inside the signed
+// envelope binding; an INSERT-only contract keeps verification cheap and lets
+// the table be truncated safely without losing learner data.
+export const runEnvelopeNonces = pgTable("run_envelope_nonces", {
+  nonce: text("nonce").primaryKey(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('run_envelope_nonces_expires_at_idx').on(t.expiresAt),
+]);
+
 export const insertUserProgressSchema = createInsertSchema(userProgress).omit({ id: true });
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;

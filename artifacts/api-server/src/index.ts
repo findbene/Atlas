@@ -58,6 +58,22 @@ async function initStripe(): Promise<void> {
   }
 }
 
+// Phase 46 — signed-run-envelope secret. Hard-fail at boot when deployed so
+// missing-secret deploys never serve a 503-only /api/runs/sign. In dev the
+// route degrades to 503 until the operator sets the secret.
+function assertRunEnvelopeSigningSecret(): void {
+  if (process.env["RUN_ENVELOPE_SIGNING_SECRET"]) return;
+  if (process.env["REPLIT_DEPLOYMENT"] === "1") {
+    throw new Error(
+      "RUN_ENVELOPE_SIGNING_SECRET is required in production deployments (Phase 46).",
+    );
+  }
+  logger.warn(
+    "RUN_ENVELOPE_SIGNING_SECRET unset — POST /api/runs/sign will return 503 until set (Phase 46).",
+  );
+}
+assertRunEnvelopeSigningSecret();
+
 await initStripe();
 
 app.listen(port, (err) => {

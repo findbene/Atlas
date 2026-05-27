@@ -1,0 +1,217 @@
+We completed Phase 45: Signed RunResult Envelope Library.
+
+Current state:
+
+* New server-only signed envelope primitives exist in execution-core.
+* Export path is server-only:
+  @workspace/execution-core/run-envelope
+* Root barrel intentionally does not export run-envelope primitives, to avoid node:crypto leaking into the Atlas frontend bundle.
+* atlas frontend build passes.
+* execution-core tests: 83/83.
+* full typecheck clean.
+* no-heuristic OK.
+* curriculum-quality 93/93 unchanged.
+* audit:authoring 58/58 unchanged.
+* audit:pedagogy 58/58 unchanged.
+* No runtime product behavior changed.
+* Honest claim ceiling remains H3:
+  “Atlas verified the runtime output matched the expected result.”
+
+Start Phase 46.
+
+PHASE 46 — Run Signing API + Nonce Store, No Submit Integration
+
+Goal:
+Create the backend signing endpoint and replay-protection storage needed for signed RunResult validation, without changing /submit completion semantics yet.
+
+This phase should expose a controlled POST /api/runs/sign endpoint that signs runtime captures using the Phase 45 envelope library.
+
+Do not wire signed envelopes into /submit in this phase.
+Do not reclassify json_equal as enforced in this phase.
+
+Read first:
+
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/runtime-validation-threat-model.md
+5. docs/signed-run-result-design.md
+6. docs/phases/phase-44-runtime-validation-plan.md
+7. docs/phases/phase-45-signed-run-result-envelope-library.md
+8. lib/execution-core/src/runEnvelope.ts
+9. @workspace/execution-core/run-envelope export configuration
+10. current API route patterns
+11. current auth middleware patterns
+12. current DB schema/migration patterns
+13. existing OpenAPI/codegen workflow
+14. existing janitor/cleanup scripts if any
+
+Start with a read-only audit.
+
+Audit:
+
+1. Where best to place runs route.
+2. How authenticated routes currently resolve userId.
+3. How project/step ownership/enrollment is checked.
+4. What table should store used/issued nonces.
+5. Whether Phase 46 requires a migration.
+6. Existing migration conventions after Phase 31.
+7. Secret management pattern for signing key.
+8. OpenAPI/codegen requirements.
+9. Test patterns for authenticated API routes.
+10. Failure modes:
+
+* unauthenticated request
+* missing signing secret
+* invalid payload
+* wrong user/project/step
+* expired capture
+* duplicate nonce
+* unsupported validation kind
+
+Expected implementation:
+
+A. Database / nonce storage
+Add the minimum table needed for replay protection, if required by the Phase 44 design.
+
+Suggested table concept:
+run_result_nonces or run_envelopes
+
+Fields may include:
+
+* id
+* nonce
+* userId
+* projectId
+* stepId
+* submissionSha256
+* outputSha256
+* issuedAt
+* expiresAt
+* usedAt or consumedAt if relevant
+* createdAt
+
+Rules:
+
+* nonce must be unique.
+* rows should expire.
+* no raw learner code should be stored.
+* no raw stdout/stderr should be stored unless absolutely necessary.
+* prefer hashes and metadata only.
+
+B. POST /api/runs/sign
+Authenticated endpoint.
+
+Input:
+
+* RunCapture-like payload:
+
+  * projectId or projectSlug
+  * stepId
+  * code
+  * stdout
+  * stderr
+  * exitCode
+  * validationKind
+  * nonce or server-generated nonce depending on design
+
+Behavior:
+
+* authenticate user
+* verify user is enrolled in / allowed to access project
+* verify step belongs to project
+* verify validation kind is in allow-list
+* compute submission/output hashes server-side
+* generate or validate nonce
+* sign envelope using Phase 45 library
+* persist nonce metadata for replay protection
+* return signed envelope
+
+C. Signing secret
+Use an environment variable such as RUN_ENVELOPE_HMAC_SECRET.
+
+Rules:
+
+* fail closed if missing in non-test runtime.
+* tests may inject deterministic secret.
+* do not log secret.
+* do not commit secret.
+
+D. Janitor / expiry
+If table is added, add either:
+
+* cleanup helper/script, or
+* documented future janitor if implementation is out of scope.
+
+Prefer a small cleanup script if easy.
+
+E. OpenAPI / codegen
+If the endpoint is public to frontend clients, update OpenAPI and run codegen.
+
+F. Tests
+Add tests for:
+
+1. unauthenticated request rejected.
+2. missing/invalid payload rejected.
+3. missing signing secret fails closed.
+4. valid request returns signed envelope.
+5. returned envelope verifies using Phase 45 verifier.
+6. signed envelope binds user/project/step.
+7. wrong step/project rejected.
+8. unsupported validation kind rejected.
+9. nonce uniqueness / replay behavior.
+10. no raw code/output stored in DB nonce table if table exists.
+
+Hard stops:
+
+* Do not wire this into /submit.
+* Do not wire this into /check unless the design explicitly requires a no-op/non-completion helper and Architect agrees.
+* Do not change existing completion, XP, certificate, or portfolio behavior.
+* Do not reclassify json_equal as enforced.
+* Do not change project content.
+* Do not seed projects.
+* Do not deploy.
+* Do not touch production DB.
+* Do not store raw code/stdout/stderr in persistent DB unless explicitly justified and approved.
+* Do not weaken Phase 45 server-only export boundary.
+* Do not make frontend bundle import node:crypto.
+* Do not overclaim honest-execution proof.
+
+Acceptance gates:
+
+* migration generated if schema table is added.
+* typecheck clean.
+* api-server tests green.
+* execution-core tests green.
+* atlas build passes.
+* OpenAPI/codegen clean if endpoint is added.
+* no-heuristic OK.
+* audit:authoring remains 58/58 with same enforcement/advisory posture.
+* audit:pedagogy remains 58/58.
+* integration 3/3.
+* Architect PASS.
+
+Deliverables:
+
+1. Read-only design audit.
+2. nonce/replay storage if required.
+3. POST /api/runs/sign endpoint.
+4. signing secret handling.
+5. tests.
+6. OpenAPI/codegen update if applicable.
+7. docs/phases/phase-46-run-signing-api.md.
+8. HANDOFF.md update.
+9. replit.md update.
+10. docs/phases/INDEX.md update.
+
+End with:
+
+1. Phase 46 final status
+2. endpoint behavior
+3. nonce/replay behavior
+4. security properties achieved
+5. what still is not proven
+6. files changed
+7. tests/gates run
+8. recommended Phase 47
+9. suggested commit message

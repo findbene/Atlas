@@ -33,6 +33,7 @@
     "backfill:phase20-candidates": "tsx ./src/backfill-phase20-candidates.ts",
     "backfill:phase41-candidates": "tsx ./src/backfill-phase41-candidates.ts",
     "backfill:enrolled-count": "tsx ./src/backfill-enrolled-count.ts",
+    "cleanup:run-envelope-nonces": "tsx ./src/cleanup-run-envelope-nonces.ts",
     "audit:difficulty": "tsx ./src/audit-difficulty.ts",
     "audit:bad-completions": "tsx ./src/audit-bad-completions.ts",
     "audit:difficulty-labels": "tsx ./src/audit-difficulty-labels.ts",

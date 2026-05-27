@@ -1,140 +1,145 @@
 # HANDOFF
 
-**Latest shipped phase:** Phase 45 — Signed RunResult Envelope Library (`lib/execution-core` only; zero callers wired).
-**Working tree:** clean after `phase-45: signed RunResult envelope library (execution-core)`.
-**Parent commit:** `f2dbef9` (Phase 44 close — runtime-validation threat model + design + plan).
+**Latest shipped phase:** Phase 46 — Run Signing API + Nonce Store (no `/submit` wiring).
+**Working tree:** clean after `phase-46: run signing api + nonce store`.
+**Parent commit:** `6818cc5` (Phase 45 close — signed RunResult envelope library).
 
 ---
 
-## Phase 45 summary
+## Phase 46 summary
 
-First implementation phase of the Phase 44 Shape γ plan. Lands the reusable, well-tested envelope primitives inside `lib/execution-core` and stops there. Nothing else in the repo was touched, no behavior changed, no migration, no route, no OpenAPI/codegen. Reversible by reverting this commit.
+Second implementation phase of the Phase 44 Shape γ plan. Lands the first server-side caller of the Phase 45 envelope library: authenticated `POST /api/runs/sign` that mints a `SignedRunEnvelope` for a learner's runtime capture, plus the empty `run_envelope_nonces` Postgres table + janitor that Phase 47's verifier will INSERT into. Zero grading change, zero `/submit` wiring, zero frontend wiring, zero OpenAPI surface — the route is reachable but inert because nothing else verifies envelopes yet.
 
 ### What landed
 
-One new module pair inside `lib/execution-core` exposed via a dedicated server-only subpath export (`@workspace/execution-core/run-envelope`). The root barrel is deliberately untouched so the atlas frontend bundle stays free of `node:crypto`:
-
 | File | Role |
 |---|---|
-| `lib/execution-core/src/runEnvelope.ts` (new) | Types + canonicalizer + sha256 helper + HMAC signer + verifier. |
-| `lib/execution-core/src/runEnvelope.test.ts` (new) | 45 vitest assertions across all 12 ticket scenarios plus tamper / replay / version-taxonomy / malformed coverage. |
-| `lib/execution-core/package.json` (edited) | New `"./run-envelope"` subpath export. |
-| `lib/execution-core/src/index.ts` (edited) | Documentation comment; the root barrel deliberately does NOT re-export the envelope module — server callers import from `@workspace/execution-core/run-envelope` so the atlas frontend bundle stays free of `node:crypto`. |
+| `artifacts/api-server/src/routes/runs-sign.ts` (new) | `POST /api/runs/sign` route handler. Separate file from legacy debug-aid `runs.ts` to keep concerns isolated. |
+| `artifacts/api-server/src/routes/runs-sign.test.ts` (new) | 25 vitest assertions: secret-missing → 503; **explicit 401 when `getCurrentUser` returns null** (architect-driven fix); body validation; size caps; ownership gates (foreign step / hidden / premium / not enrolled); allow-list (4 unsignable kinds → 422, 5 signable → 200); real round-trip with `verifyRunEnvelope`; TTL exact; server-is-sole-hash-authority. |
+| `artifacts/api-server/src/routes/index.ts` (edited) | Registered `runsSignRouter`. |
+| `artifacts/api-server/src/index.ts` (edited) | `assertRunEnvelopeSigningSecret()` — boot-time hard-fail when `REPLIT_DEPLOYMENT === '1'` and the secret is unset; warn in dev. |
+| `lib/db/src/schema/progress.ts` (edited) | New `runEnvelopeNonces` table: `(nonce text PK, expires_at timestamptz, created_at timestamptz default now())` + `expires_at` index. |
+| `lib/db/drizzle/0001_phase46_run_envelope_nonces.sql` (new) | Hand-written DDL migration (matches drizzle-kit output shape; applied via `pnpm --filter @workspace/scripts run migrate`). |
+| `lib/db/drizzle/meta/_journal.json` (edited) | +1 entry for idx 1. |
+| `scripts/src/cleanup-run-envelope-nonces.ts` (new) | Nightly janitor: `DELETE WHERE expires_at < NOW()`. Idempotent. |
+| `scripts/package.json` (edited) | `cleanup:run-envelope-nonces` npm alias. |
+| `docs/phases/phase-46-run-signing-api-and-nonce-store.md` (new) | Close-out. |
 
-### Primitives implemented
+### Route contract
 
-```text
-canonicalize(value: unknown): string
-sha256Hex(input: string): string
-computeOutputSha256(capture: RunCapture): string
-signRunEnvelope(capture, bindingInput, secret): SignedRunEnvelope
-verifyRunEnvelope(envelope, options): Promise<VerificationResult>
+```
+POST /api/runs/sign
+Auth: required (Clerk)
+Body: { projectId: uuid, stepId: uuid, capture: RunCapture }
+TTL:  600_000 ms (10 minutes)
+
+200 → { envelope: SignedRunEnvelope }
+400 → invalid_projectId | invalid_stepId | invalid_capture | sign_failed
+401 → Unauthorized
+403 → pro_required | not_enrolled
+404 → step_not_found | project_not_found  (hidden = 404, no existence leak)
+413 → capture_too_large  (code ≤ 32KB, stdout/stderr ≤ 64KB UTF-8 bytes via Buffer.byteLength; rows ≤ 5000, cols ≤ 256)
+422 → validation_kind_not_signable  (self_attest / exact / regex / contains)
+503 → signing_unavailable  (RUN_ENVELOPE_SIGNING_SECRET unset)
 ```
 
-Types: `RunCapture`, `EnvelopeBinding`, `SignedRunEnvelope`, `SignBindingInput`,
-`VerifyOptions`, `VerificationResult` (discriminated `Ok | Err`),
-`VerificationFailureReason`, `RunEnvelopeVersion`, `RunCaptureLanguage`,
-`ValidationKindString`.
+Signable validation kinds (allow-list): `json_equal`, `numeric_tolerance`, `sql_resultset`, `csv_set_equal`, `csv_ordered`. Unsignable kinds have no runtime output to hash; 422 by design.
 
-### Security invariants enforced (each asserted by at least one named test)
+### Nonce table (minimal per design doc §"Nonce store")
 
-- **S1 Server is the sole hash authority.** `signRunEnvelope` ignores pre-supplied hash values and derives `submissionSha256 = sha256(capture.code)` and `outputSha256 = computeOutputSha256(capture)`. `verifyRunEnvelope` recomputes both and rejects on mismatch (`envelope-tampered`).
-- **S2 Canonical serialization is deterministic.** Recursive sorted-key JSON; NFC string normalization; explicit rejection of `undefined` / `NaN` / `Infinity` / `Date` / `bigint` / function / symbol; arrays preserve order.
-- **S3 Signature comparison is constant-time.** `crypto.timingSafeEqual` after equal-length check; plain `===` never used on the signature.
-- **S4 Capture is reachable only on verified Ok.** `VerificationResult` is a discriminated union — `result.capture` and `result.binding` only exist on the `ok: true` arm.
-- **S5 Caller input is not mutated.** `signRunEnvelope` deep-copies the capture (including `columns` / `rows`).
-- **S6 No grading / curriculum-quality / route imports.** `runEnvelope.ts` imports only `node:crypto`.
-- **S7 Nonce hook is not an oracle.** Replay hook runs only after signature + tamper + binding + expiry checks pass.
-- **S8 Malformed inputs fail safely.** `looksLikeEnvelope` / `looksLikeCapture` / `looksLikeBinding` reject `null` / `undefined` / strings / numbers / partial shapes / bad timestamps without throwing.
+```sql
+CREATE TABLE run_envelope_nonces (
+  nonce      text PRIMARY KEY NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE INDEX run_envelope_nonces_expires_at_idx ON run_envelope_nonces USING btree (expires_at);
+```
 
-### Failure-reason vocabulary (matches `docs/signed-run-result-design.md` §9)
+No FK to `users` / `projects` — the nonce is opaque and self-contained inside the signed envelope binding. INSERT happens at verify time (Phase 47), not at sign time. Table is empty after Phase 46; janitor is a no-op until Phase 47 begins writing rows.
 
-`envelope-malformed` · `envelope-unsupported-version` · `envelope-bad-signature` · `envelope-tampered` · `envelope-binding-mismatch` · `envelope-expired` · `envelope-replay`.
+### Boot-time secret check
 
-Order is deliberate (cheap checks first; DB-backed nonce hook last so it isn't an oracle).
+`assertRunEnvelopeSigningSecret()` runs after `initStripe`:
+
+- `RUN_ENVELOPE_SIGNING_SECRET` set → silent.
+- Unset + `REPLIT_DEPLOYMENT === '1'` → **throw** at boot. Deploys fail fast.
+- Unset + dev/test → `logger.warn(...)`; route degrades to 503 until set.
+
+Operator action: set `RUN_ENVELOPE_SIGNING_SECRET` (≥32 random bytes, e.g. `openssl rand -hex 32`) in the deployed environment before any deploy ships. Rotate via `kid` — library already supports `SignBindingInput.kid`.
 
 ### What this still does NOT prove
 
 Honest claim ceiling unchanged from Phase 44: **H3 only** — *"Atlas verified that the runtime output submitted for this step matched the expected result."*
 
 - Does not prove the learner wrote the code (H1 — out of scope for any browser-runtime platform).
-- Does not prove the learner executed *their* code vs. someone else's (H2 / attack A2 — accepted residual).
-- Does not prevent forge-then-sign (attack A5 — accepted residual).
+- Does not prove the learner executed *their* code vs. someone else's (H2 / A2 — accepted residual).
+- Does not prevent forge-then-sign (A5 — accepted residual; the route can mint a signature for any well-formed capture the learner submits).
 
-Unacceptable product claims (carried verbatim from threat model §10) must not ship: "learner wrote this", "solved independently", "tamper-proof", "cheat-proof".
+The route + table exist so Phase 47 can wire `verifyRunEnvelope` into grading without simultaneously inventing the mint path. Shipping in this order keeps the verifier change small and reviewable.
 
-### Recommended implementation sequence (unchanged from Phase 44, with Phase 45 done)
+### Recommended implementation sequence (unchanged from Phase 44/45)
 
 | Phase | Scope | Behavior change? |
 |---|---|---|
 | **45** ✅ | Envelope types + canonicalizer + signer + verifier in `lib/execution-core` + tests. | None |
-| **46** ⏳ next | `POST /api/runs/sign` endpoint + `run_envelope_nonces` table/migration/janitor + OpenAPI/codegen + React Query mutation hook. | None (no caller yet) |
-| **47** | Captured-submission arm in `gradeSubmission`; `VALIDATION_KINDS_REQUIRING_ENVELOPE` env-driven allow-list (default empty). | None until allow-list populated |
-| **48** | Frontend Run→sign→Submit plumbing + "How Atlas Grades" public page + cert-copy review. | None until §49 |
+| **46** ✅ | `POST /api/runs/sign` + `run_envelope_nonces` migration + janitor + boot-time secret check + tests. | None (no `/submit` caller, no FE wiring) |
+| **47** ⏳ next | Captured-submission arm in `gradeSubmission`; `VALIDATION_KINDS_REQUIRING_ENVELOPE` env-driven allow-list (default empty); nonce INSERT-on-first-verify wiring. | None until allow-list populated |
+| **48** | Frontend Run→sign→Submit plumbing + OpenAPI entry + "How Atlas Grades" public page + cert-copy review. | None until §49 |
 | **49** | Flip `json_equal` to envelope-required for 1% then 100% over 1-2 weeks. | Real enforcement on `json_equal` |
 | **50+** | Repeat §49 for `numeric_tolerance`, `sql_resultset`, `csv_set_equal`, `csv_ordered`. | Real enforcement, one kind per phase |
 
-### Files changed in Phase 45
-
-- `lib/execution-core/src/runEnvelope.ts` (new)
-- `lib/execution-core/src/runEnvelope.test.ts` (new)
-- `lib/execution-core/src/index.ts` (re-exports)
-- `docs/phases/phase-45-signed-run-result-envelope-library.md` (new)
-- `docs/phases/INDEX.md` (+1 entry)
-- `replit.md` (Phase History prepend)
-- `HANDOFF.md` (this file)
-
-### Hard stops respected in Phase 45
+### Hard stops respected in Phase 46
 
 | Surface | Touched? |
 |---|---|
 | `lib/grading.ts` | NO |
-| `/check`, `/submit`, route handlers | NO |
-| Frontend code | NO |
-| OpenAPI spec / codegen | NO |
-| Other `execution-core` modules | NO |
-| DB schema / migrations | NO |
+| `/check`, `/submit` route handlers | NO |
+| Frontend code (`artifacts/atlas`) | NO |
+| OpenAPI spec / codegen | NO — deferred to Phase 48 |
+| `lib/execution-core/src/runEnvelope.ts` (Phase 45 library) | NO |
+| Atlas frontend bundle (`node:crypto`) | NO — subpath import is server-only |
 | Seed / content / project files | NO |
 | Pedagogy / rubric / taxonomy | NO |
-| Deployment / production DB | NO |
+| Production DB | NO (migration added; operator applies via `pnpm run migrate`) |
 | Billing / Stripe / certs / portfolio | NO |
-| `audit:authoring` enforcement counts | UNCHANGED |
-| `audit:authoring` advisories | UNCHANGED |
-| `publishReady` count | UNCHANGED (58/58) |
-| `json_equal` classified as enforced | NO — still `contract-shaped` |
+| `audit:authoring` enforcement counts | UNCHANGED (58/58) |
+| `audit:authoring` advisories | UNCHANGED (174 submission-shape + 3 legacy spec keys) |
+| `audit:pedagogy` | UNCHANGED (58/58) |
+| `RUBRIC_VERSION` | FROZEN at `1.0.1` |
+| `json_equal` classification | UNCHANGED (still contract-shaped) |
 
-### Gates
+### Gates (all green)
 
 | Gate | Result |
 |---|---|
-| `pnpm --filter @workspace/execution-core run test` | ✓ **83 / 83** (was 38; +45 new envelope assertions) |
-| `pnpm run typecheck` (full repo: libs build + 4 leaf typechecks) | ✓ clean |
-| `pnpm --filter @workspace/atlas run build` (BASE_PATH=/ PORT=4173) | ✓ — confirms subpath export keeps `node:crypto` out of the browser bundle |
-| `check:no-heuristic-runtime` | ✓ |
+| `pnpm run typecheck` (full repo: libs build + 4 leaf typechecks + `check:no-heuristic-runtime`) | ✓ clean |
+| `pnpm --filter @workspace/api-server run test` | ✓ **305 / 305** (was 280 in Phase 45; +25 from `runs-sign.test.ts`, including explicit 401 when `getCurrentUser` returns null — architect-driven fix) |
+| `pnpm --filter @workspace/execution-core run test` | ✓ **83 / 83** (unchanged from Phase 45) |
 | `pnpm --filter @workspace/curriculum-quality run test` | ✓ **93 / 93** (unchanged) |
 | `pnpm --filter @workspace/scripts run audit:authoring` | ✓ **58 / 58** publish-ready (unchanged) |
 | `pnpm --filter @workspace/scripts run audit:pedagogy` | ✓ **58 / 58** (unchanged) |
+| API server boots clean | ✓ — secret-warn fires; server listens; Stripe initializes |
+| `curl -X POST localhost:80/api/runs/sign` (unauthed) | ✓ → 401 |
 
-### Risks remaining after Phase 45
+### Risks remaining after Phase 46
 
-1. **Library exists but cannot strengthen any claim.** The signer is honest about what it proves (H3 at most). Pressure to ship Phase 46+ quickly must not collapse into shipping the route without the disclosure work Phase 48 owns.
-2. **Allow-list rollout coordination (deferred to Phase 49+).** Mis-flipped env var on prod could 400 every active learner mid-step. Kill-switch runbook is still owed.
-3. **Twelve open questions in `docs/signed-run-result-design.md` §11.** None block Phase 46; several block Phase 47 (TTL length, `/check` envelope policy, schema-version bump policy, secret-rotation runbook).
-4. **Residual A2 / A5 risk is intentional** and inherited from Phase 44. Product team must internalize H3 as the ceiling.
-5. **Pyodide / DuckDB-WASM capture-shape drift.** Capture shape is tied to what these runtimes emit. Pinning version + smoke test on capture shape per release would prevent silent breakage. Phase 46 candidate.
+1. **Operator must set `RUN_ENVELOPE_SIGNING_SECRET` before first deploy.** Boot-time hard-fail makes this a deploy-step failure rather than a silent runtime degradation, but the deploy-checklist should call it out explicitly. `docs/deployment-checklist.md` update is a Phase 46.x candidate.
+2. **Route is mintable but inert.** Until Phase 47 wires `/submit`, a learner calling `/runs/sign` gets back a valid envelope nothing verifies. Acceptable: no behavior change, no false claim made.
+3. **Nonce table is empty.** Janitor is a no-op until Phase 47 starts inserting on first verify. Cron registration is therefore optional this phase — register before Phase 47 ships.
+4. **Residual A2 / A5 risk unchanged from Phase 44.** Honest claim ceiling stays H3.
+5. **Schema-version bump policy + secret-rotation runbook still owed** (open questions §11 of design doc; block Phase 47).
 
-### Recommended Phase 46
+### Recommended Phase 47
 
-**`POST /api/runs/sign` endpoint + `run_envelope_nonces` migration + nonce janitor + OpenAPI/codegen + React Query mutation hook.**
+Captured-submission arm in `gradeSubmission`:
 
-- New route handler in `artifacts/api-server/src/routes/runs.ts` calling `signRunEnvelope`, persisting `(nonce, userId, expiresAt)` for the future `/submit` arm.
-- OpenAPI spec entry → codegen → React Query mutation hook in `artifacts/atlas`.
-- Migration adding `run_envelope_nonces` (composite PK on nonce, TTL index on `expires_at`).
-- Janitor script (or inline scheduled task) deleting expired nonces.
-- Secret sourced from `process.env.RUN_ENVELOPE_SIGNING_SECRET` with hard-fail startup check.
-- Still NO callers from `/submit` — Phase 47 wires that arm; Phase 46 keeps the surface inert end-to-end so a misconfigured rollout cannot break live learners.
-- Architect review before merge.
+- New `Submission` discriminated union: legacy bare-string arm (preserved verbatim — initial allow-list is empty so every live caller takes this arm) + new `{ kind: 'envelope', envelope: SignedRunEnvelope }` arm.
+- New `lib/grading.ts` helper `verifyEnvelopeForGrading(envelope, ctx)` calling `verifyRunEnvelope` with binding context from the route + `isNonceSeen` hook that does `INSERT INTO run_envelope_nonces VALUES (...) ON CONFLICT DO NOTHING RETURNING nonce` — INSERT success ⇒ first use; INSERT no-op ⇒ replay.
+- `VALIDATION_KINDS_REQUIRING_ENVELOPE` env-driven allow-list (default empty).
+- Per-failure-reason structured telemetry (`evt: 'envelope.verify.failed', reason: ...`) so Phase 49's 1% canary has the dashboards it needs.
+- Architect review BEFORE Phase 49 flips the first kind.
 
 ### Commit
 
-`phase-45: signed RunResult envelope library (execution-core)`
+`phase-46: run signing api + nonce store`
