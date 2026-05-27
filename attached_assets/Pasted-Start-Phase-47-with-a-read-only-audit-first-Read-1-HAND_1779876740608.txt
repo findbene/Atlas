@@ -1,0 +1,59 @@
+Start Phase 47 with a read-only audit first.
+
+Read:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/runtime-validation-threat-model.md
+5. docs/signed-run-result-design.md
+6. docs/phases/phase-46-run-signing-api.md
+7. lib/execution-core/src/runEnvelope.ts
+8. artifacts/api-server/src/routes/user.ts
+9. artifacts/api-server/src/routes/runs.ts
+10. current /submit tests
+
+Goal:
+Implement Phase 47 — Submit-Side Signed Envelope Verification behind an empty-by-default allow-list.
+
+Hard stops:
+- no global json_equal enforcement
+- no /check behavior change
+- no project content changes
+- no certificate/portfolio language changes
+- no deployment
+- no production DB touch
+- no anti-cheat overclaiming
+- preserve existing legacy /submit behavior exactly
+
+Required implementation shape:
+1. Add server-side detection for signed RunEnvelope submissions in /submit.
+2. Keep legacy string submissions working unchanged.
+3. Add an empty-by-default allow-list for signed runtime validation. It may be env/config-driven or hardcoded empty with tests proving disabled behavior, but it must not accidentally enforce catalog-wide.
+4. When signed runtime validation is enabled for a specific step/kind, verify:
+   - HMAC signature
+   - envelope expiry
+   - projectId binding
+   - stepId binding
+   - userId binding
+   - validationKind binding
+   - submissionSha256 consistency
+   - nonce replay protection
+5. Implement INSERT-on-first-verify into run_envelope_nonces.
+6. Reusing a nonce must fail safely.
+7. Failed verification must not reveal secrets or raw verifier internals.
+8. Add tests proving:
+   - existing legacy /submit tests remain green
+   - legacy string submission path unchanged
+   - signed envelope rejected when allow-list is empty
+   - valid signed envelope accepted only when allow-listed
+   - replayed nonce rejected
+   - wrong user/project/step/kind rejected
+   - expired/tampered envelope rejected
+9. Keep honest claim ceiling H3 only.
+
+End with:
+1. files changed
+2. tests/gates run
+3. exact behavior added
+4. what remains unproven
+5. recommended Phase 48
