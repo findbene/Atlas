@@ -8,7 +8,7 @@ import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
 import { gradeSubmission } from "../lib/grading";
-import { verifyEnvelopeForSubmit, parseEnvelopeAllowList } from "../lib/envelopeSubmit";
+import { verifyEnvelopeForSubmit, parseEnvelopeAllowList, isEnvelopeEnforcedFor } from "../lib/envelopeSubmit";
 import { gradeEnvelopeCapture } from "../lib/envelopeGrade";
 import type { RunCapture } from "@workspace/execution-core/run-envelope";
 
@@ -472,35 +472,52 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
     // until `ATLAS_ENVELOPE_REQUIRED_KINDS` includes the step's kind.
     let envelopeCapture: RunCapture | null = null;
     if (wireEnvelope !== undefined && wireEnvelope !== null) {
-      const allowList = parseEnvelopeAllowList();
       const kind = step.validationType ?? "";
-      if (!allowList.has(kind)) {
+      const allowList = parseEnvelopeAllowList();
+      // Phase 50 — canary gate. Three-state outcome:
+      //   (A) kind not allow-listed   → reason: "kind_not_enabled"
+      //   (B) kind allow-listed, user
+      //       not in canary bucket    → reason: "canary_bucket_skip"
+      //   (C) kind allow-listed, user
+      //       in canary bucket        → fall through to verify
+      // (A) + (B) both downgrade to legacy grading silently — soft-fail
+      // contract from Phase 49 preserved verbatim.
+      const enforced = isEnvelopeEnforcedFor(kind, user.id);
+      if (!enforced) {
+        const reason = allowList.has(kind) ? "canary_bucket_skip" : "kind_not_enabled";
         req.log.info(
           {
             evt: "envelope.submit.kind_not_enabled.fallback",
-            phase: "P49",
+            phase: "P50",
+            reason,
             userId: user.id,
             projectId,
             stepId,
             validationKind: kind,
           },
-          "Envelope present for non-allow-listed kind — falling back to legacy grading",
+          reason === "canary_bucket_skip"
+            ? "Envelope present but user not in canary bucket — falling back to legacy grading"
+            : "Envelope present for non-allow-listed kind — falling back to legacy grading",
         );
         // Drop straight into the legacy bare-string grading path below.
       } else {
+      // Phase 50 — measure verify latency for canary observability.
+      const verifyStartedAtMs = Date.now();
       const verifyRes = await verifyEnvelopeForSubmit(wireEnvelope, {
         userId: user.id,
         projectId,
         stepId,
         validationKind: kind,
       });
+      const verifyDurationMs = Date.now() - verifyStartedAtMs;
       if (!verifyRes.ok) {
         req.log.warn(
           {
             evt: "envelope.verify.failed",
-            phase: "P47",
+            phase: "P50",
             reason: verifyRes.error,
             detail: verifyRes.detail,
+            verifyDurationMs,
             userId: user.id,
             projectId,
             stepId,
@@ -515,7 +532,8 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       req.log.info(
         {
           evt: "envelope.verify.ok",
-          phase: "P47",
+          phase: "P50",
+          verifyDurationMs,
           userId: user.id,
           projectId,
           stepId,

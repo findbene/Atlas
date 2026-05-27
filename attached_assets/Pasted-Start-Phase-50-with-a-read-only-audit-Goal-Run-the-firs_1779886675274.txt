@@ -1,0 +1,77 @@
+Start Phase 50 with a read-only audit.
+
+Goal:
+Run the first real signed-envelope json_equal smoke path in dev/staging, then add a safe canary wrapper for json_equal enablement.
+
+Read:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-47-envelope-submit-arm.md
+5. docs/phases/phase-48-envelope-pilot-grader.md
+6. docs/phases/phase-49-frontend-runcapture-wiring.md
+7. docs/runtime-validation-threat-model.md
+8. docs/signed-run-result-design.md
+9. artifacts/api-server/src/routes/runs.ts
+10. artifacts/api-server/src/routes/user.ts
+11. artifacts/api-server/src/lib/envelopeSubmit.ts
+12. artifacts/api-server/src/lib/envelopeGrade.ts
+13. artifacts/atlas/src/lib/envelopeClient.ts
+14. artifacts/atlas/src/pages/project-workspace.tsx
+15. artifacts/atlas/src/pages/how-atlas-grades.tsx
+
+Phase 50 objective:
+Validate the real Run → Sign → Submit → Verify → Grade path for json_equal in dev/staging, then implement a narrow 1% canary mechanism without enabling broad production enforcement.
+
+Hard stops:
+- no broad json_equal flip
+- no 100% rollout
+- no new validation kinds
+- no /check behavior change
+- no certificate/portfolio claim upgrade
+- no anti-cheat overclaiming
+- no project-content rewrite unless strictly needed for a smoke fixture
+- no production DB mutation except normal deployment-safe config/cron planning
+- preserve legacy submit behavior
+
+Tasks:
+1. Add or document a manual smoke procedure for dev/staging:
+   - set RUN_ENVELOPE_SIGNING_SECRET
+   - set ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal
+   - run a real Python json_equal step through the UI
+   - confirm pass case
+   - confirm fail case
+   - confirm replay rejection
+   - confirm stale envelope invalidation after code edit
+   - confirm non-allow-listed kind falls back to legacy
+2. Register or document production nonce janitor cron:
+   pnpm --filter @workspace/scripts run cleanup:run-envelope-nonces
+3. Add a feature-flag/user-bucket wrapper so json_equal signed-envelope enforcement can be enabled for ~1% of eligible users.
+4. Keep default behavior disabled.
+5. Add tests for:
+   - canary disabled means legacy behavior
+   - canary enabled + eligible json_equal uses envelope path
+   - non-canary user does not require envelope
+   - non-json_equal kind remains unaffected
+   - bucket function is deterministic
+   - no H1/H2 claim language introduced
+6. Add observability/logging for:
+   - envelope verify success
+   - verifier failure reason
+   - replay
+   - fallback
+   - submit latency if available
+7. Update docs with:
+   - smoke checklist
+   - canary gates
+   - rollback instructions
+   - metrics to monitor
+   - ramp criteria
+
+End with:
+1. files changed
+2. smoke procedure/results if runnable
+3. canary behavior added
+4. tests/gates run
+5. rollback plan
+6. exact criteria before ramping from 1% to 10%

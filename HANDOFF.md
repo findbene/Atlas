@@ -1,68 +1,69 @@
 # HANDOFF
 
-**Latest shipped phase:** Phase 49 — Frontend RunCapture Wiring + How Atlas Grades Disclosure.
-**Working tree:** clean after `phase-49: how-atlas-grades disclosure page` (commit `b119bc7`).
-**Parent commit chain:** `b119bc7` ← `24055ed` (phase-49a runtime wiring) ← `54ef8fe` (phase-48 pilot grader) ← `844934e` (phase-47 envelope submit arm) ← `51df3ca` (phase-46 sign endpoint).
+**Latest shipped phase:** Phase 50 — `json_equal` Signed-Envelope Canary Wrapper (no production flip; mechanism only).
+**Working tree:** clean after `phase-50: json_equal signed-envelope canary wrapper + runbook`.
+**Parent commit chain:** Phase 50 ← `b119bc7` (phase-49b disclosure) ← `24055ed` (phase-49a runtime wiring) ← `54ef8fe` (phase-48 pilot grader) ← `844934e` (phase-47 envelope submit arm) ← `51df3ca` (phase-46 sign endpoint).
 
 ---
 
-## Phase 49 summary
+## Phase 50 summary
 
-The user-visible half of the Phase 44 Shape γ plan. Closes the loop: editor Run → server signs the capture → envelope stashed per-step → Submit attaches envelope → server verifies + grades when kind is allow-listed, otherwise silently falls through to legacy bare-string grading. Plus the public `/how-atlas-grades` H3 disclosure page.
+Adds the control-plane mechanism for opting a small slice of real learners into signed-envelope enforcement on `json_equal`, plus the operator runbook. **No kind has been flipped in production.** The new env vars all default to unset, so live behavior is byte-identical to Phase 49.
 
-**Production behavior unchanged.** `ATLAS_ENVELOPE_REQUIRED_KINDS` is still empty in prod, so every live submission still takes the legacy path. The envelope code is reachable but inert until Phase 50's canary flip.
-
-### What landed (Phase 49a — runtime wiring, commit `24055ed`)
+### What landed
 
 | File | Role |
 |---|---|
-| `lib/api-spec/openapi.yaml` (edited) | New schemas: `RunCapture` (columns/rows non-nullable — server rejects null), `EnvelopeBinding`, `SignedRunEnvelope`, `SignRunBody`, `SignRunResponse`. New `POST /runs/sign` (operationId `signRun`). `SubmitStepBody` gains optional `envelope`. |
-| `lib/api-client-react/src/generated/*` (regen) | `useSignRun` mutation + types. |
-| `lib/api-zod/src/generated/*` (regen) | Zod request/response schemas. |
-| `artifacts/atlas/src/lib/envelopeClient.ts` (new) | Pure helpers: `buildPythonCapture` / `buildSqlCapture` (NaN-safe `durationMs`), `preCheckCapture`, `isCaptureLikelyOversize`, `classifySignError` (every status/network error → stable `SignSkipReason`). |
-| `artifacts/atlas/src/lib/envelopeClient.test.ts` (new) | 21 unit tests. |
-| `artifacts/atlas/src/lib/pyodideRunner.ts` (edited) | `ExecResult.durationMs` (perf.now delta around `runPython`, excludes cold-start). |
-| `artifacts/atlas/src/pages/project-workspace.tsx` (edited) | `envelopeByStepId` state + per-step `runGenByStep` ref. `attemptSignAndStash` pre-gates → signs → stashes ONLY if gen still matches. `bumpRunGen` + `clearEnvelopeForStep` chained into `onCodeChange`, `onReset`, `onSelectHistoryCode`, `goToStep`. `submitStep` attaches envelope when present. |
-| `artifacts/atlas/src/pages/project-workspace.test.tsx` (edited) | Added `useSignRun` mock so resume-lifecycle tests still mount. |
-| `artifacts/api-server/src/routes/user.ts` (edited) | Envelope-for-non-allow-listed-kind silently falls through (logs `envelope.submit.kind_not_enabled.fallback`) instead of returning Phase-47's 400 `envelope_kind_not_enabled`. Verifier still only invoked when kind IS allow-listed. |
-| `artifacts/api-server/src/lib/envelopeSubmit.ts` (edited) | Docstring updated for Phase 49 fallback contract. |
-| `artifacts/api-server/src/routes/user-submit-envelope.test.ts` (rewritten) | E1 — asserts soft-fail (200, no error body, zero nonce rows). |
-| `artifacts/api-server/src/routes/user-submit-envelope-pilot.test.ts` (rewritten) | P1 — asserts pilot fall-through path. |
+| `artifacts/api-server/src/lib/envelopeSubmit.ts` (edited) | New pure exports: `parseCanaryPercent`, `bucketForUserKind`, `isEnvelopeEnforcedFor`. |
+| `artifacts/api-server/src/lib/envelopeSubmit.test.ts` (new) | 26 unit tests + 1 module banned-phrase guard. |
+| `artifacts/api-server/src/routes/user.ts` (edited) | Replaced `allowList.has(kind)` with `isEnvelopeEnforcedFor(kind, user.id)`. Fallback log gains `reason: "kind_not_enabled" \| "canary_bucket_skip"`. Verify path gains `verifyDurationMs`. |
+| `docs/runbooks/envelope-canary.md` (new) | 4 control surfaces + 6-scenario dev/staging smoke + nonce-cron registration + ramp gates + 3-mode rollback + H3 boundary. |
+| `docs/phases/phase-50-json-equal-canary.md` (new) | Phase close-out. |
+| `docs/phases/INDEX.md` (edited) | +1 entry. |
+| `replit.md` (edited) | Latest-3 rotated to 50/49/48. |
 
-### What landed (Phase 49b — disclosure page, commit `b119bc7`)
+### The four control surfaces
 
-| File | Role |
-|---|---|
-| `artifacts/atlas/src/pages/how-atlas-grades.tsx` (new) | Public 5-section H3 disclosure page. |
-| `artifacts/atlas/src/pages/how-atlas-grades.test.tsx` (new) | 6 tests including H1/H2 banned-phrase guard. |
-| `artifacts/atlas/src/App.tsx` (edited) | New public `/how-atlas-grades` route (no auth). |
-| `artifacts/atlas/src/pages/home.tsx` (edited) | New footer link "How grading works". |
+| Env var | Default | First operator flip (1% canary) |
+|---|---|---|
+| `RUN_ENVELOPE_SIGNING_SECRET` | unset (prod boot fails) | `openssl rand -hex 32` |
+| `ATLAS_ENVELOPE_REQUIRED_KINDS` | `""` (empty) | `json_equal` |
+| `ATLAS_ENVELOPE_CANARY_KINDS` | unset | `json_equal` |
+| `ATLAS_ENVELOPE_CANARY_PERCENT` | unset | `1` |
 
-### Soft-fail contract (the architect-driven invariant of Phase 49)
+Decision tree (in `isEnvelopeEnforcedFor`):
 
-Every failure mode on the FE sign path is mapped to a `SignSkipReason` and logged at `console.debug({ evt: 'envelope.sign.skipped', reason })`. The learner never sees a sign error. Submit always works.
+1. Kind not allow-listed → **false** (legacy path; Phase 47 invariant preserved).
+2. Canary env absent → **true** (allow-list runs at 100%; pre-Phase-50 behavior).
+3. Kind not in canary-kinds → **true** (canary only controls listed kinds).
+4. Otherwise → `bucketForUserKind(userId, kind) < parsedPercent`.
 
-On the server, an envelope attached for a kind NOT in `ATLAS_ENVELOPE_REQUIRED_KINDS` logs `envelope.submit.kind_not_enabled.fallback` at info and grades via the legacy bare-string path. No 400, no nonce row written, no crypto. The legacy wire payload is byte-identical whether or not an envelope is attached when the kind is disabled.
+Bucket: `sha256(userId + ":" + kind)[0..2] uint16 % 100`. Deterministic per (user, kind). No per-process salt — stable across API instances + restarts. Per-kind keying so each kind ramps independently.
+
+### Observability added
+
+- `evt: "envelope.verify.ok"` — now includes `verifyDurationMs` (covers crypto + nonce INSERT).
+- `evt: "envelope.verify.failed"` — same `verifyDurationMs` field + existing `reason` (from verifier).
+- `evt: "envelope.submit.kind_not_enabled.fallback"` — now includes `reason: "kind_not_enabled" | "canary_bucket_skip"` discriminator so dashboards can split bucket-skip rate (expected ~99% at 1% canary) from genuine kind-not-enabled traffic.
 
 ### Honest claim ceiling (H3 — UNCHANGED)
 
-- "Atlas saw your browser report a particular output for the code you ran, and that output matched what the step expected. The signature confirms the record came from your session and was not modified in flight."
-- Does NOT prove independent authorship (H1).
-- Does NOT prove the absence of outside help (H2 / A2 accepted residual).
-- Does NOT prevent forge-then-sign (A5 accepted residual).
+Even at 100% enforcement on every pilot kind, the only claim Atlas can make is:
 
-`/how-atlas-grades` states all of the above plainly. Disclosure copy is unit-tested against a list of banned overclaim phrases — edit the page rather than weakening the guard.
+> Atlas verified that the runtime output submitted for this step matched the expected result. The signature confirms the record came from your session and was not modified in flight.
 
-### Gates (all green, post-change)
+Signed-envelope does NOT prove independent authorship (H1), does NOT prove the absence of outside help (H2 / A2), does NOT prevent forge-then-sign (A5). The runbook restates this in section 6. `envelopeSubmit.ts` source-level banned-phrase guard (new in Phase 50) catches any future copy drift inside the canary control plane itself.
+
+### Gates (all green)
 
 | Gate | Result |
 |---|---|
 | `pnpm run typecheck` | ✓ clean |
 | `check:no-heuristic-runtime` | ✓ |
-| `@workspace/atlas` | ✓ **128 / 128** (+27 over Phase 48 baseline of 101) |
-| `@workspace/api-server` | ✓ **347 / 347** (E1+P1 rewritten for fallback contract, count unchanged from Phase 48) |
-| `@workspace/execution-core` | ✓ **83 / 83** UNCHANGED |
-| `@workspace/curriculum-quality` | ✓ **93 / 93** UNCHANGED |
+| `@workspace/api-server` tests | ✓ **373 / 373** (+26 envelopeSubmit unit tests) |
+| `@workspace/atlas` tests | ✓ **128 / 128** UNCHANGED |
+| `@workspace/execution-core` tests | ✓ **83 / 83** UNCHANGED |
+| `@workspace/curriculum-quality` tests | ✓ **93 / 93** UNCHANGED |
 | `audit:authoring` | ✓ **58 / 58** publish-ready (advisories 174 + 3 UNCHANGED) |
 | `audit:pedagogy` | ✓ **58 / 58** UNCHANGED |
 
@@ -71,39 +72,44 @@ On the server, an envelope attached for a kind NOT in `ATLAS_ENVELOPE_REQUIRED_K
 | Surface | Touched? |
 |---|---|
 | `lib/grading.ts` | NO |
-| `/check` route handler | NO |
 | `lib/execution-core/runEnvelope.ts` | NO (Phase 45 library frozen) |
-| Schema / migration | NO |
+| `lib/envelopeGrade.ts` | NO (Phase 48 grader unchanged) |
+| `/check` route | NO |
+| `routes/runs-sign.ts` | NO |
+| Schema / migration / `run_envelope_nonces` | NO |
+| OpenAPI / codegen | NO |
+| Atlas frontend code | NO |
 | Seed / content / pedagogy / rubric | NO |
 | `RUBRIC_VERSION` | FROZEN at `1.0.1` |
-| `json_equal` advisory classification | UNCHANGED |
-| Billing / Stripe | NO |
-| Cert / portfolio language | NO (`evidence-backed completion record` pin from Phase 28 still holds) |
+| Billing / Stripe / cert / portfolio language | NO |
 | Production DB | NO |
-| `ATLAS_ENVELOPE_REQUIRED_KINDS` default | EMPTY in production |
+| `ATLAS_ENVELOPE_REQUIRED_KINDS` default in prod | EMPTY |
+| `ATLAS_ENVELOPE_CANARY_*` defaults in prod | UNSET |
 
-### Architect review
+### Risks remaining after Phase 50
 
-Two rounds. **Round 1** caught: (a) server 400 broke soft-fail, (b) stale-envelope race after edit, (c) OpenAPI `nullable:true` drift on `RunCapture.columns/rows`, (d) NaN `durationMs`. **Round 2** caught: step-navigation stale-race in `goToStep`. All fixed. Final verdict: PASS.
+1. **No live production traffic on the verify path yet.** Section 2 of the runbook is dev/staging only; the 1% flip is the first real production coverage.
+2. **Nonce janitor cron documented but not yet registered in production** — section 3 of the runbook. Must run at least once with zero rows before the first canary flip.
+3. **Dashboards.** Log events emit cleanly; no dashboard panels exist yet. Build before the 1% flip so the ramp gates in section 4 are measurable.
+4. **`/how-atlas-grades` only linked from home footer.** Workspace, onboarding, certificate pages still don't link it.
+5. **Cert / portfolio language unchanged** (intentional — H3 ceiling preserved).
+6. **Only one pilot kind implemented in `envelopeGrade.ts`** (`json_equal`). `numeric_tolerance` / SQL / CSV pilot kinds are Phase 51+. Canary wrapper is already kind-aware.
 
-### Risks remaining after Phase 49
+### Recommended next steps (operator-driven, NOT another phase)
 
-1. **No live end-to-end smoke yet** against real Pyodide + real `/runs/sign` round-trip. Unit tests at the helper layer, integration tests at the server-route layer, but a manual UI smoke in dev/staging is a Phase 50 prerequisite.
-2. **Signing path is exercised but no verified grading runs against real learners** — allow-list still empty.
-3. **Disclosure page only linked from the home-page footer.** Workspace, onboarding, and certificate pages don't link it yet. Easy add-on, deferred.
-4. **`run_envelope_nonces` will start receiving rows the moment Phase 50 flips its first kind** — janitor (Phase 46) handles cleanup but production cron registration is still owed.
-5. **`HANDOFF.md` / `replit.md` Phase History** caught up this turn; Phase 50 will need its own catch-up.
+1. **Build dashboard panels** for `evt: "envelope.verify.*"` success rate, `verifyDurationMs` p95, `/submit` p95 baseline vs canary, `reason: "canary_bucket_skip"` vs `"kind_not_enabled"` split, nonce-table row count.
+2. **Register the nightly nonce janitor cron** in production per runbook §3. Verify it runs successfully against an empty table.
+3. **Run dev/staging smoke** per runbook §2 (all 6 scenarios). Capture log excerpts in the smoke PR.
+4. **Architect review** of Phase 50 PR + smoke evidence + dashboard screenshots BEFORE setting `ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal` in production.
+5. **Flip 1% canary** per runbook §4. Hold ≥48h or 500 verifies.
+6. **Ramp 1% → 10% → 50% → 100%** per runbook §4 gates. Architect review at each step.
+7. **Once 100% holds for 7 days**, unset `ATLAS_ENVELOPE_CANARY_*` (rule 2 takes over). `json_equal` is then permanently enforced via allow-list alone.
 
-### Recommended Phase 50
+### Rollback summary (from runbook §5)
 
-Pre-flip control-plane work + the actual 1% canary, IN THIS ORDER:
-
-1. **Manual smoke in dev/staging** with `RUN_ENVELOPE_SIGNING_SECRET` set + `ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal`. Run a real Python `json_equal` step through the UI; verify logs (`envelope.verify.ok`, `envelope.submit.kind_not_enabled.fallback` for any non-allow-listed eligible step); confirm pass/fail correctness and nonce row inserts.
-2. **Register the nonce janitor cron in production** before any kind goes live.
-3. **Add a feature-flag / user-bucket wrapper** on `ATLAS_ENVELOPE_REQUIRED_KINDS` so the verified path is only active for 1% of users on `json_equal` steps.
-4. **Monitor** verifier-failure rate, p95 submit latency, fallback log volume, learner-facing confusion.
-5. **Ramp** 1% → 10% → 50% → 100% over a week if metrics hold.
-6. **Architect review BEFORE** ramping past 1% on the first kind.
+- **Soft:** `ATLAS_ENVELOPE_CANARY_PERCENT=0`. Drain canary, keep kind allow-listed. No FE change.
+- **Hard:** `ATLAS_ENVELOPE_REQUIRED_KINDS=`. Disable kind. Verify path unreachable.
+- **Nuclear:** Revert deploy to `b119bc7` (Phase 49) or strip `envelope` field at route entry.
 
 ### Commits
 
@@ -111,3 +117,4 @@ Pre-flip control-plane work + the actual 1% canary, IN THIS ORDER:
 - `54ef8fe` — phase-48: pilot envelope grader
 - `24055ed` — phase-49a: frontend runtime wiring + soft-fail server fallback
 - `b119bc7` — phase-49b: how-atlas-grades disclosure page
+- _(Phase 50, this commit)_ — phase-50: json_equal signed-envelope canary wrapper + runbook

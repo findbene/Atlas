@@ -30,6 +30,7 @@
  * No verifier `detail` is forwarded to the client (oracle hygiene); the
  * detail string is logged server-side via `req.log.warn` at the call site.
  */
+import { createHash } from "node:crypto";
 import { db, runEnvelopeNonces } from "@workspace/db";
 import {
   verifyRunEnvelope,
@@ -50,6 +51,90 @@ export function parseEnvelopeAllowList(
       .map((s) => s.trim())
       .filter((s) => s.length > 0),
   );
+}
+
+/**
+ * Phase 50 — Canary gate.
+ *
+ * Returns true iff the server should require + verify a signed envelope
+ * for this (kind, userId). Layered on top of `parseEnvelopeAllowList`:
+ *
+ *   1. If `kind` is not in `ATLAS_ENVELOPE_REQUIRED_KINDS` → false.
+ *      (Phase 47 invariant: empty allow-list = legacy behavior for all
+ *      users + all kinds. Never changes regardless of canary config.)
+ *
+ *   2. If `ATLAS_ENVELOPE_CANARY_KINDS` or `ATLAS_ENVELOPE_CANARY_PERCENT`
+ *      are unset → true. (Allow-list alone gates — pre-Phase-50 behavior
+ *      preserved verbatim. Operators who want full enforcement can simply
+ *      not configure canary.)
+ *
+ *   3. If `kind` is NOT in `ATLAS_ENVELOPE_CANARY_KINDS` → true.
+ *      (Canary controls only the listed kinds; any other kind in the
+ *      allow-list runs at 100% as before.)
+ *
+ *   4. Otherwise → `bucketForUserKind(userId, kind) < parsedPercent`.
+ *      Percent < 0 → 0, > 100 → 100. Bucket is deterministic per
+ *      (user, kind), so a single user always lands in or out of the
+ *      canary for a given kind regardless of which API node serves
+ *      the request.
+ *
+ * Default behavior (no env vars set): identical to Phase 49 — legacy
+ * bare-string grading for every learner on every kind.
+ */
+export function isEnvelopeEnforcedFor(
+  kind: string,
+  userId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const allowList = parseEnvelopeAllowList(env["ATLAS_ENVELOPE_REQUIRED_KINDS"]);
+  if (!allowList.has(kind)) return false;
+
+  const canaryKindsRaw = env["ATLAS_ENVELOPE_CANARY_KINDS"];
+  const percentRaw = env["ATLAS_ENVELOPE_CANARY_PERCENT"];
+  if (!canaryKindsRaw || !percentRaw) {
+    // Canary not configured — kind is allow-listed → enforce for all users.
+    return true;
+  }
+
+  const canaryKinds = parseEnvelopeAllowList(canaryKindsRaw);
+  if (!canaryKinds.has(kind)) {
+    // Kind not under canary control — allow-list alone gates.
+    return true;
+  }
+
+  const percent = parseCanaryPercent(percentRaw);
+  if (percent <= 0) return false;
+  if (percent >= 100) return true;
+  return bucketForUserKind(userId, kind) < percent;
+}
+
+/** Parses `ATLAS_ENVELOPE_CANARY_PERCENT` to an integer in [0, 100]. */
+export function parseCanaryPercent(raw: string | undefined): number {
+  if (raw === undefined || raw === null) return 0;
+  const trimmed = String(raw).trim();
+  if (trimmed.length === 0) return 0;
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+}
+
+/**
+ * Deterministic 0..99 bucket for a (userId, kind) pair.
+ *
+ * SHA-256 of `userId + ":" + kind`, first 2 bytes interpreted as a
+ * big-endian uint16, modulo 100. Stable across process restarts +
+ * across API instances (no per-process salt), so a user's canary
+ * membership for a given kind is consistent for the life of their
+ * user record.
+ *
+ * Per-kind keying means a user who is "in" the canary for `json_equal`
+ * is not automatically in for `numeric_tolerance` when that kind ramps
+ * later — each kind gets its own independent rollout signal.
+ */
+export function bucketForUserKind(userId: string, kind: string): number {
+  const digest = createHash("sha256").update(`${userId}:${kind}`).digest();
+  const bucket = digest.readUInt16BE(0);
+  return bucket % 100;
 }
 
 export type EnvelopeExpected = {
