@@ -1,0 +1,124 @@
+We completed Phase 42 and Phase 43A control-plane compaction.
+
+Now start Phase 43B.
+
+PHASE 43B — Real Grader Support for json_equal
+
+Goal:
+Turn json_equal from contract-shaped validation into real server-enforced validation where safe.
+
+Why:
+Phase 42 showed that most visible-project validation is contract-shaped. json_equal is the best first real-grader target because it is common, deterministic, safer than SQL execution, and does not require external services.
+
+Start with a read-only audit.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-42-validation-kind-guardrail.md
+5. docs/validation-kind-matrix.md
+6. docs/project-authoring-spec.md
+7. lib/curriculum-quality/src/validationEnforcement.ts
+8. current grading implementation
+9. /check route behavior
+10. /submit route behavior
+11. authored projects using json_equal
+
+Audit:
+1. Count visible steps using json_equal.
+2. Inspect representative json_equal validation specs.
+3. Identify expected input shape from learner submission.
+4. Identify expectedOutputs / validation spec shape.
+5. Confirm whether grading can parse JSON safely from learner submission.
+6. Confirm whether json_equal can be implemented without touching schema.
+7. Confirm whether /check and /submit both route through the same grading helper.
+8. Identify backward compatibility risks.
+9. Identify what should happen on invalid learner JSON.
+10. Identify what should happen when expected JSON is malformed.
+
+Preferred implementation:
+Small, deterministic json_equal support in the existing grading helper.
+
+Behavior:
+- Parse learner submission as JSON.
+- Parse expected JSON from validation spec or expectedOutputs, according to existing content shape.
+- Compare structurally, not string-wise.
+- Ignore object key order.
+- Preserve array order unless existing spec clearly says otherwise.
+- Return clear failure messages without leaking full answer.
+- Do not execute code.
+- Do not call external services.
+- Do not alter /submit integrity semantics.
+- Do not change XP/completion evidence behavior except that json_equal can now fail honestly.
+
+If existing json_equal specs are inconsistent:
+- Stop and report the compatibility problem.
+- Prefer a conservative implementation plus audit warnings over breaking many projects.
+
+Testing:
+Add focused tests for:
+1. exact structural match passes.
+2. object key order differences pass.
+3. array order differences fail unless explicitly allowed.
+4. invalid learner JSON fails cleanly.
+5. malformed expected JSON fails safely.
+6. extra fields behavior is explicit and tested.
+7. missing fields fail.
+8. no answer leakage in failure message.
+9. existing exact/contains/regex behavior remains unchanged.
+10. /check or route-level test if current harness supports it.
+
+Audit update:
+Update validationEnforcement classifier/matrix so json_equal moves from contract-shaped to enforced only if implementation is complete and tests pass.
+
+Docs:
+Update:
+- docs/validation-kind-matrix.md
+- docs/project-authoring-spec.md
+- docs/phases/phase-43b-json-equal-grader.md
+- HANDOFF.md
+- replit.md
+- docs/phases/INDEX.md
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- No production DB.
+- No deployment.
+- No broad /check rewrite.
+- No broad /submit rewrite.
+- No frontend redesign.
+- No project mass edits.
+- No project seeding.
+- No cert-verify changes.
+- No portfolio changes.
+- No billing/Stripe changes.
+- No OpenAPI/codegen changes unless unavoidable.
+- Do not implement SQL execution in this phase.
+- Do not change rubric/taxonomy/anchor/pedagogy invariants.
+
+Acceptance gates:
+- typecheck clean
+- grading/helper tests green
+- api-server tests green
+- atlas tests green
+- curriculum-quality tests green
+- execution-core tests green
+- integration 3/3
+- audit:authoring remains explainable
+- audit:pedagogy remains 58/58
+- no-heuristic OK
+- seed converges
+- Architect PASS
+
+End with:
+1. Phase 43B final status
+2. json_equal support behavior
+3. compatibility findings
+4. validation enforcement count before/after
+5. files changed
+6. tests/gates run
+7. remaining validation risks
+8. recommended Phase 44
+9. suggested commit message
