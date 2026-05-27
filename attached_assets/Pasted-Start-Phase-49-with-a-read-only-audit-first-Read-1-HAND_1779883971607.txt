@@ -1,0 +1,72 @@
+Start Phase 49 with a read-only audit first.
+
+Read:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/runtime-validation-threat-model.md
+5. docs/signed-run-result-design.md
+6. docs/phases/phase-48-signed-envelope-pilot.md
+7. artifacts/api-server/src/routes/runs.ts
+8. artifacts/api-server/src/routes/user.ts
+9. artifacts/api-server/src/lib/envelopeSubmit.ts
+10. artifacts/api-server/src/lib/envelopeGrade.ts
+11. artifacts/api-server/src/routes/user-submit-envelope-pilot.test.ts
+12. frontend project workspace/editor/run/submit components
+
+Goal:
+Implement Phase 49 — Frontend RunCapture Wiring + How Atlas Grades disclosure.
+
+Core objective:
+Wire the real learner frontend path for signed runtime captures:
+editor Run → capture stdout/code/language/validationKind → POST /api/runs/sign → preserve signed envelope → Submit posts envelope → server verifies and grades.
+
+Also add a clear learner-facing grading disclosure that explains what Atlas verifies and what it does not prove.
+
+Hard stops:
+- no global json_equal enforcement
+- no catalog-wide behavior change
+- no new validation kinds
+- no certificate/portfolio/marketing claim upgrade
+- no /check behavior change unless explicitly justified and tested
+- no deployment
+- no production DB touch
+- no anti-cheat overclaiming
+- preserve all legacy submit behavior
+
+Implementation requirements:
+1. Find the frontend execution/editor path that runs learner code and captures stdout.
+2. Build a signed-envelope client flow only for eligible runtime-validation steps.
+3. Use POST /api/runs/sign after successful local/runtime execution.
+4. Store the returned signed envelope in component state near the relevant step/session.
+5. On Submit, send the envelope only when available and eligible.
+6. Preserve legacy bare-string submission behavior for all non-envelope paths.
+7. Handle signing failures gracefully:
+   - missing auth
+   - signing route unavailable
+   - malformed capture
+   - network failure
+   - step not signable
+8. Do not block legacy submit globally.
+9. Add UI copy that avoids H1/H2 claims.
+10. Add or update a “How Atlas Grades” page/section explaining:
+   - Atlas may verify signed runtime output for certain steps
+   - this means the submitted output matched the expected result
+   - this does not prove independent authorship
+   - this does not prove the learner did not use outside help
+   - checks may vary by project/step type
+11. Add tests for:
+   - eligible step signs after run
+   - submit sends envelope when available
+   - submit falls back safely when envelope not available and not required
+   - signing failure does not crash the workspace
+   - disclosure copy exists and does not overclaim
+   - legacy submit path remains unchanged
+
+End with:
+1. files changed
+2. exact frontend behavior added
+3. API interactions added
+4. tests/gates run
+5. what remains unproven
+6. recommended Phase 50 canary plan

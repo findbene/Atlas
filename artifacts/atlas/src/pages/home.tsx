@@ -497,6 +497,7 @@ export default function Home() {
             <Link href="/courses" className="hover:text-foreground">Courses</Link>
             <Link href="/upgrade" className="hover:text-foreground">Pricing</Link>
             <Link href="/dashboard" className="hover:text-foreground">Dashboard</Link>
+            <Link href="/how-atlas-grades" className="hover:text-foreground">How grading works</Link>
           </div>
         </div>
       </footer>

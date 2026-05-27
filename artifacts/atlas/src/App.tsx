@@ -34,6 +34,7 @@ import PythonMastery from "@/pages/python-mastery";
 import SqlMastery from "@/pages/sql-mastery";
 import PublicProfile from "@/pages/public-profile";
 import Verify from "@/pages/verify";
+import HowAtlasGrades from "@/pages/how-atlas-grades";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -193,6 +194,8 @@ function ClerkProviderWithRoutes() {
               <Route path="/domains/:slug" component={DomainDetail} />
               <Route path="/u/:username" component={PublicProfile} />
               <Route path="/verify/:certId" component={Verify} />
+              {/* Phase 49 — Honest-claim H3 disclosure (public, no auth). */}
+              <Route path="/how-atlas-grades" component={HowAtlasGrades} />
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
 
