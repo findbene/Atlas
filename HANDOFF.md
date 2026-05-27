@@ -1,61 +1,69 @@
 # Atlas — Session Handoff
 
-**HEAD:** Phase 34 — Ada Tutor Step Contract + Mode Telemetry, committed at `9f6edb7`.
-**Last shipped + committed:** Phase 34 — Ada Tutor Step Contract + Mode Telemetry at `9f6edb7` (parent: Phase 33 at `7d7f1bea`).
-**Status:** Phase 34 **SHIPPED**. Working tree clean (or carrying only the trim-replit-phase-history docs cleanup).
+**HEAD:** Phase 35 — Project Authoring Template + Content Factory.
+**Last shipped:** Phase 35 (parent: Phase 34 at `9f6edb7`).
+**Status:** Phase 35 **SHIPPED**. Docs-first, schema-free. Working tree carries only the Phase-35 additions (4 docs + 1 audit script + 1 pure helper + 1 test file + 3 small modifications: lib barrel export, scripts package.json, this HANDOFF + replit.md Phase History + docs/phases/INDEX.md).
 
 Atlas remains deploy-ready (Phase 31 unchanged). **No deployment has occurred. No production DB has been touched.**
 
 ---
 
-## Phase 34 working-tree changes
+## Phase 35 working-tree changes
 
 **New files**
-- `lib/execution-core/src/tutorContract.ts` — pure `buildTutorContract(input)` + `renderTutorContractForPrompt(contract)` + `resolveAdaptiveMode(signals)`. Returns `{mode, effectiveMode, resolvedFromAdaptive, helpBoundary, allowedBehaviors[], forbiddenBehaviors[], validationGuidance, responseStyle}`. Independent + not-passed pinned to `diagnostic-only` with explicit "Do NOT reveal the full solution" + "portfolio credibility" clauses; independent + passed → `review-permissive`. Adaptive resolves first-match-wins (stepPassed→independent; lastFailed+≥2 attempts OR hintLevel≥3 OR ≥3 attempts→guided rescue; else hint, never guided).
-- `lib/execution-core/src/tutorContract.test.ts` — 17 cases: each mode boundary, all adaptive resolution branches, render shape, and the solution-leak invariant (independent + not-passed must always include "Do NOT reveal the full solution" regardless of attemptCount/hintLevel).
-- `docs/phases/phase-34-ada-tutor-step-contract.md` (close-out).
+
+- `docs/project-authoring-spec.md` — canonical v1.0 spec, 14 sections, anchored on the existing `AuthoredProject` type. Quotes `assertAuthoredProjectComplete` invariants verbatim from `lib/curriculum-quality/src/authoring.ts:206`.
+- `docs/templates/project-template.md` — copy-paste fillable template, every field labeled REQUIRED / OPTIONAL.
+- `docs/templates/project-publish-readiness-checklist.md` — 14 lettered binary gates (A–N). Distinguishes runtime gates (asserter, `audit:authoring`) from typecheck (static type only).
+- `scripts/src/audit-project-authoring.ts` — READ-ONLY DB audit (exit 0 always). Distinct from `audit:pedagogy` — checks project-level shape, not per-step density. Checks: `fewer-than-four-steps`, `non-sequential-step-numbers`, `step-missing-instruction`, `step-missing-expected-outputs`, `step-missing-validation-type`, `all-steps-self-attest`, `hint-leak-suspected`, `meta-field-missing`. Findings deduplicated per project.
+- `lib/curriculum-quality/src/authoringAudit.ts` — pure `hintLeakSuspected(pedagogy, expectedOutputs)` helper. Windowed substring match between L4/L5 hint text and stringified expectedOutputs, with a JSON-syntax-density false-positive guard. Extracted here (not in `@workspace/scripts`) so it can be unit-tested without adding vitest to scripts — matches audit:pedagogy precedent.
+- `lib/curriculum-quality/src/authoringAudit.test.ts` — 8 unit cases covering: null/empty inputs, L4 leak, L5 leak, shape-only hint (no flag), JSON-syntax false-positive guard, very short hints, very long expectedOutputs window slicing.
+- `docs/phases/phase-35-project-authoring-spec.md` — close-out.
 
 **Modified files**
-- `lib/execution-core/src/index.ts` — exports `buildTutorContract`, `renderTutorContractForPrompt`, `resolveAdaptiveMode`, `TutorContractInput`, `TutorContract`, `HelpBoundary`.
-- `artifacts/api-server/src/routes/ai.ts` — renamed `SYSTEM_PROMPT` → `SYSTEM_PROMPT_BASE`, stripped the inline P4-era "Mode-aware tone" bullets, added "TUTOR CONTRACT below" references. Per-request, after assembling `learnerStateBlock`, builds the contract from the SAME signals (`atlasMode`, `attemptCount`, `currentHintLevel`, `lastValidationFailed`, `stepPassed`) and appends `renderTutorContractForPrompt(contract)` to the system prompt **outside** the untrusted `<learner_state>` / `<project_context>` / `<step_pedagogy>` / `<user_data>` envelopes. Emits `req.log.info({evt:'ai.tutor.request', userId, projectId, stepId, tier, model, contract:{…}})` BEFORE the upstream stream call (so failures still emit). General-context requests → base prompt only + `telemetry: null` in the log.
-- `artifacts/api-server/src/routes/hints.ts` — `POST /projects/:slug/steps/:stepId/hint/next` emits `req.log.info({evt:'hint.escalate', userId, projectId, projectSlug, stepId, mode, priorLevel, desiredLevel, cap, attemptCount, lastValidationFailed, stepPassed})` AFTER the atomic upsert (so the log reflects what was persisted).
-- `artifacts/api-server/src/routes/admin.ts` — new `GET /api/admin/mode-usage` (requireAdmin). Reads `user_progress.learning_mode` via `db.execute(sql\`SELECT learning_mode, COUNT(*)::int AS n FROM user_progress GROUP BY learning_mode\`)`. Returns `{totalEnrollments, byMode:{guided,hint,independent,dynamic_ai_adaptive}, percentByMode}` — flat aggregate, no per-user/per-project detail, defensive on unknown enum values, divide-by-zero guarded.
-- `artifacts/api-server/src/routes/ai.test.ts` — extended db mock with `userProgress` / `userProjectStepHints` / `userStepCompletions` query stubs; added `streamSpy` capturing `messages.stream(args)` so tests can assert on `system`. New 6-case suite "POST /ai/chat — Phase 34 Tutor Contract injection".
-- `artifacts/api-server/src/routes/admin.test.ts` — db mock gained `execute` + `userProgress` sentinel; `drizzle-orm` mock switched to `importActual` passthrough (was a stub-only export). New 5-case suite "GET /api/admin/mode-usage".
-- `replit.md` (Phase History: P26 stays in scope, P34 prepended).
-- `docs/phases/INDEX.md` (P34 entry appended).
-- `HANDOFF.md` (this file).
 
-**Unchanged:** every schema file, every migration, every other backend route (incl. `/check`, `/submit`, cert-verify, portfolio, billing, dashboard, onboarding, enrollment, learner-mode, hints-GET), every frontend file (atlas + mockup-sandbox), OpenAPI spec, all codegen output, seed/content/rubric/anchor/wave files, deployment checklist, scripts. The Tutor Contract module is purely additive; `SYSTEM_PROMPT_BASE` retains the full hint-discipline + safety hard floor verbatim — the contract tightens per-mode behavior on top, never below.
+- `lib/curriculum-quality/src/index.ts` — exports `hintLeakSuspected`.
+- `scripts/package.json` — adds `audit:authoring` npm script.
+- `replit.md` — Phase History prepended with P35, P29 trimmed off the latest-5 window.
+- `docs/phases/INDEX.md` — P35 entry appended.
+- `HANDOFF.md` — this file.
+
+**Unchanged:** every schema file, every migration, every backend route (incl. `/check`, `/submit`, cert-verify, portfolio, billing, AI tutor, hints, learner-mode, admin, dashboard, onboarding, enrollment), every frontend file (atlas + mockup-sandbox), OpenAPI spec, all codegen output, seed/content/rubric/anchor/wave files, deployment checklist, `assertAuthoredProjectComplete` itself, the 4-file no-heuristic allowlist. Deliverable E (parallel admin endpoint) deferred — `/api/admin/quality` already exposes lineage signals, and `audit:authoring` is the canonical surface.
 
 ---
 
 ## Strategy decisions
 
-1. **Pure helper in execution-core, not a route-local function.** Keeps the policy testable without DB / Anthropic / Express harnesses, and locks the solution-leak invariant in a single place architect explicitly flagged for future regressions.
-2. **Contract OUTSIDE untrusted envelopes.** Rendered text appended to `SYSTEM_PROMPT_BASE` directly, never inside `<learner_state>` or `<project_context>`. Same threat model as the existing base prompt.
-3. **Adaptive resolves to a CONCRETE mode at the contract layer.** The model never sees a bare `dynamic_ai_adaptive` label without an explicit `effective_mode (adaptive resolution): …` line right next to it. Rules first-match-wins, deterministic, signal-echoed.
-4. **Adaptive default = hint, not guided.** A learner who picked `dynamic_ai_adaptive` opted out of always-on scaffolding; we only rescue to guided when the struggle signals (lastFailed+≥2 attempts, hintLevel≥3, attempts≥3) actually fire.
-5. **Independent splits on `stepPassed`.** Pre-pass → `diagnostic-only` (Socratic, no leak). Post-pass → `review-permissive` (discuss solution + alternatives). Mirrors Phase 33's dampened-diff posture in `RemediationPanel` — consistent end-to-end.
-6. **Schema-free telemetry only.** No new tables, no migration, no Stripe-style sync. Structured `req.log.info({evt, …})` is enough for an operator to `rg evt:.ai.tutor.request` today; a real dashboard is a follow-up phase.
-7. **Telemetry timing matters.** `ai.tutor.request` fires BEFORE the upstream stream (so failures still emit). `hint.escalate` fires AFTER the upsert (so the log reflects what was actually persisted, preventing "logged-but-didn't-write" false signal).
-8. **`mode-usage` admin endpoint has zero per-user shape.** 4-row aggregate; no joins, no ids, no slugs. Locked by an explicit no-PII assertion in the test.
-9. **Architect's nit consolidated.** Original `resolveAdaptiveMode` had a redundant final `if`/`else` returning the same value — collapsed to a single labeled return with a comment explaining why the default is hint rather than guided.
+1. **Anchor on the existing `AuthoredProject` type.** Codifying the de-facto contract (rather than inventing a new one) means there can never be two contracts drifting apart. Every spec field cites its line in `lib/curriculum-quality/src/authoring.ts`.
+2. **Project-level invariant promoted to a documented gate.** A project where every step is `self_attest` provides no real evidence for the portfolio / cert-verify surface. `audit:authoring` flags this as `all-steps-self-attest`; spec §5.1 + checklist §D document the invariant.
+3. **`audit:authoring` is a reporting tool, not a CI gate** (exit 0 always). Distinct from `audit:pedagogy`, which is a hard 100%-visible gate. The two are complementary.
+4. **`hintLeakSuspected` is a heuristic, explicitly labeled.** Cheap windowed substring match with JSON-syntax false-positive guard; can't catch semantic leaks. Real anti-leak guarantee lives in the publish-readiness checklist + human review.
+5. **Heuristic lives in `lib/curriculum-quality`**, not in scripts, so it can be unit-tested without adding vitest to the scripts package (mirrors the audit:pedagogy precedent).
+6. **Runtime vs typecheck explicitly distinguished.** `assertAuthoredProjectComplete` is a **runtime function** invoked by the promote flow; `pnpm run typecheck` validates the `AuthoredProject` static type only. Spec §13 and checklist §K + §L make this explicit — earlier drafts conflated them, which would have given authors false confidence in CI coverage. Architect caught this twice during fix-up.
+7. **Deliverable E (admin endpoint) deferred** to avoid scope creep. `/api/admin/quality` already exposes lineage integrity; `audit:authoring` is the operator-facing surface.
 
 ---
 
-## Final gate summary (Phase 34)
+## What the new audit finds today
+
+54 of 56 visible projects are publish-ready. The 2 with gaps are exactly `csv-to-postgres-pipeline` and `dbt-data-models` — the pre-Phase-7 grandfathered originals listed in `GRANDFATHERED_CANDIDATE_FOR_SLUG`. They predate the `AuthoredProject` contract. Real signal, not false positives.
+
+---
+
+## Final gate summary (Phase 35)
 
 | Gate | Result |
 | ---- | ------ |
-| `pnpm --filter @workspace/execution-core run test` | **34/34** (17 new tutorContract cases) |
-| `pnpm --filter @workspace/api-server run test` | **273/273** (6 new ai.ts + 5 new admin.ts cases) |
-| `pnpm --filter @workspace/atlas run test` | **102/102** (unchanged from P33) |
-| `pnpm --filter @workspace/api-server run test:integration` | **3/3** (P30B concurrency unchanged) |
-| `pnpm run typecheck` | clean (libs build + 4 leaf packages + no-heuristic-runtime guard) |
+| `pnpm --filter @workspace/curriculum-quality run test` | **69/69** (8 new authoringAudit cases) |
+| `pnpm --filter @workspace/execution-core run test` | **34/34** (unchanged) |
+| `pnpm --filter @workspace/api-server run test` | **273/273** (unchanged) |
+| `pnpm --filter @workspace/atlas run test` | **102/102** (unchanged) |
+| `pnpm --filter @workspace/api-server run test:integration` | **3/3** (real-PG concurrency unchanged) |
+| `pnpm run typecheck` | clean (libs build + 4 leaf packages) |
 | `pnpm run check:no-heuristic-runtime` | OK — 4-file allowlist unchanged |
 | `pnpm --filter @workspace/scripts run audit:pedagogy` | **56/56 visible** (unchanged) |
-| Architect review | **PASS** after one Medium consolidation (redundant adaptive branch) |
+| `pnpm --filter @workspace/scripts run audit:authoring` (NEW) | 54/56 visible publish-ready; 2 grandfathered slugs flagged |
+| Architect review | **PASS** after 3 fix-up rounds (portfolio.kind enum; validation.spec rename; runtime-vs-typecheck; all-steps-self-attest spec/code alignment) |
 
 ## Hard-rule re-verification
 
@@ -64,16 +72,18 @@ Atlas remains deploy-ready (Phase 31 unchanged). **No deployment has occurred. N
 - `learner_visible = TRUE` filter on learner-facing routes: **unchanged** (404-not-403 privacy intact).
 - Bidirectional candidate ↔ project lineage: **untouched**.
 - RUBRIC_VERSION='1.0.1': **frozen**.
-- 4-file no-heuristic allowlist: **not expanded** (`check:no-heuristic-runtime` green).
+- 4-file no-heuristic allowlist: **not expanded**.
+- AI tutor prompt, hint policy, learner-mode endpoints: **untouched**.
 - 9 Atlas courses + "Atlas is a project-based learning platform for Data Engineering" framing: **unchanged**.
 
 ## Untracked scratch
 
 - `attached_assets/Pasted-*.txt` from prior sessions remain untracked. **Do not commit.**
 
-## Known follow-ups (Phase 35 candidates)
+## Known follow-ups (Phase 36 candidates)
 
-- Surface `mode-usage` aggregate in the admin UI (currently API-only).
-- Add a sibling `evt:'ai.tutor.response'` log capturing latency + token count + assistant length so the dashboard can show per-mode cost/length distributions.
-- Consider a structured-log → time-series pipeline (a real `mode_usage_daily` materialized view) once there is enough deployed traffic.
-- Optional: aggregate `hint.escalate` events into a per-step difficulty signal that feeds back into the adaptive resolver (the loop is currently open).
+- Upgrade `csv-to-postgres-pipeline` + `dbt-data-models` to the modern `AuthoredProject` shape, or archive (`learner_visible=false`) + replace with new authored equivalents. These are the only 2 visible slugs not currently publish-ready by the Phase 35 contract.
+- Optional: admin UI surface for `audit:authoring` output (deferred deliverable E).
+- Optional: extend `hintLeakSuspected` with an embedding-based semantic check.
+- Author 1–2 net-new projects using the new spec end-to-end as a paved-path smoke test.
+- Phase 34 follow-ups still open: surface `mode-usage` in admin UI; add `evt:'ai.tutor.response'` log; structured-log → time-series for `mode_usage_daily`; aggregate `hint.escalate` into per-step difficulty signal.

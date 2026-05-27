@@ -1,0 +1,197 @@
+We have completed Phase 34: Ada Tutor Step Contract + Mode Telemetry.
+
+Current state:
+- Phase 32 activated learner modes and adaptive recommender.
+- Phase 33 made the project workspace mode-aware.
+- Phase 34 made Ada’s tutor behavior mode-aware, step-aware, validation-aware, and observable.
+- All recent hard stops were preserved.
+- Gates were green:
+  - execution-core 34/34
+  - api-server 273/273
+  - atlas 102/102
+  - real-Postgres integration 3/3
+  - typecheck clean
+  - no-heuristic clean
+  - pedagogy 56/56
+  - Architect PASS
+
+Now start Phase 35.
+
+PHASE 35 — Project Authoring Template + Content Factory
+
+Goal:
+Create a standardized, scalable project production system so Atlas can safely seed many high-quality, portfolio-grade projects without creating inconsistent project shapes.
+
+Why:
+Atlas should not mass-seed projects until every project follows a consistent authoring contract that supports:
+- Guided / Hint-Based / Independent / Adaptive modes
+- Ada tutor step contract
+- validation checks
+- hint ladder
+- remediation
+- portfolio evidence
+- GitHub-ready output
+- LinkedIn/recruiter-facing summaries
+- admin review / publish readiness
+
+Start with a read-only audit.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-32-learner-mode-selector.md
+5. docs/phases/phase-33-mode-aware-project-workspace-ux.md
+6. docs/phases/phase-34-ada-tutor-step-contract.md
+7. Existing project seed/content files
+8. Existing project schema/content model
+9. Existing validation/check model
+10. Existing pedagogy config / hint model
+11. Existing admin/content review surfaces, if any
+
+Audit:
+1. Where project content currently lives.
+2. How project steps are represented.
+3. How validation checks are represented.
+4. How hints are represented.
+5. How final deliverables are represented.
+6. Whether projects already have portfolio/recruiter metadata.
+7. Whether projects already have prerequisite/skill metadata.
+8. Whether project quality can be audited without schema changes.
+9. Whether a project authoring template can be introduced as docs + validation script first.
+10. Whether seed files can be checked against the template.
+11. What minimum tooling is needed before mass seeding.
+
+Preferred Phase 35 scope:
+Keep this schema-free unless a schema change is absolutely necessary.
+
+Deliverables:
+
+A. Project Authoring Specification
+Create a canonical project authoring spec document, for example:
+docs/project-authoring-spec.md
+
+It should define the required structure for every Atlas project:
+- project slug
+- title
+- role path alignment
+- difficulty
+- estimated time
+- prerequisites
+- target skills
+- tools used
+- learner outcome
+- project scenario
+- final deliverable
+- step structure
+- validation requirements
+- hint ladder requirements
+- Ada tutor context requirements
+- portfolio summary
+- GitHub README expectations
+- LinkedIn sharing copy expectations
+- publish-readiness checklist
+
+B. Project Template
+Create a reusable project template, for example:
+docs/templates/project-template.md
+
+The template should be copy/paste-ready for producing new projects.
+
+It should include sections for:
+- overview
+- why this matters professionally
+- prerequisites
+- learning objectives
+- tools
+- dataset/input assumptions
+- steps
+- validation checks
+- hint ladder
+- common failure modes
+- remediation guidance
+- final deliverable
+- portfolio evidence
+- GitHub README summary
+- LinkedIn post draft seed
+- admin review notes
+
+C. Publish Readiness Checklist
+Create a checklist, for example:
+docs/templates/project-publish-readiness-checklist.md
+
+Include gates:
+- project has clear professional scenario
+- every step has a validation path
+- every step has hint ladder support
+- no impossible local/cloud requirement unless explicitly marked
+- no hidden paid dependency unless disclosed
+- Ada has enough context
+- final deliverable is portfolio-worthy
+- difficulty label is justified
+- prerequisites are accurate
+- role path mapping is accurate
+- rubric compatibility confirmed
+- no answer leakage in hints/remediation
+- project can be completed in Atlas environment
+
+D. Optional Static Audit Script
+If safe and schema-free, add a script that audits existing project content against the new authoring contract.
+
+For example:
+scripts/src/auditProjectAuthoring.ts
+
+The script should be read-only and report:
+- missing title
+- missing difficulty
+- missing role/skill mapping
+- missing steps
+- missing validation
+- missing hints
+- missing final deliverable
+- weak/missing portfolio summary
+- publish-readiness status
+
+Do not mutate project data.
+Do not auto-fix.
+Do not mass-edit content.
+
+E. Optional Admin Read-Only Summary
+Only if very low-risk and schema-free:
+Add a read-only admin endpoint or script output summarizing project readiness counts.
+
+If this creates scope risk, defer it.
+
+Hard stops:
+- No schema changes unless clearly justified and approved.
+- No migrations.
+- No project mass-seeding.
+- No production DB.
+- No deployment.
+- No /check contract changes.
+- No /submit changes.
+- No certificate/portfolio/billing/Stripe changes.
+- No rubric version changes.
+- No taxonomy/anchor/pedagogy invariant changes.
+- No broad frontend redesign.
+- No AI tutor rewrite beyond making sure the authoring spec supports Phase 34.
+
+Testing / gates:
+- If code/script is added, add tests.
+- Typecheck clean.
+- Existing api-server tests green.
+- Existing atlas tests green.
+- Existing execution-core tests green.
+- Real-Postgres integration 3/3 unchanged.
+- check:no-heuristic-runtime OK.
+- audit:pedagogy visible 56/56.
+- Architect review PASS.
+
+End with:
+1. Phase 35 final status
+2. files changed
+3. tests/gates run
+4. whether any schema changes were needed
+5. project readiness gaps discovered
+6. recommended Phase 36
+7. suggested commit message

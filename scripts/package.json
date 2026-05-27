@@ -9,6 +9,7 @@
     "seed": "tsx ./src/seed.ts",
     "seed:stripe": "tsx ./src/seed-stripe-products.ts",
     "audit:pedagogy": "tsx ./src/audit-pedagogy.ts",
+    "audit:authoring": "tsx ./src/audit-project-authoring.ts",
     "audit:quality": "tsx ./src/audit-quality.ts",
     "catalog:report": "tsx ./src/catalog-report.ts",
     "candidates": "tsx ./src/candidates.ts",
