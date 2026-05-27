@@ -7,6 +7,13 @@ export interface ExecResult {
   stderr: string;
   exitCode: number;
   timedOut: boolean;
+  /**
+   * Phase 49 — Wall-clock duration of `runPythonAsync`, including package
+   * preload. Reported into the Phase 45 `RunCapture` so the signed envelope
+   * carries a real timing measurement (vs. `0`, which would be obviously
+   * forged). Always non-negative finite.
+   */
+  durationMs: number;
 }
 
 let pyodidePromise: Promise<PyodideInterface> | null = null;
@@ -164,7 +171,12 @@ async function resetPyodideGlobalsInner(py: import("pyodide").PyodideInterface):
 }
 
 async function runPythonInner(code: string, timeoutMs: number, resetGlobals: boolean): Promise<ExecResult> {
+  // Phase 49 — Capture wall-clock duration starting from the moment we
+  // begin actual work (after the runtime is loaded). Excludes the one-off
+  // Pyodide cold-start download so the timing reflects per-run cost, not
+  // first-page-load cost. `performance.now()` is monotonic.
   const py = await loadPyodideOnce();
+  const t0 = performance.now();
   if (resetGlobals) {
     await resetPyodideGlobalsInner(py);
   }
@@ -222,7 +234,13 @@ async function runPythonInner(code: string, timeoutMs: number, resetGlobals: boo
     stderr += `\nExecution timed out after ${Math.round(timeoutMs / 1000)}s.\n`;
     void exec; // already awaited via runChain serialization below
     await exec.catch(() => undefined); // ensure chain order
-    return { stdout, stderr, exitCode: 1, timedOut: true };
+    return {
+      stdout,
+      stderr,
+      exitCode: 1,
+      timedOut: true,
+      durationMs: Math.max(0, Math.round(performance.now() - t0)),
+    };
   }
 
   return {
@@ -230,5 +248,6 @@ async function runPythonInner(code: string, timeoutMs: number, resetGlobals: boo
     stderr,
     exitCode: winner.ok ? 0 : 1,
     timedOut: false,
+    durationMs: Math.max(0, Math.round(performance.now() - t0)),
   };
 }

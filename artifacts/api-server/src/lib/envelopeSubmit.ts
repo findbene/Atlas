@@ -11,11 +11,12 @@
  *
  * Allow-list (`ATLAS_ENVELOPE_REQUIRED_KINDS`) is EMPTY by default in
  * Phase 47, which means: signed envelopes are detected on the wire but
- * are NOT enabled for any kind. A client that submits an envelope for a
- * non-allow-listed kind gets a clean 400 (`envelope_kind_not_enabled`) —
- * we never silently fall through to legacy grading when the caller has
- * signaled intent to use the signed path. Behavior is therefore identical
- * to pre-Phase-47 unless an operator explicitly opts in via env var.
+ * are NOT enabled for any kind. Phase 49 update: a client that submits
+ * an envelope for a non-allow-listed kind is silently downgraded by the
+ * caller to the legacy bare-string grading path (logged as
+ * `envelope.submit.kind_not_enabled.fallback`). Verifier is only invoked
+ * when the kind IS allow-listed, so behavior is still identical to
+ * pre-Phase-47 unless an operator explicitly opts in via env var.
  *
  * Failure mapping (verifier reason → HTTP):
  *   envelope-malformed          → 400 envelope_malformed

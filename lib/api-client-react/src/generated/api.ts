@@ -51,6 +51,8 @@ import type {
   PaginatedProjects,
   PortalResponse,
   ProjectDetail,
+  SignRunBody,
+  SignRunResponse,
   StripeWebhookBody,
   SubmitStepBody,
   Subscription,
@@ -970,6 +972,99 @@ export function useGetUserProjectProgress<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Phase 46 — Mints a `SignedRunEnvelope` for a learner's runtime
+capture so the envelope can be attached to a later /submit call.
+Auth + ownership + visibility + premium + enrollment + signable-kind
+gates apply. Returns 422 for validation kinds that are not signable
+(e.g. self_attest, exact, regex, contains) so the client can fall
+back to a bare-string submission.
+
+ * @summary Sign a runtime capture as a server-issued RunResult envelope
+ */
+export const getSignRunUrl = () => {
+  return `/api/runs/sign`;
+};
+
+export const signRun = async (
+  signRunBody: SignRunBody,
+  options?: RequestInit,
+): Promise<SignRunResponse> => {
+  return customFetch<SignRunResponse>(getSignRunUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(signRunBody),
+  });
+};
+
+export const getSignRunMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof signRun>>,
+    TError,
+    { data: BodyType<SignRunBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof signRun>>,
+  TError,
+  { data: BodyType<SignRunBody> },
+  TContext
+> => {
+  const mutationKey = ["signRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof signRun>>,
+    { data: BodyType<SignRunBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return signRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SignRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof signRun>>
+>;
+export type SignRunMutationBody = BodyType<SignRunBody>;
+export type SignRunMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Sign a runtime capture as a server-issued RunResult envelope
+ */
+export const useSignRun = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof signRun>>,
+    TError,
+    { data: BodyType<SignRunBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof signRun>>,
+  TError,
+  { data: BodyType<SignRunBody> },
+  TContext
+> => {
+  return useMutation(getSignRunMutationOptions(options));
+};
 
 /**
  * @summary Submit a step for grading

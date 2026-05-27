@@ -30,6 +30,7 @@ const useEnrollProjectMock = vi.fn();
 const useSubmitStepMock = vi.fn();
 const useCheckStepMock = vi.fn();
 const useGetUserProfileMock = vi.fn();
+const useSignRunMock = vi.fn();
 
 vi.mock("@workspace/api-client-react", () => ({
   useGetProject: () => useGetProjectMock(),
@@ -38,6 +39,9 @@ vi.mock("@workspace/api-client-react", () => ({
   useSubmitStep: () => useSubmitStepMock(),
   useCheckStep: () => useCheckStepMock(),
   useGetUserProfile: () => useGetUserProfileMock(),
+  // Phase 49 — Sign-after-Run hook. Default mock returns no-op; resume
+  // lifecycle tests never trigger Run, so we just need the symbol present.
+  useSignRun: () => useSignRunMock(),
   getGetUserProjectProgressQueryKey: (id: string) => ["/api/user/projects", id, "progress"],
 }));
 
@@ -114,6 +118,10 @@ describe("Phase 23 — ProjectWorkspace resume lifecycle", () => {
     useGetUserProfileMock.mockReturnValue({ data: { tier: "free" } });
     useSubmitStepMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
     useCheckStepMock.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    useSignRunMock.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ envelope: null }),
+      isPending: false,
+    });
     // Replace any leftover ?step= from previous tests.
     window.history.replaceState({}, "", "/");
   });

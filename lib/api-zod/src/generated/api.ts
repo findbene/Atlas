@@ -987,6 +987,130 @@ export const GetUserProjectProgressResponse = zod
   );
 
 /**
+ * Phase 46 — Mints a `SignedRunEnvelope` for a learner's runtime
+capture so the envelope can be attached to a later /submit call.
+Auth + ownership + visibility + premium + enrollment + signable-kind
+gates apply. Returns 422 for validation kinds that are not signable
+(e.g. self_attest, exact, regex, contains) so the client can fall
+back to a bare-string submission.
+
+ * @summary Sign a runtime capture as a server-issued RunResult envelope
+ */
+export const SignRunBody = zod.object({
+  projectId: zod.string(),
+  stepId: zod.string(),
+  capture: zod
+    .object({
+      version: zod.literal(1),
+      language: zod.enum(["python", "sql"]),
+      code: zod.string().describe("Source the client claims to have executed."),
+      stdout: zod.string(),
+      stderr: zod.string(),
+      exitCode: zod.number(),
+      durationMs: zod.number(),
+      timedOut: zod.boolean(),
+      columns: zod
+        .array(zod.string())
+        .optional()
+        .describe(
+          "Tabular columns (DuckDB-style adapters). OMIT (do not send `null`)\nfor stdout-only runs — the server rejects `null` here.\n",
+        ),
+      rows: zod
+        .array(
+          zod.array(
+            zod.union([zod.string(), zod.number(), zod.boolean()]).nullable(),
+          ),
+        )
+        .optional()
+        .describe(
+          "Tabular rows aligned to `columns`. OMIT (do not send `null`)\nfor stdout-only runs.\n",
+        ),
+    })
+    .describe(
+      "Phase 45 — Runtime execution capture produced by the in-browser\nPyodide \/ DuckDB adapters. Sent to POST \/runs\/sign to be wrapped\nin a server-signed envelope. Honest-claim ceiling H3: the signature\nproves Atlas issued the envelope; it does NOT prove the capture\ncame from honest learner execution.\n",
+    ),
+});
+
+export const SignRunResponse = zod.object({
+  envelope: zod
+    .object({
+      capture: zod
+        .object({
+          version: zod.literal(1),
+          language: zod.enum(["python", "sql"]),
+          code: zod
+            .string()
+            .describe("Source the client claims to have executed."),
+          stdout: zod.string(),
+          stderr: zod.string(),
+          exitCode: zod.number(),
+          durationMs: zod.number(),
+          timedOut: zod.boolean(),
+          columns: zod
+            .array(zod.string())
+            .optional()
+            .describe(
+              "Tabular columns (DuckDB-style adapters). OMIT (do not send `null`)\nfor stdout-only runs — the server rejects `null` here.\n",
+            ),
+          rows: zod
+            .array(
+              zod.array(
+                zod
+                  .union([zod.string(), zod.number(), zod.boolean()])
+                  .nullable(),
+              ),
+            )
+            .optional()
+            .describe(
+              "Tabular rows aligned to `columns`. OMIT (do not send `null`)\nfor stdout-only runs.\n",
+            ),
+        })
+        .describe(
+          "Phase 45 — Runtime execution capture produced by the in-browser\nPyodide \/ DuckDB adapters. Sent to POST \/runs\/sign to be wrapped\nin a server-signed envelope. Honest-claim ceiling H3: the signature\nproves Atlas issued the envelope; it does NOT prove the capture\ncame from honest learner execution.\n",
+        ),
+      binding: zod
+        .object({
+          version: zod.literal(1),
+          kid: zod.string(),
+          userId: zod.string(),
+          projectId: zod.string(),
+          stepId: zod.string(),
+          validationKind: zod.string(),
+          submissionSha256: zod
+            .string()
+            .describe(
+              "sha256(capture.code), hex lowercase. Derived server-side at sign time.",
+            ),
+          outputSha256: zod
+            .string()
+            .describe(
+              "sha256(canonicalized capture output fields), hex lowercase. Audit\/forensic aid.",
+            ),
+          issuedAt: zod.coerce
+            .date()
+            .describe("ISO-8601 UTC, server clock at signing."),
+          expiresAt: zod.coerce
+            .date()
+            .describe("ISO-8601 UTC, issuedAt + ttlMs (10 minutes)."),
+          nonce: zod
+            .string()
+            .describe("Single-use replay token within the TTL window."),
+        })
+        .describe(
+          "Phase 45 — Server-issued binding inside a SignedRunEnvelope. Every\nfield is verified at \/submit time. `kid` supports future signing-key\nrotation without invalidating in-flight envelopes.\n",
+        ),
+      signature: zod
+        .string()
+        .describe(
+          'HMAC-SHA256 over canonical(capture)||\"\\n\"||canonical(binding),\nhex lowercase. Verified at \/submit time.\n',
+        ),
+    })
+    .describe(
+      "Phase 45 — Server-signed RunResult envelope. Returned by\nPOST \/runs\/sign and optionally attached to POST \/submit.\n",
+    ),
+});
+
+/**
  * @summary Submit a step for grading
  */
 export const SubmitStepParams = zod.object({
@@ -999,6 +1123,83 @@ export const SubmitStepBody = zod.object({
     .string()
     .describe("Code, answer, or other submission content"),
   submissionType: zod.enum(["code", "text", "choice", "file"]),
+  envelope: zod
+    .object({
+      capture: zod
+        .object({
+          version: zod.literal(1),
+          language: zod.enum(["python", "sql"]),
+          code: zod
+            .string()
+            .describe("Source the client claims to have executed."),
+          stdout: zod.string(),
+          stderr: zod.string(),
+          exitCode: zod.number(),
+          durationMs: zod.number(),
+          timedOut: zod.boolean(),
+          columns: zod
+            .array(zod.string())
+            .optional()
+            .describe(
+              "Tabular columns (DuckDB-style adapters). OMIT (do not send `null`)\nfor stdout-only runs — the server rejects `null` here.\n",
+            ),
+          rows: zod
+            .array(
+              zod.array(
+                zod
+                  .union([zod.string(), zod.number(), zod.boolean()])
+                  .nullable(),
+              ),
+            )
+            .optional()
+            .describe(
+              "Tabular rows aligned to `columns`. OMIT (do not send `null`)\nfor stdout-only runs.\n",
+            ),
+        })
+        .describe(
+          "Phase 45 — Runtime execution capture produced by the in-browser\nPyodide \/ DuckDB adapters. Sent to POST \/runs\/sign to be wrapped\nin a server-signed envelope. Honest-claim ceiling H3: the signature\nproves Atlas issued the envelope; it does NOT prove the capture\ncame from honest learner execution.\n",
+        ),
+      binding: zod
+        .object({
+          version: zod.literal(1),
+          kid: zod.string(),
+          userId: zod.string(),
+          projectId: zod.string(),
+          stepId: zod.string(),
+          validationKind: zod.string(),
+          submissionSha256: zod
+            .string()
+            .describe(
+              "sha256(capture.code), hex lowercase. Derived server-side at sign time.",
+            ),
+          outputSha256: zod
+            .string()
+            .describe(
+              "sha256(canonicalized capture output fields), hex lowercase. Audit\/forensic aid.",
+            ),
+          issuedAt: zod.coerce
+            .date()
+            .describe("ISO-8601 UTC, server clock at signing."),
+          expiresAt: zod.coerce
+            .date()
+            .describe("ISO-8601 UTC, issuedAt + ttlMs (10 minutes)."),
+          nonce: zod
+            .string()
+            .describe("Single-use replay token within the TTL window."),
+        })
+        .describe(
+          "Phase 45 — Server-issued binding inside a SignedRunEnvelope. Every\nfield is verified at \/submit time. `kid` supports future signing-key\nrotation without invalidating in-flight envelopes.\n",
+        ),
+      signature: zod
+        .string()
+        .describe(
+          'HMAC-SHA256 over canonical(capture)||\"\\n\"||canonical(binding),\nhex lowercase. Verified at \/submit time.\n',
+        ),
+    })
+    .nullish()
+    .describe(
+      "Phase 49 — Optional signed RunResult envelope (minted by\nPOST \/runs\/sign right after a successful local Run). When present\nAND the step's validation kind is enabled in the pilot allow-list\n(ATLAS_ENVELOPE_REQUIRED_KINDS), \/submit grades against the\nverified capture rather than the bare submission string. Absence\npreserves legacy bare-string grading semantics for backward\ncompatibility — older clients keep working unchanged.\n",
+    ),
 });
 
 export const SubmitStepResponse = zod.object({
@@ -1035,6 +1236,83 @@ export const CheckStepBody = zod.object({
     .string()
     .describe("Code, answer, or other submission content"),
   submissionType: zod.enum(["code", "text", "choice", "file"]),
+  envelope: zod
+    .object({
+      capture: zod
+        .object({
+          version: zod.literal(1),
+          language: zod.enum(["python", "sql"]),
+          code: zod
+            .string()
+            .describe("Source the client claims to have executed."),
+          stdout: zod.string(),
+          stderr: zod.string(),
+          exitCode: zod.number(),
+          durationMs: zod.number(),
+          timedOut: zod.boolean(),
+          columns: zod
+            .array(zod.string())
+            .optional()
+            .describe(
+              "Tabular columns (DuckDB-style adapters). OMIT (do not send `null`)\nfor stdout-only runs — the server rejects `null` here.\n",
+            ),
+          rows: zod
+            .array(
+              zod.array(
+                zod
+                  .union([zod.string(), zod.number(), zod.boolean()])
+                  .nullable(),
+              ),
+            )
+            .optional()
+            .describe(
+              "Tabular rows aligned to `columns`. OMIT (do not send `null`)\nfor stdout-only runs.\n",
+            ),
+        })
+        .describe(
+          "Phase 45 — Runtime execution capture produced by the in-browser\nPyodide \/ DuckDB adapters. Sent to POST \/runs\/sign to be wrapped\nin a server-signed envelope. Honest-claim ceiling H3: the signature\nproves Atlas issued the envelope; it does NOT prove the capture\ncame from honest learner execution.\n",
+        ),
+      binding: zod
+        .object({
+          version: zod.literal(1),
+          kid: zod.string(),
+          userId: zod.string(),
+          projectId: zod.string(),
+          stepId: zod.string(),
+          validationKind: zod.string(),
+          submissionSha256: zod
+            .string()
+            .describe(
+              "sha256(capture.code), hex lowercase. Derived server-side at sign time.",
+            ),
+          outputSha256: zod
+            .string()
+            .describe(
+              "sha256(canonicalized capture output fields), hex lowercase. Audit\/forensic aid.",
+            ),
+          issuedAt: zod.coerce
+            .date()
+            .describe("ISO-8601 UTC, server clock at signing."),
+          expiresAt: zod.coerce
+            .date()
+            .describe("ISO-8601 UTC, issuedAt + ttlMs (10 minutes)."),
+          nonce: zod
+            .string()
+            .describe("Single-use replay token within the TTL window."),
+        })
+        .describe(
+          "Phase 45 — Server-issued binding inside a SignedRunEnvelope. Every\nfield is verified at \/submit time. `kid` supports future signing-key\nrotation without invalidating in-flight envelopes.\n",
+        ),
+      signature: zod
+        .string()
+        .describe(
+          'HMAC-SHA256 over canonical(capture)||\"\\n\"||canonical(binding),\nhex lowercase. Verified at \/submit time.\n',
+        ),
+    })
+    .nullish()
+    .describe(
+      "Phase 49 — Optional signed RunResult envelope (minted by\nPOST \/runs\/sign right after a successful local Run). When present\nAND the step's validation kind is enabled in the pilot allow-list\n(ATLAS_ENVELOPE_REQUIRED_KINDS), \/submit grades against the\nverified capture rather than the bare submission string. Absence\npreserves legacy bare-string grading semantics for backward\ncompatibility — older clients keep working unchanged.\n",
+    ),
 });
 
 export const CheckStepResponse = zod

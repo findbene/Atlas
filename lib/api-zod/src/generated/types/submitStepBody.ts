@@ -5,10 +5,20 @@
  * Atlas - Project-based technical learning platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { SignedRunEnvelope } from "./signedRunEnvelope";
 import type { SubmitStepBodySubmissionType } from "./submitStepBodySubmissionType";
 
 export interface SubmitStepBody {
   /** Code, answer, or other submission content */
   submission: string;
   submissionType: SubmitStepBodySubmissionType;
+  /** Phase 49 — Optional signed RunResult envelope (minted by
+POST /runs/sign right after a successful local Run). When present
+AND the step's validation kind is enabled in the pilot allow-list
+(ATLAS_ENVELOPE_REQUIRED_KINDS), /submit grades against the
+verified capture rather than the bare submission string. Absence
+preserves legacy bare-string grading semantics for backward
+compatibility — older clients keep working unchanged.
+ */
+  envelope?: SignedRunEnvelope | null;
 }

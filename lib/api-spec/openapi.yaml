@@ -283,6 +283,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserProjectProgress"
 
+  /runs/sign:
+    post:
+      operationId: signRun
+      tags: [runs]
+      summary: Sign a runtime capture as a server-issued RunResult envelope
+      description: |
+        Phase 46 — Mints a `SignedRunEnvelope` for a learner's runtime
+        capture so the envelope can be attached to a later /submit call.
+        Auth + ownership + visibility + premium + enrollment + signable-kind
+        gates apply. Returns 422 for validation kinds that are not signable
+        (e.g. self_attest, exact, regex, contains) so the client can fall
+        back to a bare-string submission.
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignRunBody"
+      responses:
+        "200":
+          description: Envelope signed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignRunResponse"
+        "400":
+          description: Invalid request body or capture shape
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not enrolled OR premium step without Pro subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Step or project not found (or hidden)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Capture payload exceeds server-side size caps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Validation kind is not signable (client should fall back to bare-string submit)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Signing secret unavailable (operator misconfig — client falls back)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /user/projects/{projectId}/steps/{stepId}/submit:
     post:
       operationId: submitStep
@@ -1780,9 +1844,152 @@ components:
         submissionType:
           type: string
           enum: [code, text, choice, file]
+        envelope:
+          $ref: "#/components/schemas/SignedRunEnvelope"
+          nullable: true
+          description: |
+            Phase 49 — Optional signed RunResult envelope (minted by
+            POST /runs/sign right after a successful local Run). When present
+            AND the step's validation kind is enabled in the pilot allow-list
+            (ATLAS_ENVELOPE_REQUIRED_KINDS), /submit grades against the
+            verified capture rather than the bare submission string. Absence
+            preserves legacy bare-string grading semantics for backward
+            compatibility — older clients keep working unchanged.
       required:
         - submission
         - submissionType
+
+    RunCapture:
+      type: object
+      description: |
+        Phase 45 — Runtime execution capture produced by the in-browser
+        Pyodide / DuckDB adapters. Sent to POST /runs/sign to be wrapped
+        in a server-signed envelope. Honest-claim ceiling H3: the signature
+        proves Atlas issued the envelope; it does NOT prove the capture
+        came from honest learner execution.
+      properties:
+        version:
+          type: integer
+          enum: [1]
+        language:
+          type: string
+          enum: [python, sql]
+        code:
+          type: string
+          description: Source the client claims to have executed.
+        stdout: { type: string }
+        stderr: { type: string }
+        exitCode: { type: integer }
+        durationMs: { type: integer }
+        timedOut: { type: boolean }
+        columns:
+          type: array
+          items: { type: string }
+          description: |
+            Tabular columns (DuckDB-style adapters). OMIT (do not send `null`)
+            for stdout-only runs — the server rejects `null` here.
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              # JSON union — Orval emits `string | number | boolean | null`.
+              nullable: true
+              oneOf:
+                - type: string
+                - type: number
+                - type: boolean
+          description: |
+            Tabular rows aligned to `columns`. OMIT (do not send `null`)
+            for stdout-only runs.
+      required:
+        - version
+        - language
+        - code
+        - stdout
+        - stderr
+        - exitCode
+        - durationMs
+        - timedOut
+
+    EnvelopeBinding:
+      type: object
+      description: |
+        Phase 45 — Server-issued binding inside a SignedRunEnvelope. Every
+        field is verified at /submit time. `kid` supports future signing-key
+        rotation without invalidating in-flight envelopes.
+      properties:
+        version: { type: integer, enum: [1] }
+        kid: { type: string }
+        userId: { type: string }
+        projectId: { type: string }
+        stepId: { type: string }
+        validationKind: { type: string }
+        submissionSha256:
+          type: string
+          description: sha256(capture.code), hex lowercase. Derived server-side at sign time.
+        outputSha256:
+          type: string
+          description: sha256(canonicalized capture output fields), hex lowercase. Audit/forensic aid.
+        issuedAt:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC, server clock at signing.
+        expiresAt:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC, issuedAt + ttlMs (10 minutes).
+        nonce:
+          type: string
+          description: Single-use replay token within the TTL window.
+      required:
+        - version
+        - kid
+        - userId
+        - projectId
+        - stepId
+        - validationKind
+        - submissionSha256
+        - outputSha256
+        - issuedAt
+        - expiresAt
+        - nonce
+
+    SignedRunEnvelope:
+      type: object
+      description: |
+        Phase 45 — Server-signed RunResult envelope. Returned by
+        POST /runs/sign and optionally attached to POST /submit.
+      properties:
+        capture: { $ref: "#/components/schemas/RunCapture" }
+        binding: { $ref: "#/components/schemas/EnvelopeBinding" }
+        signature:
+          type: string
+          description: |
+            HMAC-SHA256 over canonical(capture)||"\n"||canonical(binding),
+            hex lowercase. Verified at /submit time.
+      required:
+        - capture
+        - binding
+        - signature
+
+    SignRunBody:
+      type: object
+      properties:
+        projectId: { type: string }
+        stepId: { type: string }
+        capture: { $ref: "#/components/schemas/RunCapture" }
+      required:
+        - projectId
+        - stepId
+        - capture
+
+    SignRunResponse:
+      type: object
+      properties:
+        envelope: { $ref: "#/components/schemas/SignedRunEnvelope" }
+      required:
+        - envelope
 
     GradingResult:
       type: object

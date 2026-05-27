@@ -264,17 +264,19 @@ afterEach(() => {
 // ─────────────────────────────────────────────────────────────────────────
 // P1 — Disabled by default (re-confirmation against authored expected)
 // ─────────────────────────────────────────────────────────────────────────
-describe("P1. allow-list empty by default (re-pinned for pilot)", () => {
-  it("rejects with envelope_kind_not_enabled even when step.expectedOutput is populated", async () => {
+describe("P1. allow-list empty by default (Phase 49 fallback contract)", () => {
+  // Phase 49 — When the allow-list is empty, even an authored expectedOutput
+  // step must NOT 400 on a signed envelope. It must silently fall back to
+  // legacy grading and never touch the verifier or nonce table.
+  it("silently falls back to legacy grading even when step.expectedOutput is populated", async () => {
     const envelope = mintEnvelope();
     const app = await buildApp();
     const res = await request(app)
       .post(`/user/projects/${PROJECT_ID}/steps/${STEP_ID}/submit`)
-      .send({ submission: null, envelope });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("envelope_kind_not_enabled");
+      .send({ submission: "fallback-bare-string", envelope });
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty("error");
     expect(nonceRowsInserted()).toHaveLength(0);
-    expect(completionsInserted()).toHaveLength(0);
   });
 });
 

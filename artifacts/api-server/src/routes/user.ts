@@ -460,29 +460,34 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
     // the persisted submission excerpt, since the wire `submission` field
     // is null in the envelope path). Legacy bare-string path: this stays
     // null and grading + evidence use `submission` exactly as before.
+    // Phase 49 — Soft-fail contract update: when the client attaches an
+    // envelope for a validation kind that is NOT in the allow-list, we
+    // silently SKIP the envelope branch and fall through to the legacy
+    // bare-string grading path (instead of the Phase 47-original 400
+    // `envelope_kind_not_enabled`). Rationale: the frontend always attaches
+    // a freshly-signed envelope when one is available, and has no way to
+    // know the server's current allow-list — rejecting would introduce a
+    // brand-new Submit failure mode the moment Phase 49 ships. Operator
+    // control is unchanged: nothing about the verified grading path runs
+    // until `ATLAS_ENVELOPE_REQUIRED_KINDS` includes the step's kind.
     let envelopeCapture: RunCapture | null = null;
     if (wireEnvelope !== undefined && wireEnvelope !== null) {
       const allowList = parseEnvelopeAllowList();
       const kind = step.validationType ?? "";
       if (!allowList.has(kind)) {
-        req.log.warn(
+        req.log.info(
           {
-            evt: "envelope.submit.kind_not_enabled",
-            phase: "P47",
+            evt: "envelope.submit.kind_not_enabled.fallback",
+            phase: "P49",
             userId: user.id,
             projectId,
             stepId,
             validationKind: kind,
           },
-          "Envelope submitted for kind not in allow-list",
+          "Envelope present for non-allow-listed kind — falling back to legacy grading",
         );
-        res.status(400).json({
-          error: "envelope_kind_not_enabled",
-          validationKind: kind,
-        });
-        return;
-      }
-
+        // Drop straight into the legacy bare-string grading path below.
+      } else {
       const verifyRes = await verifyEnvelopeForSubmit(wireEnvelope, {
         userId: user.id,
         projectId,
@@ -521,6 +526,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       );
 
       envelopeCapture = verifyRes.capture;
+      }
     }
 
     // Phase 24 + 48 — shared grading helpers (legacy is also used by

@@ -242,17 +242,24 @@ afterEach(() => {
 // E1 — Allow-list empty by default
 // ─────────────────────────────────────────────────────────────────────────
 describe("E1. allow-list empty by default", () => {
-  it("rejects an envelope submission with envelope_kind_not_enabled and writes nothing", async () => {
+  // Phase 49 — Contract update. When the allow-list excludes the step's
+  // kind, the envelope is silently ignored and grading falls through to
+  // the legacy bare-string path. The signature/nonce verifier is NEVER
+  // invoked (no nonce row written), so an unsigned-INSERT amplification
+  // vector is still impossible. The legacy grader handles the bare
+  // `submission` string exactly as in pre-Phase-47.
+  it("silently falls back to legacy grading when envelope kind is not allow-listed; no nonce written", async () => {
     const envelope = mintEnvelope();
     const app = await buildApp();
     const res = await request(app)
       .post(`/user/projects/${PROJECT_ID}/steps/${STEP_ID}/submit`)
-      .send({ submission: null, submissionType: "envelope", envelope });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("envelope_kind_not_enabled");
-    expect(res.body.validationKind).toBe("json_equal");
+      .send({ submission: "fallback-bare-string", submissionType: "code", envelope });
+    expect(res.status).toBe(200);
+    // Legacy grader default-passes when no expectedOutput is set; the
+    // important contract here is "no envelope_kind_not_enabled 400".
+    expect(res.body).not.toHaveProperty("error");
+    // The verifier was never invoked, so nothing landed in run_envelope_nonces.
     expect(nonceRowsInserted()).toHaveLength(0);
-    expect(completionsInserted()).toHaveLength(0);
   });
 });
 

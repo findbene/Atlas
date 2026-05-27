@@ -583,10 +583,118 @@ export const SubmitStepBodySubmissionType = {
   file: "file",
 } as const;
 
+export type RunCaptureVersion =
+  (typeof RunCaptureVersion)[keyof typeof RunCaptureVersion];
+
+export const RunCaptureVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type RunCaptureLanguage =
+  (typeof RunCaptureLanguage)[keyof typeof RunCaptureLanguage];
+
+export const RunCaptureLanguage = {
+  python: "python",
+  sql: "sql",
+} as const;
+
+/**
+ * Phase 45 — Runtime execution capture produced by the in-browser
+Pyodide / DuckDB adapters. Sent to POST /runs/sign to be wrapped
+in a server-signed envelope. Honest-claim ceiling H3: the signature
+proves Atlas issued the envelope; it does NOT prove the capture
+came from honest learner execution.
+
+ */
+export interface RunCapture {
+  version: RunCaptureVersion;
+  language: RunCaptureLanguage;
+  /** Source the client claims to have executed. */
+  code: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  durationMs: number;
+  timedOut: boolean;
+  /** Tabular columns (DuckDB-style adapters). OMIT (do not send `null`)
+for stdout-only runs — the server rejects `null` here.
+ */
+  columns?: string[];
+  /** Tabular rows aligned to `columns`. OMIT (do not send `null`)
+for stdout-only runs.
+ */
+  rows?: (string | number | boolean | null)[][];
+}
+
+export type EnvelopeBindingVersion =
+  (typeof EnvelopeBindingVersion)[keyof typeof EnvelopeBindingVersion];
+
+export const EnvelopeBindingVersion = {
+  NUMBER_1: 1,
+} as const;
+
+/**
+ * Phase 45 — Server-issued binding inside a SignedRunEnvelope. Every
+field is verified at /submit time. `kid` supports future signing-key
+rotation without invalidating in-flight envelopes.
+
+ */
+export interface EnvelopeBinding {
+  version: EnvelopeBindingVersion;
+  kid: string;
+  userId: string;
+  projectId: string;
+  stepId: string;
+  validationKind: string;
+  /** sha256(capture.code), hex lowercase. Derived server-side at sign time. */
+  submissionSha256: string;
+  /** sha256(canonicalized capture output fields), hex lowercase. Audit/forensic aid. */
+  outputSha256: string;
+  /** ISO-8601 UTC, server clock at signing. */
+  issuedAt: string;
+  /** ISO-8601 UTC, issuedAt + ttlMs (10 minutes). */
+  expiresAt: string;
+  /** Single-use replay token within the TTL window. */
+  nonce: string;
+}
+
+/**
+ * Phase 45 — Server-signed RunResult envelope. Returned by
+POST /runs/sign and optionally attached to POST /submit.
+
+ */
+export interface SignedRunEnvelope {
+  capture: RunCapture;
+  binding: EnvelopeBinding;
+  /** HMAC-SHA256 over canonical(capture)||"\n"||canonical(binding),
+hex lowercase. Verified at /submit time.
+ */
+  signature: string;
+}
+
 export interface SubmitStepBody {
   /** Code, answer, or other submission content */
   submission: string;
   submissionType: SubmitStepBodySubmissionType;
+  /** Phase 49 — Optional signed RunResult envelope (minted by
+POST /runs/sign right after a successful local Run). When present
+AND the step's validation kind is enabled in the pilot allow-list
+(ATLAS_ENVELOPE_REQUIRED_KINDS), /submit grades against the
+verified capture rather than the bare submission string. Absence
+preserves legacy bare-string grading semantics for backward
+compatibility — older clients keep working unchanged.
+ */
+  envelope?: SignedRunEnvelope | null;
+}
+
+export interface SignRunBody {
+  projectId: string;
+  stepId: string;
+  capture: RunCapture;
+}
+
+export interface SignRunResponse {
+  envelope: SignedRunEnvelope;
 }
 
 export type GradingResultStatus =

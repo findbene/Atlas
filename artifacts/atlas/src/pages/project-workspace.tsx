@@ -8,7 +8,15 @@ import {
   useSubmitStep,
   useCheckStep,
   useGetUserProfile,
+  useSignRun,
+  type SignedRunEnvelope,
 } from "@workspace/api-client-react";
+import {
+  buildPythonCapture,
+  buildSqlCapture,
+  preCheckCapture,
+  classifySignError,
+} from "@/lib/envelopeClient";
 import {
   workspaceStepReducer,
   initialStepState,
@@ -88,6 +96,51 @@ export default function ProjectWorkspace() {
   const enrollMutation = useEnrollProject();
   const submitMutation = useSubmitStep();
   const checkMutation = useCheckStep();
+  // Phase 49 — Sign-after-Run wiring. Envelopes are stored client-side
+  // keyed by stepId so the learner can browse hints / output / open the
+  // tutor between Run and Submit without losing the signed proof. We
+  // clear an envelope on EDIT (capture is bound to the run that produced
+  // it; editing the code means a future Submit should reflect the latest
+  // attempt, not a stale envelope). Soft-fail: every sign failure silently
+  // falls back to the legacy bare-string Submit path — Phase 49 must not
+  // introduce a new Submit failure mode.
+  const signMutation = useSignRun();
+  const [envelopeByStepId, setEnvelopeByStepId] = useState<
+    Record<string, SignedRunEnvelope>
+  >({});
+
+  // Phase 49 — Per-step run generation. Bumped on every mutation that
+  // would invalidate an envelope (Run start, EDIT, Reset, history-restore,
+  // step navigation). An in-flight sign captures the current gen and only
+  // stashes its envelope if the gen still matches at resolution time —
+  // closes the stale-envelope race where:
+  //   1. learner Runs (sign A in flight)
+  //   2. learner edits code (envelope cleared synchronously)
+  //   3. sign A resolves → setEnvelopeByStepId re-populates a stale env
+  //   4. Submit sends a signed-but-stale envelope for OLD code
+  // We use a ref (not state) so the gen reads inside the async sign
+  // closure see live values without triggering re-renders.
+  const runGenByStep = useRef<Map<string, number>>(new Map());
+  function bumpRunGen(stepId: string | undefined): number {
+    if (!stepId) return 0;
+    const next = (runGenByStep.current.get(stepId) ?? 0) + 1;
+    runGenByStep.current.set(stepId, next);
+    return next;
+  }
+  function currentRunGen(stepId: string | undefined): number {
+    if (!stepId) return 0;
+    return runGenByStep.current.get(stepId) ?? 0;
+  }
+
+  function clearEnvelopeForStep(stepId: string | undefined): void {
+    if (!stepId) return;
+    setEnvelopeByStepId((prev) => {
+      if (!(stepId in prev)) return prev;
+      const next = { ...prev };
+      delete next[stepId];
+      return next;
+    });
+  }
   const { data: userProfile } = useGetUserProfile();
   const isPro = (userProfile as { tier?: string } | undefined)?.tier === "pro";
 
@@ -348,6 +401,15 @@ export default function ProjectWorkspace() {
 
   function goToStep(idx: number) {
     const clamped = clampStepIdx(idx + 1, steps.length);
+    // Phase 49 — Step navigation invalidates any envelope tied to the
+    // step we're LEAVING. The mount effect for the new step resets the
+    // editor to starterCode, so if a sign from the previous step were
+    // to resolve after navigation it would stash an envelope bound to
+    // code the editor no longer shows. Clear + bump the leaving step's
+    // run-gen so any in-flight sign is dropped on resolution.
+    const leavingStepId = currentStep?.id;
+    clearEnvelopeForStep(leavingStepId);
+    bumpRunGen(leavingStepId);
     setCurrentStepIdx(clamped);
     // Keep the URL in sync so reloads / shares land on the same step.
     // replaceState (not pushState) preserves the back-button semantics
@@ -364,6 +426,48 @@ export default function ProjectWorkspace() {
     }
   }
 
+  // Phase 49 — Sign a successful run as a SignedRunEnvelope and stash it
+  // keyed by stepId. Soft-fail: any error (network, 422 unsignable kind,
+  // 503 secret missing, 403 not enrolled, ...) is swallowed to console
+  // and the envelope is not stashed — the next Submit silently falls back
+  // to the legacy bare-string path.
+  async function attemptSignAndStash(
+    projectIdLocal: string,
+    stepIdLocal: string,
+    capture: ReturnType<typeof buildPythonCapture>,
+    runGenAtStart: number,
+  ): Promise<void> {
+    const skip = preCheckCapture(capture);
+    if (skip !== null) {
+      // eslint-disable-next-line no-console
+      console.debug("[envelope] skipping sign:", skip);
+      return;
+    }
+    try {
+      const res = await signMutation.mutateAsync({
+        data: { projectId: projectIdLocal, stepId: stepIdLocal, capture },
+      });
+      // Phase 49 — Stale-race guard. If the learner edited / reset / restored
+      // history / re-Ran while this sign was in flight, the step's run-gen
+      // will have advanced past ours. Drop the envelope on the floor —
+      // legacy bare-string submit still works.
+      if (currentRunGen(stepIdLocal) !== runGenAtStart) {
+        // eslint-disable-next-line no-console
+        console.debug("[envelope] dropping stale sign result (gen mismatch)");
+        return;
+      }
+      setEnvelopeByStepId((prev) => ({ ...prev, [stepIdLocal]: res.envelope }));
+    } catch (err) {
+      // Most common in Phase 49 production: 422 (validation kind not in
+      // SIGNABLE_KINDS) and 503 (RUN_ENVELOPE_SIGNING_SECRET not set in
+      // this environment). Both map to "no envelope; legacy Submit still
+      // works fine for this learner".
+      const reason = classifySignError(err);
+      // eslint-disable-next-line no-console
+      console.debug("[envelope] sign failed (silent fallback):", reason);
+    }
+  }
+
   async function runCode() {
     if (!code || isRunning) return;
     // Phase 24 — Block Run while a /check or /submit is in flight. The SQL
@@ -377,9 +481,19 @@ export default function ProjectWorkspace() {
     setOutput(null);
     setActiveTab("output");
     setIsRunning(true);
+    // Phase 49 — A fresh Run invalidates any stale envelope for this step
+    // upfront, AND bumps the per-step run-gen so that any sign request
+    // still in flight from a prior Run will be ignored on resolution.
+    const stepIdAtRun = currentStep?.id;
+    clearEnvelopeForStep(stepIdAtRun);
+    const runGenAtStart = bumpRunGen(stepIdAtRun);
     let runStdout = "";
     let runStderr = "";
     let runExitCode = 1;
+    // Phase 49 — Whichever language path runs, capture the language's
+    // RunResult shape so we can sign it after `finally`.
+    let pythonRunResult: import("@/lib/pyodideRunner").ExecResult | null = null;
+    let sqlRunResult: RunResult | null = null;
     try {
       if (isSqlStep) {
         // Route SQL through the execution registry. The DuckDB-WASM adapter
@@ -398,6 +512,7 @@ export default function ProjectWorkspace() {
             stepOverride: (currentStep as any)?.executionOverride,
           },
         );
+        sqlRunResult = result;
         runExitCode = result.ok ? 0 : 1;
         runStderr = result.ok ? "" : (result.error ?? "Query failed.");
         runStdout = result.ok
@@ -435,6 +550,7 @@ export default function ProjectWorkspace() {
         }
       } else {
         const result = await runPython(code);
+        pythonRunResult = result;
         runStdout = result.stdout;
         runStderr = result.stderr;
         runExitCode = result.exitCode;
@@ -455,6 +571,18 @@ export default function ProjectWorkspace() {
       setOutput({ stdout: "", stderr: runStderr, exitCode: 1 });
     } finally {
       setIsRunning(false);
+      // Phase 49 — Attempt to sign the capture as a verifiable envelope.
+      // Fire-and-forget: never blocks the UI, and any failure silently
+      // falls back to bare-string Submit. Gated to code steps (python/sql)
+      // with a known step+project; pinned to the stepId captured BEFORE
+      // any navigation, so a slow sign doesn't stash an envelope on the
+      // wrong step if the learner advances mid-flight.
+      if (project?.id && stepIdAtRun && (pythonRunResult || sqlRunResult)) {
+        const capture = pythonRunResult
+          ? buildPythonCapture(code, pythonRunResult)
+          : buildSqlCapture(code, sqlRunResult!);
+        void attemptSignAndStash(project.id, stepIdAtRun, capture, runGenAtStart);
+      }
       // Fire-and-forget — recording the run shouldn't block the UI or surface
       // errors. The server caps payload sizes and prunes old rows, so we can
       // safely record every attempt.
@@ -556,6 +684,12 @@ export default function ProjectWorkspace() {
       return;
     }
     dispatchStep({ type: "SUBMIT_START" });
+    // Phase 49 — Attach the freshly-signed envelope if we have one for
+    // this step. Server semantics (Phase 47–48): when envelope is present
+    // AND its validation kind is in the pilot allow-list, /submit grades
+    // against the verified capture; otherwise it grades the bare-string
+    // `submission` as before. So sending the envelope is always safe.
+    const envelopeForStep = envelopeByStepId[currentStep.id] ?? null;
     submitMutation.mutate(
       {
         projectId: project.id,
@@ -563,6 +697,7 @@ export default function ProjectWorkspace() {
         data: {
           submission,
           submissionType: submissionTypeForStep(currentStep.type),
+          ...(envelopeForStep ? { envelope: envelopeForStep } : {}),
         },
       },
       {
@@ -693,7 +828,17 @@ export default function ProjectWorkspace() {
         isPythonStep={isPythonStep}
         isTextStep={isTextStep}
         code={code}
-        onCodeChange={(v) => { setCode(v); dispatchStep({ type: "EDIT" }); }}
+        onCodeChange={(v) => {
+          setCode(v);
+          // Phase 49 — Editing invalidates the signed envelope AND bumps
+          // the per-step run-gen so any in-flight sign from the prior
+          // Run is dropped on resolution (not just hidden by an
+          // immediately-overwritten stash). Falls back to bare-string
+          // submit until the learner Runs again.
+          clearEnvelopeForStep(currentStep?.id);
+          bumpRunGen(currentStep?.id);
+          dispatchStep({ type: "EDIT" });
+        }}
         textAnswer={textAnswer}
         onTextAnswerChange={(v) => { setTextAnswer(v); dispatchStep({ type: "EDIT" }); }}
         output={output}
@@ -710,7 +855,14 @@ export default function ProjectWorkspace() {
         submitPending={submitMutation.isPending}
         onSelectStep={goToStep}
         onRun={runCode}
-        onReset={() => { setCode(currentStep?.starterCode ?? ""); dispatchStep({ type: "EDIT" }); }}
+        onReset={() => {
+          setCode(currentStep?.starterCode ?? "");
+          // Phase 49 — Reset is a code mutation; same envelope-invalidation
+          // guarantees as EDIT.
+          clearEnvelopeForStep(currentStep?.id);
+          bumpRunGen(currentStep?.id);
+          dispatchStep({ type: "EDIT" });
+        }}
         onCheck={checkStep}
         onSubmit={submitStep}
         onAskTutor={askTutorAboutError}
@@ -726,6 +878,10 @@ export default function ProjectWorkspace() {
         diffRunId={diffRunId}
         onSelectHistoryCode={code => {
           setCode(code);
+          // Phase 49 — Restoring a historical code snapshot is a code
+          // mutation; same envelope-invalidation guarantees as EDIT.
+          clearEnvelopeForStep(currentStep?.id);
+          bumpRunGen(currentStep?.id);
           dispatchStep({ type: "EDIT" });
           setHistoryOpen(false);
           setActiveTab("editor");
