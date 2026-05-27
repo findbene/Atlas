@@ -1,8 +1,8 @@
 # Atlas — Session Handoff
 
-**HEAD:** Phase 34 — Ada Tutor Step Contract + Mode Telemetry (working tree changes pending commit).
-**Last shipped + committed:** Phase 33 — Mode-Aware Project Workspace UX at `7d7f1bea`.
-**Status:** Phase 34 **READY TO COMMIT**.
+**HEAD:** Phase 34 — Ada Tutor Step Contract + Mode Telemetry, committed at `9f6edb7`.
+**Last shipped + committed:** Phase 34 — Ada Tutor Step Contract + Mode Telemetry at `9f6edb7` (parent: Phase 33 at `7d7f1bea`).
+**Status:** Phase 34 **SHIPPED**. Working tree clean (or carrying only the trim-replit-phase-history docs cleanup).
 
 Atlas remains deploy-ready (Phase 31 unchanged). **No deployment has occurred. No production DB has been touched.**
 
