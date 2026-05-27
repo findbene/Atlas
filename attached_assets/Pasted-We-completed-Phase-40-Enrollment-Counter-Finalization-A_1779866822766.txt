@@ -1,0 +1,213 @@
+We completed Phase 40: Enrollment Counter Finalization + Archive Candidate Gate.
+
+Current state:
+- Phase 40 shipped and checkpointed.
+- Backfill verification now uses two-pass verification with per-row stable-mismatch re-check.
+- Legacy route counter behavior is directly tested.
+- Counter warning logs include route/context fields.
+- Archive diagnostic logs now use staleCounter= terminology.
+- New candidate-check helper protects archive scripts from hiding projects with project_candidates rows.
+- Gates green:
+  - typecheck
+  - no-heuristic
+  - api-server 280/280
+  - atlas 102/102
+  - curriculum-quality green
+  - execution-core green
+  - real-PG integration 3/3
+  - audit:authoring 56/56
+  - audit:pedagogy 56/56
+  - seed converges
+  - backfill dry-run/live already converged
+  - Architect PASS
+- Hard stops were respected.
+- enrolled_count was not dropped.
+- Atlas remains deploy-ready but not production-deployed.
+
+Do NOT drop enrolled_count in this phase.
+Do NOT do schema/migration work.
+Do NOT do deployment work.
+
+Start Phase 41.
+
+PHASE 41 — Seed Factory Pilot: 2 Net-New Portfolio-Grade Projects
+
+Goal:
+Use the Phase 35 Project Authoring Specification to create 2 new high-quality, portfolio-grade Atlas projects end-to-end.
+
+This is a curriculum-production pilot, not a mass-seeding phase.
+
+Why:
+The platform foundation is now strong:
+- learner modes exist
+- workspace is mode-aware
+- Ada has a tutor step contract
+- authoring spec exists
+- visible catalog is 56/56 publish-ready
+- archive safety is hardened
+- enrolled_count is durable enough
+
+Now prove the content factory can produce new projects safely.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/project-authoring-spec.md
+5. docs/templates/project-template.md
+6. docs/templates/project-publish-readiness-checklist.md
+7. docs/phases/phase-35-project-authoring-spec.md
+8. docs/phases/phase-36-grandfathered-project-remediation.md
+9. docs/phases/phase-37-batch-gap-project-remediation.md
+10. Current authored project examples
+11. scripts/src/seed.ts
+12. scripts/src/seed-pedagogy.ts
+13. scripts/src/audit-project-authoring.ts
+
+Start with a read-only catalog gap audit.
+
+Audit:
+1. Current role/path coverage.
+2. Current beginner/intermediate/advanced distribution.
+3. Current project topics by role:
+   - Data Engineering
+   - AI Engineering
+   - MLOps Engineering
+   - Analytics Engineering
+   - Cloud Data Engineering
+   - Applied LLM Engineering
+4. Which two new projects would add the most recruiter value.
+5. Whether project slugs already exist or have legacy equivalents.
+6. Whether the projects can be authored honestly with existing validation types.
+7. Whether they can satisfy Phase 35 authoring gates.
+8. Whether they can receive full Phase-4 pedagogy.
+9. Whether they fit existing taxonomy without schema changes.
+
+Recommended project pair:
+
+Project 1 — Data Engineering
+Working title:
+API to Warehouse ELT Pipeline
+
+Professional scenario:
+Build a small ELT pipeline that extracts paginated API-style JSON data, loads it into PostgreSQL staging tables, transforms it with SQL/dbt-style models, and produces analytics-ready fact/dimension outputs.
+
+Expected skills:
+- API ingestion
+- JSON normalization
+- PostgreSQL loading
+- staging vs marts
+- SQL transformations
+- data quality checks
+- portfolio README
+
+Project 2 — AI Engineering / MLOps
+Working title:
+LLM Evaluation Pipeline
+
+Professional scenario:
+Build a lightweight evaluation pipeline for LLM outputs using a small prompt-response dataset, scoring dimensions, failure categorization, and summary reporting.
+
+Expected skills:
+- prompt/output evaluation
+- rubric-style scoring
+- Python data processing
+- error taxonomy
+- evaluation report generation
+- production-minded AI quality control
+- portfolio README
+
+If either project conflicts with existing catalog coverage, propose the best alternative before authoring.
+
+Preferred implementation:
+- Add exactly 2 new visible projects.
+- Use the Phase 35 authoring spec.
+- Keep changes content/seed/pedagogy only.
+- No schema changes.
+- No frontend changes.
+- No backend route changes.
+- No OpenAPI/codegen changes.
+- No deployment changes.
+
+Each project must include:
+1. clear professional scenario
+2. role path alignment
+3. difficulty label
+4. estimated time
+5. prerequisites
+6. target skills
+7. tools used
+8. learner outcome
+9. at least 4 steps
+10. at least one honest machine-verifiable step using existing server-supported validation
+11. expectedOutputs populated
+12. full hint ladder
+13. no answer leakage
+14. final deliverable
+15. portfolio summary
+16. GitHub README seed summary
+17. LinkedIn/recruiter-facing summary seed if supported by current content model
+18. full Phase-4 pedagogy keys
+19. audit:authoring publish-ready
+20. audit:pedagogy clean
+
+Validation constraints:
+- Use only currently supported validation behavior.
+- Do not fake machine-verifiability.
+- If contains/regex/exact is too weak for a step, use it only where it honestly checks meaningful learner work.
+- Keep self_attest only where appropriate.
+- Do not alter /check or /submit.
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- No production DB.
+- No deployment.
+- No /check changes.
+- No /submit changes.
+- No cert-verify changes.
+- No portfolio backend changes.
+- No billing/Stripe changes.
+- No OpenAPI/codegen changes.
+- No frontend changes.
+- No enrolled_count changes.
+- No archive script changes.
+- No rubric/taxonomy/anchor invariant changes.
+- No broad seed rewrite.
+- No mass seeding beyond exactly 2 projects.
+
+Acceptance targets:
+- audit:authoring should remain fully publish-ready for all visible projects after adding the two projects.
+- audit:pedagogy should include the new visible projects cleanly.
+- typecheck clean.
+- no-heuristic OK.
+- curriculum-quality tests green.
+- execution-core tests green.
+- api-server tests green.
+- atlas tests green.
+- real-PG integration 3/3.
+- seed converges.
+- Architect review PASS.
+
+Deliverables:
+1. Read-only catalog gap audit.
+2. 2 new authored projects.
+3. full pedagogy enrichment for both projects.
+4. audit:authoring before/after summary.
+5. audit:pedagogy before/after summary.
+6. docs/phases/phase-41-seed-factory-pilot.md.
+7. HANDOFF.md update.
+8. replit.md update.
+9. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 41 final status
+2. exact project slugs created
+3. skills/roles covered
+4. validation strategy per project
+5. files changed
+6. tests/gates run
+7. audit counts before/after
+8. risks remaining
+9. recommended Phase 42
+10. suggested commit message
