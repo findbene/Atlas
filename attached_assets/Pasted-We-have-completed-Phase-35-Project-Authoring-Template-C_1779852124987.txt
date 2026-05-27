@@ -1,0 +1,136 @@
+We have completed Phase 35: Project Authoring Template + Content Factory.
+
+Current state:
+- Phase 35 delivered:
+  - docs/project-authoring-spec.md
+  - docs/templates/project-template.md
+  - docs/templates/project-publish-readiness-checklist.md
+  - scripts/src/audit-project-authoring.ts
+  - audit:authoring npm script
+  - lib/curriculum-quality/src/authoringAudit.ts
+  - hintLeakSuspected helper + 8 unit tests
+  - docs/phases/phase-35-project-authoring-spec.md
+  - HANDOFF.md / replit.md / docs/phases/INDEX.md updates
+- Gates were green:
+  - curriculum-quality 69/69
+  - execution-core 34/34
+  - api-server 273/273
+  - atlas 102/102
+  - real-PG integration 3/3
+  - typecheck clean
+  - no-heuristic OK
+  - audit:pedagogy 56/56 visible
+  - audit:authoring 54/56 visible publish-ready
+  - Architect PASS
+- Hard stops were preserved.
+- Atlas remains deploy-ready but not production-deployed.
+- No production DB has been touched.
+
+Important Phase 35 audit finding:
+Only 2 visible projects are not publish-ready:
+1. csv-to-postgres-pipeline
+2. dbt-data-models
+
+Start Phase 36.
+
+PHASE 36 — Grandfathered Project Remediation Pilot
+
+Goal:
+Use the new Phase 35 authoring contract to remediate the two visible pre-Phase-7 grandfathered projects so the visible catalog reaches 56/56 publish-ready.
+
+Do not mass-seed new projects yet.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/project-authoring-spec.md
+5. docs/templates/project-template.md
+6. docs/templates/project-publish-readiness-checklist.md
+7. docs/phases/phase-35-project-authoring-spec.md
+8. scripts/src/audit-project-authoring.ts
+9. The existing authored project files for:
+   - csv-to-postgres-pipeline
+   - dbt-data-models
+10. Existing pedagogy audit and authoring audit outputs.
+
+Start with a read-only diagnosis.
+
+For each of the two projects, identify:
+1. Which authoring gates fail.
+2. Which required fields are weak or missing.
+3. Whether steps have complete validation paths.
+4. Whether hints are complete and non-leaky.
+5. Whether final deliverables are portfolio-worthy.
+6. Whether role/skill metadata is adequate.
+7. Whether prerequisite/difficulty labels are justified.
+8. Whether remediation can be done content-only.
+9. Whether any schema or code changes would be required.
+
+Preferred implementation:
+Content-only remediation.
+
+Allowed changes:
+- Update only the two project authored content files if possible.
+- Improve missing/weak metadata.
+- Improve step instructions where needed.
+- Add/strengthen validation specs if the current project model supports it.
+- Add/strengthen hint ladders.
+- Add portfolio/recruiter-facing summaries if missing.
+- Add professional scenario/context.
+- Add final deliverable clarity.
+- Ensure no hint/remediation answer leakage.
+- Keep changes compatible with Phase 32–34 learner modes and Ada tutor contract.
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- No /check contract changes.
+- No /submit changes.
+- No certificate verification changes.
+- No portfolio backend changes.
+- No billing/Stripe changes.
+- No deployment changes.
+- No production DB touch.
+- No mass project seeding.
+- No broad frontend redesign.
+- No rubric version changes.
+- No taxonomy/anchor invariant changes.
+- No AI tutor prompt changes unless a tiny content-context correction is absolutely necessary.
+- Do not alter projects other than csv-to-postgres-pipeline and dbt-data-models unless the audit script itself has a confirmed bug.
+
+Acceptance target:
+- audit:authoring should improve from 54/56 visible publish-ready to 56/56 visible publish-ready.
+- audit:pedagogy should remain 56/56 visible.
+- no-heuristic-runtime remains OK.
+- typecheck clean.
+- curriculum-quality tests remain green.
+- execution-core tests remain green.
+- api-server tests remain green.
+- atlas tests remain green.
+- real-PG integration remains 3/3.
+- Architect review PASS.
+
+If a project cannot honestly be remediated without deeper redesign:
+- Stop and report why.
+- Recommend archive+replace instead of forcing a weak project to pass.
+
+Deliverables:
+1. Read-only diagnosis of both grandfathered projects.
+2. Content-only remediation if feasible.
+3. audit:authoring result showing 56/56 visible publish-ready if successful.
+4. docs/phases/phase-36-grandfathered-project-remediation.md.
+5. HANDOFF.md update.
+6. replit.md update.
+7. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 36 final status
+2. exact projects changed
+3. authoring gates fixed
+4. files changed
+5. tests/gates run
+6. whether audit:authoring reached 56/56
+7. risks remaining
+8. recommended Phase 37
+9. suggested commit message

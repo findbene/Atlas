@@ -135,6 +135,42 @@ const DBT_DATA_MODELS: ProjectEnrichment = {
         portfolioRelevance: "When asked 'why did you pick view vs. table here?' in an analytics-engineering interview, this trade-off is the expected answer.",
       },
     },
+    {
+      // Phase 36 — pedagogy for the new step 3 (staging model authoring).
+      stepNumber: 3,
+      learningObjective: "Author a staging model that does mechanical cleanup (rename, cast, normalize) and nothing else.",
+      requiredSkill: "dbt staging-layer conventions + source() macro discipline",
+      pedagogy: {
+        misconceptionToWatchFor: "Mixing business aggregations into staging models — every analyst on the team will then re-derive them inconsistently downstream.",
+        hintLevel1: "Staging is the FIRST transformation tier. What kinds of work belong here, and what kinds belong further downstream in marts?",
+        hintLevel2: "Renaming, casting, lowercasing — yes. SUM, AVG, JOIN to dimensions — no. The rule is 'one row in, one row out, no business rules.'",
+        hintLevel3: "Sketch a SELECT against {{ source('raw', 'orders') }} that passes through order_id and customer_id, casts amount to numeric, lowercases status, and casts created_at to timestamp. No GROUP BY, no JOIN.",
+        hintLevel4: "select\n    order_id,\n    customer_id,\n    cast(amount as numeric(12, 2)) as amount,\n    lower(status) as status,\n    cast(created_at as timestamp) as created_at\nfrom {{ source('raw', 'orders') }}",
+        hintLevel5: "select\n    order_id,\n    customer_id,\n    cast(amount as numeric(12, 2)) as amount,  -- enforce money precision at the edge\n    lower(status) as status,                   -- normalize categorical at the edge\n    cast(created_at as timestamp) as created_at\nfrom {{ source('raw', 'orders') }}\n-- One row in → one row out. Aggregations belong in marts.",
+        finalExplanation: "Staging is your contract with downstream models: predictable column names, predictable types, predictable normalization. When you put business logic here you make every mart model brittle and you double the surface area for bugs.",
+        successFeedback: "Clean staging shape — your marts can trust column types and casing.",
+        failureFeedback: "Common slips: putting a SUM/JOIN here (belongs in marts), forgetting source(), or skipping the cast on amount so monetary precision drifts.",
+        portfolioRelevance: "Analytics-engineering interviews routinely ask 'walk me through your staging-vs-mart split' — this discipline is the answer.",
+      },
+    },
+    {
+      // Phase 36 — pedagogy for the new step 4 (dbt tests authoring).
+      stepNumber: 4,
+      learningObjective: "Declare the four built-in dbt tests (not_null, unique, accepted_values, relationships) where they actually catch real bugs.",
+      requiredSkill: "dbt schema.yml authoring + matching tests to failure modes",
+      pedagogy: {
+        misconceptionToWatchFor: "Adding tests for show (lots of not_null on every column) instead of placing them where a real production failure mode would fire.",
+        hintLevel1: "Each built-in test catches ONE specific failure mode. Match the test to the bug, not the other way around.",
+        hintLevel2: "Duplicate orders → unique on order_id. Missing primary key → not_null on order_id. Typo'd status like 'shippd' → accepted_values on status. Orphan foreign key → relationships.",
+        hintLevel3: "In schema.yml under models: stg_orders: columns: write tests for order_id (not_null + unique) and status (accepted_values with the canonical enum). Run `dbt test` after every `dbt run`.",
+        hintLevel4: "version: 2\n\nmodels:\n  - name: stg_orders\n    columns:\n      - name: order_id\n        tests:\n          - not_null\n          - unique\n      - name: status\n        tests:\n          - accepted_values:\n              values: ['pending', 'shipped', 'cancelled']",
+        hintLevel5: "version: 2\n\nmodels:\n  - name: stg_orders\n    columns:\n      - name: order_id\n        tests:\n          - not_null    # catches missing PK from a bad upstream load\n          - unique      # catches duplicate-order bugs\n      - name: status\n        tests:\n          - accepted_values:\n              values: ['pending', 'shipped', 'cancelled']   # catches 'shippd' typos / silent enum drift",
+        finalExplanation: "The four built-in tests cover ~80% of the data-quality issues you'll see in practice. Wire them into CI (`dbt test` after `dbt run`) and you've turned dbt from a templating tool into a guardrail.",
+        successFeedback: "Tests are placed where bugs actually originate — that's the difference between testing for show and testing for safety.",
+        failureFeedback: "Watch for: testing for show (not_null on every column), forgetting accepted_values on categorical columns (where enum drift hides), or skipping `dbt test` from your CI run.",
+        portfolioRelevance: "When recruiters ask 'how do you guarantee data quality?' the answer is exactly this: schema.yml tests, run on every CI build, with placement matched to known failure modes.",
+      },
+    },
   ],
 };
 
