@@ -1,145 +1,113 @@
 # HANDOFF
 
-**Latest shipped phase:** Phase 46 — Run Signing API + Nonce Store (no `/submit` wiring).
-**Working tree:** clean after `phase-46: run signing api + nonce store`.
-**Parent commit:** `6818cc5` (Phase 45 close — signed RunResult envelope library).
+**Latest shipped phase:** Phase 49 — Frontend RunCapture Wiring + How Atlas Grades Disclosure.
+**Working tree:** clean after `phase-49: how-atlas-grades disclosure page` (commit `b119bc7`).
+**Parent commit chain:** `b119bc7` ← `24055ed` (phase-49a runtime wiring) ← `54ef8fe` (phase-48 pilot grader) ← `844934e` (phase-47 envelope submit arm) ← `51df3ca` (phase-46 sign endpoint).
 
 ---
 
-## Phase 46 summary
+## Phase 49 summary
 
-Second implementation phase of the Phase 44 Shape γ plan. Lands the first server-side caller of the Phase 45 envelope library: authenticated `POST /api/runs/sign` that mints a `SignedRunEnvelope` for a learner's runtime capture, plus the empty `run_envelope_nonces` Postgres table + janitor that Phase 47's verifier will INSERT into. Zero grading change, zero `/submit` wiring, zero frontend wiring, zero OpenAPI surface — the route is reachable but inert because nothing else verifies envelopes yet.
+The user-visible half of the Phase 44 Shape γ plan. Closes the loop: editor Run → server signs the capture → envelope stashed per-step → Submit attaches envelope → server verifies + grades when kind is allow-listed, otherwise silently falls through to legacy bare-string grading. Plus the public `/how-atlas-grades` H3 disclosure page.
 
-### What landed
+**Production behavior unchanged.** `ATLAS_ENVELOPE_REQUIRED_KINDS` is still empty in prod, so every live submission still takes the legacy path. The envelope code is reachable but inert until Phase 50's canary flip.
+
+### What landed (Phase 49a — runtime wiring, commit `24055ed`)
 
 | File | Role |
 |---|---|
-| `artifacts/api-server/src/routes/runs-sign.ts` (new) | `POST /api/runs/sign` route handler. Separate file from legacy debug-aid `runs.ts` to keep concerns isolated. |
-| `artifacts/api-server/src/routes/runs-sign.test.ts` (new) | 25 vitest assertions: secret-missing → 503; **explicit 401 when `getCurrentUser` returns null** (architect-driven fix); body validation; size caps; ownership gates (foreign step / hidden / premium / not enrolled); allow-list (4 unsignable kinds → 422, 5 signable → 200); real round-trip with `verifyRunEnvelope`; TTL exact; server-is-sole-hash-authority. |
-| `artifacts/api-server/src/routes/index.ts` (edited) | Registered `runsSignRouter`. |
-| `artifacts/api-server/src/index.ts` (edited) | `assertRunEnvelopeSigningSecret()` — boot-time hard-fail when `REPLIT_DEPLOYMENT === '1'` and the secret is unset; warn in dev. |
-| `lib/db/src/schema/progress.ts` (edited) | New `runEnvelopeNonces` table: `(nonce text PK, expires_at timestamptz, created_at timestamptz default now())` + `expires_at` index. |
-| `lib/db/drizzle/0001_phase46_run_envelope_nonces.sql` (new) | Hand-written DDL migration (matches drizzle-kit output shape; applied via `pnpm --filter @workspace/scripts run migrate`). |
-| `lib/db/drizzle/meta/_journal.json` (edited) | +1 entry for idx 1. |
-| `scripts/src/cleanup-run-envelope-nonces.ts` (new) | Nightly janitor: `DELETE WHERE expires_at < NOW()`. Idempotent. |
-| `scripts/package.json` (edited) | `cleanup:run-envelope-nonces` npm alias. |
-| `docs/phases/phase-46-run-signing-api-and-nonce-store.md` (new) | Close-out. |
+| `lib/api-spec/openapi.yaml` (edited) | New schemas: `RunCapture` (columns/rows non-nullable — server rejects null), `EnvelopeBinding`, `SignedRunEnvelope`, `SignRunBody`, `SignRunResponse`. New `POST /runs/sign` (operationId `signRun`). `SubmitStepBody` gains optional `envelope`. |
+| `lib/api-client-react/src/generated/*` (regen) | `useSignRun` mutation + types. |
+| `lib/api-zod/src/generated/*` (regen) | Zod request/response schemas. |
+| `artifacts/atlas/src/lib/envelopeClient.ts` (new) | Pure helpers: `buildPythonCapture` / `buildSqlCapture` (NaN-safe `durationMs`), `preCheckCapture`, `isCaptureLikelyOversize`, `classifySignError` (every status/network error → stable `SignSkipReason`). |
+| `artifacts/atlas/src/lib/envelopeClient.test.ts` (new) | 21 unit tests. |
+| `artifacts/atlas/src/lib/pyodideRunner.ts` (edited) | `ExecResult.durationMs` (perf.now delta around `runPython`, excludes cold-start). |
+| `artifacts/atlas/src/pages/project-workspace.tsx` (edited) | `envelopeByStepId` state + per-step `runGenByStep` ref. `attemptSignAndStash` pre-gates → signs → stashes ONLY if gen still matches. `bumpRunGen` + `clearEnvelopeForStep` chained into `onCodeChange`, `onReset`, `onSelectHistoryCode`, `goToStep`. `submitStep` attaches envelope when present. |
+| `artifacts/atlas/src/pages/project-workspace.test.tsx` (edited) | Added `useSignRun` mock so resume-lifecycle tests still mount. |
+| `artifacts/api-server/src/routes/user.ts` (edited) | Envelope-for-non-allow-listed-kind silently falls through (logs `envelope.submit.kind_not_enabled.fallback`) instead of returning Phase-47's 400 `envelope_kind_not_enabled`. Verifier still only invoked when kind IS allow-listed. |
+| `artifacts/api-server/src/lib/envelopeSubmit.ts` (edited) | Docstring updated for Phase 49 fallback contract. |
+| `artifacts/api-server/src/routes/user-submit-envelope.test.ts` (rewritten) | E1 — asserts soft-fail (200, no error body, zero nonce rows). |
+| `artifacts/api-server/src/routes/user-submit-envelope-pilot.test.ts` (rewritten) | P1 — asserts pilot fall-through path. |
 
-### Route contract
+### What landed (Phase 49b — disclosure page, commit `b119bc7`)
 
-```
-POST /api/runs/sign
-Auth: required (Clerk)
-Body: { projectId: uuid, stepId: uuid, capture: RunCapture }
-TTL:  600_000 ms (10 minutes)
+| File | Role |
+|---|---|
+| `artifacts/atlas/src/pages/how-atlas-grades.tsx` (new) | Public 5-section H3 disclosure page. |
+| `artifacts/atlas/src/pages/how-atlas-grades.test.tsx` (new) | 6 tests including H1/H2 banned-phrase guard. |
+| `artifacts/atlas/src/App.tsx` (edited) | New public `/how-atlas-grades` route (no auth). |
+| `artifacts/atlas/src/pages/home.tsx` (edited) | New footer link "How grading works". |
 
-200 → { envelope: SignedRunEnvelope }
-400 → invalid_projectId | invalid_stepId | invalid_capture | sign_failed
-401 → Unauthorized
-403 → pro_required | not_enrolled
-404 → step_not_found | project_not_found  (hidden = 404, no existence leak)
-413 → capture_too_large  (code ≤ 32KB, stdout/stderr ≤ 64KB UTF-8 bytes via Buffer.byteLength; rows ≤ 5000, cols ≤ 256)
-422 → validation_kind_not_signable  (self_attest / exact / regex / contains)
-503 → signing_unavailable  (RUN_ENVELOPE_SIGNING_SECRET unset)
-```
+### Soft-fail contract (the architect-driven invariant of Phase 49)
 
-Signable validation kinds (allow-list): `json_equal`, `numeric_tolerance`, `sql_resultset`, `csv_set_equal`, `csv_ordered`. Unsignable kinds have no runtime output to hash; 422 by design.
+Every failure mode on the FE sign path is mapped to a `SignSkipReason` and logged at `console.debug({ evt: 'envelope.sign.skipped', reason })`. The learner never sees a sign error. Submit always works.
 
-### Nonce table (minimal per design doc §"Nonce store")
+On the server, an envelope attached for a kind NOT in `ATLAS_ENVELOPE_REQUIRED_KINDS` logs `envelope.submit.kind_not_enabled.fallback` at info and grades via the legacy bare-string path. No 400, no nonce row written, no crypto. The legacy wire payload is byte-identical whether or not an envelope is attached when the kind is disabled.
 
-```sql
-CREATE TABLE run_envelope_nonces (
-  nonce      text PRIMARY KEY NOT NULL,
-  expires_at timestamp with time zone NOT NULL,
-  created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE INDEX run_envelope_nonces_expires_at_idx ON run_envelope_nonces USING btree (expires_at);
-```
+### Honest claim ceiling (H3 — UNCHANGED)
 
-No FK to `users` / `projects` — the nonce is opaque and self-contained inside the signed envelope binding. INSERT happens at verify time (Phase 47), not at sign time. Table is empty after Phase 46; janitor is a no-op until Phase 47 begins writing rows.
+- "Atlas saw your browser report a particular output for the code you ran, and that output matched what the step expected. The signature confirms the record came from your session and was not modified in flight."
+- Does NOT prove independent authorship (H1).
+- Does NOT prove the absence of outside help (H2 / A2 accepted residual).
+- Does NOT prevent forge-then-sign (A5 accepted residual).
 
-### Boot-time secret check
+`/how-atlas-grades` states all of the above plainly. Disclosure copy is unit-tested against a list of banned overclaim phrases — edit the page rather than weakening the guard.
 
-`assertRunEnvelopeSigningSecret()` runs after `initStripe`:
+### Gates (all green, post-change)
 
-- `RUN_ENVELOPE_SIGNING_SECRET` set → silent.
-- Unset + `REPLIT_DEPLOYMENT === '1'` → **throw** at boot. Deploys fail fast.
-- Unset + dev/test → `logger.warn(...)`; route degrades to 503 until set.
+| Gate | Result |
+|---|---|
+| `pnpm run typecheck` | ✓ clean |
+| `check:no-heuristic-runtime` | ✓ |
+| `@workspace/atlas` | ✓ **128 / 128** (+27 over Phase 48 baseline of 101) |
+| `@workspace/api-server` | ✓ **347 / 347** (E1+P1 rewritten for fallback contract, count unchanged from Phase 48) |
+| `@workspace/execution-core` | ✓ **83 / 83** UNCHANGED |
+| `@workspace/curriculum-quality` | ✓ **93 / 93** UNCHANGED |
+| `audit:authoring` | ✓ **58 / 58** publish-ready (advisories 174 + 3 UNCHANGED) |
+| `audit:pedagogy` | ✓ **58 / 58** UNCHANGED |
 
-Operator action: set `RUN_ENVELOPE_SIGNING_SECRET` (≥32 random bytes, e.g. `openssl rand -hex 32`) in the deployed environment before any deploy ships. Rotate via `kid` — library already supports `SignBindingInput.kid`.
-
-### What this still does NOT prove
-
-Honest claim ceiling unchanged from Phase 44: **H3 only** — *"Atlas verified that the runtime output submitted for this step matched the expected result."*
-
-- Does not prove the learner wrote the code (H1 — out of scope for any browser-runtime platform).
-- Does not prove the learner executed *their* code vs. someone else's (H2 / A2 — accepted residual).
-- Does not prevent forge-then-sign (A5 — accepted residual; the route can mint a signature for any well-formed capture the learner submits).
-
-The route + table exist so Phase 47 can wire `verifyRunEnvelope` into grading without simultaneously inventing the mint path. Shipping in this order keeps the verifier change small and reviewable.
-
-### Recommended implementation sequence (unchanged from Phase 44/45)
-
-| Phase | Scope | Behavior change? |
-|---|---|---|
-| **45** ✅ | Envelope types + canonicalizer + signer + verifier in `lib/execution-core` + tests. | None |
-| **46** ✅ | `POST /api/runs/sign` + `run_envelope_nonces` migration + janitor + boot-time secret check + tests. | None (no `/submit` caller, no FE wiring) |
-| **47** ⏳ next | Captured-submission arm in `gradeSubmission`; `VALIDATION_KINDS_REQUIRING_ENVELOPE` env-driven allow-list (default empty); nonce INSERT-on-first-verify wiring. | None until allow-list populated |
-| **48** | Frontend Run→sign→Submit plumbing + OpenAPI entry + "How Atlas Grades" public page + cert-copy review. | None until §49 |
-| **49** | Flip `json_equal` to envelope-required for 1% then 100% over 1-2 weeks. | Real enforcement on `json_equal` |
-| **50+** | Repeat §49 for `numeric_tolerance`, `sql_resultset`, `csv_set_equal`, `csv_ordered`. | Real enforcement, one kind per phase |
-
-### Hard stops respected in Phase 46
+### Hard stops respected
 
 | Surface | Touched? |
 |---|---|
 | `lib/grading.ts` | NO |
-| `/check`, `/submit` route handlers | NO |
-| Frontend code (`artifacts/atlas`) | NO |
-| OpenAPI spec / codegen | NO — deferred to Phase 48 |
-| `lib/execution-core/src/runEnvelope.ts` (Phase 45 library) | NO |
-| Atlas frontend bundle (`node:crypto`) | NO — subpath import is server-only |
-| Seed / content / project files | NO |
-| Pedagogy / rubric / taxonomy | NO |
-| Production DB | NO (migration added; operator applies via `pnpm run migrate`) |
-| Billing / Stripe / certs / portfolio | NO |
-| `audit:authoring` enforcement counts | UNCHANGED (58/58) |
-| `audit:authoring` advisories | UNCHANGED (174 submission-shape + 3 legacy spec keys) |
-| `audit:pedagogy` | UNCHANGED (58/58) |
+| `/check` route handler | NO |
+| `lib/execution-core/runEnvelope.ts` | NO (Phase 45 library frozen) |
+| Schema / migration | NO |
+| Seed / content / pedagogy / rubric | NO |
 | `RUBRIC_VERSION` | FROZEN at `1.0.1` |
-| `json_equal` classification | UNCHANGED (still contract-shaped) |
+| `json_equal` advisory classification | UNCHANGED |
+| Billing / Stripe | NO |
+| Cert / portfolio language | NO (`evidence-backed completion record` pin from Phase 28 still holds) |
+| Production DB | NO |
+| `ATLAS_ENVELOPE_REQUIRED_KINDS` default | EMPTY in production |
 
-### Gates (all green)
+### Architect review
 
-| Gate | Result |
-|---|---|
-| `pnpm run typecheck` (full repo: libs build + 4 leaf typechecks + `check:no-heuristic-runtime`) | ✓ clean |
-| `pnpm --filter @workspace/api-server run test` | ✓ **305 / 305** (was 280 in Phase 45; +25 from `runs-sign.test.ts`, including explicit 401 when `getCurrentUser` returns null — architect-driven fix) |
-| `pnpm --filter @workspace/execution-core run test` | ✓ **83 / 83** (unchanged from Phase 45) |
-| `pnpm --filter @workspace/curriculum-quality run test` | ✓ **93 / 93** (unchanged) |
-| `pnpm --filter @workspace/scripts run audit:authoring` | ✓ **58 / 58** publish-ready (unchanged) |
-| `pnpm --filter @workspace/scripts run audit:pedagogy` | ✓ **58 / 58** (unchanged) |
-| API server boots clean | ✓ — secret-warn fires; server listens; Stripe initializes |
-| `curl -X POST localhost:80/api/runs/sign` (unauthed) | ✓ → 401 |
+Two rounds. **Round 1** caught: (a) server 400 broke soft-fail, (b) stale-envelope race after edit, (c) OpenAPI `nullable:true` drift on `RunCapture.columns/rows`, (d) NaN `durationMs`. **Round 2** caught: step-navigation stale-race in `goToStep`. All fixed. Final verdict: PASS.
 
-### Risks remaining after Phase 46
+### Risks remaining after Phase 49
 
-1. **Operator must set `RUN_ENVELOPE_SIGNING_SECRET` before first deploy.** Boot-time hard-fail makes this a deploy-step failure rather than a silent runtime degradation, but the deploy-checklist should call it out explicitly. `docs/deployment-checklist.md` update is a Phase 46.x candidate.
-2. **Route is mintable but inert.** Until Phase 47 wires `/submit`, a learner calling `/runs/sign` gets back a valid envelope nothing verifies. Acceptable: no behavior change, no false claim made.
-3. **Nonce table is empty.** Janitor is a no-op until Phase 47 starts inserting on first verify. Cron registration is therefore optional this phase — register before Phase 47 ships.
-4. **Residual A2 / A5 risk unchanged from Phase 44.** Honest claim ceiling stays H3.
-5. **Schema-version bump policy + secret-rotation runbook still owed** (open questions §11 of design doc; block Phase 47).
+1. **No live end-to-end smoke yet** against real Pyodide + real `/runs/sign` round-trip. Unit tests at the helper layer, integration tests at the server-route layer, but a manual UI smoke in dev/staging is a Phase 50 prerequisite.
+2. **Signing path is exercised but no verified grading runs against real learners** — allow-list still empty.
+3. **Disclosure page only linked from the home-page footer.** Workspace, onboarding, and certificate pages don't link it yet. Easy add-on, deferred.
+4. **`run_envelope_nonces` will start receiving rows the moment Phase 50 flips its first kind** — janitor (Phase 46) handles cleanup but production cron registration is still owed.
+5. **`HANDOFF.md` / `replit.md` Phase History** caught up this turn; Phase 50 will need its own catch-up.
 
-### Recommended Phase 47
+### Recommended Phase 50
 
-Captured-submission arm in `gradeSubmission`:
+Pre-flip control-plane work + the actual 1% canary, IN THIS ORDER:
 
-- New `Submission` discriminated union: legacy bare-string arm (preserved verbatim — initial allow-list is empty so every live caller takes this arm) + new `{ kind: 'envelope', envelope: SignedRunEnvelope }` arm.
-- New `lib/grading.ts` helper `verifyEnvelopeForGrading(envelope, ctx)` calling `verifyRunEnvelope` with binding context from the route + `isNonceSeen` hook that does `INSERT INTO run_envelope_nonces VALUES (...) ON CONFLICT DO NOTHING RETURNING nonce` — INSERT success ⇒ first use; INSERT no-op ⇒ replay.
-- `VALIDATION_KINDS_REQUIRING_ENVELOPE` env-driven allow-list (default empty).
-- Per-failure-reason structured telemetry (`evt: 'envelope.verify.failed', reason: ...`) so Phase 49's 1% canary has the dashboards it needs.
-- Architect review BEFORE Phase 49 flips the first kind.
+1. **Manual smoke in dev/staging** with `RUN_ENVELOPE_SIGNING_SECRET` set + `ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal`. Run a real Python `json_equal` step through the UI; verify logs (`envelope.verify.ok`, `envelope.submit.kind_not_enabled.fallback` for any non-allow-listed eligible step); confirm pass/fail correctness and nonce row inserts.
+2. **Register the nonce janitor cron in production** before any kind goes live.
+3. **Add a feature-flag / user-bucket wrapper** on `ATLAS_ENVELOPE_REQUIRED_KINDS` so the verified path is only active for 1% of users on `json_equal` steps.
+4. **Monitor** verifier-failure rate, p95 submit latency, fallback log volume, learner-facing confusion.
+5. **Ramp** 1% → 10% → 50% → 100% over a week if metrics hold.
+6. **Architect review BEFORE** ramping past 1% on the first kind.
 
-### Commit
+### Commits
 
-`phase-46: run signing api + nonce store`
+- `844934e` — phase-47: envelope submit arm
+- `54ef8fe` — phase-48: pilot envelope grader
+- `24055ed` — phase-49a: frontend runtime wiring + soft-fail server fallback
+- `b119bc7` — phase-49b: how-atlas-grades disclosure page
