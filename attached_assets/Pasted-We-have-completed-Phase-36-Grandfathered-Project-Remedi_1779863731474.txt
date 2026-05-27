@@ -1,0 +1,123 @@
+We have completed Phase 36: Grandfathered Project Remediation Pilot.
+
+Current state:
+- csv-to-postgres-pipeline and dbt-data-models were remediated.
+- audit:authoring improved from 54/69 to 56/69 visible publish-ready.
+- audit:pedagogy remains 56/56.
+- All gates are green:
+  - curriculum-quality 69/69
+  - execution-core 34/34
+  - api-server 273/273
+  - atlas 102/102
+  - integration 3/3
+  - typecheck OK
+  - no-heuristic OK
+  - Architect PASS
+- Hard stops were preserved.
+- Atlas remains deploy-ready but not production-deployed.
+
+Start Phase 37.
+
+PHASE 37 — Batch Remediation of Remaining 13 Gap Projects
+
+Goal:
+Use the Phase 35 authoring contract and Phase 36 remediation path to diagnose and remediate the remaining 13 gap projects from Phase-9-era bulk authored content.
+
+Do not seed new projects yet.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/project-authoring-spec.md
+5. docs/templates/project-template.md
+6. docs/templates/project-publish-readiness-checklist.md
+7. docs/phases/phase-35-project-authoring-spec.md
+8. docs/phases/phase-36-grandfathered-project-remediation.md
+9. scripts/src/audit-project-authoring.ts
+10. scripts/src/seed.ts
+11. scripts/src/seed-pedagogy.ts
+
+Start with a read-only diagnosis.
+
+Run audit:authoring and identify the exact 13 remaining gap projects.
+
+For each gap project, produce a compact diagnosis:
+1. project slug
+2. failing authoring gates
+3. missing/weak expectedOutputs
+4. self_attest-only risk
+5. missing validation path
+6. weak hints or potential answer leakage
+7. missing/weak portfolio summary
+8. weak professional scenario
+9. step typing problems, if any
+10. whether remediation can be content-only
+
+Preferred implementation:
+Content-only remediation using the Phase 36 paved path.
+
+Allowed:
+- Update seed/content data for the identified gap projects.
+- Add missing expectedOutputs.
+- Convert one meaningful step per project from self_attest to a machine-verifiable check where honest.
+- Use existing server-supported validation types only.
+- Add/strengthen hint ladders where required.
+- Add/strengthen portfolio/professional metadata if missing.
+- Add idempotent patch blocks only if necessary for re-seed/fresh-DB convergence.
+- Keep every fix honest; do not fake machine verification.
+
+Not allowed:
+- No schema changes.
+- No migrations.
+- No /check changes.
+- No /submit changes.
+- No cert-verify changes.
+- No portfolio backend changes.
+- No billing/Stripe changes.
+- No deployment changes.
+- No production DB touch.
+- No OpenAPI/codegen changes.
+- No frontend changes.
+- No AI tutor prompt changes.
+- No hint route changes.
+- No project mass-seeding.
+- No new projects unless archive+replace is explicitly required and approved.
+- No rubric/taxonomy/anchor/pedagogy invariant changes.
+
+Important:
+If any project cannot be honestly remediated with existing validation types, do not force it to pass. Mark it as requiring archive+replace or deeper redesign.
+
+Acceptance target:
+- audit:authoring improves beyond 56/69.
+- Best case: all remaining visible projects publish-ready if the 13 gaps are all visible and content-remediable.
+- audit:pedagogy remains 56/56.
+- typecheck clean.
+- no-heuristic OK.
+- curriculum-quality tests green.
+- execution-core tests green.
+- api-server tests green.
+- atlas tests green.
+- integration 3/3.
+- Architect PASS.
+
+Deliverables:
+1. Read-only diagnosis of the 13 gap projects.
+2. Content-only remediation where honest and feasible.
+3. audit:authoring before/after summary.
+4. docs/phases/phase-37-batch-gap-project-remediation.md.
+5. HANDOFF.md update.
+6. replit.md update.
+7. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 37 final status
+2. exact projects changed
+3. gates fixed per project
+4. files changed
+5. audit:authoring before/after
+6. tests/gates run
+7. projects deferred, if any
+8. risks remaining
+9. recommended Phase 38
+10. suggested commit message

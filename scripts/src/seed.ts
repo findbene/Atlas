@@ -1,5 +1,6 @@
 import { db } from "@workspace/db";
-import { domains, tracks, projects, projectSteps, masterySections, masteryModules, masteryLessons } from "@workspace/db";
+import { domains, tracks, projects, projectSteps, masterySections, masteryModules, masteryLessons, userProgress } from "@workspace/db";
+import { sql as drizzleSql } from "drizzle-orm";
 import { eq, and } from "drizzle-orm";
 import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
 
@@ -22,6 +23,7 @@ import { projects2026 } from "./seed-projects-2026";
 import { crossDomainProjects } from "./seed-projects-cross-domain";
 import { jobOutcomesBySlug } from "./seed-job-outcomes";
 import { seedPedagogy } from "./seed-pedagogy";
+import { PHASE9_LEGACY_SLUG_MAP, PHASE10_LEGACY_SLUG_MAP } from "./authored-lineage";
 
 function slugify(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -1017,6 +1019,77 @@ async function seed() {
           await db.update(projectSteps).set({ expectedOutputs: {} }).where(eq(projectSteps.id, s.id));
         }
       }
+    }
+  }
+
+
+  // --- Phase 37 — Archive superseded legacy duplicates (idempotent) ---
+  // The 13 visible "gap" projects flagged by `audit:authoring` after Phase 36
+  // (mlops-feature-store, ds-ab-test-from-scratch, ai-eng-rag-pipeline,
+  // ds-causal-inference-uplift, stream-processing-flink, data-catalog-implementation,
+  // real-time-dashboard, data-mesh-design, column-store-engine, iceberg-table-format,
+  // debezium-cdc, vector-database-search, dbt-macros-mastery) are NOT under-authored
+  // content — they are already-superseded legacy duplicates. Each one has an
+  // authored, publish-ready, currently-visible course-prefixed counterpart
+  // (mapped in PHASE9_LEGACY_SLUG_MAP + PHASE10_LEGACY_SLUG_MAP), zero enrollments,
+  // and zero candidate rows. The Phase-9 doc literally states "the legacy rows
+  // are deleted by the upgrade" but the delete never ran in dev; Phase 12B then
+  // canonicalised the safer "archive-by-hide" pattern (learner_visible=false,
+  // never row-delete — preserves audit trail).
+  //
+  // Honest remediation is to apply that same archive-by-hide flip here, not to
+  // author 13 redundant projects that would compete with their own superseders
+  // for catalog space. This is also the explicit invariant in replit.md:
+  //   "Archive = hide (`learner_visible=false`), not destroy. No row deletes."
+  //
+  // The flip is gated by THREE safety checks per legacy slug:
+  //   (a) the upgraded counterpart row must exist
+  //   (b) the upgraded counterpart must be visible
+  //   (c) the legacy row must have zero enrollments (user_progress rows)
+  // Any check failing → the legacy row is LEFT VISIBLE and a warn is logged.
+  // No row is ever deleted; reversible by `UPDATE projects SET learner_visible=true`.
+  //
+  // Idempotent: legacy rows already hidden are skipped silently.
+  {
+    const targets: Record<string, string> = {
+      ...PHASE9_LEGACY_SLUG_MAP,
+      ...PHASE10_LEGACY_SLUG_MAP,
+    };
+    for (const [legacySlug, upgradedSlug] of Object.entries(targets)) {
+      const legacy = await db.query.projects.findFirst({ where: eq(projects.slug, legacySlug) });
+      if (!legacy) continue; // legacy row not present in this DB — nothing to archive.
+      if (legacy.learnerVisible === false) continue; // already archived (idempotent).
+      const upgraded = await db.query.projects.findFirst({ where: eq(projects.slug, upgradedSlug) });
+      if (!upgraded) {
+        console.warn(`  ! Phase 37 SKIP ${legacySlug} → upgraded slug ${upgradedSlug} not found in DB`);
+        continue;
+      }
+      if (upgraded.learnerVisible === false) {
+        console.warn(`  ! Phase 37 SKIP ${legacySlug} → upgraded ${upgradedSlug} is itself hidden`);
+        continue;
+      }
+      // Authoritative enrollment check via `user_progress`. The denormalized
+      // `projects.enrolled_count` column has a schema default of 0 but is NOT
+      // maintained by the enrollment routes (verified by repo-wide search —
+      // only schema default + read sites; no writer). Relying on it would be
+      // a stale-false-safe gate. We query `user_progress` directly through
+      // Drizzle so the safety gate reflects actual enrollment state, not a
+      // never-updated counter. (The existing Phase 11/12B archive scripts
+      // also read the column — they happen to be correct in dev because the
+      // legacy slugs genuinely have zero `user_progress` rows, but inheriting
+      // that pattern here would mask the same latent bug for any future
+      // legacy→authored pair that does have enrollments.)
+      const enrollmentProbe = await db
+        .select({ ct: drizzleSql<number>`count(*)::int` })
+        .from(userProgress)
+        .where(eq(userProgress.projectId, legacy.id));
+      const enrolledCt = enrollmentProbe[0]?.ct ?? 0;
+      if (enrolledCt > 0) {
+        console.warn(`  ! Phase 37 SKIP ${legacySlug} → has ${enrolledCt} active enrollment(s) in user_progress`);
+        continue;
+      }
+      await db.update(projects).set({ learnerVisible: false }).where(eq(projects.id, legacy.id));
+      console.log(`  ~ Phase 37 archived ${legacySlug} (superseded by ${upgradedSlug})`);
     }
   }
 
