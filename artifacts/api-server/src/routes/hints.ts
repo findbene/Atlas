@@ -208,6 +208,28 @@ router.post("/projects/:slug/steps/:stepId/hint/next", requireAuth, async (req, 
         },
       });
 
+    // Phase 34 — structured telemetry. Schema-free (no DB writes).
+    // Captures who escalated, on which project/step, from which mode,
+    // and to which level. Drives the same admin dashboards as
+    // ai.tutor.request without per-user PII beyond local users.id.
+    req.log.info(
+      {
+        evt: "hint.escalate",
+        userId: user.id,
+        projectId: ctx.project.id,
+        projectSlug: ctx.project.slug,
+        stepId: ctx.step.id,
+        mode: toAtlasLearnerMode(progressRow?.learningMode ?? "guided"),
+        priorLevel: currentLevel,
+        desiredLevel: desired,
+        cap,
+        attemptCount,
+        lastValidationFailed,
+        stepPassed,
+      },
+      "hint.escalate",
+    );
+
     const out = await buildHintResponse({
       userId: user.id,
       projectId: ctx.project.id,

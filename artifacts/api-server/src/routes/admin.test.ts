@@ -11,9 +11,12 @@ import request from "supertest";
 
 const projectsFindMany = vi.fn();
 const candidatesFindMany = vi.fn();
+// Phase 34 — `db.execute` is used by the new /api/admin/mode-usage route.
+const dbExecute = vi.fn();
 
 vi.mock("@workspace/db", () => ({
   db: {
+    execute: (...a: unknown[]) => dbExecute(...a),
     query: {
       projects: { findMany: (...a: unknown[]) => projectsFindMany(...a) },
       projectCandidates: { findMany: (...a: unknown[]) => candidatesFindMany(...a) },
@@ -21,8 +24,12 @@ vi.mock("@workspace/db", () => ({
   },
   projects: {},
   projectCandidates: {},
+  userProgress: {},
 }));
-vi.mock("drizzle-orm", () => ({ asc: (a: unknown) => ({ asc: a }) }));
+vi.mock("drizzle-orm", async () => {
+  const actual = await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
+  return { ...actual, asc: (a: unknown) => ({ asc: a }) };
+});
 
 // Stub the auth module so the test fully owns the auth state injected
 // into each request — no Clerk roundtrips.
@@ -185,5 +192,92 @@ describe("GET /api/admin/quality bidirectional lineage invariant (Phase 9)", () 
       promotedProjects: 0, candidatesWithInverse: 0,
       mismatches: 0, inverseMismatches: 0, duplicateCandidatePromotions: 0,
     });
+  });
+});
+
+// =====================================================================
+// Phase 34 — GET /api/admin/mode-usage
+// =====================================================================
+//
+// Read-only aggregate of user_progress.learning_mode counts. Admin-gated
+// (same requireAdmin gate as /api/admin/quality), schema-free, returns
+// a flat `{ totalEnrollments, byMode, percentByMode }` payload with no
+// per-user detail.
+
+describe("GET /api/admin/mode-usage (Phase 34)", () => {
+  beforeEach(() => {
+    dbExecute.mockReset();
+  });
+
+  it("returns 401 for anonymous requests", async () => {
+    currentRole = "anon";
+    const app = await buildApp();
+    const res = await request(app).get("/api/admin/mode-usage");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 for authenticated non-admin requests", async () => {
+    currentRole = "learner";
+    const app = await buildApp();
+    const res = await request(app).get("/api/admin/mode-usage");
+    expect(res.status).toBe(403);
+  });
+
+  it("aggregates mode counts and rounds percentages to 1 decimal", async () => {
+    currentRole = "admin";
+    dbExecute.mockResolvedValueOnce({
+      rows: [
+        { learning_mode: "guided", n: 7 },
+        { learning_mode: "hint", n: 2 },
+        { learning_mode: "independent", n: 1 },
+      ],
+    });
+    const app = await buildApp();
+    const res = await request(app).get("/api/admin/mode-usage");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      totalEnrollments: 10,
+      byMode: { guided: 7, hint: 2, independent: 1, dynamic_ai_adaptive: 0 },
+      percentByMode: { guided: 70, hint: 20, independent: 10, dynamic_ai_adaptive: 0 },
+    });
+  });
+
+  it("zero-row case → all zeros + zero percentages (no divide-by-zero)", async () => {
+    currentRole = "admin";
+    dbExecute.mockResolvedValueOnce({ rows: [] });
+    const app = await buildApp();
+    const res = await request(app).get("/api/admin/mode-usage");
+    expect(res.status).toBe(200);
+    expect(res.body.totalEnrollments).toBe(0);
+    expect(res.body.byMode).toEqual({ guided: 0, hint: 0, independent: 0, dynamic_ai_adaptive: 0 });
+    expect(res.body.percentByMode).toEqual({ guided: 0, hint: 0, independent: 0, dynamic_ai_adaptive: 0 });
+  });
+
+  it("ignores unknown learning_mode values defensively", async () => {
+    currentRole = "admin";
+    dbExecute.mockResolvedValueOnce({
+      rows: [
+        { learning_mode: "guided", n: 4 },
+        { learning_mode: "totally_made_up_mode", n: 99 },
+      ],
+    });
+    const app = await buildApp();
+    const res = await request(app).get("/api/admin/mode-usage");
+    expect(res.status).toBe(200);
+    expect(res.body.totalEnrollments).toBe(4);
+    expect(res.body.byMode.guided).toBe(4);
+  });
+
+  it("emits NO per-user detail (no userId / projectId in payload)", async () => {
+    currentRole = "admin";
+    dbExecute.mockResolvedValueOnce({
+      rows: [{ learning_mode: "guided", n: 1 }],
+    });
+    const app = await buildApp();
+    const res = await request(app).get("/api/admin/mode-usage");
+    const flattened = JSON.stringify(res.body);
+    expect(flattened).not.toMatch(/userId/i);
+    expect(flattened).not.toMatch(/projectId/i);
+    expect(flattened).not.toMatch(/slug/i);
   });
 });

@@ -11,8 +11,8 @@
 import { Router } from "express";
 import { requireAdmin } from "../lib/auth";
 import { db } from "@workspace/db";
-import { projects, projectCandidates } from "@workspace/db";
-import { asc } from "drizzle-orm";
+import { projects, projectCandidates, userProgress } from "@workspace/db";
+import { asc, sql } from "drizzle-orm";
 import {
   ALL_COURSES,
   type AtlasCourseSlug, type Scorecard,
@@ -322,6 +322,56 @@ router.get("/api/admin/quality", requireAdmin, async (req, res) => {
   const user = (req as { localUser?: { id: string } }).localUser;
   req.log.info({ adminUser: user?.id }, "admin quality summary served");
   return res.json(summary);
+});
+
+/**
+ * Phase 34 — read-only mode-usage aggregate.
+ *
+ * Returns counts of `user_progress.learning_mode` across ALL enrollments
+ * (so a single learner with 3 enrolled projects contributes 3 rows). The
+ * payload is intentionally a flat aggregate with NO per-learner detail:
+ *   - no user ids
+ *   - no project ids/slugs
+ *   - no joins to other tables
+ *
+ * Schema-free (reads an existing enum column). Admin-only.
+ */
+router.get("/api/admin/mode-usage", requireAdmin, async (req, res) => {
+  type Row = { learning_mode: string; n: string | number };
+  const result = await db.execute(sql`
+    SELECT learning_mode, COUNT(*)::int AS n
+    FROM ${userProgress}
+    GROUP BY learning_mode
+  `);
+  const rows = result.rows as Row[];
+
+  const byMode: Record<"guided" | "hint" | "independent" | "dynamic_ai_adaptive", number> = {
+    guided: 0,
+    hint: 0,
+    independent: 0,
+    dynamic_ai_adaptive: 0,
+  };
+  for (const row of rows) {
+    const m = row.learning_mode as keyof typeof byMode;
+    if (m in byMode) byMode[m] = Number(row.n);
+  }
+  const totalEnrollments = byMode.guided + byMode.hint + byMode.independent + byMode.dynamic_ai_adaptive;
+  const pct = (n: number) =>
+    totalEnrollments === 0 ? 0 : Math.round((n / totalEnrollments) * 1000) / 10;
+
+  const adminUser = (req as { localUser?: { id: string } }).localUser;
+  req.log.info({ adminUser: adminUser?.id, totalEnrollments }, "admin mode-usage served");
+
+  return res.json({
+    totalEnrollments,
+    byMode,
+    percentByMode: {
+      guided: pct(byMode.guided),
+      hint: pct(byMode.hint),
+      independent: pct(byMode.independent),
+      dynamic_ai_adaptive: pct(byMode.dynamic_ai_adaptive),
+    },
+  });
 });
 
 export default router;

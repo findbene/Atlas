@@ -1,128 +1,79 @@
 # Atlas — Session Handoff
 
-**HEAD:** Phase 33 — Mode-Aware Project Workspace UX (working tree changes pending commit).
-**Last shipped + committed:** Phase 32 — Learner Mode Selector + Adaptive Recommender at `95faf40`.
-**Status:** Phase 33 **READY TO COMMIT**.
+**HEAD:** Phase 34 — Ada Tutor Step Contract + Mode Telemetry (working tree changes pending commit).
+**Last shipped + committed:** Phase 33 — Mode-Aware Project Workspace UX at `7d7f1bea`.
+**Status:** Phase 34 **READY TO COMMIT**.
 
 Atlas remains deploy-ready (Phase 31 unchanged). **No deployment has occurred. No production DB has been touched.**
 
 ---
 
-## Phase 33 working-tree changes
+## Phase 34 working-tree changes
 
 **New files**
-- `artifacts/atlas/src/components/studio/useLearningMode.ts` — shared hook + `dispatchLearningModeChanged(slug, mode)` window-`CustomEvent` bridge. Request-versioning (`fetchSeqRef`), preserve-on-transient-error (`hadAnySuccessRef`), functional `setState` everywhere.
-- `artifacts/atlas/src/components/studio/useLearningMode.test.tsx` — 6 cases (mount fetch, 404 self-hide, optimistic dispatch, preserve-on-transient-error, cross-slug ignore, lifecycle).
-- `artifacts/atlas/src/components/studio/InstructionsPanel.test.tsx` — 7 cases (guided CTA, independent disclosure, pedagogy + legacy `hints[]` suppression, and the architect-flagged regression: legacy hint stays visible after mid-step flip to independent).
-- `artifacts/atlas/src/components/studio/ValidationFeedbackPanel.mode.test.tsx` — 3 cases (Ada nudge swap, default fallback, missing-handler fallback). In its own file so the top-level `useHintState` stub doesn't bleed into the sibling suite.
-- `docs/phases/phase-33-mode-aware-project-workspace-ux.md` (close-out).
+- `lib/execution-core/src/tutorContract.ts` — pure `buildTutorContract(input)` + `renderTutorContractForPrompt(contract)` + `resolveAdaptiveMode(signals)`. Returns `{mode, effectiveMode, resolvedFromAdaptive, helpBoundary, allowedBehaviors[], forbiddenBehaviors[], validationGuidance, responseStyle}`. Independent + not-passed pinned to `diagnostic-only` with explicit "Do NOT reveal the full solution" + "portfolio credibility" clauses; independent + passed → `review-permissive`. Adaptive resolves first-match-wins (stepPassed→independent; lastFailed+≥2 attempts OR hintLevel≥3 OR ≥3 attempts→guided rescue; else hint, never guided).
+- `lib/execution-core/src/tutorContract.test.ts` — 17 cases: each mode boundary, all adaptive resolution branches, render shape, and the solution-leak invariant (independent + not-passed must always include "Do NOT reveal the full solution" regardless of attemptCount/hintLevel).
+- `docs/phases/phase-34-ada-tutor-step-contract.md` (close-out).
 
 **Modified files**
-- `artifacts/atlas/src/components/studio/ModeSelector.tsx` — rewritten on `useLearningMode`; dispatches `LEARNING_MODE_CHANGED_EVENT` after PATCH; new `data-testid="adaptive-mode-badge"` when `currentMode === "dynamic_ai_adaptive"`.
-- `artifacts/atlas/src/components/studio/InstructionsPanel.tsx` — new `mode`/`hasFailedCheck`/`onRequestTutorNudge` props. Long-instruction disclosure. **Dual suppression predicates** (`suppressPedagogyEscalation` for the ladder, `suppressLegacyReveal` reading `showLegacyHint` for the one-shot hint) so earned hints survive a mid-step mode flip.
-- `artifacts/atlas/src/components/studio/ValidationFeedbackPanel.tsx` — new `mode`/`onRequestTutorNudge` props. Independent + handler swaps `hint-offer` for `independent-ada-nudge`.
-- `artifacts/atlas/src/components/studio/RemediationPanel.tsx` — new `mode` prop + `firstDivergenceIndex` helper. Independent + exact-diff dampened (lengths + first divergence; expected not echoed).
-- `artifacts/atlas/src/components/studio/StudioShell.tsx` — wires `useLearningMode(project?.slug)`. **`hasFailedCheck` latched via `useState` + two `useEffect`s** (reset on `currentStep?.id`, set on `grading?.status === "failed"`) — no render-phase mutation. Bridges `onRequestTutorNudge` → existing `onAskTutor("I'd like a small nudge...")`. Passes `mode` + handler to all 3 panels.
-- `artifacts/atlas/src/components/studio/ModeSelector.test.tsx` — mock now closure-tracks `liveCurrentMode` so post-PATCH refetch reflects the new mode (otherwise the optimistic update reverts).
-- `artifacts/atlas/src/components/studio/RemediationPanel.test.tsx`, `artifacts/atlas/src/components/studio/ValidationFeedbackPanel.test.tsx` — extended for new props.
+- `lib/execution-core/src/index.ts` — exports `buildTutorContract`, `renderTutorContractForPrompt`, `resolveAdaptiveMode`, `TutorContractInput`, `TutorContract`, `HelpBoundary`.
+- `artifacts/api-server/src/routes/ai.ts` — renamed `SYSTEM_PROMPT` → `SYSTEM_PROMPT_BASE`, stripped the inline P4-era "Mode-aware tone" bullets, added "TUTOR CONTRACT below" references. Per-request, after assembling `learnerStateBlock`, builds the contract from the SAME signals (`atlasMode`, `attemptCount`, `currentHintLevel`, `lastValidationFailed`, `stepPassed`) and appends `renderTutorContractForPrompt(contract)` to the system prompt **outside** the untrusted `<learner_state>` / `<project_context>` / `<step_pedagogy>` / `<user_data>` envelopes. Emits `req.log.info({evt:'ai.tutor.request', userId, projectId, stepId, tier, model, contract:{…}})` BEFORE the upstream stream call (so failures still emit). General-context requests → base prompt only + `telemetry: null` in the log.
+- `artifacts/api-server/src/routes/hints.ts` — `POST /projects/:slug/steps/:stepId/hint/next` emits `req.log.info({evt:'hint.escalate', userId, projectId, projectSlug, stepId, mode, priorLevel, desiredLevel, cap, attemptCount, lastValidationFailed, stepPassed})` AFTER the atomic upsert (so the log reflects what was persisted).
+- `artifacts/api-server/src/routes/admin.ts` — new `GET /api/admin/mode-usage` (requireAdmin). Reads `user_progress.learning_mode` via `db.execute(sql\`SELECT learning_mode, COUNT(*)::int AS n FROM user_progress GROUP BY learning_mode\`)`. Returns `{totalEnrollments, byMode:{guided,hint,independent,dynamic_ai_adaptive}, percentByMode}` — flat aggregate, no per-user/per-project detail, defensive on unknown enum values, divide-by-zero guarded.
+- `artifacts/api-server/src/routes/ai.test.ts` — extended db mock with `userProgress` / `userProjectStepHints` / `userStepCompletions` query stubs; added `streamSpy` capturing `messages.stream(args)` so tests can assert on `system`. New 6-case suite "POST /ai/chat — Phase 34 Tutor Contract injection".
+- `artifacts/api-server/src/routes/admin.test.ts` — db mock gained `execute` + `userProgress` sentinel; `drizzle-orm` mock switched to `importActual` passthrough (was a stub-only export). New 5-case suite "GET /api/admin/mode-usage".
+- `replit.md` (Phase History: P26 stays in scope, P34 prepended).
+- `docs/phases/INDEX.md` (P34 entry appended).
 - `HANDOFF.md` (this file).
-- `replit.md` (Phase History: P25 rotated out, P33 added).
-- `docs/phases/INDEX.md` (P33 entry appended).
 
-**Unchanged:** every schema file, every migration, every backend route (incl. the P32 `learner-mode.ts`), `pages/project-workspace.tsx`, every test file other than the new + extended ones above, every seed / content / rubric / anchor / wave file, AI tutor (`ai.ts`), hint routes (`hints.ts`), `/check`, `/submit`, cert-verify, portfolio, billing, admin, dashboard, onboarding, OpenAPI spec, all codegen output, deployment checklist, scripts. Untracked `attached_assets/Pasted-*.txt` scratch files MUST NOT be committed.
+**Unchanged:** every schema file, every migration, every other backend route (incl. `/check`, `/submit`, cert-verify, portfolio, billing, dashboard, onboarding, enrollment, learner-mode, hints-GET), every frontend file (atlas + mockup-sandbox), OpenAPI spec, all codegen output, seed/content/rubric/anchor/wave files, deployment checklist, scripts. The Tutor Contract module is purely additive; `SYSTEM_PROMPT_BASE` retains the full hint-discipline + safety hard floor verbatim — the contract tightens per-mode behavior on top, never below.
 
 ---
 
 ## Strategy decisions
 
-1. **Event bridge instead of prop-drilling.** ModeSelector lives in `StudioTopBar`; the panels live deep under `StudioShell`. Threading callbacks through `pages/project-workspace.tsx` would have rewritten a deliberately stable parent. The hook publishes a `CustomEvent` on the window; every consumer instance re-syncs on its own.
-2. **Optimistic + reconcile.** Mode flips feel instant. Three race-safety mechanisms in the hook: `fetchSeqRef` (invalidate stale in-flight responses), `hadAnySuccessRef` (preserve last-known mode on transient errors so ModeSelector doesn't blink off), functional `setState` everywhere (an optimistic update mid-fetch is never overwritten by a stale snapshot).
-3. **Two suppression predicates, not one.** Architect caught that a single predicate on the legacy `hints[]` path fires even when `showLegacyHint` is true. Split into `suppressPedagogyEscalation` and `suppressLegacyReveal` — the latter reads `showLegacyHint` so an already-open hint stays visible after a mid-step flip to independent.
-4. **`hasFailedCheck` latched in committed state, not in a render-phase ref.** Moved to `useState` + `useEffect` keyed on `grading?.status` so the flip is committed after render, never during it. Concurrent-mode safe.
-5. **No new OpenAPI / codegen.** Zero new endpoints. Reuses P32's `/learning-mode/recommendation`. Plain `fetch` per `useHintState.ts` + P32 precedent.
-6. **Test-mock closure-tracking documented.** The `ModeSelector` mock mutates `liveCurrentMode` on PATCH so the optimistic-update path survives the refetch. Anyone writing tests for hooks that do optimistic-then-refetch should follow the same pattern — `mockResolvedValueOnce` is insufficient.
-7. **Dampened exact-diff privacy posture.** Independent learners don't get the answer echoed back on a failed `/check`: render `Expected: N chars, got M chars, first divergence at index K`.
+1. **Pure helper in execution-core, not a route-local function.** Keeps the policy testable without DB / Anthropic / Express harnesses, and locks the solution-leak invariant in a single place architect explicitly flagged for future regressions.
+2. **Contract OUTSIDE untrusted envelopes.** Rendered text appended to `SYSTEM_PROMPT_BASE` directly, never inside `<learner_state>` or `<project_context>`. Same threat model as the existing base prompt.
+3. **Adaptive resolves to a CONCRETE mode at the contract layer.** The model never sees a bare `dynamic_ai_adaptive` label without an explicit `effective_mode (adaptive resolution): …` line right next to it. Rules first-match-wins, deterministic, signal-echoed.
+4. **Adaptive default = hint, not guided.** A learner who picked `dynamic_ai_adaptive` opted out of always-on scaffolding; we only rescue to guided when the struggle signals (lastFailed+≥2 attempts, hintLevel≥3, attempts≥3) actually fire.
+5. **Independent splits on `stepPassed`.** Pre-pass → `diagnostic-only` (Socratic, no leak). Post-pass → `review-permissive` (discuss solution + alternatives). Mirrors Phase 33's dampened-diff posture in `RemediationPanel` — consistent end-to-end.
+6. **Schema-free telemetry only.** No new tables, no migration, no Stripe-style sync. Structured `req.log.info({evt, …})` is enough for an operator to `rg evt:.ai.tutor.request` today; a real dashboard is a follow-up phase.
+7. **Telemetry timing matters.** `ai.tutor.request` fires BEFORE the upstream stream (so failures still emit). `hint.escalate` fires AFTER the upsert (so the log reflects what was actually persisted, preventing "logged-but-didn't-write" false signal).
+8. **`mode-usage` admin endpoint has zero per-user shape.** 4-row aggregate; no joins, no ids, no slugs. Locked by an explicit no-PII assertion in the test.
+9. **Architect's nit consolidated.** Original `resolveAdaptiveMode` had a redundant final `if`/`else` returning the same value — collapsed to a single labeled return with a comment explaining why the default is hint rather than guided.
 
 ---
 
-## Final gate summary (Phase 33)
+## Final gate summary (Phase 34)
 
 | Gate | Result |
-|---|---|
-| `pnpm run typecheck` | ✅ clean |
-| `@workspace/atlas` tests | ✅ 102/102 (20 new vs. P32 baseline of 82) |
-| `@workspace/api-server` tests | ✅ 261/261 (no change) |
-| `@workspace/execution-core` tests | ✅ 14/14 (no change) |
-| `@workspace/api-server` test:integration | ✅ 3/3 (P30B real-PG `/submit` lock — not re-run; zero `/submit` code touched) |
-| `check:no-heuristic-runtime` | ✅ OK |
-| `audit:pedagogy` (visible) | ✅ 56/56 |
-| Anchor drift | n/a (no content / rubric / scoring changes) |
-| Lineage integrity | n/a (no `projects` / `project_candidates` writes) |
-| Architect | ✅ PASS after 3-finding fix-up round — critical (legacy-hint regression) fixed via dual predicate; medium (refetch race / preserve-on-error) fixed via seq-id + `hadAnySuccessRef`; low (render-phase ref) fixed via state + effects; each with new test coverage |
+| ---- | ------ |
+| `pnpm --filter @workspace/execution-core run test` | **34/34** (17 new tutorContract cases) |
+| `pnpm --filter @workspace/api-server run test` | **273/273** (6 new ai.ts + 5 new admin.ts cases) |
+| `pnpm --filter @workspace/atlas run test` | **102/102** (unchanged from P33) |
+| `pnpm --filter @workspace/api-server run test:integration` | **3/3** (P30B concurrency unchanged) |
+| `pnpm run typecheck` | clean (libs build + 4 leaf packages + no-heuristic-runtime guard) |
+| `pnpm run check:no-heuristic-runtime` | OK — 4-file allowlist unchanged |
+| `pnpm --filter @workspace/scripts run audit:pedagogy` | **56/56 visible** (unchanged) |
+| Architect review | **PASS** after one Medium consolidation (redundant adaptive branch) |
 
----
+## Hard-rule re-verification
 
-## Invariants explicitly preserved (P21–P32)
+- Schema / migration changes: **none**.
+- `/check`, `/submit`, cert-verify, portfolio, billing, deployment, Stripe, OpenAPI codegen: **untouched**.
+- `learner_visible = TRUE` filter on learner-facing routes: **unchanged** (404-not-403 privacy intact).
+- Bidirectional candidate ↔ project lineage: **untouched**.
+- RUBRIC_VERSION='1.0.1': **frozen**.
+- 4-file no-heuristic allowlist: **not expanded** (`check:no-heuristic-runtime` green).
+- 9 Atlas courses + "Atlas is a project-based learning platform for Data Engineering" framing: **unchanged**.
 
-- `RUBRIC_VERSION='1.0.1'` frozen.
-- `AuthoredProject.candidateId: string` required.
-- Anchor drift ≤ ±1 (n/a — no scoring touched).
-- Lineage integrity (n/a — no `projects` / `project_candidates` writes).
-- `check:no-heuristic-runtime` allowlist unchanged.
-- `learner_visible` filter + 404-not-403 privacy — unchanged.
-- `/check` write-free, `/submit` advisory-locked (`atlas-submit:` namespace), per-user transactional integrity — unchanged.
-- Cert-verify "evidence-backed completion record" language + privacy allowlist — unchanged.
-- Portfolio DTOs — unchanged.
-- 9-course taxonomy — unchanged.
-- Stripe-sync + billing routes — unchanged.
-- AI tutor prompt + hint route prompt — unchanged.
-- Phase 31 deployment baseline / migration runner / checklist — unchanged. Atlas remains in dev preview; deploy switch is operator's explicit action.
+## Untracked scratch
 
----
+- `attached_assets/Pasted-*.txt` from prior sessions remain untracked. **Do not commit.**
 
-## Known limitations (Phase 34 candidates)
+## Known follow-ups (Phase 35 candidates)
 
-- `firstDivergenceIndex` is UTF-16 code-unit based; an exact-diff that diverges inside a surrogate pair would report an index between the two halves. Non-critical for current curriculum; `[...string]` upgrade if that changes.
-- Adaptive mode shows a badge naming the underlying mode but doesn't yet re-render panels with an "adaptive treatment" of its own. True adaptive panel behavior is its own design problem.
-- The hook's preserve-on-error path only protects mode after at least one successful read for the current slug. First-mount failure still falls back to `{mode: null}` — matches P32's self-hide contract.
-- No per-attempt mode override in `/check` / `/submit` bodies — those contracts stay frozen.
-- Server-side hint endpoint does not block requests by mode; a determined client can still call `/hint` directly. Mode-based hint-gating remains a follow-up.
-
----
-
-## Suggested commit message
-
-```
-Phase 33 — Mode-Aware Project Workspace UX (frontend-only overlay on P32)
-
-Activates the per-panel half of the P32 learner-mode system. The
-StudioTopBar selector now meaningfully changes what the three workspace
-panels render and how they prompt for help.
-
-- New useLearningMode hook + window CustomEvent bridge so the top-bar
-  selector and the panels stay in sync without prop-drilling.
-  Request-versioning, preserve-on-transient-error, and functional
-  setState everywhere — no flicker, no overwriting an optimistic update
-  with a stale fetch.
-- InstructionsPanel: guided Ask-Ada CTA, independent long-description
-  disclosure, dual suppression predicates (pedagogy ladder + legacy
-  hints[]) that keep already-revealed hints visible even after a
-  mid-step flip to independent.
-- ValidationFeedbackPanel: independent + handler swaps Reveal-hint for
-  Ask-Ada-for-a-nudge; default / missing handler keeps legacy behavior.
-- RemediationPanel: independent + exact-diff dampens to length +
-  first-divergence index, never echoes the expected string.
-- StudioShell wires hook + hasFailedCheck latch (committed via
-  useEffect, never in render) + onRequestTutorNudge → existing
-  onAskTutor bridge.
-
-Zero schema/migration/`/check`/`/submit`/cert-verify/portfolio/billing/
-AI-tutor-prompt/hint-route/rubric/anchor/taxonomy/content/deployment
-changes. Backend, including the P32 learner-mode routes, unchanged.
-
-Tests: +20 atlas (hook, InstructionsPanel mode-aware incl. legacy-hint
-preservation regression, ValidationFeedbackPanel nudge swap,
-RemediationPanel dampening, ModeSelector adaptive badge). Atlas 82 →
-102. api-server 261/261, execution-core 14/14 unchanged. All gates
-green. Architect: PASS after 3-finding fix-up round.
-```
+- Surface `mode-usage` aggregate in the admin UI (currently API-only).
+- Add a sibling `evt:'ai.tutor.response'` log capturing latency + token count + assistant length so the dashboard can show per-mode cost/length distributions.
+- Consider a structured-log → time-series pipeline (a real `mode_usage_daily` materialized view) once there is enough deployed traffic.
+- Optional: aggregate `hint.escalate` events into a per-step difficulty signal that feeds back into the adaptive resolver (the loop is currently open).

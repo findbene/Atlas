@@ -49,3 +49,14 @@ export type {
   LearnerModeReasonCode,
   LearnerModeRecommendation,
 } from "./learnerMode.js";
+
+export {
+  buildTutorContract,
+  renderTutorContractForPrompt,
+  resolveAdaptiveMode,
+} from "./tutorContract.js";
+export type {
+  TutorContractInput,
+  TutorContract,
+  HelpBoundary,
+} from "./tutorContract.js";

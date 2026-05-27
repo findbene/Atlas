@@ -34,10 +34,16 @@ let anthropicStreamFactory: () => AsyncIterable<unknown> = () => ({
     yield { type: "content_block_delta", delta: { type: "text_delta", text: "world." } };
   },
 });
+// Phase 34 — capture the args passed to `messages.stream(...)` so tests can
+// assert on the rendered system prompt (e.g. the Tutor Contract block).
+const streamSpy = vi.fn();
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
     messages = {
-      stream: () => anthropicStreamFactory(),
+      stream: (args: unknown) => {
+        streamSpy(args);
+        return anthropicStreamFactory();
+      },
     };
   },
 }));
@@ -66,6 +72,13 @@ function insertChainFactory() {
   };
   return { values: vi.fn(() => valuesResult) };
 }
+// Phase 34 — overridable per-test query stubs for the project context branch.
+const projectsFindFirst = vi.fn().mockResolvedValue(null);
+const projectStepsFindFirst = vi.fn().mockResolvedValue(null);
+const userProgressFindFirst = vi.fn().mockResolvedValue(null);
+const userProjectStepHintsFindFirst = vi.fn().mockResolvedValue(null);
+const userStepCompletionsFindMany = vi.fn().mockResolvedValue([]);
+
 vi.mock("@workspace/db", () => ({
   db: {
     execute: (...args: unknown[]) => mockExecute(...args),
@@ -73,8 +86,11 @@ vi.mock("@workspace/db", () => ({
       aiTutorMessages: {
         findMany: (...args: unknown[]) => mockFindMany(...args),
       },
-      projects: { findFirst: vi.fn().mockResolvedValue(null) },
-      projectSteps: { findFirst: vi.fn().mockResolvedValue(null) },
+      projects: { findFirst: (...a: unknown[]) => projectsFindFirst(...a) },
+      projectSteps: { findFirst: (...a: unknown[]) => projectStepsFindFirst(...a) },
+      userProgress: { findFirst: (...a: unknown[]) => userProgressFindFirst(...a) },
+      userProjectStepHints: { findFirst: (...a: unknown[]) => userProjectStepHintsFindFirst(...a) },
+      userStepCompletions: { findMany: (...a: unknown[]) => userStepCompletionsFindMany(...a) },
     },
     insert: vi.fn(() => insertChainFactory()),
     update: vi.fn(() => ({ set: updateSet })),
@@ -85,6 +101,9 @@ vi.mock("@workspace/db", () => ({
   aiTutorMessages: { userId: "userId", projectId: "projectId" },
   projects: {},
   projectSteps: {},
+  userProgress: {},
+  userProjectStepHints: {},
+  userStepCompletions: {},
   users: { id: "id" },
 }));
 
@@ -126,6 +145,12 @@ beforeEach(() => {
   invalidateUserCacheSpy.mockReset();
   updateSet.mockClear();
   insertReturning.mockClear();
+  streamSpy.mockClear();
+  projectsFindFirst.mockReset().mockResolvedValue(null);
+  projectStepsFindFirst.mockReset().mockResolvedValue(null);
+  userProgressFindFirst.mockReset().mockResolvedValue(null);
+  userProjectStepHintsFindFirst.mockReset().mockResolvedValue(null);
+  userStepCompletionsFindMany.mockReset().mockResolvedValue([]);
   insertReturning.mockImplementation(() =>
     Promise.resolve([{ createdAt: new Date("2026-05-15T12:00:00.000Z") }]),
   );
@@ -400,5 +425,132 @@ describe("/ai/chat/unread freshness", () => {
     const flattened = JSON.stringify(sqlObj);
     expect(flattened).toMatch(/users/);
     expect(flattened).toMatch(/ai_tutor_last_read_at/);
+  });
+});
+
+// =====================================================================
+// Phase 34 — Tutor Contract rendered into the system prompt
+// =====================================================================
+//
+// These tests exercise the full path through the project-context branch
+// of /ai/chat and assert that the captured system prompt contains the
+// per-mode TUTOR CONTRACT block. They also lock the solution-leak
+// invariant for independent mode: even with a high attempt count, the
+// rendered prompt for a not-passed independent step must include the
+// explicit "Do NOT reveal the full solution" clause.
+
+describe("POST /ai/chat — Phase 34 Tutor Contract injection", () => {
+  const PROJECT_ID = "22222222-2222-2222-2222-222222222222";
+  const STEP_ID = "33333333-3333-3333-3333-333333333333";
+
+  function stubProjectAndStep() {
+    projectsFindFirst.mockResolvedValue({
+      id: PROJECT_ID,
+      title: "ETL Basics",
+      slug: "etl-basics",
+      shortDescription: "Build a CSV-to-Postgres pipeline.",
+      totalSteps: 4,
+    });
+    projectStepsFindFirst.mockResolvedValue({
+      id: STEP_ID,
+      stepNumber: 2,
+      title: "Define the target schema",
+      instructionMd: "Create a CREATE TABLE statement.",
+      validationHint: null,
+      learningObjective: null,
+      requiredSkill: null,
+      pedagogyConfig: null,
+    });
+  }
+
+  async function postChat() {
+    const app = await buildApp();
+    return request(app).post("/ai/chat").send({
+      message: "help",
+      contextType: "project",
+      contextId: PROJECT_ID,
+      stepId: STEP_ID,
+    });
+  }
+
+  function lastSystemPrompt(): string {
+    const calls = streamSpy.mock.calls as unknown as Array<[{ system?: string }]>;
+    const last = calls[calls.length - 1]?.[0];
+    return last?.system ?? "";
+  }
+
+  it("guided mode → contract block with proactive-scaffolded boundary", async () => {
+    stubProjectAndStep();
+    userProgressFindFirst.mockResolvedValue({ learningMode: "guided" });
+    const res = await postChat();
+    expect(res.status).toBe(200);
+    const sys = lastSystemPrompt();
+    expect(sys).toMatch(/TUTOR CONTRACT/);
+    expect(sys).toMatch(/learner_mode: guided_ai_assisted/);
+    expect(sys).toMatch(/help_boundary: proactive-scaffolded/);
+  });
+
+  it("hint mode → progressive-hints boundary + collapsing-the-ladder forbidden", async () => {
+    stubProjectAndStep();
+    userProgressFindFirst.mockResolvedValue({ learningMode: "hint" });
+    const res = await postChat();
+    expect(res.status).toBe(200);
+    const sys = lastSystemPrompt();
+    expect(sys).toMatch(/learner_mode: adaptive_inquiry_ai_assisted/);
+    expect(sys).toMatch(/help_boundary: progressive-hints/);
+    expect(sys.toLowerCase()).toMatch(/collapse the hint ladder/);
+  });
+
+  it("independent + not-passed → diagnostic-only + no solution-leak language", async () => {
+    stubProjectAndStep();
+    userProgressFindFirst.mockResolvedValue({ learningMode: "independent" });
+    userStepCompletionsFindMany.mockResolvedValue([
+      { passed: false, attemptCount: 4 },
+    ]);
+    const res = await postChat();
+    expect(res.status).toBe(200);
+    const sys = lastSystemPrompt();
+    expect(sys).toMatch(/help_boundary: diagnostic-only/);
+    expect(sys.toLowerCase()).toMatch(/not reveal the full solution/);
+    expect(sys.toLowerCase()).toMatch(/portfolio credibility/);
+  });
+
+  it("independent + passed → review-permissive opens up", async () => {
+    stubProjectAndStep();
+    userProgressFindFirst.mockResolvedValue({ learningMode: "independent" });
+    userStepCompletionsFindMany.mockResolvedValue([
+      { passed: true, attemptCount: 2 },
+    ]);
+    const res = await postChat();
+    expect(res.status).toBe(200);
+    const sys = lastSystemPrompt();
+    expect(sys).toMatch(/help_boundary: review-permissive/);
+  });
+
+  it("dynamic_ai_adaptive → annotated effective_mode (never left as adaptive)", async () => {
+    stubProjectAndStep();
+    userProgressFindFirst.mockResolvedValue({ learningMode: "dynamic_ai_adaptive" });
+    userStepCompletionsFindMany.mockResolvedValue([
+      { passed: false, attemptCount: 3 },
+    ]);
+    const res = await postChat();
+    expect(res.status).toBe(200);
+    const sys = lastSystemPrompt();
+    expect(sys).toMatch(/learner_mode: dynamic_ai_adaptive/);
+    expect(sys).toMatch(/effective_mode \(adaptive resolution\): guided_ai_assisted/);
+  });
+
+  it("general (non-project) context → no contract block, only base prompt", async () => {
+    const app = await buildApp();
+    const res = await request(app)
+      .post("/ai/chat")
+      .send({ message: "what is dbt?", contextType: "general" });
+    expect(res.status).toBe(200);
+    const sys = lastSystemPrompt();
+    // The base prompt REFERENCES the contract by name ("TUTOR CONTRACT below"),
+    // but in general-context mode no rendered contract block should follow.
+    expect(sys).not.toMatch(/TUTOR CONTRACT \(mode-aware policy/);
+    expect(sys).not.toMatch(/help_boundary:/);
+    expect(sys).toMatch(/Socratic technical learning assistant/);
   });
 });
