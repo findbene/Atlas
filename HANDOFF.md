@@ -1,88 +1,69 @@
-# Atlas — Session Handoff
+# HANDOFF
 
-**HEAD:** Phase 37 — Batch Remediation of Phase-9/10 Legacy Duplicates (Archive-by-Hide).
-**Last shipped:** Phase 37 (parent: Phase 36 at `0dd8479`).
-**Status:** Phase 37 **SHIPPED**. Content-only, idempotent, archive-by-hide. Working tree carries Phase 37 additions only: 1 new phase doc, 1 new patch block + 1 new import in `scripts/src/seed.ts`, INDEX.md + replit.md + this HANDOFF updated.
-
-Atlas remains deploy-ready (Phase 31 unchanged). **No deployment has occurred. No production DB has been touched.** Dev DB was re-seeded (idempotent — 13 legacy duplicate slugs flipped to `learner_visible=false`).
+**Latest shipped phase:** Phase 38 — Archive Safety + Counter Hygiene.
+**Working tree:** clean after `phase-38: harden archive safety gates to query user_progress`.
+**Parent commit:** `bffd2292` (Phase 37 close).
 
 ---
 
-## Phase 37 working-tree changes
+## Phase 38 summary
 
-**New files**
+Removed unsafe reliance on `projects.enrolled_count` from the three remaining archive-by-hide safety gates. Replaced with direct `user_progress` queries via a new shared helper. The column itself stays — only the archive *safety gates* stop trusting it.
 
-- `docs/phases/phase-37-batch-gap-project-remediation.md` — close-out.
+**Trigger:** Phase 37's architect review found `projects.enrolled_count` has no writer in any enrollment route (just the schema default `0`). Phase 37 fixed its own gate via a live `user_progress` query; Phase 38 closes the same gap in `archive-thin-stubs.ts`, `archive-phase11-replaced.ts`, `archive-phase12b-replaced.ts`, and consolidates the four call sites through one helper.
 
-**Modified files**
+**Files changed**
 
-- `scripts/src/seed.ts`:
-  - New import: `import { PHASE9_LEGACY_SLUG_MAP, PHASE10_LEGACY_SLUG_MAP } from "./authored-lineage";`
-  - **New `// --- Phase 37 — Archive superseded legacy duplicates (idempotent) ---` block** appended between the Phase 36 grandfathered-remediation block and the Mastery Sections. Iterates `{...PHASE9_LEGACY_SLUG_MAP, ...PHASE10_LEGACY_SLUG_MAP}` (13 pairs total, no overlap with already-archived P11/P12B cohorts) and flips `learner_visible=false` on the legacy slug gated by THREE safety checks: (a) upgraded row exists, (b) upgraded row is visible, (c) zero rows in `user_progress` for `legacy.id` (queried directly through Drizzle — NOT via the denormalized `projects.enrolled_count` column, which has a schema default but no writer anywhere in the route code). Any check failing → `console.warn` + skip, legacy stays visible. Legacy already-hidden → silently skipped (full idempotency). No row deletes.
-- `docs/phases/INDEX.md` — Phase 37 entry appended (chronological tail).
-- `replit.md` — Phase History prepended with P37 (P32 trimmed off the latest-5 window).
-- `HANDOFF.md` — this file.
+- **New:** `scripts/src/lib/enrollment-check.ts` — `getActualEnrollmentCount(id)` + batch variant `getActualEnrollmentCounts(ids)` querying `user_progress` directly.
+- **Refactored:**
+  - `scripts/src/archive-thin-stubs.ts` — gate split: `total_steps = 0` (schema) AND live `user_progress` count = 0; violation message now reports BOTH live count + stale counter for forensic visibility.
+  - `scripts/src/archive-phase11-replaced.ts` — `enrolled_count = 0` gate → live `user_progress` count gate.
+  - `scripts/src/archive-phase12b-replaced.ts` — `total_steps ≤ 1 AND enrolled_count = 0` gate → `total_steps ≤ 1 AND live user_progress count = 0`.
+  - `scripts/src/seed.ts` (Phase 37 block) — inline `count(*)` Drizzle query replaced with `getActualEnrollmentCount(legacy.id)`; drops the now-redundant `userProgress` + `sql as drizzleSql` imports.
+- **Docs:** `docs/phases/phase-38-archive-safety-counter-hygiene.md` (new) · `replit.md` · `docs/phases/INDEX.md` · this file.
 
-**Unchanged:** every schema file, every migration, every backend route (`/check`, `/submit`, cert-verify, portfolio, billing, AI tutor, hints, admin, learner-mode, dashboard, onboarding, enrollment), every frontend file (atlas + mockup-sandbox), OpenAPI spec, all codegen output, the rubric (`RUBRIC_VERSION='1.0.1'`), anchor / wave / taxonomy files, deployment checklist, `assertAuthoredProjectComplete`, `audit-project-authoring.ts` itself, the 4-file no-heuristic allowlist, `hintLeakSuspected` heuristic, every project under `scripts/src/authored/`. **No new project content authored — the work is entirely about removing already-superseded duplicates from the visible catalog.**
-
----
-
-## Strategy decisions
-
-1. **Archive-by-hide, not author 13 redundant projects.** All 13 visible gap-projects flagged by Phase-36's audit are already-superseded legacy duplicates with authored, publish-ready, currently-visible course-prefixed counterparts (mapped explicitly in `PHASE9_LEGACY_SLUG_MAP` + `PHASE10_LEGACY_SLUG_MAP`). They have 0 enrollments and 0 candidate rows. Authoring 13 net-new modules to compete with their own superseders would be content-padding against an audit metric, not honest curriculum work. Archive-by-hide is the documented "Archive = hide, not destroy" invariant and matches Phase 12A/B precedent verbatim.
-2. **In-seed patch block, not a separate `archive-phase37-replaced.ts` one-shot script.** Phase 36 established this shape: convergence on every `pnpm run seed` run. A separate script would require an extra operator invocation and silently drift on re-seed. The patch is fully idempotent so re-running is safe and observable.
-3. **Source the archive set from `PHASE9_LEGACY_SLUG_MAP` + `PHASE10_LEGACY_SLUG_MAP`, not a hardcoded local allowlist.** Single source of truth — if a future phase adds another legacy→authored pair to those maps, the Phase 37 block picks it up automatically (provided the safety gates pass). The two maps were already imported elsewhere in `scripts/src/` (backfill-upgrade-candidates.ts, backfill-revise-candidates.ts) so this is established consumer pattern.
-4. **Query `user_progress` directly, not `legacy.enrolledCount`.** Architect-flagged in code review: the existing Phase 11/12B archive scripts read the denormalized `projects.enrolled_count` column, but repo-wide search confirms there is **no writer** for that column anywhere in the route code (only the schema default). It's correct in dev because the legacy slugs genuinely have zero `user_progress` rows, but inheriting that pattern would be a stale-false-safe gate for any future legacy→authored pair with real enrollments. Phase 37 queries `user_progress` through Drizzle so the gate reflects actual enrollment state. (Fixing the underlying counter — adding a writer or migration trigger — is a separate hygiene task, intentionally out of scope.)
-5. **`PHASE11_LEGACY_SLUG_MAP` + `PHASE12B_LEGACY_SLUG_MAP` deliberately NOT included.** Those cohorts were already archived by their respective `archive-phase11-replaced.ts` + `archive-phase12b-replaced.ts` scripts — re-archiving via Phase 37 would be redundant (and harmless thanks to the `learnerVisible === false` short-circuit), but expanding the target set beyond what `audit:authoring` actually flagged would broaden the blast radius for no benefit.
-6. **No new project content authored this phase.** P35's "author 1–2 net-new projects as a paved-path smoke test" remains an explicit deferred follow-up.
+**Hard stops respected:** no schema change, no migration, no route change, no codegen, no frontend, no content, no rubric/taxonomy/pedagogy edits, `projects.enrolled_count` NOT dropped, no production DB access.
 
 ---
 
-## What this phase closed
+## Why this shape (vs alternatives)
 
-`audit:authoring` now reports **56/56 visible publish-ready** (was 56/69). The denominator dropped by exactly 13; the numerator is unchanged. Catalog has 13 fewer duplicate cards. No regression to any other gate.
+1. **Refactor the three archive scripts in place, don't archive-and-replace them.** They are already-applied one-shots; they ran cleanly because the dev `user_progress` rows happen to be zero. The risk is preventative — any future re-run, or copy-paste of the pattern for a slug with real enrollments, would now hit the authoritative table.
+2. **Extract one shared helper rather than inline 4 copies of the same query.** Single source of truth means a future change (e.g. switching to a window function, or once Phase 39 lands a real writer, swapping back to the column) needs only one edit. Helper lives in `scripts/src/lib/` (alongside existing `batch.ts`), not in `@workspace/db`, because no other workspace package needs it.
+3. **Keep `enrolledCount` selected in each archive script's `findMany`.** The diagnostic log lines (`enrolled=...` alongside `steps=...`) still print, so existing operator UX is preserved — only the *decision* uses the live count. The violation message for `archive-thin-stubs.ts` was extended to print BOTH numbers (`user_progress_rows=N, stale_counter=M`) so any future drift between the two is immediately visible.
+4. **No tests added.** The helper is a thin Drizzle wrapper requiring a real DB. `@workspace/scripts` does not run vitest (Phase-35 precedent for the pedagogy audit helper). Live coverage comes from `pnpm run seed` (Phase 37 block exercises the helper every seed) + the full integration suite.
+5. **`projects.enrolled_count` NOT removed in this phase.** Removing it touches schema + migration + codegen + frontend + 5 API routes — explicitly out of scope. The counter stays, but no safety code trusts it. Phase 39 candidate.
 
 ---
 
-## Final gate summary (Phase 37)
+## Gates run (all green)
 
-| Gate | Result |
-| ---- | ------ |
-| `pnpm --filter @workspace/scripts run audit:authoring` | **56/56 visible publish-ready** (was 56/69; denominator −13, numerator unchanged) |
-| `pnpm --filter @workspace/scripts run audit:pedagogy` | **56/56 visible** (unchanged) |
-| `pnpm --filter @workspace/curriculum-quality run test` | **69/69** (unchanged) |
-| `pnpm --filter @workspace/execution-core run test` | **34/34** (unchanged) |
-| `pnpm --filter @workspace/api-server run test` | **273/273** (unchanged) |
-| `pnpm --filter @workspace/atlas run test` | **102/102** (unchanged) |
-| `pnpm --filter @workspace/api-server run test:integration` | **3/3** (unchanged) |
-| `pnpm run typecheck` | clean |
-| `pnpm run check:no-heuristic-runtime` | OK (4-file allowlist unchanged) |
-| Direct DB check | 56 visible / 45 hidden / 101 total; all 13 target slugs `learner_visible=f` |
+- `pnpm run typecheck` — OK
+- `pnpm run check:no-heuristic-runtime` — OK
+- `pnpm --filter @workspace/api-server run test` — **273/273**
+- `pnpm --filter @workspace/atlas run test` — **102/102**
+- `pnpm --filter @workspace/curriculum-quality run test` — green (unchanged)
+- `pnpm --filter @workspace/execution-core run test` — green (unchanged)
+- `pnpm --filter @workspace/api-server run test:integration` — **3/3**
+- `pnpm --filter @workspace/scripts run audit:authoring` — **56/56 visible publish-ready** (unchanged from P37)
+- `pnpm --filter @workspace/scripts run audit:pedagogy` — 56/56 (unchanged)
+- `pnpm --filter @workspace/scripts run seed` — "Seed complete!" — Phase 37 block re-runs cleanly through the new helper
 
-## Hard-rule re-verification
+---
 
-- Schema / migration changes: **none**.
-- `/check`, `/submit`, cert-verify, portfolio, billing, Stripe, deployment, OpenAPI codegen, hint route, learner-mode endpoints, admin endpoints, AI tutor prompt: **untouched**.
-- `learner_visible = TRUE` filter on learner-facing routes: **unchanged** (404-not-403 privacy intact for newly-hidden slugs).
-- Archive = hide, not destroy. **No row deletes from `projects` or `project_candidates`.** Honored — only `UPDATE projects SET learner_visible = false`.
-- Bidirectional candidate ↔ project lineage: **untouched** (none of the 13 has a candidate row, so the invariant is vacuous for this cohort).
-- `RUBRIC_VERSION='1.0.1'`: **frozen**.
-- 4-file no-heuristic allowlist: **not expanded**.
-- 9 Atlas courses + "Atlas is a project-based learning platform for Data Engineering" framing: **unchanged**.
+## Remaining risks (Phase 39 candidates)
 
-## Reversibility
+- `projects.enrolled_count` still has no writer; reads `0` on every row. Display path (`artifacts/atlas/src/pages/domain-detail.tsx` + 5 API routes) hands a stale `0` to the UI. Low — UX papercut, not a safety risk.
+- Two snapshot scripts + `phase11-final-gates.ts` write the stale value into diagnostic JSON. No action — historical artifacts should faithfully record what the column held at run time.
+- No archive script checks `project_candidates` rows. No active cohort has any. Defensive add for Phase 39 if scope allows.
 
-Every flip is reversible with `UPDATE projects SET learner_visible = true WHERE slug = '<legacy-slug>'`. The seed block will not re-archive a row that subsequently regains an enrollment (safety gate (c)) or whose superseder gets hidden (gate (b)).
+**Recommended Phase 39:** add either (Shape A) a one-shot `backfill-enrolled-count.ts` from `user_progress`, OR (Shape B) a writer in the enrollment route + the same backfill to seed it. See the Phase 38 close-out doc for full Shape A vs Shape B comparison.
 
-## Untracked scratch
+---
 
-- `attached_assets/Pasted-*.txt` from prior sessions remain untracked. **Do not commit.**
+## Where to look next
 
-## Known follow-ups (Phase 38 candidates)
-
-- Author 1–2 net-new projects via the Phase-35 spec end-to-end as a green-field smoke test (carry-over from P35 and P36).
-- Optional: admin UI surface for `audit:authoring` output (P35 deferred deliverable E).
-- Optional: extend `hintLeakSuspected` with an embedding-based semantic check.
-- Phase-34 follow-ups still open: surface `mode-usage` in admin UI; add `evt:'ai.tutor.response'` log; structured-log → time-series for `mode_usage_daily`; aggregate `hint.escalate` into per-step difficulty signal.
-- Operator nicety: a `--dry-run` mode for `audit:authoring` that prints a per-slug diff between current DB state and the contract.
-- Optional hygiene: prune the now-unused 13 legacy slug `INSERT` blocks from `scripts/src/seed-projects-extra.ts`, `seed-projects-2026.ts`, `seed-projects-cross-domain.ts`, and the `stubProjects` array in `seed.ts`. Leaving them in place this phase keeps the diff minimal and the convergence audit-trail intact; the inserts are no-ops on existing rows.
+- Full Phase 38 close-out: [docs/phases/phase-38-archive-safety-counter-hygiene.md](docs/phases/phase-38-archive-safety-counter-hygiene.md)
+- Phase 37 close-out (parent): [docs/phases/phase-37-batch-gap-project-remediation.md](docs/phases/phase-37-batch-gap-project-remediation.md)
+- Full chronological phase index: [docs/phases/INDEX.md](docs/phases/INDEX.md)
+- Active invariants + 9-course list: [replit.md § Active Invariants / Gates](replit.md)

@@ -8,17 +8,22 @@
  * only their learner-facing visibility flips, so the operation is fully
  * reversible with a single UPDATE.
  *
- * SAFETY: each slug is asserted to have `total_steps = 0` AND
- * `enrolled_count = 0` BEFORE any UPDATE runs. If any slug fails the check
- * (e.g. a learner enrolled between manifest generation and this run, or a
- * step skeleton was added), the entire batch aborts with a clear error —
- * NO partial application.
+ * SAFETY: each slug must have `total_steps = 0` (read from the schema
+ * column) AND zero rows in `user_progress` for its project id (live query
+ * via `getActualEnrollmentCounts`) BEFORE any UPDATE runs. If any slug
+ * fails either check the entire batch aborts — NO partial application.
+ *
+ * Phase 38 hardening: the enrolment half of the gate previously read
+ * `projects.enrolled_count`, which is denormalized with a schema default
+ * of 0 and no writer in the enrollment routes (a stale-false-safe gate).
+ * It now reads `user_progress` directly through the shared helper.
  *
  * Idempotent: slugs already at `learner_visible = false` are skipped.
  */
 import { db } from "@workspace/db";
 import { projects } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
+import { getActualEnrollmentCounts } from "./lib/enrollment-check";
 
 const ARCHIVE_SLUGS: readonly string[] = [
   // data-engineering (16)
@@ -66,12 +71,17 @@ async function main(): Promise<void> {
     throw new Error(`[archive] ABORT — ${missing.length} slug(s) not present in DB: ${missing.join(", ")}`);
   }
 
+  // Phase 38: live enrolment counts from user_progress (NOT the denormalized
+  // projects.enrolled_count column, which has no writer in enrollment routes).
+  const liveCounts = await getActualEnrollmentCounts(rows.map(r => r.id));
+
   // Safety check — every slug must be zero-exposure before flipping.
   const violations: string[] = [];
   for (const slug of ARCHIVE_SLUGS) {
     const r = bySlug.get(slug)!;
-    if (r.totalSteps !== 0 || r.enrolledCount !== 0) {
-      violations.push(`${slug} (steps=${r.totalSteps}, enrolled=${r.enrolledCount})`);
+    const liveEnrolled = liveCounts.get(r.id) ?? 0;
+    if (r.totalSteps !== 0 || liveEnrolled !== 0) {
+      violations.push(`${slug} (steps=${r.totalSteps}, user_progress_rows=${liveEnrolled}, stale_counter=${r.enrolledCount})`);
     }
   }
   if (violations.length > 0) {

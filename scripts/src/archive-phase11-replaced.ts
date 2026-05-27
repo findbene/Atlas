@@ -19,7 +19,9 @@
  *      DB-derived `replace_candidate_slug` values); the two MUST match exactly.
  *   2. 7-slug allowlist (length-asserted) hardcoded as a third defense.
  *   3. Every target row must exist.
- *   4. Every target row must have `enrolled_count = 0`.
+ *   4. Every target row must have zero rows in `user_progress`
+ *      (live, NOT the denormalized `projects.enrolled_count` column —
+ *      see Phase 38 close-out for the stale-counter rationale).
  *   5. No upgraded P11 slug may be in the target list (cross-check vs
  *      PHASE11_LEGACY_SLUG_MAP values).
  *   6. Every upgraded P11 twin must currently be `learner_visible = TRUE`
@@ -32,6 +34,7 @@ import { db } from "@workspace/db";
 import { projects } from "@workspace/db";
 import { eq, inArray, isNotNull } from "drizzle-orm";
 import { PHASE11_LEGACY_SLUG_MAP } from "./authored-lineage";
+import { getActualEnrollmentCounts } from "./lib/enrollment-check";
 
 const LEGACY_SLUGS: readonly string[] = [
   "ai-eng-llm-eval-harness",
@@ -115,16 +118,21 @@ async function main(): Promise<void> {
     throw new Error(`[archive-p11] ABORT — ${missing.length} target slug(s) not in DB: ${missing.join(", ")}`);
   }
 
-  // ── Learner-safety gate: enrolled_count must be 0 ─────────────────────
-  // Approved deviation from Phase-10's `total_steps = 0 AND enrolled_count = 0`.
+  // ── Learner-safety gate: zero rows in user_progress ──────────────────
+  // Phase 38: live query against user_progress (NOT the denormalized
+  // projects.enrolled_count column, which has a schema default of 0 but
+  // no writer anywhere in the enrollment routes — relying on it would be
+  // a stale-false-safe gate).
+  const liveCounts = await getActualEnrollmentCounts(targetRows.map(r => r.id));
   const enrolledViolations = LEGACY_SLUGS
-    .map(s => ({ slug: s, n: bySlug.get(s)!.enrolledCount }))
+    .map(s => ({ slug: s, id: bySlug.get(s)!.id }))
+    .map(r => ({ slug: r.slug, n: liveCounts.get(r.id) ?? 0 }))
     .filter(r => r.n !== 0);
   if (enrolledViolations.length > 0) {
     throw new Error(
-      `[archive-p11] ABORT — ${enrolledViolations.length} legacy row(s) have active enrolment; ` +
+      `[archive-p11] ABORT — ${enrolledViolations.length} legacy row(s) have active enrolment in user_progress; ` +
       `archive would silently strip learners mid-progress:\n  - ` +
-      enrolledViolations.map(r => `${r.slug} (enrolled=${r.n})`).join("\n  - "),
+      enrolledViolations.map(r => `${r.slug} (user_progress_rows=${r.n})`).join("\n  - "),
     );
   }
 

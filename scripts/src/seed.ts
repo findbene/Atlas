@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
-import { domains, tracks, projects, projectSteps, masterySections, masteryModules, masteryLessons, userProgress } from "@workspace/db";
-import { sql as drizzleSql } from "drizzle-orm";
+import { domains, tracks, projects, projectSteps, masterySections, masteryModules, masteryLessons } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { getActualEnrollmentCount } from "./lib/enrollment-check";
 import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
 
 /** Phase 8 — minimal domain→course fallback for seed inserts. The
@@ -1068,22 +1068,10 @@ async function seed() {
         console.warn(`  ! Phase 37 SKIP ${legacySlug} → upgraded ${upgradedSlug} is itself hidden`);
         continue;
       }
-      // Authoritative enrollment check via `user_progress`. The denormalized
-      // `projects.enrolled_count` column has a schema default of 0 but is NOT
-      // maintained by the enrollment routes (verified by repo-wide search —
-      // only schema default + read sites; no writer). Relying on it would be
-      // a stale-false-safe gate. We query `user_progress` directly through
-      // Drizzle so the safety gate reflects actual enrollment state, not a
-      // never-updated counter. (The existing Phase 11/12B archive scripts
-      // also read the column — they happen to be correct in dev because the
-      // legacy slugs genuinely have zero `user_progress` rows, but inheriting
-      // that pattern here would mask the same latent bug for any future
-      // legacy→authored pair that does have enrollments.)
-      const enrollmentProbe = await db
-        .select({ ct: drizzleSql<number>`count(*)::int` })
-        .from(userProgress)
-        .where(eq(userProgress.projectId, legacy.id));
-      const enrolledCt = enrollmentProbe[0]?.ct ?? 0;
+      // Authoritative enrollment check via `user_progress` (Phase 38 helper).
+      // The denormalized `projects.enrolled_count` column is NOT maintained by
+      // any enrollment route, so reading it would be a stale-false-safe gate.
+      const enrolledCt = await getActualEnrollmentCount(legacy.id);
       if (enrolledCt > 0) {
         console.warn(`  ! Phase 37 SKIP ${legacySlug} → has ${enrolledCt} active enrollment(s) in user_progress`);
         continue;

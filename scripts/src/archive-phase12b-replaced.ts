@@ -9,8 +9,10 @@
  * reversible with a single UPDATE.
  *
  * All 3 P12B legacy rows are 1-step skeletons (no real content), so we can
- * use the stricter Phase-10 gate `total_steps <= 1 AND enrolled_count = 0`
- * instead of P11's `enrolled_count = 0` only relaxation.
+ * use the stricter Phase-10 gate `total_steps <= 1 AND zero rows in
+ * user_progress` instead of P11's enrolment-only relaxation. (Phase 38:
+ * the enrolment half of the gate now reads `user_progress` directly
+ * instead of the denormalized `projects.enrolled_count` column.)
  *
  * Safety chain (triple-source, mirrors Phase 12A):
  *   1. Target set derived two ways (PHASE12B_LEGACY_SLUG_MAP keys AND
@@ -18,7 +20,8 @@
  *      P12B slugs); the two MUST match exactly.
  *   2. 3-slug allowlist (length-asserted) hardcoded as a third defense.
  *   3. Every target row must exist.
- *   4. Every target row must have `total_steps <= 1 AND enrolled_count = 0`.
+ *   4. Every target row must have `total_steps <= 1` AND zero rows in
+ *      `user_progress` (live query — see Phase 38).
  *   5. No upgraded P12B slug may be in the target list.
  *   6. Every upgraded P12B twin must currently be `learner_visible = TRUE`
  *      (prevents the "we just hid both halves" footgun).
@@ -29,6 +32,7 @@ import { db } from "@workspace/db";
 import { projects } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { PHASE12B_LEGACY_SLUG_MAP } from "./authored-lineage";
+import { getActualEnrollmentCounts } from "./lib/enrollment-check";
 
 const LEGACY_SLUGS: readonly string[] = [
   "kafka-streaming-pipeline",
@@ -112,15 +116,21 @@ async function main(): Promise<void> {
     throw new Error(`[archive-p12b] ABORT — ${missing.length} target slug(s) not in DB: ${missing.join(", ")}`);
   }
 
-  // ── Learner-safety gate: total_steps <= 1 AND enrolled_count = 0 ──────
+  // ── Learner-safety gate: total_steps <= 1 AND zero user_progress rows ─
+  // Phase 38: live query against user_progress (NOT the denormalized
+  // projects.enrolled_count column).
+  const liveCounts = await getActualEnrollmentCounts(targetRows.map(r => r.id));
   const safetyViolations = LEGACY_SLUGS
-    .map(s => ({ slug: s, steps: bySlug.get(s)!.totalSteps, n: bySlug.get(s)!.enrolledCount }))
+    .map(s => {
+      const r = bySlug.get(s)!;
+      return { slug: s, steps: r.totalSteps, n: liveCounts.get(r.id) ?? 0 };
+    })
     .filter(r => r.steps > 1 || r.n !== 0);
   if (safetyViolations.length > 0) {
     throw new Error(
       `[archive-p12b] ABORT — ${safetyViolations.length} legacy row(s) violate safety gate ` +
-      `(total_steps <= 1 AND enrolled_count = 0):\n  - ` +
-      safetyViolations.map(r => `${r.slug} (steps=${r.steps}, enrolled=${r.n})`).join("\n  - "),
+      `(total_steps <= 1 AND zero user_progress rows):\n  - ` +
+      safetyViolations.map(r => `${r.slug} (steps=${r.steps}, user_progress_rows=${r.n})`).join("\n  - "),
     );
   }
 

@@ -1,0 +1,123 @@
+We have completed Phase 37: Batch Gap Project Remediation.
+
+Current state:
+- 13 already-superseded legacy duplicate projects were archived via learner_visible=false.
+- No rows were deleted.
+- audit:authoring improved to 56/56 visible publish-ready.
+- audit:pedagogy remains 56/56.
+- Architect initially caught a real safety issue: the Phase 37 archive gate used projects.enrolled_count, but enrollment routes do not maintain that denormalized counter.
+- Phase 37 fixed its own archive gate by querying user_progress directly through Drizzle.
+- Architect re-review PASS.
+- All gates green:
+  - audit:authoring 56/56
+  - audit:pedagogy 56/56
+  - curriculum-quality 69/69
+  - execution-core 34/34
+  - api-server 273/273
+  - atlas 102/102
+  - integration 3/3
+  - typecheck OK
+  - no-heuristic OK
+
+Start Phase 38.
+
+PHASE 38 — Archive Safety + Counter Hygiene
+
+Goal:
+Remove unsafe reliance on projects.enrolled_count from archive/hide scripts and replace it with direct user_progress-based enrollment checks.
+
+Why:
+Phase 37 proved projects.enrolled_count is not maintained by enrollment routes. Any archive script using that column can make incorrect safety decisions. Archive-by-hide is correct, but only if safety gates use live enrollment/candidate state, not stale counters.
+
+Start with a read-only audit.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-37-batch-gap-project-remediation.md
+5. scripts/src/seed.ts
+6. scripts/src/archive-phase12a-replaced.ts, if present
+7. scripts/src/archive-phase12b-replaced.ts, if present
+8. any other scripts using enrolled_count or enrolledCount
+9. project/enrollment schema files
+10. enrollment route code
+
+Audit:
+1. Find every reference to projects.enrolled_count / enrolledCount.
+2. Classify each reference:
+   - display-only
+   - stale/unused
+   - archive safety gate
+   - seed convergence logic
+   - admin reporting
+3. Identify which references are unsafe.
+4. Confirm whether any route actually writes enrolled_count.
+5. Confirm the correct source of truth for enrollment existence: user_progress rows.
+6. Confirm whether candidate/application rows also need to be checked for archive safety.
+7. Recommend the smallest safe fix.
+
+Preferred implementation:
+- Replace archive-script safety checks that rely on projects.enrolled_count with direct user_progress count/existence queries.
+- Preserve archive-by-hide pattern.
+- Do not delete rows.
+- Do not backfill enrolled_count.
+- Do not add triggers.
+- Do not add schema changes.
+- Do not mutate production.
+- Do not change enrollment product behavior.
+- If the column is still useful as legacy metadata, leave it alone; just stop trusting it for safety gates.
+
+Allowed:
+- Update archive scripts.
+- Add a small shared helper if it reduces duplication.
+- Add tests if current script/helper architecture supports it.
+- Update docs to clarify enrolled_count is not authoritative.
+- Update HANDOFF/replit/INDEX/phase doc.
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- No production DB.
+- No deployment.
+- No /check changes.
+- No /submit changes.
+- No cert-verify changes.
+- No portfolio changes.
+- No billing/Stripe changes.
+- No OpenAPI/codegen changes unless absolutely necessary.
+- No frontend changes.
+- No project content changes.
+- No new project seeding.
+- No rubric/taxonomy/anchor/pedagogy invariant changes.
+- Do not remove projects.enrolled_count from schema in this phase.
+
+Acceptance gates:
+- Typecheck clean.
+- Existing tests green:
+  - curriculum-quality
+  - execution-core
+  - api-server
+  - atlas
+  - integration 3/3
+- audit:authoring remains 56/56.
+- audit:pedagogy remains 56/56.
+- no-heuristic OK.
+- Architect review PASS.
+
+Deliverables:
+1. Read-only inventory of enrolled_count/enrolledCount references.
+2. Fix unsafe archive-script references.
+3. docs/phases/phase-38-archive-safety-counter-hygiene.md.
+4. HANDOFF.md update.
+5. replit.md update.
+6. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 38 final status
+2. unsafe references found
+3. files changed
+4. tests/gates run
+5. remaining counter-related risks
+6. recommended Phase 39
+7. suggested commit message
