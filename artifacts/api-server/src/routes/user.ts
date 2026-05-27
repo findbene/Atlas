@@ -273,6 +273,18 @@ router.post("/user/projects/:projectId/enroll", requireAuth, async (req, res) =>
       status: "in_progress",
       startedAt: new Date(),
     }).returning();
+    // Phase 39 — durable enrolled_count writer.
+    // Atomic SQL-level increment, fires ONLY when a NEW user_progress row was
+    // inserted (the `existing` branch above returns early). Non-fatal on
+    // failure: enrolled_count is display metadata, not a safety gate (see
+    // Phase 38). Operators can reconcile with `backfill:enrolled-count`.
+    try {
+      await db.update(projects)
+        .set({ enrolledCount: sql`${projects.enrolledCount} + 1` })
+        .where(eq(projects.id, projectId));
+    } catch (counterErr) {
+      req.log.warn({ err: counterErr, projectId }, "enrolled_count increment failed (non-fatal; run backfill:enrolled-count to reconcile)");
+    }
     res.json({ id: created!.id, projectId: created!.projectId, userId: created!.userId, status: created!.status, currentStepPosition: created!.currentStep, earnedXp: 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to enroll in project");

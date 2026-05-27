@@ -20,6 +20,10 @@ const stepsFindFirst = vi.fn();
 const insertReturning = vi.fn();
 const insertValues = vi.fn(() => ({ returning: insertReturning }));
 const insertFn = vi.fn(() => ({ values: insertValues }));
+// Phase 39 — durable enrolled_count writer mocks.
+const updateWhere = vi.fn(async () => undefined);
+const updateSet = vi.fn(() => ({ where: updateWhere }));
+const updateFn = vi.fn(() => ({ set: updateSet }));
 
 vi.mock("@workspace/db", () => ({
   db: {
@@ -29,10 +33,11 @@ vi.mock("@workspace/db", () => ({
       projectSteps: { findFirst: (...a: unknown[]) => stepsFindFirst(...a) },
     },
     insert: (_table: unknown) => insertFn(),
+    update: (_table: unknown) => updateFn(),
   },
-  projects: { slug: "slug", id: "id" },
+  projects: { slug: "slug", id: "id", enrolledCount: "enrolled_count" },
   projectSteps: { projectId: "projectId", stepNumber: "stepNumber" },
-  userProgress: { userId: "userId", projectId: "projectId" },
+  userProgress: { userId: "userId", projectId: "projectId", currentStep: "current_step" },
 }));
 
 let currentUser: { id: string; subscriptionTier: "free" | "pro" } | null = null;
@@ -50,6 +55,7 @@ vi.mock("drizzle-orm", () => ({
   eq: (...a: unknown[]) => ({ eq: a }),
   and: (...a: unknown[]) => ({ and: a }),
   asc: (...a: unknown[]) => ({ asc: a }),
+  sql: (strings: TemplateStringsArray, ...vals: unknown[]) => ({ sql: { strings: [...strings], vals } }),
 }));
 
 async function buildApp() {
@@ -73,6 +79,10 @@ beforeEach(() => {
   insertReturning.mockReset();
   insertValues.mockClear();
   insertFn.mockClear();
+  updateWhere.mockClear();
+  updateWhere.mockResolvedValue(undefined);
+  updateSet.mockClear();
+  updateFn.mockClear();
 });
 
 describe("POST /api/enrollments", () => {
@@ -203,6 +213,97 @@ describe("POST /api/enrollments", () => {
     expect(missing.status).toBe(404);
     expect(hidden.status).toBe(404);
     expect(missing.body).toEqual(hidden.body);
+  });
+
+  // ---- Phase 39 — durable enrolled_count writer ----
+
+  it("[P39] first enrollment increments projects.enrolled_count exactly once", async () => {
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    insertReturning.mockResolvedValueOnce([{ currentStep: 1 }]);
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-1" });
+    const app = await buildApp();
+    const res = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(true);
+    expect(updateFn).toHaveBeenCalledTimes(1);
+    expect(updateSet).toHaveBeenCalledTimes(1);
+    expect(updateWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("[P39] idempotent re-enroll does NOT increment enrolled_count", async () => {
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce({ id: "prog-1", currentStep: 3 });
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-3" });
+    const app = await buildApp();
+    const res = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(false);
+    expect(updateFn).not.toHaveBeenCalled();
+  });
+
+  it("[P39] 23505 race-recovery path does NOT double-increment (winner already incremented)", async () => {
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    insertReturning.mockRejectedValueOnce(Object.assign(new Error("dup"), { code: "23505" }));
+    userProgressFindFirst.mockResolvedValueOnce({ id: "prog-1", currentStep: 2 });
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-2" });
+    const app = await buildApp();
+    const res = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(false);
+    expect(updateFn).not.toHaveBeenCalled();
+  });
+
+  it("[P39] counter-write failure does NOT 500 the enrollment (non-fatal, logged)", async () => {
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    insertReturning.mockResolvedValueOnce([{ currentStep: 1 }]);
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-1" });
+    updateWhere.mockRejectedValueOnce(new Error("counter write boom"));
+    const app = await buildApp();
+    const res = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(true);
+    expect(updateFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("[P39] two different users enrolling the same project each increment once", async () => {
+    // Simulates the cross-user scenario: each first enrollment is its own
+    // insert + its own atomic SQL-level `+ 1`, so the counter rises by 2.
+    const app = await buildApp();
+    // User A
+    currentUser = { id: "u-a", subscriptionTier: "free" };
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    insertReturning.mockResolvedValueOnce([{ currentStep: 1 }]);
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-1" });
+    const a = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(a.status).toBe(200);
+    expect(a.body.created).toBe(true);
+    // User B (different user, same project, also a first enrollment for B)
+    currentUser = { id: "u-b", subscriptionTier: "free" };
+    projectsFindFirst.mockResolvedValueOnce({
+      id: "p-1", slug: "csv-to-postgres-pipeline", isPremium: false, learnerVisible: true, totalSteps: 4,
+    });
+    userProgressFindFirst.mockResolvedValueOnce(undefined);
+    insertReturning.mockResolvedValueOnce([{ currentStep: 1 }]);
+    stepsFindFirst.mockResolvedValueOnce({ id: "step-uuid-1" });
+    const b = await request(app).post("/enrollments").send({ projectSlug: "csv-to-postgres-pipeline" });
+    expect(b.status).toBe(200);
+    expect(b.body.created).toBe(true);
+    // Two distinct first-enrollments → two atomic +1 increments.
+    expect(updateFn).toHaveBeenCalledTimes(2);
   });
 
   it("returns currentStepId=null when project has no matching step row (defensive)", async () => {

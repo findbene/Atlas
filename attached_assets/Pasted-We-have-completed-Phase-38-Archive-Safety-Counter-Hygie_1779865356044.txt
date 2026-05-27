@@ -1,0 +1,141 @@
+We have completed Phase 38: Archive Safety + Counter Hygiene.
+
+Current state:
+- Archive safety gates no longer trust projects.enrolled_count.
+- New helper scripts/src/lib/enrollment-check.ts queries user_progress directly.
+- Refactored:
+  - scripts/src/archive-thin-stubs.ts
+  - scripts/src/archive-phase11-replaced.ts
+  - scripts/src/archive-phase12b-replaced.ts
+  - scripts/src/seed.ts Phase 37 block
+- audit:authoring remains 56/56.
+- audit:pedagogy remains 56/56.
+- All gates green:
+  - typecheck OK
+  - no-heuristic OK
+  - api-server 273/273
+  - atlas 102/102
+  - curriculum-quality green
+  - execution-core green
+  - integration 3/3
+  - seed complete
+  - Architect PASS
+
+Start Phase 39.
+
+PHASE 39 — Durable Enrollment Counter Writer + Backfill
+
+Goal:
+Make projects.enrolled_count accurate and durable so display/API surfaces no longer pass stale zeroes to clients.
+
+Why:
+Phase 38 correctly stopped using enrolled_count for archive safety, but the counter still has no writer. It remains stale for display/API/social-proof surfaces. We should fix that now while the counter issue is fresh.
+
+Start with a read-only audit.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-38-archive-safety-counter-hygiene.md
+5. scripts/src/lib/enrollment-check.ts
+6. project schema file containing projects.enrolled_count
+7. user_progress schema file
+8. enrollment route code
+9. API routes that expose enrolledCount
+10. frontend surfaces that display enrolledCount
+
+Audit:
+1. Confirm every route that creates a user_progress/enrollment row.
+2. Confirm whether enrollments can be created idempotently.
+3. Confirm whether user_progress uniqueness prevents duplicate enrollments.
+4. Confirm where projects.enrolled_count is exposed to clients.
+5. Confirm whether enrolled_count is purely display/social-proof metadata now.
+6. Identify the safest writer pattern.
+
+Preferred implementation:
+Durable writer + backfill.
+
+A. Durable writer
+When a new user_progress/enrollment row is created for a project, increment projects.enrolled_count atomically.
+
+Requirements:
+- Increment only when a new enrollment row is actually inserted.
+- Do not increment on idempotent re-enroll/no-op.
+- Preserve existing enrollment behavior.
+- Avoid race bugs.
+- Do not use enrolled_count for safety gates.
+- Do not change /submit, /check, cert, billing, portfolio, or project content.
+
+B. Backfill script
+Add a one-shot idempotent script that recomputes projects.enrolled_count from user_progress.
+
+Example:
+scripts/src/backfill-enrolled-count.ts
+
+Behavior:
+- Read actual counts grouped by projectId from user_progress.
+- Update projects.enrolled_count to match.
+- Set zero for projects with no progress rows.
+- Print before/after summary.
+- Non-production safe by default.
+- Require explicit allow flag if it could touch production.
+- Do not delete rows.
+
+C. Tests
+Add tests that prove:
+- first enrollment increments enrolled_count once.
+- repeated/idempotent enrollment does not double-increment.
+- different users enrolling same project increment correctly.
+- backfill computes from user_progress correctly if practical with existing test harness.
+- archive safety still uses user_progress helper, not enrolled_count.
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- No production DB touch.
+- No deployment.
+- No /check changes.
+- No /submit changes.
+- No cert-verify changes.
+- No portfolio changes.
+- No billing/Stripe changes.
+- No OpenAPI/codegen unless the API shape truly changes.
+- No frontend redesign.
+- No project content changes.
+- No project seeding.
+- No rubric/taxonomy/anchor/pedagogy invariant changes.
+- Do not reintroduce enrolled_count into archive safety decisions.
+
+Acceptance gates:
+- typecheck clean
+- api-server tests green
+- atlas tests green
+- curriculum-quality tests green
+- execution-core tests green
+- real-PG integration 3/3
+- audit:authoring 56/56
+- audit:pedagogy 56/56
+- no-heuristic OK
+- seed still completes
+- Architect PASS
+
+Deliverables:
+1. Read-only audit of enrollment creation paths and display surfaces.
+2. Durable enrolled_count writer.
+3. Backfill script.
+4. Tests.
+5. docs/phases/phase-39-enrollment-counter-writer.md.
+6. HANDOFF.md update.
+7. replit.md update.
+8. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 39 final status
+2. writer behavior
+3. backfill behavior
+4. files changed
+5. tests/gates run
+6. remaining risks
+7. recommended Phase 40
+8. suggested commit message

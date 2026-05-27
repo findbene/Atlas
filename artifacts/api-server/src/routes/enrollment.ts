@@ -12,7 +12,7 @@
  */
 import { Router } from "express";
 import { db, projects, projectSteps, userProgress } from "@workspace/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { requireAuth, getCurrentUser } from "../lib/auth";
 
 const router = Router();
@@ -70,6 +70,23 @@ router.post("/enrollments", requireAuth, async (req, res) => {
         }).returning({ currentStep: userProgress.currentStep });
         currentStepNumber = row?.currentStep ?? 1;
         created = true;
+        // Phase 39 — durable enrolled_count writer.
+        // Atomic SQL-level increment (NOT JS read-modify-write) so concurrent
+        // first-enrollments by different users race-safely sum. Fires ONLY on
+        // the successful-insert branch — NOT on `existing` (idempotent re-enroll)
+        // and NOT on the 23505 recovery path (the parallel request that won the
+        // unique-index race already incremented for the same row). The increment
+        // is best-effort and intentionally non-blocking on failure: enrolled_count
+        // is display/social-proof metadata, not a safety gate (see Phase 38), so
+        // a counter-write failure must not 500 the enrollment itself. Operators
+        // can re-converge via `pnpm --filter @workspace/scripts run backfill:enrolled-count`.
+        try {
+          await db.update(projects)
+            .set({ enrolledCount: sql`${projects.enrolledCount} + 1` })
+            .where(eq(projects.id, project.id));
+        } catch (counterErr) {
+          req.log.warn({ err: counterErr, projectId: project.id }, "enrolled_count increment failed (non-fatal; run backfill:enrolled-count to reconcile)");
+        }
       } catch (insertErr) {
         const code = (insertErr as { code?: string } | null)?.code;
         if (code !== "23505") throw insertErr;
