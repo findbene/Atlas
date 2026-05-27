@@ -1,0 +1,61 @@
+We completed Phase 42: Validation Kind Reality Check + Authoring Guardrail.
+
+Current state:
+- audit:authoring remains 58/58 visible publish-ready.
+- audit:pedagogy remains 58/58.
+- Validation enforcement breakdown is now explicit:
+  - 288 visible-project steps
+  - 43 enforced, about 15%
+  - 35 client-provisional, about 12%
+  - 210 contract-shaped, about 73%
+  - 0 unknown
+- New classifier exists:
+  lib/curriculum-quality/src/validationEnforcement.ts
+- New matrix exists:
+  docs/validation-kind-matrix.md
+- docs/project-authoring-spec.md §5.1 now explains validation enforcement tiers.
+- Architect PASS round 4.
+- Hard stops were respected.
+
+Before product work, do a tiny documentation-only cleanup.
+
+PHASE 43A — Control-Plane Compaction
+
+Goal:
+Reduce replit.md context weight so future sessions are cheaper, cleaner, and less noisy.
+
+Scope:
+- Documentation-only.
+- No code.
+- No schema.
+- No migrations.
+- No tests required unless docs tooling exists.
+- Do not change product behavior.
+
+Instructions:
+1. Keep replit.md as the active control-plane document.
+2. Collapse visible Phase History in replit.md to latest 3 phases only:
+   - Phase 40
+   - Phase 41
+   - Phase 42
+3. Each phase entry should be one short paragraph or one-line summary plus link to the detailed phase doc.
+4. Preserve active invariants and current state.
+5. Preserve pointer to docs/phases/INDEX.md as the canonical chronological phase history.
+6. Do not touch HANDOFF.md unless it contains stale references to the replit.md phase-history window.
+7. Verify docs/phases/INDEX.md remains the full source for prior phases.
+8. Show diff summary.
+
+Hard stops:
+- No code changes.
+- No schema/migration changes.
+- No seed/content changes.
+- No route/frontend/backend changes.
+- No production/deployment changes.
+
+Deliverables:
+1. compacted replit.md
+2. docs link verification if practical
+3. suggested commit message
+
+Suggested commit message:
+phase-43a: compact replit phase history

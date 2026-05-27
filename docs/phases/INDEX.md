@@ -2,7 +2,7 @@
 
 Canonical chronological index of every closed Atlas phase. Each entry points to its full close-out (and pre-build plan / decision brief where applicable). Oldest-first.
 
-`HANDOFF.md` (repo root) is the live source of truth for current working state; `replit.md` carries active control-plane rules + the latest 8 phases. Everything older lives here.
+`HANDOFF.md` (repo root) is the live source of truth for current working state; `replit.md` carries active control-plane rules + the latest 3 phases inline (Phase 43A compaction). Everything older lives here.
 
 ---
 
