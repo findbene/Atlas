@@ -123,3 +123,7 @@ Authored projects flow into the DB exclusively via `author:project promote <slug
 ## Commit
 
 `phase-41: seed factory pilot — 2 portfolio-grade INTERMEDIATE projects`
+
+---
+
+> **Phase 42 follow-up (added retroactively):** the architect's validation-kind observation in the "Architect review" section above is now formalized in [`docs/validation-kind-matrix.md`](../validation-kind-matrix.md) + the `audit:authoring` "Validation enforcement breakdown" summary section + spec §5.1. The Phase 41 projects' use of `json_equal` / `sql_resultset` / `numeric_tolerance` / `csv_set_equal` is consistent with the documented platform convention — not a regression — and the audit now prints the per-kind enforcement mix on every run so the next operator can see the breakdown without re-running this analysis from scratch.

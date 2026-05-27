@@ -107,14 +107,31 @@ Every step MUST have a **machine-verifiable** validation OR be explicitly marked
 
 **Project-level invariant:** at least ONE step in every project must be machine-verifiable (i.e. not every step can be `self_attest`). A project where every step is `self_attest` provides no real evidence for the portfolio / cert-verify surface and is flagged by `audit:authoring` as `all-steps-self-attest`.
 
-Validation contract:
+#### Enforcement reality (Phase 42 — read this before choosing a `validationType`)
 
-- The runner returns a `RunResult`; the scorer in `lib/execution-core/src/validate.ts` compares against `expectedOutputs`.
-- `expectedOutputs` MUST be deterministic. No timestamps, no random IDs, no environment-dependent values.
-- For `csv_set_equal` / `sql_resultset`: order-insensitive comparison. Use this whenever order doesn't matter.
-- For `csv_ordered`: order matters. Use only when required (e.g. ORDER BY tests).
-- For `numeric_tolerance`: include the tolerance in `validation.spec`.
-- For `exact` / `contains` / `regex`: prefer `contains` over `exact` to allow trivial whitespace differences; prefer `regex` only when there's a real reason.
+Validation kinds split into three honest tiers. See [`docs/validation-kind-matrix.md`](./validation-kind-matrix.md) for the full matrix; the audit summary (`audit:authoring` → "Validation enforcement breakdown") prints live per-kind counts.
+
+| Tier | Kinds | What actually happens at Submit |
+| ---- | ----- | ------------------------------- |
+| **Server-enforced** | `self_attest`, `exact`, `contains`, `regex` | `artifacts/api-server/src/lib/grading.ts` (`gradeSubmission`) inspects the submission and returns a real pass/fail. `self_attest` is intentionally auto-pass (learner self-declares). |
+| **Client-provisional** | `sql_resultset`, `csv_set_equal`, `csv_ordered` | Client `validateExpected` (in `lib/execution-core/src/validate.ts`) runs against `expectedOutputs.rows` on the SQL Run path and gives the learner accurate UI feedback. `csv_ordered` requires `expectedOutputs.orderSensitive = true` to actually enforce ordering (otherwise it behaves like `csv_set_equal`). The server commit-grader still falls through to auto-pass — the provisional verdict never commits. |
+| **Contract-shaped** | `json_equal`, `numeric_tolerance` | Server commit-grader auto-passes (no switch arm). No client validator path either. `expectedOutputs` exists as a contract for human reviewers + learners running locally (`docker-compose up`). |
+
+This is **deliberate**: most authored projects depend on Postgres / Kafka / Spark, which the in-browser Pyodide runner cannot stand up. The platform's commitment for those steps is "here is what the right answer looks like and how to reproduce it locally", not "the cloud judge scored your laptop's run".
+
+#### Choosing a kind
+
+- Single-string / clause / keyword check the server can substring-match → **`contains`** (preferred) or **`exact`**. Server-enforced. Prefer `contains` over `exact` to allow trivial whitespace differences; prefer `regex` only when there's a real reason.
+- Structured single-value (date format, slug shape) → **`regex`**. Server-enforced.
+- SQL step producing tabular output DuckDB-WASM can run → **`sql_resultset`** (any-order) or **`csv_set_equal`** (any-order CSV semantics). Client-provisional. ALWAYS pair with `expectedOutputs.rows`. Use **`csv_ordered`** only when row order is part of the contract (e.g. ORDER BY test); when you use it, MUST also set `expectedOutputs.orderSensitive = true` or the client validator falls back to set-equal semantics.
+- Python step emitting structured JSON / numerics that needs Postgres/Kafka/etc. to run for real → **`json_equal`** or **`numeric_tolerance`** + populated `expectedOutputs`. Contract-shaped. ALWAYS include `meta.scenario` + a `docker-compose.yml` outline in the README so reviewers can reproduce. For `numeric_tolerance`, include the tolerance in `validation.spec`.
+- Reflection / explanation / file-upload (no objective answer) → **`self_attest`**. Server-enforced intentional auto-pass.
+
+#### Honesty rules
+
+- `expectedOutputs` MUST be deterministic. No timestamps, no random IDs, no environment-dependent values. Holds for every tier — contract-shaped fixtures are read by reviewers and the AI tutor's `<step_pedagogy>` block.
+- Never label a contract-shaped step `'exact'` or `'contains'` to "feel more enforced". Either the server grader CAN actually check it (and then the kind tells the truth) or it can't (and then the matching kind tells the truth). The audit's enforcement breakdown surfaces the mix per catalog — silent overclaiming would be caught the first time someone re-runs `audit:authoring`.
+- The DB enum (`lib/db/src/schema/enums.ts` → `validation_type`) rejects unknown strings at insert. The classifier's `'unknown'` bucket exists for defense-in-depth and surfaces typo'd values verbatim in the audit's WARNING line so the operator can grep and fix.
 
 ---
 

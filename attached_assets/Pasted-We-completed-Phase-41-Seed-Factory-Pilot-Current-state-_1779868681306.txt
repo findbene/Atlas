@@ -1,0 +1,157 @@
+We completed Phase 41: Seed Factory Pilot.
+
+Current state:
+- Two net-new intermediate portfolio-grade projects shipped:
+  - data-engineering-rest-api-elt-with-staging-marts
+  - ai-engineer-llm-output-quality-scoring
+- audit:authoring improved to 58/58 visible publish-ready.
+- audit:pedagogy improved to 58/58 visible fully enriched.
+- Gates green:
+  - typecheck OK
+  - no-heuristic OK
+  - audit:authoring 58/58
+  - audit:pedagogy 58/58
+  - api-server 280/280
+  - atlas 102/102
+  - curriculum-quality 69/69
+  - execution-core 34/34
+  - integration 3/3
+- Architect flagged that validation kinds like json_equal and sql_resultset are not fully executed by the current grader.
+- We verified this is not a Phase 41 regression: many existing visible authored projects already use the same convention.
+- The Phase 41 close-out documents this as a held-position / platform-wide convention.
+
+Start Phase 42.
+
+PHASE 42 — Validation Kind Reality Check + Authoring Guardrail
+
+Goal:
+Make Atlas’s validation-kind story explicit, honest, and mechanically guarded before scaling new project production.
+
+Why:
+Atlas’s credibility depends on project validation. Some validation kinds are fully enforced by the current grader, while others appear to be contract-shaped metadata that the current grader does not actually execute. Before adding many more projects, we need a precise map and guardrail.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-41-seed-factory-pilot.md
+5. docs/project-authoring-spec.md
+6. scripts/src/audit-project-authoring.ts
+7. lib/grading.ts or current grading implementation
+8. validation-related schemas/types
+9. existing authored projects using validation kinds
+10. current /check and /submit route behavior
+
+Start with a read-only audit.
+
+Audit:
+1. List every validation kind used by visible authored projects.
+2. Count projects/steps per validation kind.
+3. Identify which validation kinds are actually enforced by the current grader.
+4. Identify which validation kinds are contract-shaped only.
+5. Identify which kinds silently pass, partially pass, or fall through.
+6. Identify which kinds are safe as metadata if clearly documented.
+7. Identify which kinds are misleading for learner-facing validation.
+8. Identify the smallest useful guardrail before scaling content.
+9. Identify which real grader implementation would have the highest leverage later.
+
+Preferred Phase 42 implementation:
+Do not implement a large validation engine yet.
+
+Implement a schema-free authoring/audit guardrail first.
+
+Deliverables:
+
+A. Validation Kind Matrix
+Create documentation, for example:
+docs/validation-kind-matrix.md
+
+Include:
+- validation kind
+- used by how many visible projects/steps
+- current grader behavior
+- enforcement status:
+  - enforced
+  - partially enforced
+  - contract-shaped
+  - unsupported/fallthrough
+- learner-facing risk
+- allowed authoring use
+- recommended future action
+
+B. Audit Guardrail
+Update audit:authoring or add a companion audit so validation kinds are no longer ambiguous.
+
+The audit should:
+- report contract-shaped validation kinds explicitly
+- distinguish “publish-ready under current contract” from “machine-enforced by grader”
+- avoid breaking the current 58/58 unless we intentionally choose to fail contract-shaped validations
+- preferably emit warnings/metadata first, not hard failures
+- make the convention explicit so future project authors cannot misunderstand it
+
+C. Project Authoring Spec Update
+Update docs/project-authoring-spec.md to explain:
+- which validations are currently machine-enforced
+- which validations are contract-shaped
+- when contract-shaped validation is allowed
+- how to avoid overclaiming validation strength
+- how to author honest expectedOutputs
+
+D. Phase 41 Follow-up Note
+Update docs/phases/phase-41-seed-factory-pilot.md only if needed to point to the new validation matrix.
+
+Hard stops:
+- No schema changes.
+- No migrations.
+- No production DB touch.
+- No deployment.
+- No broad /check rewrite.
+- No broad /submit rewrite.
+- No frontend redesign.
+- No project mass edits.
+- No project seeding.
+- No cert-verify changes.
+- No portfolio changes.
+- No billing/Stripe changes.
+- No OpenAPI/codegen changes unless absolutely unavoidable.
+- Do not make 53 existing projects fail unless explicitly justified.
+- Do not pretend contract-shaped validation is fully machine-enforced.
+
+Optional, only if low-risk:
+- Add tests for the validation-kind classifier / audit helper.
+- Add a small pure helper in curriculum-quality to classify validation enforcement status.
+- Add summary output to audit:authoring.
+
+Acceptance gates:
+- typecheck clean
+- curriculum-quality tests green
+- execution-core tests green
+- api-server tests green
+- atlas tests green
+- integration 3/3
+- audit:authoring remains explainable and preferably 58/58
+- audit:pedagogy remains 58/58
+- no-heuristic OK
+- seed converges
+- Architect PASS
+
+Deliverables:
+1. Read-only validation-kind inventory.
+2. Validation kind matrix doc.
+3. Authoring audit guardrail or classifier.
+4. Authoring spec update.
+5. Tests if helper logic is added.
+6. docs/phases/phase-42-validation-kind-guardrail.md.
+7. HANDOFF.md update.
+8. replit.md update.
+9. docs/phases/INDEX.md update.
+
+End with:
+1. Phase 42 final status
+2. validation kinds found
+3. enforced vs contract-shaped summary
+4. files changed
+5. tests/gates run
+6. remaining validation risks
+7. recommended Phase 43
+8. suggested commit message

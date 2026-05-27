@@ -12,4 +12,5 @@ export * from "./generator";
 export * from "./batchSchema";
 export * from "./authoring";
 export * from "./authoringAudit";
+export * from "./validationEnforcement";
 export * from "./mergeQualityBreakdown";

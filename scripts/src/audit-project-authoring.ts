@@ -35,7 +35,13 @@ import { db } from "@workspace/db";
 import { projects, projectSteps } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
 import type { PedagogyConfig } from "@workspace/execution-core";
-import { hintLeakSuspected } from "@workspace/curriculum-quality";
+import {
+  hintLeakSuspected,
+  classifyValidationKind,
+  describeEnforcement,
+  tallyValidationKinds,
+  type EnforcementStatus,
+} from "@workspace/curriculum-quality";
 
 type ProjectFinding =
   | "missing-title"
@@ -65,6 +71,10 @@ type ProjectReport = {
   stepCount: number;
   findings: ProjectFinding[];
   publishReady: boolean;
+  /** Phase 42 — every step's validation_type in declared order, for the
+   * enforcement-breakdown section of the audit summary. NOT used in any
+   * publish-ready finding; reported as informational metadata only. */
+  validationTypes: Array<string | null>;
 };
 
 const MIN_STEPS = 4;
@@ -112,6 +122,7 @@ async function auditProject(
       stepCount: 0,
       findings,
       publishReady: false,
+      validationTypes: [],
     };
   }
 
@@ -166,6 +177,7 @@ async function auditProject(
     stepCount: steps.length,
     findings: dedupedFindings,
     publishReady: dedupedFindings.length === 0,
+    validationTypes: steps.map((s) => s.validationType ?? null),
   };
 }
 
@@ -228,8 +240,64 @@ async function main() {
     }
   }
 
+  // --- Phase 42 — Validation enforcement breakdown (informational only) ---
+  //
+  // Aggregates validation_type values across every step of every visible
+  // project and groups them by `classifyValidationKind`. NOT a finding; this
+  // section never affects publish-ready counts. It exists so the operator
+  // can see, at a glance, how much of the catalog the server commit-grader
+  // actually evaluates vs. how much is contract-shaped metadata.
+  //
+  // See `docs/validation-kind-matrix.md` for the full enforcement contract.
+  const allVisibleStepKinds: Array<string | null> = [];
+  for (const r of visible) allVisibleStepKinds.push(...r.validationTypes);
+  const kindTally = tallyValidationKinds(allVisibleStepKinds);
+  const byStatus = new Map<EnforcementStatus, number>();
+  for (const { count, status } of kindTally.values()) {
+    byStatus.set(status, (byStatus.get(status) ?? 0) + count);
+  }
+  const totalSteps = allVisibleStepKinds.length;
+  const projectsWithAnyEnforced = visible.filter((r) =>
+    r.validationTypes.some((k) => classifyValidationKind(k) === "enforced"),
+  ).length;
+
+  console.log("\n  Validation enforcement breakdown (visible projects, all steps):");
   console.log(
-    "\nNote: read-only audit. No data was modified. See `docs/project-authoring-spec.md` for the contract this report checks against.\n",
+    `    Total steps across visible projects: ${totalSteps}`,
+  );
+  for (const status of ["enforced", "client-provisional", "contract-shaped", "unknown"] as const) {
+    const n = byStatus.get(status) ?? 0;
+    const pct = totalSteps > 0 ? Math.round((n / totalSteps) * 100) : 0;
+    console.log(
+      `      ${n.toString().padStart(3)} (${pct.toString().padStart(2)}%) ${status.padEnd(20)} — ${describeEnforcement(status)}`,
+    );
+  }
+  console.log(
+    `    Visible projects with ≥1 server-enforced step: ${projectsWithAnyEnforced} / ${visible.length}  (informational — spec §5.1's actual floor is "not all self_attest", caught by the existing 'all-steps-self-attest' finding)`,
+  );
+
+  if (kindTally.size > 0) {
+    console.log("\n    Per-kind histogram (visible projects, sorted by count):");
+    const sortedKinds = [...kindTally.entries()].sort((a, b) => b[1].count - a[1].count);
+    for (const [kind, { count, status }] of sortedKinds) {
+      console.log(
+        `      ${count.toString().padStart(3)} × ${kind.padEnd(20)} [${status}]`,
+      );
+    }
+  }
+
+  const unknownKinds = [...kindTally.entries()].filter(([, v]) => v.status === "unknown");
+  if (unknownKinds.length > 0) {
+    console.log(
+      "\n    WARNING — unknown validation kinds (typo? not in enum?):",
+    );
+    for (const [kind, { count }] of unknownKinds) {
+      console.log(`      ${count} × ${kind}`);
+    }
+  }
+
+  console.log(
+    "\nNote: read-only audit. No data was modified. See `docs/project-authoring-spec.md` for the contract this report checks against, and `docs/validation-kind-matrix.md` for the Phase 42 enforcement contract behind the breakdown section above.\n",
   );
 
   process.exit(0);
