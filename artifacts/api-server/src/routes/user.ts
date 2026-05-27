@@ -8,6 +8,7 @@ import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
 import { gradeSubmission } from "../lib/grading";
+import { verifyEnvelopeForSubmit, parseEnvelopeAllowList } from "../lib/envelopeSubmit";
 
 /** Phase 26 — Server-side cap on persisted submission excerpts. Keeps the
  *  table compact regardless of what a learner pastes; the full content is
@@ -426,6 +427,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
     }
     const { projectId, stepId } = req.params as { projectId: string; stepId: string };
     const { submission, submissionType } = req.body;
+    const wireEnvelope: unknown = (req.body ?? {}).envelope;
 
     // Require an active enrollment. This transitively enforces premium gating
     // (the enroll route rejects non-pro users on premium projects), so a free
@@ -444,10 +446,86 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       return;
     }
 
+    // Phase 47 — Signed-envelope branch. The legacy bare-string `submission`
+    // path is preserved verbatim below; we only enter the envelope branch
+    // when the client signaled intent by including a top-level `envelope`
+    // field. Allow-list (ATLAS_ENVELOPE_REQUIRED_KINDS) is EMPTY by default
+    // in Phase 47, so this branch returns 400 for all kinds unless an
+    // operator explicitly opts a kind in via env var. Trust model H3.
+    let gradedSubmissionInput: string | null | undefined = submission;
+    if (wireEnvelope !== undefined && wireEnvelope !== null) {
+      const allowList = parseEnvelopeAllowList();
+      const kind = step.validationType ?? "";
+      if (!allowList.has(kind)) {
+        req.log.warn(
+          {
+            evt: "envelope.submit.kind_not_enabled",
+            phase: "P47",
+            userId: user.id,
+            projectId,
+            stepId,
+            validationKind: kind,
+          },
+          "Envelope submitted for kind not in allow-list",
+        );
+        res.status(400).json({
+          error: "envelope_kind_not_enabled",
+          validationKind: kind,
+        });
+        return;
+      }
+
+      const verifyRes = await verifyEnvelopeForSubmit(wireEnvelope, {
+        userId: user.id,
+        projectId,
+        stepId,
+        validationKind: kind,
+      });
+      if (!verifyRes.ok) {
+        req.log.warn(
+          {
+            evt: "envelope.verify.failed",
+            phase: "P47",
+            reason: verifyRes.error,
+            detail: verifyRes.detail,
+            userId: user.id,
+            projectId,
+            stepId,
+            validationKind: kind,
+          },
+          "Envelope verification failed",
+        );
+        res.status(verifyRes.status).json({ error: verifyRes.error });
+        return;
+      }
+
+      req.log.info(
+        {
+          evt: "envelope.verify.ok",
+          phase: "P47",
+          userId: user.id,
+          projectId,
+          stepId,
+          validationKind: kind,
+          nonce: verifyRes.binding.nonce,
+        },
+        "Envelope verified",
+      );
+
+      // Phase 47 ships the verification arm only. Per-kind comparison
+      // graders (json_equal / numeric_tolerance / sql_resultset /
+      // csv_set_equal / csv_ordered) land in Phase 49+. Until then, the
+      // verified capture's stdout flows into the existing pure grader so
+      // operator-enabled kinds get the same legacy default-pass behavior
+      // as before — preserving the "no global json_equal enforcement"
+      // hard stop.
+      gradedSubmissionInput = verifyRes.capture.stdout;
+    }
+
     // Phase 24 — shared grading helper (also used by POST .../check).
     // Pure: no DB side effects. Runs OUTSIDE the tx so the lock window
     // covers only the persistence work below.
-    const { passed, feedback } = gradeSubmission(step, submission);
+    const { passed, feedback } = gradeSubmission(step, gradedSubmissionInput);
 
     // Phase 27 — Transactional reward boundary. See block comment above.
     const txResult = await db.transaction(async (tx) => {
