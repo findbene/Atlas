@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Award, Bot } from "lucide-react";
 import { ExecutionModeChip } from "@/components/ExecutionModeChip";
 import { JobOutcomesPanel } from "@/components/JobOutcomesPanel";
+import { ModeSelector } from "@/components/studio/ModeSelector";
 import type { ExecutionProfile } from "@workspace/execution-core";
 
 type Props = {
@@ -44,6 +45,7 @@ export function StudioTopBar({
           {enrollError}
         </span>
       )}
+      <ModeSelector projectSlug={typeof project.slug === "string" ? project.slug : undefined} />
       {executionProfile && (
         <ExecutionModeChip profile={executionProfile} className="ml-auto" />
       )}

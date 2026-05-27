@@ -42,3 +42,10 @@ export type {
   HintPolicyOutcome,
   PedagogyConfig,
 } from "./pedagogy.js";
+
+export { recommendLearnerMode } from "./learnerMode.js";
+export type {
+  LearnerModeSignals,
+  LearnerModeReasonCode,
+  LearnerModeRecommendation,
+} from "./learnerMode.js";

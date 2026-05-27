@@ -1,0 +1,122 @@
+We are continuing Atlas from the latest clean checkpoint.
+
+Read first:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-31-deployment-readiness.md
+5. docs/deployment-checklist.md
+6. docs/phases/phase-30b-real-pg-concurrency-test.md
+7. docs/phases/phase-29-portfolio-evidence-surface.md
+8. docs/phases/phase-28-cert-verify-evidence-enrichment.md
+
+Current confirmed state:
+- Atlas is infrastructure-deploy-ready but not product-launch-ready.
+- HEAD should be 74debf5.
+- Production DB does not exist yet.
+- Do not deploy.
+- Do not touch production.
+- Do not run production migration.
+- Do not mass-seed projects yet.
+- Phase 30 production audit is parked until deployment and real production traffic.
+- Preserve all Phase 21–31 invariants.
+
+We are starting Phase 32:
+
+PHASE 32 — Project Learning Experience Architecture:
+Guided / Hint-Based / Independent / Adaptive Mode System
+
+Goal:
+Design and implement the core learner journey before scaling the project catalog.
+
+The learner should be able to complete each project in one of four modes:
+
+1. Guided Mode
+- full step-by-step support
+- more explicit instructions
+- stronger explanations
+- lower frustration for beginners
+
+2. Hint-Based Mode
+- learner attempts first
+- hints unlock progressively
+- hints should follow a ladder:
+  - conceptual nudge
+  - technical clue
+  - partial structure
+  - near-solution explanation
+
+3. Independent Mode
+- minimal instruction
+- stronger validation emphasis
+- portfolio/recruiter-grade expectation
+- no early solution leakage
+
+4. Adaptive “Choose for Me” Mode
+- platform recommends the best mode using learner performance signals:
+  - prior completions
+  - failed attempts
+  - validation errors
+  - hints used
+  - time spent
+  - skill confidence
+  - repeated weak areas
+
+First perform a read-only audit.
+
+Inspect:
+1. Current project schema/content model.
+2. Current step model.
+3. Current validation/check system.
+4. Current tutor/Ada context flow.
+5. Current profile/progress/completion tables.
+6. Whether learning modes can be implemented schema-free.
+7. Whether schema changes are truly required.
+8. Where mode should live: user selection, project attempt/session, or progress state.
+9. Where hint ladder content should live.
+10. How validation feedback should differ by mode.
+11. How adaptive recommendation can be computed from existing data.
+12. What files would likely be touched.
+13. What tests are required.
+14. What hard stops must be respected.
+
+Then produce a Phase 32 recommendation with:
+- proposed implementation scope
+- schema-change decision
+- API changes
+- frontend changes
+- tutor-contract changes
+- tests
+- acceptance gates
+- risks
+- hard stops
+
+After the audit:
+- If Phase 32 can be implemented without schema changes, proceed with a small, safe implementation.
+- If schema changes are required, stop and ask for approval before changing schema.
+
+Preferred implementation direction:
+- Avoid schema changes if a clean first version can be done using existing project/step/progress structures.
+- Add a clear mode selector in the project experience.
+- Add mode-aware rendering of instructions/hints.
+- Add an adaptive recommendation helper using existing performance/completion data where possible.
+- Add tests before finalizing.
+- Do not mass-edit all existing projects.
+- Do not seed new projects yet.
+- Do not change deployment, Stripe, production DB, /submit integrity, certificate verification, or Phase 31 migration behavior.
+
+Acceptance gates:
+- typecheck clean
+- api-server tests green
+- atlas frontend tests green
+- no heuristic runtime issues
+- pedagogy audit unchanged or improved
+- no regression to Phase 26–31 integrity/evidence/completion invariants
+- Architect review PASS
+
+End with:
+1. summary of what changed
+2. files touched
+3. tests run
+4. risks remaining
+5. recommended Phase 33
