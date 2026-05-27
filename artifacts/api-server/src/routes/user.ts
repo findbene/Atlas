@@ -9,6 +9,8 @@ import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
 import { gradeSubmission } from "../lib/grading";
 import { verifyEnvelopeForSubmit, parseEnvelopeAllowList } from "../lib/envelopeSubmit";
+import { gradeEnvelopeCapture } from "../lib/envelopeGrade";
+import type { RunCapture } from "@workspace/execution-core/run-envelope";
 
 /** Phase 26 — Server-side cap on persisted submission excerpts. Keeps the
  *  table compact regardless of what a learner pastes; the full content is
@@ -452,7 +454,13 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
     // field. Allow-list (ATLAS_ENVELOPE_REQUIRED_KINDS) is EMPTY by default
     // in Phase 47, so this branch returns 400 for all kinds unless an
     // operator explicitly opts a kind in via env var. Trust model H3.
-    let gradedSubmissionInput: string | null | undefined = submission;
+    // Phase 48 — When the envelope branch is taken, `envelopeCapture` holds
+    // the verified `RunCapture` and drives BOTH grading (via
+    // `gradeEnvelopeCapture`) and evidence (the executed code becomes
+    // the persisted submission excerpt, since the wire `submission` field
+    // is null in the envelope path). Legacy bare-string path: this stays
+    // null and grading + evidence use `submission` exactly as before.
+    let envelopeCapture: RunCapture | null = null;
     if (wireEnvelope !== undefined && wireEnvelope !== null) {
       const allowList = parseEnvelopeAllowList();
       const kind = step.validationType ?? "";
@@ -512,20 +520,30 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
         "Envelope verified",
       );
 
-      // Phase 47 ships the verification arm only. Per-kind comparison
-      // graders (json_equal / numeric_tolerance / sql_resultset /
-      // csv_set_equal / csv_ordered) land in Phase 49+. Until then, the
-      // verified capture's stdout flows into the existing pure grader so
-      // operator-enabled kinds get the same legacy default-pass behavior
-      // as before — preserving the "no global json_equal enforcement"
-      // hard stop.
-      gradedSubmissionInput = verifyRes.capture.stdout;
+      envelopeCapture = verifyRes.capture;
     }
 
-    // Phase 24 — shared grading helper (also used by POST .../check).
-    // Pure: no DB side effects. Runs OUTSIDE the tx so the lock window
-    // covers only the persistence work below.
-    const { passed, feedback } = gradeSubmission(step, gradedSubmissionInput);
+    // Phase 24 + 48 — shared grading helpers (legacy is also used by
+    // POST .../check). Both helpers are pure (no DB side effects) and
+    // run OUTSIDE the tx so the lock window covers only the persistence
+    // work below.
+    //
+    // Phase 48 pilot grader (`gradeEnvelopeCapture`) only does real
+    // comparison for the narrow pilot kinds and falls back to legacy
+    // default-pass for everything else — preserving the "no global
+    // json_equal enforcement" hard stop until an operator opts in via
+    // ATLAS_ENVELOPE_REQUIRED_KINDS (still empty by default).
+    const { passed, feedback } = envelopeCapture
+      ? gradeEnvelopeCapture(step, envelopeCapture)
+      : gradeSubmission(step, submission);
+
+    // Phase 48 — Evidence source. Legacy path: the wire `submission`
+    // string. Envelope path: the executed code from the verified
+    // capture (this is what the learner actually ran; the wire
+    // `submission` field is null in the envelope path).
+    const submittedCode: string | null = envelopeCapture
+      ? envelopeCapture.code
+      : (typeof submission === "string" ? submission : null);
 
     // Phase 27 — Transactional reward boundary. See block comment above.
     const txResult = await db.transaction(async (tx) => {
@@ -560,7 +578,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
       const wasAlreadyPassed = existing?.passed === true;
       const isFreshPass = passed && !wasAlreadyPassed;
       const evidence = isFreshPass
-        ? captureSubmissionEvidence(typeof submission === "string" ? submission : null)
+        ? captureSubmissionEvidence(submittedCode)
         : { excerpt: null, sha256: null };
 
       let attempt = 1;

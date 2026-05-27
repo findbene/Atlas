@@ -1,0 +1,65 @@
+Commit Phase 47 first if not already committed.
+
+Then start Phase 48 with a read-only audit.
+
+Read:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/runtime-validation-threat-model.md
+5. docs/signed-run-result-design.md
+6. docs/phases/phase-46-run-signing-api.md
+7. docs/phases/phase-47-submit-envelope-verification.md
+8. artifacts/api-server/src/lib/envelopeSubmit.ts
+9. artifacts/api-server/src/routes/user.ts
+10. artifacts/api-server/src/routes/runs.ts
+11. artifacts/api-server/src/routes/user-submit-envelope.test.ts
+12. lib/execution-core/src/runEnvelope.ts
+
+Goal:
+Implement Phase 48 — Signed Envelope Pilot, One Narrow Validation Path.
+
+Core objective:
+Prove the full sign → submit → verify → nonce → grade path for one deliberately controlled validation path without enabling global json_equal or changing the wider catalog.
+
+Hard stops:
+- no global json_equal enforcement
+- no catalog-wide validation behavior change
+- no /check behavior change
+- no certificate or portfolio language changes
+- no deployment
+- no production DB touch
+- no anti-cheat overclaiming
+- preserve all legacy /submit behavior
+- do not claim Atlas proves independent learner execution
+
+Implementation options:
+Choose the safest option after read-only audit:
+A. Add a synthetic test-only step/fixture that uses signed envelope validation.
+B. Enable one narrow validation kind behind ATLAS_ENVELOPE_REQUIRED_KINDS only in tests.
+C. Add a tiny controlled runtime-validation pilot helper without touching real project content.
+
+Required behavior:
+1. Allow-list remains empty by default.
+2. With allow-list empty, existing behavior remains unchanged.
+3. With allow-list enabled for the controlled pilot only, signed envelope submit is required and verified.
+4. Replay still fails.
+5. Wrong user/project/step/kind still fails.
+6. Expired/tampered envelope still fails.
+7. Legacy submit path still passes all previous tests.
+
+Tests:
+Add focused tests proving:
+- disabled-by-default behavior
+- enabled pilot behavior
+- happy-path signed runtime submit
+- replay rejection
+- mismatch rejection
+- legacy regression unchanged
+
+End with:
+1. files changed
+2. exact behavior added
+3. gates run
+4. what is still not proven
+5. whether Phase 49 should become real per-kind grader support or frontend RunCapture wiring
