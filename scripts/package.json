@@ -31,6 +31,7 @@
     "backfill:phase14-candidates": "tsx ./src/backfill-phase14-candidates.ts",
     "backfill:phase19-candidates": "tsx ./src/backfill-phase19-candidates.ts",
     "backfill:phase20-candidates": "tsx ./src/backfill-phase20-candidates.ts",
+    "backfill:phase41-candidates": "tsx ./src/backfill-phase41-candidates.ts",
     "backfill:enrolled-count": "tsx ./src/backfill-enrolled-count.ts",
     "audit:difficulty": "tsx ./src/audit-difficulty.ts",
     "audit:bad-completions": "tsx ./src/audit-bad-completions.ts",

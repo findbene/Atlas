@@ -58,6 +58,9 @@ import { appliedLlmEngineerBeginnerStructuredPromptingWithJsonSchema } from "./a
 // Phase 20 — 2-project beginner/foundations final cohort (ai-engineer + mlops-engineer).
 import { aiEngineerFoundationsClassifyAndExplainLocally } from "./ai-engineer__foundations-classify-and-explain-locally";
 import { mlopsEngineerFoundationsReproducibleLocalTrainingPipeline } from "./mlops-engineer__foundations-reproducible-local-training-pipeline";
+// Phase 41 — Seed Factory Pilot intermediate cohort (DE + AI).
+import { dataEngineeringRestApiEltWithStagingMarts } from "./data-engineering__rest-api-elt-with-staging-marts";
+import { aiEngineerLlmOutputQualityScoring } from "./ai-engineer__llm-output-quality-scoring";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -145,6 +148,12 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   // courses: ai-engineer + mlops-engineer).
   aiEngineerFoundationsClassifyAndExplainLocally,
   mlopsEngineerFoundationsReproducibleLocalTrainingPipeline,
+  // Phase 41 — Seed Factory Pilot. 2 net-new INTERMEDIATE-tier projects
+  // (DE + AI) closing the audit-confirmed Intermediate gap in those two
+  // advanced-skewed courses. Both deterministic, no API keys, deliberately
+  // complementary to the existing advanced modules in each course.
+  dataEngineeringRestApiEltWithStagingMarts,
+  aiEngineerLlmOutputQualityScoring,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

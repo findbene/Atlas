@@ -91,6 +91,13 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   // local-only, no cloud/API-key dependencies.
   "ai-engineer-foundations-classify-and-explain-locally":                  "ai-engineer",
   "mlops-engineer-foundations-reproducible-local-training-pipeline":       "mlops-engineer",
+  // Phase 41 — Seed Factory Pilot. 2 net-new INTERMEDIATE-tier projects
+  // closing the Phase-41-audit-confirmed Intermediate gap in DE + AI.
+  // Synthetic candidates marked `source='phase41_seed_factory'`. Both
+  // modules are deterministic (no API keys, no cloud) and explicitly
+  // complementary to the existing advanced offerings in each course.
+  "data-engineering-rest-api-elt-with-staging-marts":                      "data-engineering",
+  "ai-engineer-llm-output-quality-scoring":                                "ai-engineer",
 };
 
 /**
@@ -270,6 +277,31 @@ export const BEGINNER_CANDIDATE_FOR_SLUG_PHASE20: Record<string, string> = {
   "mlops-engineer-foundations-reproducible-local-training-pipeline": "c20a7b0d-4e5f-4a61-8c8d-9e0f12345678",
 };
 
+/**
+ * Phase 41 — Seed Factory Pilot. 2 net-new INTERMEDIATE-tier authored
+ * projects closing the audit-confirmed Intermediate gap in two
+ * advanced-skewed courses:
+ *
+ *   - data-engineering — hand-rolled REST → Postgres staging → SQL
+ *     marts → DQ → CLI runner (deliberately complementary to the
+ *     dlt-driven `data-engineering-api-to-warehouse-ingestion`).
+ *
+ *   - ai-engineer — deterministic LLM-output quality scorer + failure
+ *     taxonomy on fixture outputs, no API key (deliberately
+ *     complementary to the CI-infrastructure `ai-engineer-llm-eval-harness`).
+ *
+ * Synthetic candidates created by `backfill:phase41-candidates` with
+ * `source='phase41_seed_factory'`. Same shape as Phase 19 / Phase 20:
+ * net-new slugs (no legacy twin to archive), candidate rows preserve
+ * the AuthoredProject.candidateId lineage contract.
+ *
+ * Map keys = authored slug. Values = pinned candidate UUIDs.
+ */
+export const SEED_FACTORY_FOR_SLUG_PHASE41: Record<string, string> = {
+  "data-engineering-rest-api-elt-with-staging-marts": "d41a8b1c-5e6f-4071-9a8b-9d0e1f234567",
+  "ai-engineer-llm-output-quality-scoring":           "e41b9c2d-6f70-4182-9b9c-ae0f12345678",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -355,6 +387,9 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   // Phase 20 — 2-project beginner/foundations final cohort (source='phase20_foundations_final').
   "ai-engineer-foundations-classify-and-explain-locally":            "b20f6a9c-3d4e-4f50-9b7c-8d9e0f123456",
   "mlops-engineer-foundations-reproducible-local-training-pipeline": "c20a7b0d-4e5f-4a61-8c8d-9e0f12345678",
+  // Phase 41 — Seed Factory Pilot intermediate cohort (source='phase41_seed_factory').
+  "data-engineering-rest-api-elt-with-staging-marts": "d41a8b1c-5e6f-4071-9a8b-9d0e1f234567",
+  "ai-engineer-llm-output-quality-scoring":           "e41b9c2d-6f70-4182-9b9c-ae0f12345678",
 };
 
 /**
