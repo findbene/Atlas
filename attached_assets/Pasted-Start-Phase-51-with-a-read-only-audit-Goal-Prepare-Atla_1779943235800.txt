@@ -1,0 +1,69 @@
+Start Phase 51 with a read-only audit.
+
+Goal:
+Prepare Atlas for the first json_equal signed-envelope production canary by completing operational readiness: live smoke evidence, nonce janitor registration/verification, and canary metrics visibility.
+
+Read:
+1. HANDOFF.md
+2. replit.md
+3. docs/phases/INDEX.md
+4. docs/phases/phase-50-json-equal-canary.md
+5. docs/runbooks/envelope-canary.md
+6. docs/runtime-validation-threat-model.md
+7. docs/signed-run-result-design.md
+8. artifacts/api-server/src/lib/envelopeSubmit.ts
+9. artifacts/api-server/src/routes/user.ts
+10. artifacts/api-server/src/routes/runs.ts
+11. artifacts/atlas/src/lib/envelopeClient.ts
+12. artifacts/atlas/src/pages/project-workspace.tsx
+
+Phase 51 objective:
+Do not ramp production yet. Make the canary observable, reversible, and smoke-tested before any 1% flip.
+
+Hard stops:
+- no production canary flip
+- no broad json_equal enforcement
+- no new validation kinds
+- no /check behavior change
+- no cert/portfolio claim upgrade
+- no anti-cheat overclaiming
+- no rubric/content/seed changes
+- preserve legacy submit behavior
+
+Tasks:
+1. Run or document an operator-verifiable dev/staging live smoke:
+   - RUN_ENVELOPE_SIGNING_SECRET set
+   - ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal
+   - ATLAS_ENVELOPE_CANARY_KINDS=json_equal
+   - ATLAS_ENVELOPE_CANARY_PERCENT=100 for staging smoke only
+   - correct json_equal output passes
+   - wrong json_equal output fails
+   - replayed envelope fails
+   - code edit invalidates stale envelope
+   - non-json_equal kind falls back safely
+2. Register/document the nonce janitor cron:
+   pnpm --filter @workspace/scripts run cleanup:run-envelope-nonces
+3. Add read-only canary observability if not already present:
+   - verify success count
+   - verify failure count grouped by reason
+   - replay count
+   - fallback count grouped by reason
+   - canary bucket skip count
+   - verifyDurationMs p50/p95 if available
+4. Prefer an admin-gated read-only endpoint or documented log query, whichever fits the current architecture with least risk.
+5. Add tests for any new read-only endpoint/helper.
+6. Update docs/runbooks/envelope-canary.md with:
+   - exact pre-flight checklist
+   - exact smoke evidence checklist
+   - exact dashboard/log queries
+   - exact rollback commands
+   - exact “do not ramp unless” criteria
+7. Update HANDOFF.md, replit.md, docs/phases/INDEX.md, and create a Phase 51 close-out doc.
+
+End with:
+1. files changed
+2. smoke evidence status
+3. observability added
+4. cron/cleanup status
+5. tests/gates run
+6. explicit go/no-go recommendation for the first 1% production canary

@@ -10,6 +10,7 @@ import { bumpStreak } from "../lib/streak";
 import { gradeSubmission } from "../lib/grading";
 import { verifyEnvelopeForSubmit, parseEnvelopeAllowList, isEnvelopeEnforcedFor } from "../lib/envelopeSubmit";
 import { gradeEnvelopeCapture } from "../lib/envelopeGrade";
+import { recordVerifyOk, recordVerifyFailed, recordFallback } from "../lib/envelopeMetrics";
 import type { RunCapture } from "@workspace/execution-core/run-envelope";
 
 /** Phase 26 — Server-side cap on persisted submission excerpts. Keeps the
@@ -499,6 +500,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
             ? "Envelope present but user not in canary bucket — falling back to legacy grading"
             : "Envelope present for non-allow-listed kind — falling back to legacy grading",
         );
+        recordFallback(reason);
         // Drop straight into the legacy bare-string grading path below.
       } else {
       // Phase 50 — measure verify latency for canary observability.
@@ -525,6 +527,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
           },
           "Envelope verification failed",
         );
+        recordVerifyFailed(verifyRes.error, verifyDurationMs);
         res.status(verifyRes.status).json({ error: verifyRes.error });
         return;
       }
@@ -542,6 +545,7 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
         },
         "Envelope verified",
       );
+      recordVerifyOk(verifyDurationMs);
 
       envelopeCapture = verifyRes.capture;
       }

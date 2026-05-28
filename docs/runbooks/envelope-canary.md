@@ -259,7 +259,119 @@ Future: the verifier library already supports a `kid` field (Phase 45) for grace
 
 ---
 
-## 6. Honest-claim boundary (DO NOT CROSS)
+## 6. Read-only canary metrics endpoint (Phase 51)
+
+`GET /api/admin/envelope/metrics` (auth: `requireAdmin`) returns a process-local snapshot of the canary counters. No DB query, no nonce-table peek, no per-user data — safe to poll at 5-15s cadence during a flip.
+
+### Payload shape
+
+```json
+{
+  "uptimeMs":     1234567,
+  "windowMs":    1234567,
+  "verify": {
+    "ok": 312,
+    "failed": { "envelope_replay": 1, "envelope_expired": 0 },
+    "total": 313,
+    "successRate": 0.9968,
+    "durationMs": { "p50": 14, "p95": 42, "p99": 73, "samples": 313 }
+  },
+  "fallback": { "kind_not_enabled": 8421, "canary_bucket_skip": 31075 },
+  "envelopesObserved": 39809,
+  "fallbackRate": 0.9921
+}
+```
+
+### Important caveats
+
+- **Process-local.** Counters reset on every API restart/deploy. For multi-instance deploys, each instance reports only its own slice — divide your expectations accordingly, or hit each instance separately. Cross-instance historical metrics belong in the durable log aggregator, not here.
+- **Reservoir-sampled percentiles.** `durationMs` is computed over a bounded 1000-sample reservoir. Bias vs a true t-digest is < 1 ms in practice — adequate for the < 100 ms p95 gate but not for sub-ms latency budgets.
+- **Failure-reason map is open.** Any reason string the verifier emits gets its own bucket key, including unknown future strings. Dashboard drift surfaces here rather than being silently dropped.
+
+### Operator workflow during a flip
+
+```bash
+# Quick health check (any admin token):
+curl -H "Authorization: Bearer $ADMIN_TOKEN" https://$HOST/api/admin/envelope/metrics | jq
+
+# Watch loop during ramp:
+watch -n 10 'curl -s -H "Authorization: Bearer $ADMIN_TOKEN" https://$HOST/api/admin/envelope/metrics | jq "{ok: .verify.ok, failed: .verify.failed, p95: .verify.durationMs.p95, fallbackRate: .fallbackRate}"'
+```
+
+If `verify.failed.envelope_bad_signature > 0` at any point, **stop the watch and execute soft rollback (§5) immediately.** That counter is the canary's single most important red-flag signal.
+
+### Log-aggregator queries (durable history)
+
+For windows longer than the current process uptime, query the log aggregator:
+
+| What you want | Query (logfmt-ish; adapt to your tool) |
+|---|---|
+| Verify success rate over last 24h | `evt:envelope.verify.* | stats count by evt` then `ok / (ok+failed)` |
+| Verify failures by reason | `evt:envelope.verify.failed | stats count by reason` |
+| Verify duration p95 | `evt:envelope.verify.ok | stats p95(verifyDurationMs)` |
+| Fallback split | `evt:envelope.submit.kind_not_enabled.fallback | stats count by reason` |
+| Bad-signature alarm (zero-tolerance) | `evt:envelope.verify.failed AND reason:envelope_bad_signature` → page on any non-zero rate |
+| Nonce-cron health | `[cleanup-run-envelope-nonces] deleted` last 25h → must be non-empty |
+
+---
+
+## 7. Go / no-go for the first 1% production canary
+
+The flip is authorized only when **every** statement below is true. Tick each box; do NOT flip on a yellow.
+
+### Pre-flight (verified before touching prod env vars)
+
+- [ ] All 6 staging smokes (§2) passed and log excerpts captured in the flip PR/issue.
+- [ ] `RUN_ENVELOPE_SIGNING_SECRET` set in production (validate by checking deploy doesn't fail at boot).
+- [ ] `ATLAS_ENVELOPE_REQUIRED_KINDS` currently **empty** in production (the flip is what changes it).
+- [ ] `ATLAS_ENVELOPE_CANARY_KINDS` and `ATLAS_ENVELOPE_CANARY_PERCENT` currently **unset** in production.
+- [ ] Nonce-janitor cron (§3) registered in production and ran successfully at least once (output line `[cleanup-run-envelope-nonces] deleted 0 expired nonce(s)` is expected and counts as success).
+- [ ] Log-aggregator filters for `evt:envelope.*` confirmed working (a `logger.info({evt:"envelope.smoketest"})` ping shows up).
+- [ ] `GET /api/admin/envelope/metrics` returns **200 with the expected payload shape** in production (admin token validated). The endpoint MUST be reachable, but counters are NOT expected to be zero — see "Interpreting pre-flip baselines" below.
+- [ ] Architect review of Phase 50 + Phase 51 signed off.
+- [ ] Rollback commands (§5) pasted into a scratch buffer and the operator confirms they can execute them in < 60 seconds.
+- [ ] Flip is happening Mon-Thu, business hours, and no other deploy is in flight.
+
+### Do NOT flip if any of the following
+
+- A staging smoke failed or was skipped.
+- The nonce cron has never run successfully against production.
+- `envelope_bad_signature` has appeared in any environment in the last 7 days without root-cause sign-off.
+- Customer support has any open ticket mentioning grading/submit issues.
+- The on-call rotation has no human owner for the next 48 hours.
+- **`verify.total > 0` in the production metrics endpoint before the flip.** This DOES indicate a stale prior flip and must be investigated. (Non-zero `fallback.*` counters are normal — see below.)
+
+### Interpreting pre-flip baselines
+
+Because Phase 49 clients send a signed envelope on every eligible-kind submit regardless of server-side enforcement, the production metrics endpoint will report **non-zero values even before any canary flip**. This is expected and is NOT a stale-flip signal. Specifically:
+
+| Counter | Pre-flip expected value | What non-zero means |
+|---|---|---|
+| `verify.ok` | **0** | Stale prior flip OR allow-list accidentally contains `json_equal`. **STOP and investigate.** |
+| `verify.failed.*` | **0** | Same as above. **STOP and investigate.** |
+| `verify.total` | **0** | Same — must be zero. |
+| `verify.durationMs.samples` | **0** | Same — must be zero. |
+| `fallback.kind_not_enabled` | **non-zero, growing** | Normal — every envelope-bearing `/submit` for a kind that is NOT allow-listed lands here. With Phase 49+ FE, this matches every successful `/runs/sign`-then-`/submit` round-trip on eligible kinds. |
+| `fallback.canary_bucket_skip` | **0** | Stale canary config — `ATLAS_ENVELOPE_CANARY_KINDS` and `ATLAS_ENVELOPE_CANARY_PERCENT` should both be unset pre-flip. **STOP and investigate.** Note: a zero here does NOT prove the canary vars are unset — when `ATLAS_ENVELOPE_REQUIRED_KINDS` is empty, the canary gate's rule-1 short-circuits before the bucket check, so a misconfigured canary var would still report zero here. Always inspect the env vars directly as the authoritative check. |
+| `envelopesObserved` | **non-zero, growing** | Equals `fallback.kind_not_enabled` pre-flip. |
+| `fallbackRate` | **exactly `1.0` once `envelopesObserved > 0`** | Every observed envelope falls back when `ATLAS_ENVELOPE_REQUIRED_KINDS` is empty (`fallbackTotal / (0 + fallbackTotal) === 1`). Anything `< 1.0` AFTER `envelopesObserved > 0` means some kind is already enforced. **STOP and investigate.** On a freshly-deployed instance with `envelopesObserved = 0`, this reports `0`, not `1.0` — wait for traffic before asserting the invariant. |
+
+Counters are **process-local** — each API instance reports its own slice and resets on every restart/deploy. A freshly-deployed instance may briefly show all zeros before traffic warms up; wait at least one normal-traffic minute (and confirm `envelopesObserved > 0`) before drawing pre-flight conclusions.
+
+### What "the flip" is exactly
+
+```bash
+# In prod env (one operator, recorded in PR):
+ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal
+ATLAS_ENVELOPE_CANARY_KINDS=json_equal
+ATLAS_ENVELOPE_CANARY_PERCENT=1
+```
+
+Roll the API deploy. Start the watch loop from §6. Hold per §4 ramp criteria.
+
+---
+
+## 8. Honest-claim boundary (DO NOT CROSS)
 
 Even at 100% enforcement on every pilot kind, the only claim Atlas can make is:
 

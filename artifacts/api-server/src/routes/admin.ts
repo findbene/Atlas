@@ -374,4 +374,27 @@ router.get("/api/admin/mode-usage", requireAdmin, async (req, res) => {
   });
 });
 
+/**
+ * Phase 51 — Read-only canary observability.
+ *
+ *   GET /api/admin/envelope/metrics
+ *
+ * Returns a process-local snapshot of signed-envelope counters.
+ * Counters reset on API restart/deploy; operators must rely on the
+ * durable log aggregator for cross-deploy/historical data. See
+ * `docs/runbooks/envelope-canary.md` §3.
+ *
+ * No DB query, no nonce-table peek, no per-user data. Safe to poll.
+ */
+router.get("/api/admin/envelope/metrics", requireAdmin, async (req, res) => {
+  const { getMetricsSnapshot } = await import("../lib/envelopeMetrics");
+  const snapshot = getMetricsSnapshot();
+  const adminUser = (req as { localUser?: { id: string } }).localUser;
+  req.log.info(
+    { adminUser: adminUser?.id, evt: "admin.envelope.metrics.served" },
+    "admin envelope metrics served",
+  );
+  res.json(snapshot);
+});
+
 export default router;
