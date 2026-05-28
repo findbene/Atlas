@@ -225,7 +225,7 @@ export default function Certificates() {
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
                           <Briefcase className="h-3 w-3" />
-                          Role unlocked
+                          Role this project prepares you for
                         </p>
                         <div className="flex flex-wrap gap-1">
                           <span className="text-[11px] rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-200 px-2 py-0.5">

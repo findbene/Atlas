@@ -236,7 +236,7 @@ export function ValidationFeedbackPanel({
                   {project?.jobOutcomes && (
                     <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3 mt-3">
                       <div className="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-2 flex items-center gap-1.5">
-                        <Award className="h-3.5 w-3.5" /> What you just unlocked
+                        <Award className="h-3.5 w-3.5" /> What this project prepares you for
                       </div>
                       {project.jobOutcomes.roles &&
                         project.jobOutcomes.roles.length > 0 && (

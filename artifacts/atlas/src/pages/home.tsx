@@ -339,7 +339,7 @@ export default function Home() {
                 Roles you'll be ready for
               </h2>
               <p className="text-muted-foreground mt-3">
-                Every project tells you exactly which roles it qualifies you for, with the resume bullets to back it up.
+                Every project tells you exactly which roles it prepares you for, with the resume bullets to back it up.
               </p>
             </div>
           </Reveal>

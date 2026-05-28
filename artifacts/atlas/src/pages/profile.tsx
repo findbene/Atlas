@@ -525,7 +525,7 @@ export default function Profile() {
             <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/[0.06] to-card p-5">
               <h3 className="font-semibold mb-1 flex items-center gap-2">
                 <Briefcase className="h-4 w-4 text-amber-400" />
-                Career Roles Unlocked
+                Career roles in your portfolio
                 <span className="ml-1 text-xs font-normal text-muted-foreground">
                   ({rolesUnlocked.length})
                 </span>

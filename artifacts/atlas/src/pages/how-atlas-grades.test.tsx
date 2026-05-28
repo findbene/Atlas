@@ -1,5 +1,5 @@
 /**
- * Phase 49 — Disclosure copy guard.
+ * Phase 49 — Disclosure copy guard (Phase 54 normalized-pattern edition).
  *
  * The "How Atlas Grades" page is the single learner-facing surface that
  * documents the honest-claim ceiling H3. Three things must always be
@@ -10,9 +10,9 @@
  *   2. It explicitly states the limits of what automated checks prove
  *      (no claim of independent authorship, no claim of no-outside-help,
  *      no claim of mastery).
- *   3. It does NOT contain H1/H2 overclaim language — the words and
- *      phrases below are banned from the copy because they would
- *      imply guarantees our mechanism does not support.
+ *   3. It does NOT contain H1/H2 overclaim language — the regex patterns
+ *      in `lib/banned-h1h2-phrases.ts` are banned from the copy because
+ *      they would imply guarantees our mechanism does not support.
  *
  * If this test fails, fix the page copy — do NOT weaken the guard.
  */
@@ -20,7 +20,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Router as WouterRouter } from "wouter";
 import HowAtlasGrades from "./how-atlas-grades";
-import { BANNED_H1H2_PHRASES } from "../lib/banned-h1h2-phrases";
+import { BANNED_H1H2_PATTERNS, normalize } from "../lib/banned-h1h2-phrases";
 
 function renderPage() {
   return render(
@@ -59,13 +59,17 @@ describe("How Atlas Grades — Phase 49 disclosure", () => {
 
   it("does not contain H1/H2 overclaim language anywhere on the page", () => {
     renderPage();
-    const body = document.body.textContent?.toLowerCase() ?? "";
-    // Banned: any wording that would imply a stronger guarantee than
-    // "the output matched what was expected and the record was issued
-    // by Atlas." Each entry would constitute an H1/H2 overclaim.
-    // Source of truth: `src/lib/banned-h1h2-phrases.ts`.
-    for (const phrase of BANNED_H1H2_PHRASES) {
-      expect(body).not.toContain(phrase);
+    // Normalize the rendered DOM text so Unicode dashes / NBSP can't
+    // sneak in. Source of truth: `src/lib/banned-h1h2-phrases.ts`.
+    const body = normalize(document.body.textContent ?? "");
+    for (const { label, regex } of BANNED_H1H2_PATTERNS) {
+      if (regex.test(body)) {
+        throw new Error(
+          `Banned phrase "${label}" detected on /how-atlas-grades. ` +
+            `Fix the page copy — do NOT weaken the guard.`,
+        );
+      }
+      expect(body).not.toMatch(regex);
     }
   });
 
