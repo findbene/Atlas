@@ -1,7 +1,7 @@
 # HANDOFF
 
-**Latest shipped phase:** Phase 55 — Net-New Project Production Pilot (C1 + C2).
-**Working tree:** clean after `0d89eb0` (C2 promote).
+**Latest shipped phase:** Phase 55 — Net-New Project Production Pilot (C1 + C2) — **post-publish-readiness checklist, both projects VISIBLE.**
+**Working tree:** clean after `0d89eb0` (C2 promote); subsequent DB-only visibility flips on C1 + C2 (no source changes after the checklist pass).
 **Parent commit chain:** Phase 55 ← `0d89eb0` (C2 promote) ← `f12fe95` (C1 promote) ← `82e473d` (phase-54 copy-safety) ← `b0667ec` (phase-53 launch-readiness H3 audit) ← `efa4ddf` (phase-52 operator flip kit, no code changes) ← `27e70c6` (phase-51 ops readiness) ← `5278fec` (phase-50 canary wrapper) ← `b119bc7` (phase-49b disclosure) ← `24055ed` (phase-49a runtime wiring).
 
 **Phase 52 status (unchanged by Phase 53 / 54 / 55):** operator flip kit prepared; the production flip has NOT been executed by the agent. None of Phase 53, 54, or 55 satisfies any of the kit's operator-side prerequisites; none is the 10% ramp evaluation.
@@ -12,7 +12,7 @@
 
 Phase 55 is a curriculum content phase: two net-new authored projects shipped sequentially with explicit user review pause between. The catalog had not received net-new content since Phase 41; intake identified two specific gaps (applied-LLM-engineer had no structured-output-safety project for the 2026 production reality of jailbreak/injection/schema-fuzz pressure; analytics-engineer had a thin intermediate slot and zero semantic-layer coverage). One project per gap, in that order.
 
-**Visibility status (terminal):** Both C1 and C2 remain `learner_visible=false` pending manual publish-readiness checklist sign-off. No agent-driven visibility flip.
+**Visibility status (terminal):** **Both C1 and C2 are now `learner_visible=true`** after the per-project publish-readiness checklist passed with zero blockers and zero nits each. Manual sign-off complete. Visible catalog count 58 → **60**.
 
 ### What landed — projects
 
@@ -44,10 +44,11 @@ Zero touches to: signed-envelope canary path, `/check`, `/submit`, `lib/executio
 | Gate | Result | Delta |
 |---|---|---|
 | `pnpm run typecheck` (libs + 4 artifacts + `check:no-heuristic-runtime`) | OK | unchanged |
-| `audit:authoring` (visible publish-ready) | **58 / 58** | unchanged (both new projects hidden) |
-| `audit:pedagogy` | both C1 + C2 fully enriched | +2 hidden |
+| `audit:authoring` (visible publish-ready) | **60 / 60** | +2 (C1 + C2 now visible) |
+| `audit:pedagogy` | both C1 + C2 fully enriched | +2 visible |
 | `audit:difficulty-labels` | 0 anchor mismatches (Rule 1 holds) | unchanged |
-| `wave-report` | **58 / 58** ≥70 | +1 (C2 included) |
+| `wave-report` | **58 / 58** ≥70 | unchanged (C-series outside Phase-7 wave scope) |
+| `check:no-heuristic-runtime` | OK | unchanged |
 | `@workspace/curriculum-quality` vitest | 93 / 93 | unchanged |
 | `@workspace/execution-core` vitest | 83 / 83 | unchanged |
 | `@workspace/api-server` vitest | 395 / 395 | unchanged |
