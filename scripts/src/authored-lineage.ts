@@ -103,6 +103,14 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   // guardrails / structured-output-safety gap. Deterministic (no API
   // keys), 8 steps, 7-of-8 server-enforced validation kinds.
   "applied-llm-engineer-guardrails-and-structured-output-safety":          "applied-llm-engineer",
+  // Phase 55 — Net-New Project Production Pilot (C2). Net-new INTERMEDIATE
+  // analytics-engineer project closing the catalog-wide semantic-layer /
+  // metrics-definition gap (zero coverage anywhere prior to C2). Built
+  // on dbt-core + DuckDB end-to-end on a laptop (no cloud, no API keys),
+  // 8 steps, validation-kind distribution biased toward strong runtime
+  // feedback (4×sql_resultset + 1×csv_set_equal client-provisional, 2×
+  // exact + 1×contains enforced; 0 contract-shaped).
+  "analytics-engineer-semantic-layer-with-dbt-and-duckdb":                 "analytics-engineer",
 };
 
 /**
@@ -316,6 +324,7 @@ export const SEED_FACTORY_FOR_SLUG_PHASE41: Record<string, string> = {
  */
 export const NET_NEW_FOR_SLUG_PHASE55: Record<string, string> = {
   "applied-llm-engineer-guardrails-and-structured-output-safety": "f550c1a1-b2c3-4d4e-9f50-1a2b3c4d5e6f",
+  "analytics-engineer-semantic-layer-with-dbt-and-duckdb":        "c2dbc2db-d4e5-4f6a-9051-2b3c4d5e6f70",
 };
 
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
