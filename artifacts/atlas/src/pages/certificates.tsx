@@ -82,7 +82,14 @@ export default function Certificates() {
           Certificates
         </h1>
         <p className="text-muted-foreground mt-2">
-          Every completed project is a portfolio-ready certificate. Share them on LinkedIn or your résumé.
+          Every completed project is a portfolio-ready certificate. Share them on LinkedIn or your résumé.{" "}
+          <Link
+            href="/how-atlas-grades"
+            className="underline-offset-2 hover:underline hover:text-foreground"
+            data-testid="certs-how-grading-works"
+          >
+            How Atlas grades →
+          </Link>
         </p>
         {portfolio && items.length > 0 && (
           <div
@@ -127,7 +134,7 @@ export default function Certificates() {
             </div>
             <h3 className="text-lg font-semibold mb-2">No certificates yet</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-6">
-              Finish your first project to earn a shareable certificate showing the roles you're now ready for.
+              Finish your first project to earn a shareable certificate showing the roles this project prepares you for.
             </p>
             <Button asChild>
               <Link href="/courses/data-engineering">Start your first project</Link>

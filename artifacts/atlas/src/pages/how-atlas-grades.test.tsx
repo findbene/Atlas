@@ -20,6 +20,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Router as WouterRouter } from "wouter";
 import HowAtlasGrades from "./how-atlas-grades";
+import { BANNED_H1H2_PHRASES } from "../lib/banned-h1h2-phrases";
 
 function renderPage() {
   return render(
@@ -61,26 +62,9 @@ describe("How Atlas Grades — Phase 49 disclosure", () => {
     const body = document.body.textContent?.toLowerCase() ?? "";
     // Banned: any wording that would imply a stronger guarantee than
     // "the output matched what was expected and the record was issued
-    // by Atlas." Each entry below would constitute an H1/H2 overclaim.
-    const banned = [
-      "tamper-proof",
-      "tamperproof",
-      "cheat-proof",
-      "cheatproof",
-      "fraud-proof",
-      "verified authorship",
-      "proven authorship",
-      "proves you wrote",
-      "guarantees you wrote",
-      "guaranteed authentic",
-      "proven mastery",
-      "certifies mastery",
-      "anti-cheat",
-      "plagiarism-proof",
-      "100% verified",
-      "independently verified",
-    ];
-    for (const phrase of banned) {
+    // by Atlas." Each entry would constitute an H1/H2 overclaim.
+    // Source of truth: `src/lib/banned-h1h2-phrases.ts`.
+    for (const phrase of BANNED_H1H2_PHRASES) {
       expect(body).not.toContain(phrase);
     }
   });

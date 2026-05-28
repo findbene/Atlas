@@ -305,8 +305,8 @@ export default function Home() {
               },
               {
                 step: "03",
-                title: "Earn proof",
-                body: "Finish the project, earn XP and a certificate, and walk away with resume bullets recruiters care about.",
+                title: "Earn the record",
+                body: "Finish the project, earn XP and an evidence-backed completion certificate, and walk away with resume bullets recruiters care about.",
                 icon: <Award className="h-5 w-5" />,
               },
             ].map((s) => (

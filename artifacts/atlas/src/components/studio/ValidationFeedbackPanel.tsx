@@ -219,8 +219,19 @@ export function ValidationFeedbackPanel({
 
               {showCompletionBlock && (
                 <div className="mt-3 pt-3 border-t border-emerald-500/20" data-testid="completion-block">
-                  <div className="font-bold text-emerald-300 mb-2">
-                    🎉 Project Complete! Excellent work!
+                  <div className="flex items-baseline justify-between gap-3 mb-2">
+                    <div className="font-bold text-emerald-300">
+                      🎉 Project Complete! Excellent work!
+                    </div>
+                    <a
+                      href="/how-atlas-grades"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground underline-offset-2 hover:underline shrink-0"
+                      data-testid="completion-how-grading-works"
+                    >
+                      How Atlas grades →
+                    </a>
                   </div>
                   {project?.jobOutcomes && (
                     <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3 mt-3">

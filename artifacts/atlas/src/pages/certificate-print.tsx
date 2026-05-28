@@ -88,10 +88,19 @@ export default function CertificatePrint() {
             Back to certificates
           </Link>
         </Button>
-        <Button onClick={() => window.print()} size="sm">
-          <Printer className="h-4 w-4 mr-1.5" />
-          Print / Save as PDF
-        </Button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/how-atlas-grades"
+            className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            data-testid="cert-print-how-grading-works"
+          >
+            How Atlas grades →
+          </Link>
+          <Button onClick={() => window.print()} size="sm">
+            <Printer className="h-4 w-4 mr-1.5" />
+            Print / Save as PDF
+          </Button>
+        </div>
       </div>
 
       <div
@@ -144,7 +153,7 @@ export default function CertificatePrint() {
 
             {skills.length > 0 && (
               <p className="mt-4 text-xs text-neutral-600 max-w-2xl leading-relaxed">
-                <span className="font-semibold">Skills demonstrated:</span>{" "}
+                <span className="font-semibold">Skills practiced in this project:</span>{" "}
                 {skills.slice(0, 10).join(" · ")}
               </p>
             )}

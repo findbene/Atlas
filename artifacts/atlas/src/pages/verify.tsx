@@ -114,7 +114,7 @@ export default function Verify() {
               <CheckCircle2 className="h-7 w-7 text-emerald-400" />
             </div>
             <p className="text-xs uppercase tracking-[0.25em] text-emerald-400 font-semibold">
-              Verified certificate
+              Verified completion record
             </p>
 
             <div className="flex items-center justify-center gap-3 mt-6">
@@ -194,7 +194,14 @@ export default function Verify() {
               <p className="text-[10px] text-muted-foreground mt-4 leading-relaxed">
                 Each submission is recorded as an evidence-backed completion
                 record at the time the learner passed the step. Counts only —
-                no learner submission content is exposed.
+                no learner submission content is exposed.{" "}
+                <Link
+                  href="/how-atlas-grades"
+                  className="underline-offset-2 hover:underline text-muted-foreground hover:text-foreground"
+                  data-testid="verify-how-grading-works"
+                >
+                  How Atlas verifies →
+                </Link>
               </p>
             </div>
 
