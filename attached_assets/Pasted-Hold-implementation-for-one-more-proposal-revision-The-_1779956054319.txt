@@ -1,0 +1,52 @@
+Hold implementation for one more proposal revision. The Phase 56 direction is approved in principle, but the proposal needs tightening before code.
+
+Please revise the pre-build proposal with these changes:
+
+1. Correct the legacy behavior description:
+
+   * If `validationConfig` is `{}` and `expectedOutput` exists, the current branch can use expectedOutput as fallback.
+   * If `validationConfig` is missing/null entirely, preserve the current generic/fallthrough behavior exactly.
+   * Do not accidentally make missing config stricter in Phase 56.
+
+2. Defer regex support out of Phase 56 unless there is a compelling reason.
+
+   * Phase 56 should focus on literal structured `contains`: `needle`, `needles[]`, `match`, and `caseInsensitive`.
+   * Regex introduces ReDoS/safety complexity and no current project needs it for this first hardening slice.
+   * If regex is kept, it must be explicitly marked as non-authoring-default and not used by any project in this phase, but my preference is to defer regex to a later separate phase.
+
+3. Replace “Zod warning” language with “audit advisory.”
+
+   * Zod should parse or reject.
+   * Non-blocking warnings like `needle` + `needles`, `match:"any"`, or future `regex:true` should be emitted by the authoring audit, not by pretending Zod has warning semantics.
+
+4. Clarify `needle` + `needles` precedence:
+
+   * Runtime: `needles[]` wins.
+   * Audit: advisory only.
+   * Legacy behavior remains unchanged when only `needle` is present.
+
+5. Clarify `match` without `needles`:
+
+   * Runtime: ignored when only `needle` is present.
+   * Audit: advisory only.
+   * No runtime failure for legacy-compatible shapes.
+
+6. Keep the first implementation pass project-content-neutral:
+
+   * no authored project edits
+   * no C1/C2 opt-in yet
+   * no DB row changes
+   * only runtime/schema/audit/tests/docs
+
+7. Keep hard stops:
+
+   * no canary execution
+   * no env vars
+   * no schema/migration
+   * no frontend
+   * no OpenAPI/codegen
+   * no `/check` or `/submit` route rewrite
+   * no cert/portfolio language changes
+   * no `csv_set_equal` or `sql_resultset`
+
+After revising, give me the updated exact Phase 56 proposal. Do not implement until I approve the revised proposal.
