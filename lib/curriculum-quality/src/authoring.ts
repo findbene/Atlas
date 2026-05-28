@@ -90,7 +90,72 @@ export function validationConfig(
   description: string,
   spec: Record<string, unknown>,
 ): AuthoredValidationConfig {
+  // Phase 56 — kind-specific structural validation for `contains`.
+  // Legacy `{ needle }` and empty `{}` (expectedOutput fallback) shapes
+  // remain accepted. New structured fields are validated here so authoring
+  // failures surface at construction time, not at runtime grader entry.
+  // Other kinds remain untouched (pass-through spec).
+  if (kind === "contains") {
+    assertValidContainsSpec(spec);
+  }
   return { kind, description, spec };
+}
+
+// ── Phase 56 — `contains` structured-spec validator ────────────────────────
+//
+// Authoring-time guard for the `contains` validation kind. Mirrors the
+// runtime semantics matrix in `artifacts/api-server/src/lib/grading.ts`
+// (`matchContains`). Zod has no first-class "warning" channel — this
+// helper parses-or-rejects. Non-blocking concerns (e.g. `needle` AND
+// `needles` both set, `match: "any"`) are emitted by the authoring audit
+// as advisories, NOT raised here. See
+// `docs/phases/phase-56-contains-hardening.md` for the matrix.
+
+/** Maximum number of needles in a single `needles[]` entry. Mirrors the
+ *  runtime cap in `matchContains` (`MAX_NEEDLES = 16`). */
+export const CONTAINS_MAX_NEEDLES = 16;
+
+/** Shape accepted for a `contains` validation spec. All fields optional;
+ *  legacy `{ needle }` and `{}` (expectedOutput-fallback) shapes remain
+ *  valid. Runtime ignores unknown keys for forward-compatibility. */
+export type ContainsSpec = {
+  needle?: string;
+  needles?: string[];
+  match?: "all" | "any";
+  caseInsensitive?: boolean;
+};
+
+function assertValidContainsSpec(spec: Record<string, unknown>): void {
+  if (spec.needle !== undefined && typeof spec.needle !== "string") {
+    throw new Error(
+      `contains spec: 'needle' must be a string when present (got ${typeof spec.needle}).`,
+    );
+  }
+
+  if (spec.needles !== undefined) {
+    if (!Array.isArray(spec.needles)) {
+      throw new Error("contains spec: 'needles' must be an array of strings.");
+    }
+    if (spec.needles.length === 0) {
+      throw new Error("contains spec: 'needles' must contain at least one entry (use legacy 'needle' for a single string).");
+    }
+    if (spec.needles.length > CONTAINS_MAX_NEEDLES) {
+      throw new Error(`contains spec: 'needles' must contain at most ${CONTAINS_MAX_NEEDLES} entries.`);
+    }
+    if (!spec.needles.every((n) => typeof n === "string" && n.length > 0)) {
+      throw new Error("contains spec: every entry in 'needles' must be a non-empty string.");
+    }
+  }
+
+  if (spec.match !== undefined) {
+    if (spec.match !== "all" && spec.match !== "any") {
+      throw new Error(`contains spec: 'match' must be \"all\" or \"any\" (got ${JSON.stringify(spec.match)}).`);
+    }
+  }
+
+  if (spec.caseInsensitive !== undefined && typeof spec.caseInsensitive !== "boolean") {
+    throw new Error(`contains spec: 'caseInsensitive' must be a boolean when present (got ${typeof spec.caseInsensitive}).`);
+  }
 }
 
 // ── portfolio artifact ──────────────────────────────────────────────────────

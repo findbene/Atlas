@@ -67,6 +67,61 @@ type ProjectFinding =
   | "hint-leak-suspected";
 
 /**
+ * Phase 56 — `contains` structured-spec advisory. Informational only.
+ * NOT a finding; NOT counted toward `publishReady`. Surfaces non-blocking
+ * concerns flagged by the runtime matcher in
+ * `artifacts/api-server/src/lib/grading.ts` (`matchContains`):
+ *   - `needle` AND `needles` both set → `needle` will be silently ignored.
+ *   - `match` set without `needles[]` → `match` will be silently ignored.
+ *   - `match: "any"` → looser combinator; reviewer should confirm intent.
+ * See `docs/phases/phase-56-contains-hardening.md`.
+ */
+type ContainsAdvisory = {
+  stepNumber: number;
+  kind: "needle-and-needles" | "match-without-needles" | "match-any";
+  detail: string;
+};
+
+function detectContainsAdvisories(
+  stepNumber: number,
+  validationType: string | null,
+  validationConfig: unknown,
+): ContainsAdvisory[] {
+  if (validationType !== "contains") return [];
+  if (validationConfig === null || typeof validationConfig !== "object") return [];
+  const c = validationConfig as {
+    needle?: unknown;
+    needles?: unknown;
+    match?: unknown;
+  };
+  const out: ContainsAdvisory[] = [];
+  const hasNeedle = typeof c.needle === "string";
+  const hasNeedles = Array.isArray(c.needles) && c.needles.length > 0;
+  if (hasNeedle && hasNeedles) {
+    out.push({
+      stepNumber,
+      kind: "needle-and-needles",
+      detail: "`needle` and `needles[]` both set — runtime: `needles` wins, `needle` is ignored.",
+    });
+  }
+  if (c.match !== undefined && !hasNeedles) {
+    out.push({
+      stepNumber,
+      kind: "match-without-needles",
+      detail: "`match` set without `needles[]` — runtime: `match` is silently ignored on the legacy single-needle path.",
+    });
+  }
+  if (c.match === "any" && hasNeedles) {
+    out.push({
+      stepNumber,
+      kind: "match-any",
+      detail: "`match: \"any\"` — looser combinator (≥1 needle present passes). Reviewer please confirm intent.",
+    });
+  }
+  return out;
+}
+
+/**
  * Phase 43B-prime — Per-step submission-shape advisory. Informational only.
  * NOT added to `ProjectFinding`; NOT counted toward `publishReady`. Exists so
  * the audit can surface, per visible step, when a `validation_type='json_equal'`
@@ -109,6 +164,8 @@ type ProjectReport = {
   jsonEqualSubmissionShapeAdvisories: JsonEqualSubmissionShapeAdvisory[];
   /** Phase 43B-prime — informational only; never affects publishReady. */
   validationSpecShapeAdvisories: ValidationSpecShapeAdvisory[];
+  /** Phase 56 — informational only; never affects publishReady. */
+  containsAdvisories: ContainsAdvisory[];
 };
 
 const MIN_STEPS = 4;
@@ -159,6 +216,7 @@ async function auditProject(
       validationTypes: [],
       jsonEqualSubmissionShapeAdvisories: [],
       validationSpecShapeAdvisories: [],
+      containsAdvisories: [],
     };
   }
 
@@ -180,9 +238,10 @@ async function auditProject(
   }
 
   let allSelfAttest = true;
-  // Phase 43B-prime — informational, NOT findings, NOT in publishReady.
+  // Phase 43B-prime + Phase 56 — informational, NOT findings, NOT in publishReady.
   const jsonEqualSubmissionShapeAdvisories: JsonEqualSubmissionShapeAdvisory[] = [];
   const validationSpecShapeAdvisories: ValidationSpecShapeAdvisory[] = [];
+  const containsAdvisories: ContainsAdvisory[] = [];
   for (const step of steps) {
     if (!step.validationType) findings.push("step-missing-validation-type");
     if (step.validationType !== "self_attest") allSelfAttest = false;
@@ -219,6 +278,14 @@ async function auditProject(
         legacyKeys,
       });
     }
+    // Phase 56 — `contains` structured-spec advisories (informational only).
+    containsAdvisories.push(
+      ...detectContainsAdvisories(
+        step.stepNumber,
+        step.validationType,
+        step.validationConfig,
+      ),
+    );
   }
   if (allSelfAttest && steps.length > 0) findings.push("all-steps-self-attest");
 
@@ -236,6 +303,7 @@ async function auditProject(
     validationTypes: steps.map((s) => s.validationType ?? null),
     jsonEqualSubmissionShapeAdvisories,
     validationSpecShapeAdvisories,
+    containsAdvisories,
   };
 }
 
@@ -243,8 +311,12 @@ function formatReport(report: ProjectReport): string {
   const visTag = report.visible ? "visible" : "hidden ";
   const status = report.publishReady ? "✓ publish-ready" : "✗ gaps";
   const head = `${visTag} ${report.course ?? "?".padEnd(20)} ${report.slug} (${report.stepCount} steps)  ${status}`;
-  if (report.findings.length === 0) return head;
-  const lines = [head, ...report.findings.map((f) => `    - ${f}`)];
+  const lines = [head];
+  for (const f of report.findings) lines.push(`    - ${f}`);
+  // Phase 56 — surface `contains` advisories (informational; do NOT flip publish-ready).
+  for (const a of report.containsAdvisories) {
+    lines.push(`    · [advisory] step ${a.stepNumber} contains: ${a.detail}`);
+  }
   return lines.join("\n");
 }
 

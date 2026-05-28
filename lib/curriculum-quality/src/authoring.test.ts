@@ -151,3 +151,41 @@ describe("authoring helpers", () => {
     expect(card.overall).toBeGreaterThanOrEqual(70);
   });
 });
+
+
+// ── Phase 56 — `contains` structured-spec validator ────────────────────────
+describe("validationConfig(contains) — Phase 56 structured-spec validator", () => {
+  const ok = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("contains", "desc", spec)).not.toThrow();
+  const bad = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("contains", "desc", spec)).toThrow(match);
+
+  it("accepts legacy { needle }", () => ok({ needle: "foo" }));
+  it("accepts legacy {} (expectedOutput fallback)", () => ok({}));
+  it("accepts new full shape", () =>
+    ok({ needles: ["a", "b"], match: "any", caseInsensitive: true }));
+  it("accepts needles + match:'all'", () => ok({ needles: ["a"], match: "all" }));
+  it("accepts needle + caseInsensitive", () => ok({ needle: "FOO", caseInsensitive: true }));
+
+  it("rejects needle of non-string type", () =>
+    bad({ needle: 5 as unknown as string }, /'needle' must be a string/));
+  it("rejects empty needles[]", () =>
+    bad({ needles: [] }, /at least one entry/));
+  it("rejects needles[] over the 16-entry cap", () =>
+    bad({ needles: Array.from({ length: 17 }, (_, i) => `n${i}`) }, /at most 16 entries/));
+  it("rejects non-string entry inside needles[]", () =>
+    bad({ needles: ["a", 5 as unknown as string] }, /non-empty string/));
+  it("rejects empty-string entry inside needles[]", () =>
+    bad({ needles: ["a", ""] }, /non-empty string/));
+  it("rejects invalid match value", () =>
+    bad({ needles: ["a"], match: "weird" as unknown as "all" }, /'match' must be "all" or "any"/));
+  it("rejects non-boolean caseInsensitive", () =>
+    bad({ needle: "x", caseInsensitive: "yes" as unknown as boolean }, /'caseInsensitive' must be a boolean/));
+
+  it("does NOT reject needle + needles together (runtime: needles wins; audit advisory only)", () =>
+    ok({ needle: "x", needles: ["y"] }));
+  it("does NOT reject match without needles (runtime: match silently ignored; audit advisory only)", () =>
+    ok({ needle: "x", match: "any" }));
+  it("does NOT reject match:'any' (runtime: looser combinator; audit advisory only)", () =>
+    ok({ needles: ["a"], match: "any" }));
+});
