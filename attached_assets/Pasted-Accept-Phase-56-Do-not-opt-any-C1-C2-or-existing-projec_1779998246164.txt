@@ -1,0 +1,63 @@
+Accept Phase 56. Do not opt any C1/C2 or existing project steps into the new `contains` shape yet.
+
+Next start Phase 57 as a read-only audit and proposal phase for `csv_set_equal` hardening.
+
+Goal:
+Convert `csv_set_equal` from client-provisional feedback into a stronger, more trustworthy validation path, while preserving existing learner behavior and avoiding broad grading rewrites.
+
+Start read-only. Do not implement until I approve the proposal.
+
+Context:
+
+* Phase 56 finished `contains` hardening successfully.
+* We are finishing all core grader/platform hardening before high-speed project waves.
+* C2 is now visible and uses `csv_set_equal` once.
+* Several visible projects depend heavily on `csv_set_equal`, including beginner SQL/Python/data projects.
+* Current behavior: DuckDB-WASM/client feedback is real, but server commit-grader auto-passes.
+
+Phase 57 audit/proposal deliverables:
+
+1. count all visible `csv_set_equal` steps and projects
+2. identify highest-risk projects relying on it
+3. document current client and server behavior
+4. inspect current DuckDB-WASM/csv result comparison implementation
+5. propose canonical row-set format:
+
+   * headers
+   * row order
+   * duplicate rows
+   * whitespace
+   * null/empty strings
+   * numeric strings vs numbers
+   * quoting
+   * case sensitivity
+6. decide whether to use:
+
+   * signed RunEnvelope output
+   * server-side canonical comparison
+   * both
+7. define exact validationConfig additions, if any
+8. define backwards compatibility behavior
+9. define `/check` vs `/submit` behavior for this kind
+10. define test matrix
+11. define rollback plan
+12. list exact files likely to change
+13. recommend whether implementation should happen in Phase 57 or be split into 57A/57B
+
+Hard stops:
+
+* no code changes during audit/proposal
+* no project content changes
+* no DB row changes
+* no schema/migration unless proven necessary and approved
+* no frontend changes unless explicitly proposed and approved
+* no OpenAPI/codegen unless explicitly proposed and approved
+* no signed-envelope production canary execution
+* no env-var changes
+* no cert/portfolio language upgrade
+* preserve Phase 52 as operator-pending
+
+End with a clear recommendation:
+A. implement `csv_set_equal` hardening now,
+B. split design and implementation,
+C. defer because prerequisites are missing.
