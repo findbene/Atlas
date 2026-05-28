@@ -4,7 +4,12 @@
  * to the legacy inline switch.
  */
 import { describe, expect, it } from "vitest";
-import { gradeSubmission, NO_CHECK_STEP_TYPES } from "./grading";
+import {
+  gradeSubmission,
+  gradeCsvSetEqual,
+  computeCsvSetEqualHash,
+  NO_CHECK_STEP_TYPES,
+} from "./grading";
 
 const step = (over: Partial<Parameters<typeof gradeSubmission>[0]> = {}) => ({
   validationType: null,
@@ -227,6 +232,366 @@ describe("gradeSubmission", () => {
         "foo",
       );
       expect(r.passed).toBe(false);
+    });
+  });
+
+  // ── Phase 57A — csv_set_equal DARK comparator ────────────────────────
+  describe("csv_set_equal (Phase 57A — dark server-side comparator)", () => {
+    const cstep = (spec: unknown) =>
+      step({
+        validationType: "csv_set_equal",
+        validationConfig: { kind: "csv_set_equal", spec, description: "t" } as Parameters<typeof gradeSubmission>[0]["validationConfig"],
+      });
+    const okSub = (columns: string[], rows: unknown[][]) =>
+      JSON.stringify({ columns, rows });
+
+    it("BC: validationConfig=null → generic 'Step completed.' (outer guard preserved)", () => {
+      const r = gradeSubmission(
+        step({ validationType: "csv_set_equal", validationConfig: null }),
+        "anything",
+      );
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: spec without serverGrade flag → auto-pass (NO behavior change for live rows)", () => {
+      const r = gradeSubmission(cstep({ columns: ["a"], expectedRows: [[1]] }), "garbage");
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: serverGrade=false → auto-pass", () => {
+      const r = gradeSubmission(cstep({ serverGrade: false, columns: ["a"], expectedRows: [[1]] }), "garbage");
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: serverGrade non-boolean (e.g. 'yes') → auto-pass (runtime treats !==true as opt-out)", () => {
+      const r = gradeSubmission(cstep({ serverGrade: "yes", columns: ["a"], expectedRows: [[1]] }), "garbage");
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: shape E (expectedClean/expectedRejects) with no serverGrade → auto-pass", () => {
+      const r = gradeSubmission(
+        cstep({ cleanColumns: ["a"], expectedClean: "fixtures/c.csv", rejectColumns: ["a"], expectedRejects: "fixtures/r.csv" }),
+        "anything",
+      );
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: existing fixture-only shape (expectedCsv) with no serverGrade → auto-pass", () => {
+      const r = gradeSubmission(cstep({ columns: ["a"], expectedCsv: "fixtures/x.csv", orderSensitive: true }), "x");
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    // ── opted-in: malformed specs fail closed ──────────────────────────
+    it("malformed: serverGrade=true but no expectedRows/expectedRowsHash → MALFORMED", () => {
+      const r = gradeSubmission(cstep({ serverGrade: true, columns: ["a"] }), okSub(["a"], [[1]]));
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: serverGrade=true but columns missing → MALFORMED", () => {
+      const r = gradeSubmission(cstep({ serverGrade: true, expectedRows: [[1]] }), okSub(["a"], [[1]]));
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: serverGrade=true with empty columns array → MALFORMED", () => {
+      const r = gradeSubmission(cstep({ serverGrade: true, columns: [], expectedRows: [] }), okSub([], []));
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: expectedRowsHash with wrong format → MALFORMED", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRowsHash: "not-a-hex" }),
+        okSub(["a"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: dedupe with invalid value → MALFORMED", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]], dedupe: "weird" }),
+        okSub(["a"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: non-boolean flag (e.g. trimStrings:'yes') → MALFORMED", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]], trimStrings: "yes" }),
+        okSub(["a"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: orderSensitive=true with hash-only (no expectedRows) → MALFORMED", () => {
+      const hash = computeCsvSetEqualHash(["a"], [[1]]);
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRowsHash: hash, orderSensitive: true }),
+        okSub(["a"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    // ── opted-in: submission-shape failures ────────────────────────────
+    it("submission: empty string fails closed with helpful feedback", () => {
+      const r = gradeSubmission(cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }), "");
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/submission is empty/i);
+    });
+
+    it("submission: invalid JSON fails closed", () => {
+      const r = gradeSubmission(cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }), "not json {");
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/not valid JSON/i);
+    });
+
+    it("submission: wrong shape (missing rows) fails closed", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }),
+        JSON.stringify({ columns: ["a"] }),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/columns.*rows/i);
+    });
+
+    // ── happy path comparisons ─────────────────────────────────────────
+    it("PASS: exact match with default flags", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a", "b"], expectedRows: [[1, "x"], [2, "y"]] }),
+        okSub(["a", "b"], [[1, "x"], [2, "y"]]),
+      );
+      expect(r).toEqual({ passed: true, feedback: "Correct!" });
+    });
+
+    it("PASS: rows out of order with default (multiset)", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [2], [3]] }),
+        okSub(["a"], [[3], [1], [2]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    it("FAIL: rows out of order with orderSensitive=true", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [2]], orderSensitive: true }),
+        okSub(["a"], [[2], [1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/ordered/i);
+    });
+
+    it("PASS: orderSensitive=true with correct order", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [2]], orderSensitive: true }),
+        okSub(["a"], [[1], [2]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── header checks ──────────────────────────────────────────────────
+    it("FAIL: column count mismatch", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a", "b"], expectedRows: [[1, 2]] }),
+        okSub(["a"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/column count/i);
+    });
+
+    it("FAIL: column name mismatch (case-sensitive default)", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["Name"], expectedRows: [["x"]] }),
+        okSub(["name"], [["x"]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("PASS: column name with caseInsensitive=true", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["Name"], expectedRows: [["x"]], caseInsensitive: true }),
+        okSub(["NAME"], [["x"]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── duplicate rows / dedupe ────────────────────────────────────────
+    it("FAIL: multiset default — duplicate cardinality matters", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [1], [2]] }),
+        okSub(["a"], [[1], [2]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/missing/i);
+    });
+
+    it("PASS: dedupe='both' collapses duplicates on both sides", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [1], [2]], dedupe: "both" }),
+        okSub(["a"], [[1], [2]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    it("PASS: dedupe='expected' collapses expected duplicates; submission must match deduped tally", () => {
+      // Semantics: dedupe='expected' removes duplicate rows from the
+      // expected set only. Submission is then multiset-compared against
+      // the deduped expected — so [[1],[2]] passes against authored
+      // [[1],[1],[2]] when dedupe='expected', but [[1],[1],[2]] would
+      // fail (extra duplicate row).
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [1], [2]], dedupe: "expected" }),
+        okSub(["a"], [[1], [2]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── whitespace ─────────────────────────────────────────────────────
+    it("FAIL: trailing space without trimStrings", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [["x"]] }),
+        okSub(["a"], [["x "]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("PASS: trailing space with trimStrings=true", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [["x"]], trimStrings: true }),
+        okSub(["a"], [["x "]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── null vs empty ──────────────────────────────────────────────────
+    it("FAIL: null vs '' distinct by default", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[null]] }),
+        okSub(["a"], [[""]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("PASS: nullEqualsEmpty=true collapses null and ''", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[null]], nullEqualsEmpty: true }),
+        okSub(["a"], [[""]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── numeric coercion ───────────────────────────────────────────────
+    it("FAIL: '42' vs 42 distinct by default", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[42]] }),
+        okSub(["a"], [["42"]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("PASS: coerceNumericStrings=true treats '42' as 42", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[42]], coerceNumericStrings: true }),
+        okSub(["a"], [["42"]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── case-insensitive cell values ───────────────────────────────────
+    it("PASS: caseInsensitive=true on string cells", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [["HELLO"]], caseInsensitive: true }),
+        okSub(["a"], [["hello"]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── row width / extras ─────────────────────────────────────────────
+    it("FAIL: row width mismatch", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a", "b"], expectedRows: [[1, 2]] }),
+        okSub(["a", "b"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/row width/i);
+    });
+
+    // ── architect-fix: deeper malformed-input coverage ────────────────
+    it("submission: rows containing nested object/array cells fail closed", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }),
+        JSON.stringify({ columns: ["a"], rows: [[{ x: 1 }]] }),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/arrays of cells/i);
+    });
+
+    it("submission: rows containing array-cell fail closed", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }),
+        JSON.stringify({ columns: ["a"], rows: [[[1, 2]]] }),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/arrays of cells/i);
+    });
+
+    it("malformed (opt-in): expectedRows width does NOT match columns count → MALFORMED", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a", "b"], expectedRows: [[1]] }),
+        okSub(["a", "b"], [[1, 2]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("FAIL: extra unexpected row", () => {
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }),
+        okSub(["a"], [[1], [99]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/unexpected/i);
+    });
+
+    // ── hash-only path ────────────────────────────────────────────────
+    it("PASS: hash-only path with matching dataset", () => {
+      const cols = ["a", "b"];
+      const rows = [[1, "x"], [2, "y"]];
+      const hash = computeCsvSetEqualHash(cols, rows);
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: cols, expectedRowsHash: hash }),
+        okSub(cols, rows),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    it("FAIL: hash-only path with differing dataset", () => {
+      const cols = ["a"];
+      const hash = computeCsvSetEqualHash(cols, [[1]]);
+      const r = gradeSubmission(
+        cstep({ serverGrade: true, columns: cols, expectedRowsHash: hash }),
+        okSub(cols, [[2]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/fingerprint/i);
+    });
+
+    it("hash is order-insensitive (multiset fingerprint)", () => {
+      const h1 = computeCsvSetEqualHash(["a"], [[1], [2], [3]]);
+      const h2 = computeCsvSetEqualHash(["a"], [[3], [2], [1]]);
+      expect(h1).toBe(h2);
+    });
+
+    // ── direct helper symmetry with dispatch ─────────────────────────
+    it("gradeCsvSetEqual called directly returns same outcome as dispatch", () => {
+      const spec = { serverGrade: true, columns: ["a"], expectedRows: [[1]] };
+      const direct = gradeCsvSetEqual(spec, okSub(["a"], [[1]]));
+      const viaDispatch = gradeSubmission(cstep(spec), okSub(["a"], [[1]]));
+      expect(direct).toEqual(viaDispatch);
     });
   });
 

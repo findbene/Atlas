@@ -98,6 +98,9 @@ export function validationConfig(
   if (kind === "contains") {
     assertValidContainsSpec(spec);
   }
+  if (kind === "csv_set_equal") {
+    assertValidCsvSetEqualSpec(spec);
+  }
   return { kind, description, spec };
 }
 
@@ -155,6 +158,166 @@ function assertValidContainsSpec(spec: Record<string, unknown>): void {
 
   if (spec.caseInsensitive !== undefined && typeof spec.caseInsensitive !== "boolean") {
     throw new Error(`contains spec: 'caseInsensitive' must be a boolean when present (got ${typeof spec.caseInsensitive}).`);
+  }
+}
+
+// ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────
+//
+// Authoring-time guard. Mirrors the runtime semantics in
+// `artifacts/api-server/src/lib/grading.ts` (`gradeCsvSetEqual`):
+//   - When `serverGrade: true`, REQUIRE `columns` + (`expectedRows` OR `expectedRowsHash`).
+//   - When `serverGrade` is absent or false, accept legacy fixture-based
+//     shapes (e.g. `{columns, expectedCsv, orderSensitive?}`) and Phase-7
+//     `{cleanColumns, expectedClean, rejectColumns, expectedRejects}`
+//     (Shape E, deferred from Phase 57A) — only validate the types of any
+//     known new fields that are present.
+//   - All optional new fields strictly type-checked: booleans must be
+//     booleans (no coercion), `dedupe` must be one of the three literals,
+//     `expectedRowsHash` must be 64-char lowercase hex.
+//   - Unknown spec keys are tolerated for forward-compatibility (matches
+//     the Phase 56 contains pattern).
+
+/** Acceptable values for `expectedRows[][]` cells. Mirrors `RunCapture` row cells. */
+export type CsvSetEqualCell = string | number | boolean | null;
+export type CsvSetEqualRow = ReadonlyArray<CsvSetEqualCell>;
+
+/** Shape accepted for a `csv_set_equal` validation spec. All fields optional. */
+export type CsvSetEqualSpec = {
+  /** Opt-in flag for server-side grading. When absent or false, server
+   *  preserves pre-Phase-57A auto-pass behavior (BC). */
+  serverGrade?: boolean;
+  /** Expected column order (required when `serverGrade: true`). */
+  columns?: string[];
+  /** Inline expected rows (positional cells matching `columns`). */
+  expectedRows?: CsvSetEqualRow[];
+  /** SHA-256 (64 lowercase hex chars) of the canonical multiset fingerprint.
+   *  Compute with `pnpm --filter @workspace/scripts run hash:csv-rows`. */
+  expectedRowsHash?: string;
+  /** When true, row order is enforced positionally. Default false (multiset). */
+  orderSensitive?: boolean;
+  /** When true, string cells are trimmed before comparison. Default false. */
+  trimStrings?: boolean;
+  /** When true, null and "" are treated as equal (both → null). Default false. */
+  nullEqualsEmpty?: boolean;
+  /** When true, decimal-string cells are coerced to numbers. Default false. */
+  coerceNumericStrings?: boolean;
+  /** When true, string cells AND headers are lowercased. Default false. */
+  caseInsensitive?: boolean;
+  /** Duplicate-row handling. "expected" dedupes the expected side only;
+   *  "both" dedupes both sides; false (default) preserves multiset semantics. */
+  dedupe?: "expected" | "both" | false;
+};
+
+function assertValidCsvSetEqualSpec(spec: Record<string, unknown>): void {
+  const serverGrade = spec.serverGrade;
+
+  // `serverGrade` type itself is ALWAYS lint-checked at authoring time.
+  // Runtime is unaffected (it treats anything !== true as opt-out, which
+  // is safe), but rejecting non-boolean values here catches typos like
+  // `serverGrade: "true"` that would silently leave a step on the BC
+  // auto-pass path forever. This is a strictly additive author lint that
+  // does NOT diverge runtime semantics.
+  if (serverGrade !== undefined && typeof serverGrade !== "boolean") {
+    throw new Error(
+      `csv_set_equal spec: 'serverGrade' must be a boolean when present (got ${typeof serverGrade}).`,
+    );
+  }
+
+  // ── Symmetry with runtime (Phase 57A architect-fix) ────────────────
+  // Phase-57A comparator fields are validated ONLY when opted in. When
+  // `serverGrade !== true`, the runtime auto-passes the spec verbatim
+  // (BC path) and never inspects these fields — so the authoring guard
+  // does the same to keep both layers strictly identical and to preserve
+  // pass-through of legacy fixture shapes A–E. The minimum-contract
+  // checks below (columns + expectedRows/Hash present) also live inside
+  // this branch and run exactly when the runtime would inspect them.
+  if (serverGrade !== true) {
+    return;
+  }
+
+  for (const k of ["orderSensitive", "trimStrings", "nullEqualsEmpty", "coerceNumericStrings", "caseInsensitive"] as const) {
+    const v = spec[k];
+    if (v !== undefined && typeof v !== "boolean") {
+      throw new Error(`csv_set_equal spec: '${k}' must be a boolean when present (got ${typeof v}).`);
+    }
+  }
+
+  if (spec.dedupe !== undefined) {
+    if (spec.dedupe !== false && spec.dedupe !== "expected" && spec.dedupe !== "both") {
+      throw new Error(
+        `csv_set_equal spec: 'dedupe' must be false | "expected" | "both" (got ${JSON.stringify(spec.dedupe)}).`,
+      );
+    }
+  }
+
+  if (spec.columns !== undefined) {
+    if (!Array.isArray(spec.columns)) {
+      throw new Error("csv_set_equal spec: 'columns' must be an array of strings.");
+    }
+    if (!spec.columns.every((c) => typeof c === "string" && c.length > 0)) {
+      throw new Error("csv_set_equal spec: every entry in 'columns' must be a non-empty string.");
+    }
+  }
+
+  if (spec.expectedRows !== undefined) {
+    if (!Array.isArray(spec.expectedRows)) {
+      throw new Error("csv_set_equal spec: 'expectedRows' must be a 2D array.");
+    }
+    if (
+      !spec.expectedRows.every(
+        (row) =>
+          Array.isArray(row) &&
+          row.every(
+            (cell) =>
+              cell === null ||
+              typeof cell === "string" ||
+              typeof cell === "number" ||
+              typeof cell === "boolean",
+          ),
+      )
+    ) {
+      throw new Error(
+        "csv_set_equal spec: 'expectedRows' entries must be arrays of (string|number|boolean|null) cells.",
+      );
+    }
+  }
+
+  if (spec.expectedRowsHash !== undefined) {
+    if (typeof spec.expectedRowsHash !== "string" || !/^[0-9a-f]{64}$/.test(spec.expectedRowsHash)) {
+      throw new Error(
+        "csv_set_equal spec: 'expectedRowsHash' must be a 64-character lowercase hex SHA-256.",
+      );
+    }
+  }
+
+  // Minimum runtime contract — at this point serverGrade === true.
+  {
+    if (!Array.isArray(spec.columns) || spec.columns.length === 0) {
+      throw new Error(
+        "csv_set_equal spec: 'columns' (non-empty) is required when 'serverGrade: true'.",
+      );
+    }
+    if (spec.expectedRows === undefined && spec.expectedRowsHash === undefined) {
+      throw new Error(
+        "csv_set_equal spec: must provide 'expectedRows' or 'expectedRowsHash' when 'serverGrade: true'.",
+      );
+    }
+    if (spec.orderSensitive === true && spec.expectedRows === undefined) {
+      throw new Error(
+        "csv_set_equal spec: 'orderSensitive: true' requires inline 'expectedRows' (positional). Hash alone is multiset-only.",
+      );
+    }
+    if (spec.expectedRows !== undefined) {
+      const cols = spec.columns as string[];
+      const allWidthsMatch = (spec.expectedRows as unknown[][]).every(
+        (r) => Array.isArray(r) && r.length === cols.length,
+      );
+      if (!allWidthsMatch) {
+        throw new Error(
+          `csv_set_equal spec: every 'expectedRows' entry must have exactly ${cols.length} cells (matching 'columns').`,
+        );
+      }
+    }
   }
 }
 

@@ -189,3 +189,111 @@ describe("validationConfig(contains) — Phase 56 structured-spec validator", ()
   it("does NOT reject match:'any' (runtime: looser combinator; audit advisory only)", () =>
     ok({ needles: ["a"], match: "any" }));
 });
+
+
+// ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────
+describe("validationConfig(csv_set_equal) — Phase 57A structured-spec validator", () => {
+  const ok = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("csv_set_equal", "desc", spec)).not.toThrow();
+  const bad = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("csv_set_equal", "desc", spec)).toThrow(match);
+
+  // ── BC: legacy/fixture/shape-E shapes still accepted (no serverGrade) ──
+  it("accepts legacy fixture-based shape A {columns, expectedCsv}", () =>
+    ok({ columns: ["a", "b"], expectedCsv: "fixtures/x.csv" }));
+  it("accepts shape B {columns, expectedCsv, orderSensitive:true}", () =>
+    ok({ columns: ["a"], expectedCsv: "fixtures/x.csv", orderSensitive: true }));
+  it("accepts shape C {columns, expectedCsv, validateQuery}", () =>
+    ok({ columns: ["a"], expectedCsv: "fixtures/x.csv", validateQuery: "B" }));
+  it("accepts shape D {query, columns, expectedRows} (no serverGrade)", () =>
+    ok({ query: "SELECT 1", columns: ["a"], expectedRows: [[1]] }));
+  it("accepts shape E {cleanColumns, expectedClean, rejectColumns, expectedRejects}", () =>
+    ok({
+      cleanColumns: ["a"],
+      expectedClean: "fixtures/c.csv",
+      rejectColumns: ["a", "reason"],
+      expectedRejects: "fixtures/r.csv",
+    }));
+
+  // ── opt-in: serverGrade=true requires columns + (expectedRows | hash) ──
+  it("accepts opt-in with columns + expectedRows", () =>
+    ok({ serverGrade: true, columns: ["a"], expectedRows: [[1]] }));
+  it("accepts opt-in with columns + expectedRowsHash (valid hex)", () =>
+    ok({
+      serverGrade: true,
+      columns: ["a"],
+      expectedRowsHash: "a".repeat(64),
+    }));
+  it("accepts opt-in with all optional flags set", () =>
+    ok({
+      serverGrade: true,
+      columns: ["a"],
+      expectedRows: [[1]],
+      orderSensitive: false,
+      trimStrings: true,
+      nullEqualsEmpty: true,
+      coerceNumericStrings: true,
+      caseInsensitive: true,
+      dedupe: "both",
+    }));
+
+  // ── opt-in: minimum-contract rejections ────────────────────────────
+  it("rejects serverGrade=true without columns", () =>
+    bad({ serverGrade: true, expectedRows: [[1]] }, /'columns' \(non-empty\) is required/));
+  it("rejects serverGrade=true without expectedRows or hash", () =>
+    bad({ serverGrade: true, columns: ["a"] }, /must provide 'expectedRows' or 'expectedRowsHash'/));
+  it("rejects serverGrade=true + orderSensitive=true with hash-only", () =>
+    bad(
+      { serverGrade: true, columns: ["a"], expectedRowsHash: "a".repeat(64), orderSensitive: true },
+      /requires inline 'expectedRows'/,
+    ));
+  it("rejects expectedRows widths that don't match columns count (opt-in)", () =>
+    bad(
+      { serverGrade: true, columns: ["a", "b"], expectedRows: [[1]] },
+      /must have exactly 2 cells/,
+    ));
+
+  // ── symmetry with runtime: lax pass-through when NOT opted in ──────
+  // When `serverGrade !== true`, the runtime auto-passes the spec
+  // verbatim (BC path). The authoring guard mirrors this exactly so
+  // legacy fixture shapes A–E with unexpected key types still pass.
+  it("lax: non-boolean flags pass through without opt-in (matches runtime BC)", () => {
+    ok({ orderSensitive: "yes" as unknown as boolean });
+    ok({ trimStrings: 1 as unknown as boolean });
+    ok({ nullEqualsEmpty: "true" as unknown as boolean });
+    ok({ coerceNumericStrings: 0 as unknown as boolean });
+    ok({ caseInsensitive: "yes" as unknown as boolean });
+    ok({ dedupe: "weird" as unknown as "both" });
+    ok({ columns: ["a", 5 as unknown as string] });
+    ok({ expectedRowsHash: "ABCDEF" as string });
+  });
+
+  // ── type checks on optional flags (when opted in) ──────────────────
+  it("rejects serverGrade non-boolean (always — strict author lint)", () =>
+    bad({ serverGrade: "yes" as unknown as boolean }, /'serverGrade' must be a boolean/));
+  it("rejects orderSensitive non-boolean (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRows: [[1]], orderSensitive: "yes" as unknown as boolean }, /'orderSensitive' must be a boolean/));
+  it("rejects trimStrings non-boolean (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRows: [[1]], trimStrings: 1 as unknown as boolean }, /'trimStrings' must be a boolean/));
+  it("rejects nullEqualsEmpty non-boolean (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRows: [[1]], nullEqualsEmpty: "true" as unknown as boolean }, /'nullEqualsEmpty' must be a boolean/));
+  it("rejects coerceNumericStrings non-boolean (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRows: [[1]], coerceNumericStrings: 0 as unknown as boolean }, /'coerceNumericStrings' must be a boolean/));
+  it("rejects caseInsensitive non-boolean (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRows: [[1]], caseInsensitive: "yes" as unknown as boolean }, /'caseInsensitive' must be a boolean/));
+  it("rejects dedupe with invalid value (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRows: [[1]], dedupe: "weird" as unknown as "both" }, /'dedupe' must be false \| "expected" \| "both"/));
+  it("rejects columns with non-string entry (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a", 5 as unknown as string], expectedRows: [[1, 2]] }, /non-empty string/));
+  it("rejects columns with empty-string entry (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a", ""], expectedRows: [[1, 2]] }, /non-empty string/));
+  it("rejects expectedRows entries with non-cell values (opt-in)", () =>
+    bad(
+      { serverGrade: true, columns: ["a"], expectedRows: [[{ nested: true } as unknown as string]] },
+      /arrays of \(string\|number\|boolean\|null\)/,
+    ));
+  it("rejects expectedRowsHash that is not 64 lowercase hex (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRowsHash: "ABCDEF" as string }, /64-character lowercase hex/));
+  it("rejects expectedRowsHash that is uppercase hex (opt-in)", () =>
+    bad({ serverGrade: true, columns: ["a"], expectedRowsHash: "A".repeat(64) }, /64-character lowercase hex/));
+});

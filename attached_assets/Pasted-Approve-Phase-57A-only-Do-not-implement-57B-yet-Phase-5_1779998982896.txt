@@ -1,0 +1,63 @@
+Approve Phase 57A only.
+
+Do not implement 57B yet.
+
+Phase 57A goal:
+Create the dark server-side foundation for `csv_set_equal` hardening with zero learner-visible behavior change.
+
+Decisions:
+
+1. `serverGrade: true` must remain opt-in.
+2. No existing visible steps should opt in during Phase 57A.
+3. Defer multi-output shape E to a later dedicated phase.
+4. Do not add or change env vars.
+5. Do not wire envelope enforcement yet.
+6. Do not touch project content, DB rows, OpenAPI, frontend, `/check`, `/submit`, cert/portfolio copy, or Phase 52 canary state.
+
+Implementation scope for 57A:
+
+1. Extract `gradeCsvSetEqual()` or equivalent server helper.
+2. Add canonical row-set comparison logic.
+3. Add `assertValidCsvSetEqualSpec()` or equivalent authoring guard.
+4. Add audit/BC script proving all existing visible `csv_set_equal` steps preserve current behavior because none opt into server grading.
+5. Add tests for canonicalization:
+
+   * header handling
+   * row order
+   * duplicate rows
+   * whitespace
+   * null vs empty string
+   * numeric string handling
+   * quoting
+   * case sensitivity
+6. Add docs and close-out.
+7. Run full gates and Architect review.
+
+Expected behavior:
+
+* If `serverGrade` is absent or false, behavior remains exactly as today.
+* If `serverGrade: true` appears in a future step, the new server grader can evaluate it.
+* Phase 57A must not activate that path for any existing visible project.
+
+Hard stops:
+
+* no 57B envelope work
+* no new env var
+* no signed-envelope canary execution
+* no production changes
+* no schema/migration unless absolutely proven necessary and approved first
+* no frontend changes
+* no project content opt-in
+* no DB row changes
+* no cert/portfolio language upgrade
+* preserve Phase 52 as operator-pending
+
+After 57A ships, stop and report:
+
+1. files changed
+2. exact serverGrade behavior
+3. canonicalization rules implemented
+4. BC result for all visible csv_set_equal steps
+5. tests/gates run
+6. Architect verdict
+7. recommended Phase 57B design, but do not implement it yet
