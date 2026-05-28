@@ -1,77 +1,74 @@
 # HANDOFF
 
-**Latest shipped phase:** Phase 54 — Copy-Safety Hardening.
-**Working tree:** clean after `phase-54: copy-safety hardening — normalized banned-pattern guard + tone-alignment sweep`.
-**Parent commit chain:** Phase 54 ← `b0667ec` (phase-53 launch-readiness H3 audit) ← `efa4ddf` (phase-52 operator flip kit, no code changes) ← `27e70c6` (phase-51 ops readiness) ← `5278fec` (phase-50 canary wrapper) ← `b119bc7` (phase-49b disclosure) ← `24055ed` (phase-49a runtime wiring).
+**Latest shipped phase:** Phase 55 — Net-New Project Production Pilot (C1 + C2).
+**Working tree:** clean after `0d89eb0` (C2 promote).
+**Parent commit chain:** Phase 55 ← `0d89eb0` (C2 promote) ← `f12fe95` (C1 promote) ← `82e473d` (phase-54 copy-safety) ← `b0667ec` (phase-53 launch-readiness H3 audit) ← `efa4ddf` (phase-52 operator flip kit, no code changes) ← `27e70c6` (phase-51 ops readiness) ← `5278fec` (phase-50 canary wrapper) ← `b119bc7` (phase-49b disclosure) ← `24055ed` (phase-49a runtime wiring).
 
-**Phase 52 status (unchanged by Phase 53 or Phase 54):** operator flip kit prepared; the production flip has NOT been executed by the agent. Neither Phase 53 nor Phase 54 satisfies any of the kit's operator-side prerequisites; neither is the 10% ramp evaluation.
+**Phase 52 status (unchanged by Phase 53 / 54 / 55):** operator flip kit prepared; the production flip has NOT been executed by the agent. None of Phase 53, 54, or 55 satisfies any of the kit's operator-side prerequisites; none is the 10% ramp evaluation.
 
 ---
 
-## Phase 54 summary
+## Phase 55 summary
 
-Phase 54 is a small copy-safety hardening pass picking up Phase 53's two non-blocking architect recommendations. Pure Atlas-side edits + test infra. Zero canary-path edits.
+Phase 55 is a curriculum content phase: two net-new authored projects shipped sequentially with explicit user review pause between. The catalog had not received net-new content since Phase 41; intake identified two specific gaps (applied-LLM-engineer had no structured-output-safety project for the 2026 production reality of jailbreak/injection/schema-fuzz pressure; analytics-engineer had a thin intermediate slot and zero semantic-layer coverage). One project per gap, in that order.
 
-Goal: close real evasion paths in the Phase 53 banned-phrase guard (Unicode hyphens, NBSP, ZWJ, fullwidth letters, phrase variants), tighten 4 adjacent "unlocked / qualifies for" copy fragments to align with the Phase 53 tone, and confirm by audit whether server-side response builders need similar protection.
+**Visibility status (terminal):** Both C1 and C2 remain `learner_visible=false` pending manual publish-readiness checklist sign-off. No agent-driven visibility flip.
 
-### H3 ceiling (frozen, restated)
+### What landed — projects
 
-> Atlas may say enabled paths verify that submitted runtime output matched the expected result and that the record was issued by Atlas at the time the learner passed the step.
-> Atlas may NOT claim independent authorship (H1), no-outside-help (H2), tamper-proof / cheat-proof / fraud-proof validation, 100%-verified, or certified mastery.
+| Project | Slug | Course | Steps | Min | XP | Validation distribution | Architect | Commit |
+|---|---|---|---|---|---|---|---|---|
+| C1 | `applied-llm-engineer-guardrails-and-structured-output-safety` | applied-llm-engineer | 8 | 320 | 880 | 7×contains (enforced, thin) + 1×numeric_tolerance (contract-shaped) | 3 rounds → PASS | `f12fe95` |
+| C2 | `analytics-engineer-semantic-layer-with-dbt-and-duckdb` | analytics-engineer | 8 | 340 | 920 | 4×sql_resultset + 1×csv_set_equal (client-provisional, real DuckDB-WASM runtime) + 2×exact + 1×contains (enforced) — **0 contract-shaped** | 1 round → PASS | `0d89eb0` |
 
-### What landed
+C2 has the strongest validation-kind distribution of any C-series project: 5/8 steps give real DuckDB-WASM runtime feedback, 2/8 are strong server-enforced `exact`, only 1/8 is the thin `contains` (used on a stakeholder-doc write-up where the substantive value is in writing the artifact, not in the gate).
 
-| File | Role |
+### Files changed
+
+| File | Change |
 |---|---|
-| `artifacts/atlas/src/lib/banned-h1h2-phrases.ts` | REWRITE — `normalize()` (NFKC + Cf strip + dash + whitespace) + `BANNED_H1H2_PATTERNS` (20 patterns, 6 new) with Unicode word-boundary lookarounds; back-compat `BANNED_H1H2_LABELS` retained |
-| `artifacts/atlas/src/lib/banned-h1h2-phrases.test.ts` | REWRITE — uses patterns + normalized source scan; 7 new positive/negative test suites including v2 evasion regressions and v3 boundary negatives |
-| `artifacts/atlas/src/pages/how-atlas-grades.test.tsx` | REWRITE — uses patterns + `normalize(document.body.textContent)` for DOM scan |
-| `artifacts/atlas/src/pages/certificates.tsx` | EDIT — "Role unlocked" → "Role this project prepares you for" |
-| `artifacts/atlas/src/pages/profile.tsx` | EDIT — "Career Roles Unlocked" → "Career roles in your portfolio" |
-| `artifacts/atlas/src/components/studio/ValidationFeedbackPanel.tsx` | EDIT — "What you just unlocked" → "What this project prepares you for" |
-| `artifacts/atlas/src/pages/home.tsx` | EDIT — "qualifies you for" → "prepares you for" |
+| `scripts/src/authored/applied-llm-engineer__guardrails-and-structured-output-safety.ts` | NEW — C1 AuthoredProject (8 steps, full hint ladders + feedback pairs + portfolioRelevance) |
+| `scripts/src/authored/analytics-engineer__semantic-layer-with-dbt-and-duckdb.ts` | NEW — C2 AuthoredProject (8 steps, full hint ladders + feedback pairs + portfolioRelevance) |
+| `scripts/src/authored/index.ts` | EDIT — barrel imports + array entries for both |
+| `scripts/src/authored-lineage.ts` | EDIT — `NET_NEW_FOR_SLUG_PHASE55` + `COURSE_FOR_AUTHORED_SLUG` extended (2 entries each) |
+| `scripts/src/backfill-phase55-candidates.ts` | NEW — idempotent map-driven candidate-row backfill (`source='phase55_net_new'`, `status='approved'`, `synthetic=false`) |
+| `scripts/package.json` | EDIT — `backfill:phase55-candidates` script |
+| DB `project_candidates` | +2 rows (C1, C2) |
+| DB `projects` | +2 rows (both `learner_visible=false`) |
+| DB bidirectional lineage | both directions populated for both projects |
 
-### Guard pipeline
-
-```
-input
-  → .normalize("NFKC")              // fullwidth letters/hyphen → ASCII
-  → .replace(/\p{Cf}/gu, "")        // strip ZWJ/ZWNJ/BOM/soft hyphen/bidi
-  → .toLowerCase()
-  → dash family → "-"               // U+2010..U+2015, U+2212, etc.
-  → whitespace family → " "         // NBSP, en/em/zero-width, line/para
-```
-
-Patterns: `(?<![\p{L}\p{N}])${stems.join("[-\s]*")}(?![\p{L}\p{N}])` with `u` flag. Zero-or-more between stems matches all of `tamperproof` / `tamper proof` / `tamper-proof` with one rule. Lookarounds prevent `stamper proofreader` from overmatching.
-
-### 6 new banned patterns
-
-`authorship verified`, `machine-verified authorship`, `session-verified solver`, `verified that you wrote`, `certified mastery`, `outside-help-free`.
-
-### Server-side scan — deliberate skip
-
-Audited `cert-verify.ts`, `user-portfolio.ts`, `public-profile.ts` — only structured error strings (`"Certificate not found"`, `"Unauthorized"`, `"Atlas Projects"` issuer name, etc.). No learner-visible copy in `message` / `description` / `title` fields today. Re-evaluate if a future route adds such fields.
-
-### Architect review history
-
-| Round | Result | Notes |
-|---|---|---|
-| v1 | FAIL | ZWJ + fullwidth bypasses verified; `stem()` overmatched `stamper proofreader`; needed regression tests |
-| v2 | FAIL | All v1 blockers closed; new gap: `100% verified` regex still unbounded |
-| v3 | PASS | `100% verified` bounded; negative regression test added |
+Zero touches to: signed-envelope canary path, `/check`, `/submit`, `lib/execution-core`, grading logic, schemas, migrations, OpenAPI/codegen, env vars, deploys, `RUBRIC_VERSION` (frozen at `1.0.1`), Phase 52 operator flip kit, or any existing project's visibility.
 
 ### Gates
 
 | Gate | Result | Delta |
 |---|---|---|
-| `pnpm run typecheck` (libs + 4 artifacts + check:no-heuristic-runtime) | OK | unchanged |
-| `@workspace/atlas` vitest | **150 / 150** | **+14** (was 136 at Phase 53 close) |
-| `@workspace/api-server` vitest | 395 / 395 | unchanged |
-| `@workspace/execution-core` vitest | 83 / 83 | unchanged |
+| `pnpm run typecheck` (libs + 4 artifacts + `check:no-heuristic-runtime`) | OK | unchanged |
+| `audit:authoring` (visible publish-ready) | **58 / 58** | unchanged (both new projects hidden) |
+| `audit:pedagogy` | both C1 + C2 fully enriched | +2 hidden |
+| `audit:difficulty-labels` | 0 anchor mismatches (Rule 1 holds) | unchanged |
+| `wave-report` | **58 / 58** ≥70 | +1 (C2 included) |
 | `@workspace/curriculum-quality` vitest | 93 / 93 | unchanged |
-| `audit:authoring` | 58 / 58 | unchanged |
-| `audit:pedagogy` | 58 / 58 | unchanged |
-| Honest-claim ceiling | H3 preserved AND further tightened | tighter |
+| `@workspace/execution-core` vitest | 83 / 83 | unchanged |
+| `@workspace/api-server` vitest | 395 / 395 | unchanged |
+| `@workspace/atlas` vitest | 150 / 150 | unchanged |
+
+`audit:difficulty-labels` informational advisory: both projects flagged `declared=intermediate, suggested=advanced` from the `steps>4 OR estMin>300` keyword heuristic. Same false-positive that fires on every Phase-41+ sibling. Anchors immutable.
+
+### Architect review history
+
+| Project | Rounds | Notes |
+|---|---|---|
+| C1 | v1 FAIL · v2 FAIL · v3 PASS | Wording tightening — overclaims in instructionMd ("server enforces…") and thin-`contains` evasions; all closed by v3 |
+| C2 | v1 PASS | Zero P0/P1 findings. NRR algebra, wiring, lineage, validation classification all correct on first round. |
+
+### Known caveats (user-accepted on C2 approval)
+
+1. `sql_resultset` / `csv_set_equal` — real DuckDB-WASM client feedback; server commit-grader auto-passes (catalog-wide, Phase 31 inheritance).
+2. `contains` — thin substring check (catalog-wide Phase-7-era limitation).
+3. Difficulty-heuristic false-positive on both projects (`steps>4 OR estMin>300`) — informational, anchors immutable.
+4. Fixtures described in instructionMd rather than shipped as starter files — established catalog convention.
+5. C2 step 4 metric formulas matched verbatim by `exact` — rigid by design (semantic-layer contracts should not drift); stricter than the rest of the project.
 
 ### Hard stops respected
 
@@ -79,25 +76,28 @@ Audited `cert-verify.ts`, `user-portfolio.ts`, `public-profile.ts` — only stru
 |---|---|
 | Signed-envelope canary path | NO |
 | Production env vars | NO |
-| `/check` route | NO |
-| Grading logic / execution-core | NO |
+| `/check` and `/submit` routes | NO |
+| Grading logic / `lib/execution-core` | NO |
 | Schema / migrations | NO |
-| Project content / seed / rubric | NO |
-| Cert / portfolio evidence semantics | NO — wording only |
 | OpenAPI / codegen | NO |
-| Production deploy | NO |
+| Cert / portfolio evidence semantics | NO |
 | `RUBRIC_VERSION` | FROZEN at `1.0.1` |
-| Phase 52 status | UNCHANGED |
+| Phase 52 operator flip kit | NOT TOUCHED |
+| Visibility of any existing project | NO |
+| Phase 55 project visibility | `learner_visible=false`; never flipped TRUE by agent |
 
-### Remaining copy-safety gaps (Phase 55+ candidates, non-blocking)
+---
 
-1. Forward-tense career phrasing tone pass (`Roles you'll be ready for` / `Portfolio-ready for` / `READY FOR` badge) — stylistic, not a safety fix.
-2. Server-side response-builder watch — add files to source-grep guard if a future API route returns learner-visible copy in a `message` / `description` / `summary` field.
-3. i18n boundary — Atlas has no i18n layer today; if introduced, catalog files need their own scan.
-4. Marketing surfaces outside `src/pages/` (future MDX/CMS) need their own guard.
-5. Identifier-spelling caveat — boundary lookarounds use `\p{L}\p{N}` which excludes `_`. An identifier literally named `BANNED_TAMPER_PROOF` in a guarded file would trip the guard. No such identifiers exist today.
+## What unblocks the next phase
 
-### What unblocks the next envelope phase (UNCHANGED from Phase 52)
+User decision pending between four options at Phase 55 close:
+
+- **A.** Manual publish-readiness checklist on C1 and C2; operator flips `learner_visible=true` if they pass.
+- **B.** Grader / platform hardening for `contains`, `sql_resultset`, `csv_set_equal` — converts the catalog-wide weaknesses surfaced by Phase 55 into real server-side enforcement.
+- **C.** Another small net-new project phase (same one-at-a-time discipline; next-thinnest course/difficulty cell).
+- **D.** Return to Phase 52 operator canary evidence — run the flip kit and the 1% / 10% ramp evaluation phases that have been waiting since Phase 52.
+
+The Phase 52 unblock criteria are UNCHANGED:
 
 1. Operator runs `docs/phases/phase-52-canary-1pct-flip-kit.md` §§1–10.
 2. 48h / 500-success hold confirmed at kit §10.
@@ -105,7 +105,9 @@ Audited `cert-verify.ts`, `user-portfolio.ts`, `public-profile.ts` — only stru
 
 Only then does the 10% ramp evaluation phase open.
 
-### Commits
+---
 
-- `b0667ec` — phase-53: launch-readiness H3 audit + banned-phrase guard expansion (parent)
-- _(this commit)_ — phase-54: copy-safety hardening — normalized banned-pattern guard (NFKC + Cf strip + Unicode word boundaries) + tone-alignment sweep
+## Commits
+
+- `f12fe95` — phase-55 C1: applied-llm-engineer guardrails and structured output safety
+- `0d89eb0` — phase-55 C2: analytics-engineer semantic layer with dbt and DuckDB

@@ -4,6 +4,8 @@ Canonical chronological index of every closed Atlas phase. Each entry points to 
 
 `HANDOFF.md` (repo root) is the live source of truth for current working state; `replit.md` carries active control-plane rules + the latest 3 phases inline (Phase 43A compaction). Everything older lives here.
 
+> **Latest closed phase: Phase 55 — Net-New Project Production Pilot** → [phase-55-net-new-project-production-pilot.md](phase-55-net-new-project-production-pilot.md). Two net-new authored projects shipped sequentially with explicit user-review pause between (C1 applied-LLM guardrails, 8 steps; C2 analytics-engineer semantic layer with dbt + DuckDB, 8 steps). Both `learner_visible=false` pending manual checklist sign-off. Zero canary/env/grading/schema changes. Phase 52 status unchanged. Architect: C1 3-round → PASS, C2 1-round → PASS.
+
 ---
 
 - **Phase 4 — Progressive Hints + Socratic Tutor** → [phase-4-pedagogy.md](phase-4-pedagogy.md). Hint ladder (L0–L5) in `pedagogy_config`, server-side disclosure boundary, `evaluateHintPolicy`, atomic `/hint/next`.
