@@ -1,0 +1,60 @@
+Approve Phase 56 scope: `contains` hardening only.
+
+Proceed in two steps:
+
+1. First produce a short pre-build proposal before code changes.
+2. After I approve the proposal, implement the narrow hardening.
+
+Phase 56 goal:
+Upgrade `contains` from thin single-needle substring checking to structured, backward-compatible server-side validation.
+
+Required proposal before implementation:
+
+1. exact `validationConfig` shape
+2. exact grader semantics matrix
+3. default behavior for legacy configs
+4. AND vs OR behavior
+5. case-sensitivity default
+6. regex opt-in rules and safety rails
+7. malformed config behavior
+8. how backward compatibility is preserved
+9. exact files to change
+10. test matrix
+
+Preferred semantics:
+
+* Legacy `needle` behavior must remain unchanged.
+* New `needles: string[]` should be additive.
+* Default should be `requireAll=true` unless there is a strong reason otherwise.
+* `caseInsensitive` should be opt-in, default false.
+* Regex should be opt-in only, default false.
+* Regex patterns must be bounded/safe; no dangerous broad matching.
+* Malformed new config should fail safely or fall back predictably, but do not silently create false passes.
+* Do not change existing project content in the first implementation pass.
+
+Hard stops:
+
+* no signed-envelope canary execution
+* no production env vars
+* no schema or migration changes
+* no frontend changes
+* no OpenAPI/codegen changes
+* no `/check` or `/submit` route behavior rewrite
+* no broad grading rewrite
+* no project content changes in the first pass
+* no cert/portfolio language changes
+* no production deploy
+* preserve Phase 52 as operator-pending
+
+Implementation scope after proposal approval:
+
+1. update `lib/execution-core/src/grading.ts`
+2. add/extend execution-core grading tests
+3. extend the curriculum-quality authoring schema for optional new `contains` config fields
+4. update validation-kind matrix/docs
+5. add audit warnings only if useful and low-risk
+6. run full gates
+7. architect review
+8. close-out docs
+
+Do not start `csv_set_equal` or `sql_resultset` in Phase 56. Those should be Phase 57 and Phase 58, likely using the signed RunEnvelope infrastructure.
