@@ -1,0 +1,73 @@
+Accept Phase 57A.
+
+Do not move to `sql_resultset` yet. Start Phase 57B as a read-only opt-in proposal for `csv_set_equal`.
+
+Goal:
+Safely activate the new Phase 57A `csv_set_equal` server grader on the smallest credible candidate set, without broad behavior change.
+
+Start read-only. Do not edit project content or DB rows until I approve the opt-in plan.
+
+Phase 57B audit/proposal deliverables:
+
+1. List all 15 visible `csv_set_equal` steps.
+2. Identify the safest first opt-in candidate.
+3. Explain why that candidate is low-risk:
+
+   * low enrollment risk
+   * simple expected shape
+   * no multi-output Shape E
+   * clear learner submission format
+   * strong expectedRows/expectedCsv config
+4. Confirm exactly what learner submission body the server grader expects.
+5. Confirm whether `/check` and `/submit` both use the new path once `serverGrade: true` is set.
+6. Confirm rollback method:
+
+   * remove `serverGrade: true`
+   * no migration
+   * no env var
+   * no code revert required
+7. Decide whether Phase 57B should opt in:
+
+   * one step only
+   * one full project
+   * all simple-shape steps
+8. Provide exact JSON/config diff for the proposed opt-in.
+9. Provide test plan:
+
+   * passing CSV
+   * failing CSV
+   * row order behavior
+   * duplicate row behavior
+   * whitespace behavior
+   * empty/null behavior
+   * `/check` and `/submit` behavior
+10. Provide gates to run:
+
+* typecheck
+* api-server tests
+* curriculum-quality tests
+* audit:authoring
+* audit:pedagogy
+* audit:csv-set-equal-bc
+* check:no-heuristic-runtime
+
+11. Provide recommendation:
+    A. opt in one step now
+    B. opt in one project now
+    C. defer opt-in because submission shape is unsafe
+
+Hard stops:
+
+* no code changes during proposal
+* no `sql_resultset` work yet
+* no signed-envelope canary execution
+* no env-var changes
+* no schema/migration
+* no frontend changes
+* no OpenAPI/codegen
+* no broad project content rewrite
+* no cert/portfolio language change
+* no production deploy
+* preserve Phase 52 as operator-pending
+
+After the proposal, stop for approval.
