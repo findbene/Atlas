@@ -61,6 +61,8 @@ import { mlopsEngineerFoundationsReproducibleLocalTrainingPipeline } from "./mlo
 // Phase 41 — Seed Factory Pilot intermediate cohort (DE + AI).
 import { dataEngineeringRestApiEltWithStagingMarts } from "./data-engineering__rest-api-elt-with-staging-marts";
 import { aiEngineerLlmOutputQualityScoring } from "./ai-engineer__llm-output-quality-scoring";
+// Phase 55 — Net-New Project Production Pilot (C1 — applied-LLM guardrails).
+import { appliedLlmEngineerGuardrailsAndStructuredOutputSafety } from "./applied-llm-engineer__guardrails-and-structured-output-safety";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -154,6 +156,13 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   // complementary to the existing advanced modules in each course.
   dataEngineeringRestApiEltWithStagingMarts,
   aiEngineerLlmOutputQualityScoring,
+  // Phase 55 — Net-New Project Production Pilot. Sequential 2-project
+  // cohort (C1 here; C2 added after C1 ships + is user-approved).
+  // Net-new INTERMEDIATE applied-LLM project closing the 2026
+  // production-LLM guardrails / structured-output-safety gap.
+  // Deterministic (no API keys), 8 steps, 7 of 8 use the audit-
+  // classified "enforced" validation kind (`contains`), 1 numeric_tolerance.
+  appliedLlmEngineerGuardrailsAndStructuredOutputSafety,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

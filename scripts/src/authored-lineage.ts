@@ -98,6 +98,11 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   // complementary to the existing advanced offerings in each course.
   "data-engineering-rest-api-elt-with-staging-marts":                      "data-engineering",
   "ai-engineer-llm-output-quality-scoring":                                "ai-engineer",
+  // Phase 55 — Net-New Project Production Pilot (C1). Net-new INTERMEDIATE
+  // applied-llm-engineer project closing the 2026 production-LLM
+  // guardrails / structured-output-safety gap. Deterministic (no API
+  // keys), 8 steps, 7-of-8 server-enforced validation kinds.
+  "applied-llm-engineer-guardrails-and-structured-output-safety":          "applied-llm-engineer",
 };
 
 /**
@@ -302,6 +307,17 @@ export const SEED_FACTORY_FOR_SLUG_PHASE41: Record<string, string> = {
   "ai-engineer-llm-output-quality-scoring":           "e41b9c2d-6f70-4182-9b9c-ae0f12345678",
 };
 
+/**
+ * Phase 55 — Net-New Project Production Pilot. Sequential 2-project cohort
+ * (C1 applied-LLM-engineer, then C2 analytics-engineer after explicit user
+ * approval). Same backfill shape as Phase 41 — net-new slugs, no legacy
+ * twin to archive, synthetic candidates marked `source='phase55_net_new'`.
+ * C2 entry is appended only after C1 ships and is approved.
+ */
+export const NET_NEW_FOR_SLUG_PHASE55: Record<string, string> = {
+  "applied-llm-engineer-guardrails-and-structured-output-safety": "f550c1a1-b2c3-4d4e-9f50-1a2b3c4d5e6f",
+};
+
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {
   "data-engineering-real-time-dashboard":      "49f38e2b-c7ba-4e44-9374-412f0e33844e",
   "data-engineering-debezium-cdc":             "0a2e73a8-abd8-41a1-b74c-e7de3fcb3acc",
@@ -390,6 +406,8 @@ export const CANDIDATE_FOR_AUTHORED_SLUG: Record<string, string> = {
   // Phase 41 — Seed Factory Pilot intermediate cohort (source='phase41_seed_factory').
   "data-engineering-rest-api-elt-with-staging-marts": "d41a8b1c-5e6f-4071-9a8b-9d0e1f234567",
   "ai-engineer-llm-output-quality-scoring":           "e41b9c2d-6f70-4182-9b9c-ae0f12345678",
+  // Phase 55 — Net-New Project Production Pilot (source='phase55_net_new').
+  "applied-llm-engineer-guardrails-and-structured-output-safety": "f550c1a1-b2c3-4d4e-9f50-1a2b3c4d5e6f",
 };
 
 /**
