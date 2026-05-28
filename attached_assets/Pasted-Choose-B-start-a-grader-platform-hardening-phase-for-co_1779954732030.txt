@@ -1,0 +1,57 @@
+Choose B — start a grader/platform hardening phase for `contains`, `sql_resultset`, and `csv_set_equal`.
+
+Start with a read-only audit first.
+
+Goal:
+Improve Atlas validation credibility by converting the highest-impact weak validation paths into more honest, stronger enforcement paths without breaking existing projects.
+
+Scope:
+
+1. Audit current usage of `contains`, `sql_resultset`, and `csv_set_equal` across the visible catalog.
+2. Classify the current runtime behavior honestly:
+
+   * thin server-enforced
+   * client-provisional
+   * contract-shaped
+   * truly server-enforced
+3. Recommend the safest hardening sequence.
+4. Do not implement until the audit proposes a narrow plan.
+
+Important context:
+
+* C1 is now visible and relies heavily on `contains`.
+* C2 is now visible and relies heavily on `sql_resultset` and `csv_set_equal`.
+* `contains` is currently a thin inherited substring check.
+* `sql_resultset` and `csv_set_equal` provide real DuckDB-WASM client-side feedback but server commit-grader still auto-passes.
+* Phase 52 remains operator-pending and must not be touched.
+
+Hard stops:
+
+* no signed-envelope canary execution
+* no production env-var changes
+* no /check behavior changes unless explicitly proposed and approved
+* no broad grading rewrite
+* no schema/migration changes unless the audit proves they are necessary
+* no project content changes
+* no cert/portfolio language upgrade
+* no production deploy actions
+* preserve all existing learner submissions unless a migration plan is approved
+
+Audit deliverables:
+
+1. how many visible steps use each kind
+2. which projects rely most heavily on each kind
+3. current actual runtime behavior
+4. risks of hardening each kind
+5. recommended order of implementation
+6. whether signed RunResult/envelope infrastructure should be reused
+7. exact files likely to change
+8. test plan
+9. rollback plan
+10. recommendation for Phase 56 implementation
+
+My likely preferred order:
+
+1. Harden `contains` first if it can be made backward-compatible.
+2. Then harden `csv_set_equal`.
+3. Then harden `sql_resultset`, probably using signed runtime output or server-side DuckDB if feasible.
