@@ -1,0 +1,97 @@
+Start Phase 52 as an operator execution phase, not a feature phase.
+
+Goal:
+Execute the first 1% production json_equal signed-envelope canary only after all Phase 51 prerequisites are green.
+
+Read:
+1. HANDOFF.md
+2. docs/runbooks/envelope-canary.md
+3. docs/phases/phase-50-json-equal-canary.md
+4. docs/phases/phase-51-canary-operational-readiness.md
+5. artifacts/api-server/src/lib/envelopeSubmit.ts
+6. artifacts/api-server/src/lib/envelopeMetrics.ts
+7. artifacts/api-server/src/routes/admin.ts
+8. artifacts/api-server/src/routes/user.ts
+
+Hard stops:
+- no code changes unless fixing a blocker discovered during smoke
+- no broad json_equal flip
+- no ramp beyond 1%
+- no new validation kinds
+- no /check changes
+- no cert/portfolio language changes
+- no anti-cheat overclaiming
+- no production DB mutation except normal nonce table writes from real traffic
+- rollback must be ready before flip
+
+Prerequisite checklist before flip:
+1. Staging smoke:
+   - correct json_equal output passes
+   - wrong json_equal output fails
+   - replayed envelope fails
+   - code edit invalidates stale envelope
+   - non-json_equal kind falls back safely
+   - canary bucket skip observed where applicable
+2. Production nonce janitor cron:
+   - registered
+   - ran successfully at least once
+3. Production metrics:
+   - GET /api/admin/envelope/metrics returns 200
+   - no PII in response
+   - pre-flip shape matches expectations after envelopesObserved > 0
+4. Log aggregator:
+   - evt:envelope.* filter validated
+   - can see verify ok/fail, fallback, replay, canary skip
+5. On-call:
+   - 48h coverage confirmed
+   - rollback owner identified
+6. Architect/operator sign-off:
+   - Phase 50 and Phase 51 readiness reviewed
+
+Flip command:
+- Set ATLAS_ENVELOPE_REQUIRED_KINDS=json_equal
+- Set ATLAS_ENVELOPE_CANARY_KINDS=json_equal
+- Set ATLAS_ENVELOPE_CANARY_PERCENT=1
+- Confirm RUN_ENVELOPE_SIGNING_SECRET is present and stable
+- Deploy/roll API
+
+Post-flip monitoring:
+Watch for:
+- envelope.verify.ok count
+- envelope.verify.failed by reason
+- envelope_bad_signature
+- envelope_replay
+- fallback.kind_not_enabled
+- fallback.canary_bucket_skip
+- verifyDurationMs p95
+- /submit p95 latency
+- learner support reports
+
+Immediate rollback triggers:
+- any envelope_bad_signature
+- verifier failure spike
+- /submit p95 regression > 50ms
+- replay failures beyond expected manual replay tests
+- learner-facing confusion/support spike
+- admin metrics endpoint unavailable
+- nonce janitor failure
+- any H1/H2 claim accidentally introduced
+
+Rollback:
+Soft:
+ATLAS_ENVELOPE_CANARY_PERCENT=0
+
+Hard:
+ATLAS_ENVELOPE_REQUIRED_KINDS=
+
+Nuclear:
+revert deploy to the last known Phase 51 checkpoint.
+
+End with:
+1. exact env values used
+2. staging smoke evidence
+3. production pre-flip evidence
+4. flip timestamp
+5. first-hour metrics
+6. rollback readiness confirmation
+7. go/no-go for holding 1% for 48h
