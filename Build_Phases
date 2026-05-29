@@ -1,0 +1,67 @@
+ Locked. Here's the full build, scoped and numbered, with the exact skills/commands to fire before each phase. Custom
+  /atlas-* commands get built in Phase 0 — so Phase 0 uses existing skills only, every phase after can use the custom
+  ones.
+
+  Atlas Build — Phase Map & Invocation Guide
+
+  Standing invokes — every phase, in order:
+  /atlas-phase-plan <id> (decision brief) → build → /atlas-validate (gate chain) → atlas-architect-reviewer subagent →
+  /code-review → /atlas-phase-close (rotate HANDOFF/INDEX/replit.md). These are built in Phase 0; after that they're
+  automatic per phase.
+
+  Phase: Phase 0
+  Name: Foundation & Operating System
+  What ships: .claude/ command+agent+skill system, 6 root docs, settings
+  Invoke right before: (existing) skill-creator, agent-designer, agentic-workspace-setup — then say go
+  ────────────────────────────────────────
+  Phase: Phase 1
+  Name: Cut the Replit Cord
+  What ships: Direct SDKs behind env adapter; pnpm dev boots locally on Windows
+  Invoke right before: (existing) senior-devops, env-secrets-manager · (custom) /atlas-phase-plan E1 → /atlas-ship-check
+
+    local
+  ────────────────────────────────────────
+  Phase: Phase 2
+  Name: Validation & Trust Hardening
+  What ships: csv_set_equal opt-in, sql_resultset hardening, /check-vs-/submit evidence, canary
+  Invoke right before: (custom) /atlas-harden-grader sql_resultset · (existing) security-privacy,
+    superpowers:test-driven-development, codex-adversarial-review
+  ────────────────────────────────────────
+  Phase: Phase 3
+  Name: Evidence & Portfolio Export
+  What ships: GitHub export, portfolio artifact contract, LinkedIn share, cert polish
+  Invoke right before: (custom) /atlas-phase-plan 60 · (existing) github-tools, senior-frontend, frontend-design
+  ────────────────────────────────────────
+  Phase: Phase 4
+  Name: Adaptive Intelligence
+  What ships: learner_skill_state model, diagnostic onboarding, real adaptive mode, prereq graph
+  Invoke right before: (custom) /atlas-skill-model · (existing) database-designer, senior-data-scientist
+  ────────────────────────────────────────
+  Phase: Phase 5
+  Name: Curriculum Factory (continuous)
+  What ships: Scout 2026 demand → generate → rubric-score → you approve → promote hidden-first. 60→150→400
+  Invoke right before: (custom) /atlas-market-scout <course>, /atlas-author-wave <course> <tier>, /atlas-promote <id> ·
+    (existing) deep-research, competitive-intel
+  ────────────────────────────────────────
+  Phase: Phase 6
+  Name: Cloud Labs (sandbox-first)
+  What ships: Mock S3/Glue/Athena/BigQuery/Snowflake/Databricks + DuckDB; BYO-cloud security spec
+  Invoke right before: (custom) /atlas-cloud-lab <provider> · (existing) aws-solution-architect, azure-cloud-architect,
+    gcp-cloud-architect, snowflake-development
+  ────────────────────────────────────────
+  Phase: Phase 7
+  Name: Productization & Beta
+  What ships: Real PWA (manifest+SW+offline), production deploy, billing live, beta cohort
+  Invoke right before: (custom) /atlas-ship-check prod · (existing) senior-frontend, setup-deploy, senior-devops,
+    stripe-integration-expert
+  ────────────────────────────────────────
+  Phase: Phase 8
+  Name: Public Launch (deferred)
+  What ships: Marketing site, pricing, legal, growth
+  Invoke right before: (existing) landing-page-generator, seo, content-strategy
+
+  Phase-specific commands (/atlas-harden-grader, /atlas-author-wave, /atlas-cloud-lab, etc.) are built just-in-time at
+  the start of their phase — no point making /atlas-cloud-lab now when it's needed at Phase 6. Phase 0 builds only the
+  universal spine + CLAUDE.md so the build is drivable.
+
+  You said proceed — starting Phase 0 now. Invoking the skill that governs building these properly.

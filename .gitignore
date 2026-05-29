@@ -47,3 +47,10 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Claude Code — personal/local (never commit)
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/agent-memory-local/
+.agentic/self-review.log
+.agentic/code-review-queue.jsonl

@@ -1,2 +1,27 @@
 
 ════ self-review @ 2026-05-29 01:44:52 ════
+── typecheck: npm run typecheck --silent
+
+> workspace@0.0.0 typecheck:libs C:\Projects\Atlas
+> tsc --build
+
+'tsc' is not recognized as an internal or external command,
+operable program or batch file.
+── typecheck: FAIL
+
+── build: npm run build --silent
+
+> workspace@0.0.0 typecheck C:\Projects\Atlas
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck && pnpm run check:no-heuristic-runtime
+
+
+> workspace@0.0.0 typecheck:libs C:\Projects\Atlas
+> tsc --build
+
+'tsc' is not recognized as an internal or external command,
+operable program or batch file.
+── build: FAIL
+
+
+════ self-review @ 2026-05-29 02:03:16 ════
+── typecheck: npm run typecheck --silent
