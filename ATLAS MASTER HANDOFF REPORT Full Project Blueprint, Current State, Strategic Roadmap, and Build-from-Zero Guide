@@ -1,0 +1,1895 @@
+# ATLAS MASTER HANDOFF REPORT
+
+## Full Project Blueprint, Current State, Strategic Roadmap, and Build-from-Zero Guide
+
+## 0. Executive Summary
+
+Atlas is a project-first, hands-on technical learning platform for Data Engineering, AI Engineering, MLOps, Analytics Engineering, Cloud Data Engineering, Applied LLM Engineering, Python, SQL, and related modern technical roles.
+
+The core thesis is:
+
+> Learners do not become employable by watching courses. They become credible by completing realistic, portfolio-grade projects with guided support, progressive hints, honest validation, evidence-backed completion records, and recruiter-readable artifacts.
+
+Atlas is not just a course catalog. It is intended to become a full learning-to-portfolio-to-career platform with:
+
+* project-based curriculum
+* role-path learning tracks
+* guided / hint-based / independent / adaptive modes
+* Ada AI tutor with mode-aware boundaries
+* validation-aware project checks
+* signed runtime-output evidence
+* portfolio/certificate surfaces
+* public verification pages
+* admin curriculum quality tooling
+* authoring factory for new projects
+* launch-safe copy and trust boundaries
+* future LinkedIn/GitHub sharing and capstone paths
+
+Current reality:
+
+* Atlas is infrastructure-deploy-ready or near deploy-ready from an engineering standpoint.
+* Atlas is not yet fully market-launch complete.
+* The product is strongest in architecture, validation thinking, curriculum governance, signed runtime evidence design, and controlled phase discipline.
+* The product still needs more visible portfolio-grade projects, stronger runtime graders, production canary execution, learner-facing analytics, portfolio export, sharing flows, and commercial launch polish.
+
+The latest working state is around Phase 55. Two new hidden projects have been authored:
+
+1. C1 — Applied LLM Guardrails & Structured Output Safety
+2. C2 — Analytics Engineering Semantic Layer with dbt + DuckDB
+
+Both are hidden pending manual publish-readiness sign-off. The most recent proposed next action was to run manual checklist review and flip C1/C2 visible only if they pass.
+
+---
+
+# 1. What Atlas Is About
+
+Atlas is a high-credibility technical learning platform designed around realistic end-to-end projects rather than passive lessons.
+
+## 1.1 Primary users
+
+Atlas is for learners trying to become employable in modern technical roles:
+
+* Data Engineer
+* Analytics Engineer
+* AI Engineer
+* Applied LLM Engineer
+* MLOps Engineer
+* Cloud Data Engineer
+* Python/SQL technical builder
+* Cloud/data platform engineer
+
+## 1.2 Primary value proposition
+
+Atlas gives learners a structured project path where they:
+
+1. Choose a role path.
+2. Select or receive a recommended project.
+3. Work through a realistic scenario.
+4. Pick a learning mode:
+
+   * Guided
+   * Hint-Based
+   * Independent
+   * Adaptive / “Choose for Me”
+5. Use Ada, the AI tutor, under mode-specific rules.
+6. Run code or submit artifacts.
+7. Receive validation and feedback.
+8. Earn completion evidence.
+9. Build a portfolio-ready deliverable.
+10. Eventually share the project proof to recruiters, LinkedIn, GitHub, or public verification pages.
+
+## 1.3 Product philosophy
+
+Atlas is built around five principles:
+
+### Principle 1 — Project-first learning
+
+Every meaningful unit should produce a concrete artifact: code, SQL, data pipeline, model evaluation, dashboard, semantic layer, API, guardrail stack, or deployment-ready module.
+
+### Principle 2 — Honest validation
+
+Atlas must never overclaim. The product can say it verified specific outputs or artifacts when it actually did. It must not claim it proved independent authorship, anti-cheat certainty, or absence of outside help.
+
+### Principle 3 — Progressive autonomy
+
+Learners should move from guided help to hints to independent work. The system should eventually adapt based on past learner behavior.
+
+### Principle 4 — Recruiter-readable outcomes
+
+Projects should map to role signals that hiring managers understand: dbt models, feature stores, CDC pipelines, semantic layers, RAG systems, model monitoring, structured-output guardrails, CI checks, and portfolio artifacts.
+
+### Principle 5 — Production credibility
+
+The platform itself should be built like a serious product: tests, migrations, audit scripts, docs, runbooks, privacy boundaries, security-aware validation, controlled rollout, and no fake claims.
+
+---
+
+# 2. What Has Been Shipped and Accomplished
+
+## 2.1 Foundational product
+
+The project has shipped or materially developed:
+
+* learner-facing project catalog
+* role paths
+* project detail pages
+* workspace/project execution UI
+* progress tracking
+* enrollments
+* completion records
+* XP-style progress events
+* badges/streak-style learner progress mechanics
+* public certificate/verification surfaces
+* authenticated user portfolio evidence
+* admin quality surfaces
+* project authoring system
+* audit scripts
+* deployment readiness documentation
+* baseline database migration
+* AI tutor contracts
+* guided / hint / independent / adaptive modes
+* signed runtime-output validation architecture
+* copy-safety and honest-claim guardrails
+
+## 2.2 Learning mode work
+
+The project implemented:
+
+* Guided mode
+* Hint-Based mode
+* Independent mode
+* Adaptive “Choose for Me” mode
+
+The workspace became mode-aware. Ada’s tutor contract was updated so tutor behavior changes depending on mode. Independent mode is designed to avoid leaking solutions too quickly.
+
+## 2.3 Ada tutor work
+
+Ada has a step contract and mode-aware policy structure. The tutor is intended to:
+
+* support learners without doing the work for them
+* adapt response style to selected learning mode
+* avoid solution leakage in independent mode
+* guide with hints and remediation
+* eventually use richer validation context and learner history
+
+Current limitation:
+
+* Ada does not yet have a full persistent learner skill model or long-term per-learner memory.
+* Tutor behavior is policy-driven, but not yet deeply personalized by robust learner performance analytics.
+
+## 2.4 Project authoring system
+
+Phase 35 created the project authoring foundation:
+
+* canonical authoring spec
+* fillable project template
+* publish-readiness checklist
+* audit tooling
+* hint leak detection
+* authored project quality tests
+* project candidate and lineage conventions
+
+This turned Atlas from a hand-built catalog into a content factory that can produce new projects in a controlled way.
+
+## 2.5 Catalog remediation
+
+The platform cleaned visible catalog quality:
+
+* visible publish-ready projects were audited
+* duplicate/superseded legacy projects were hidden rather than deleted
+* visible catalog reached audit:authoring green status
+* pedagogy audit reached green status
+* archive safety was hardened
+* enrolled_count counter issues were fixed and backfilled
+
+## 2.6 Enrollment/counter safety
+
+Phases 38–40 hardened enrollment counter logic:
+
+* fixed stale enrolled_count assumptions
+* added durable enrolled_count writer
+* added backfill script
+* protected archive scripts from relying on broken counters
+* added candidate lineage gates
+* improved two-pass verification for backfill under concurrent activity
+
+## 2.7 Portfolio and certificate evidence
+
+Phases 28–29 improved evidence-backed completion records:
+
+* public verify page exposes recruiter-facing completion summary fields
+* authenticated portfolio evidence endpoint/surface exists
+* privacy contract prevents leaking email, internal IDs, Stripe fields, raw submissions, raw hashes, etc.
+* certificate verify failures remain 404, not 403
+* certificate/portfolio wording was later tightened to avoid overclaims
+
+## 2.8 Deployment readiness
+
+Phase 31 made deployment much more realistic:
+
+* generated baseline migration
+* added explicit migration script
+* created deployment checklist
+* clarified production Neon DB first-deploy steps
+* avoided boot-time migration
+* documented rollback caveats
+* confirmed deploy-ready but not deployed
+
+Key reminder:
+
+* Atlas is not production-deployed in the current known state.
+* Production database has not been touched by the agent.
+* Production audit was previously blocked because no production Neon DB existed yet.
+
+## 2.9 Signed runtime-output validation
+
+A major arc from Phases 42–52 focused on validation credibility.
+
+The problem:
+
+* Many existing `json_equal` steps were code-based Python steps.
+* The server was receiving learner source code, not captured JSON runtime output.
+* A naive server-side `JSON.parse(submission)` grader would break the catalog.
+
+The solution path:
+
+1. Audit validation kinds truthfully.
+2. Avoid breaking existing `json_equal` submissions.
+3. Design a signed runtime-output trust model.
+4. Add server-only signed envelope primitives.
+5. Add `/api/runs/sign`.
+6. Add nonce storage and cleanup.
+7. Wire `/submit` to optionally accept signed envelopes.
+8. Add real `json_equal` comparison only for signed envelope captures.
+9. Wire frontend Run → Sign → Stash → Submit.
+10. Add canary controls.
+11. Add metrics.
+12. Prepare operator flip kit.
+
+Current status:
+
+* The signed runtime envelope system is implemented.
+* Frontend can generate signed RunCaptures.
+* `/submit` can accept optional envelopes.
+* `json_equal` can be truly compared from signed runtime stdout when allow-listed.
+* Canary env vars exist.
+* Metrics endpoint exists.
+* Operator flip kit exists.
+* The actual production canary has not been executed.
+
+## 2.10 Honest-claim / H3 boundary
+
+Atlas adopted a strict trust boundary:
+
+Atlas may claim, for enabled paths:
+
+> Atlas verified that the submitted runtime output matched the expected result.
+
+Atlas must not claim:
+
+* Atlas proved the learner independently wrote the code.
+* Atlas proved the learner did not use outside help.
+* Atlas is cheat-proof.
+* Atlas is tamper-proof.
+* Atlas provides verified authorship.
+* Atlas provides 100% proof.
+
+Phases 53–54 hardened copy safety:
+
+* added banned H1/H2 phrase guard
+* expanded guard from exact substring to normalized pattern matching
+* added Unicode normalization, zero-width stripping, boundary-aware regex
+* blocked variants like “tamper proof,” “100% verified,” “verified authorship,” “certified mastery,” and “outside-help-free”
+* softened career and certificate language
+
+## 2.11 New projects in Phase 55
+
+Phase 55 produced two hidden projects.
+
+### C1 — Applied LLM Guardrails & Structured Output Safety
+
+Status:
+
+* hidden
+* publish-ready per audits
+* pending manual checklist sign-off
+
+Scope:
+
+* Pydantic v2 discriminated union action schema
+* constrained prompt
+* anti-fence guard
+* two-pass parse and repair
+* output validators
+* prompt-injection guard
+* LLM judge calibration
+* Prometheus telemetry
+* JSON audit log
+* safety-eval CLI
+* regression gate
+
+Known caveats:
+
+* `contains` grading is thin and inherited catalog-wide
+* one `numeric_tolerance` step is contract-shaped
+* no shipped fixture files
+* no web preview
+* difficulty heuristic false-positive as advanced
+
+### C2 — Analytics Engineering Semantic Layer with dbt + DuckDB
+
+Status:
+
+* hidden
+* publish-ready per audits
+* pending manual checklist sign-off
+
+Scope:
+
+* dbt skeleton
+* source contracts
+* staging models
+* SCD-2 dimension
+* fact table
+* monthly subscription snapshot
+* SaaS metrics in `metrics.yml`
+* parameterized metric views
+* schema and singular tests
+* stakeholder mapping
+* exposures
+* `bin/metric.py` CLI
+
+Validation distribution:
+
+* 4 `sql_resultset`
+* 1 `csv_set_equal`
+* 2 `exact`
+* 1 `contains`
+* zero contract-shaped steps
+
+Known caveats:
+
+* server commit grader auto-passes `sql_resultset` / `csv_set_equal`, though DuckDB-WASM gives real client-side feedback
+* one thin `contains` check
+* fixtures described, not shipped
+* formula matching intentionally rigid
+* difficulty heuristic false-positive as advanced
+
+---
+
+# 3. Project Structure
+
+The current repo appears to be a monorepo/workspace with these major areas.
+
+## 3.1 Frontend app
+
+Likely path:
+
+```text
+artifacts/atlas/
+```
+
+Important frontend areas:
+
+```text
+artifacts/atlas/src/App.tsx
+artifacts/atlas/src/pages/home.tsx
+artifacts/atlas/src/pages/project-workspace.tsx
+artifacts/atlas/src/pages/how-atlas-grades.tsx
+artifacts/atlas/src/pages/certificates.tsx
+artifacts/atlas/src/pages/profile.tsx
+artifacts/atlas/src/pages/verify.tsx
+artifacts/atlas/src/pages/cert-print.tsx
+artifacts/atlas/src/components/studio/ValidationFeedbackPanel.tsx
+artifacts/atlas/src/lib/envelopeClient.ts
+artifacts/atlas/src/lib/pyodideRunner.ts
+artifacts/atlas/src/lib/banned-h1h2-phrases.ts
+```
+
+Frontend responsibilities:
+
+* render project catalog and project workspace
+* run Python/SQL in browser where applicable
+* capture runtime result
+* call `/api/runs/sign`
+* stash signed envelopes by step
+* submit learner work
+* show validation feedback
+* show certificates/portfolio/profile
+* link to `/how-atlas-grades`
+* enforce copy-safety tests for H1/H2 overclaims
+
+## 3.2 API server
+
+Likely path:
+
+```text
+artifacts/api-server/
+```
+
+Important areas:
+
+```text
+artifacts/api-server/src/routes/user.ts
+artifacts/api-server/src/routes/runs.ts
+artifacts/api-server/src/routes/admin.ts
+artifacts/api-server/src/routes/enrollment.ts
+artifacts/api-server/src/lib/envelopeSubmit.ts
+artifacts/api-server/src/lib/envelopeGrade.ts
+artifacts/api-server/src/lib/envelopeMetrics.ts
+artifacts/api-server/src/lib/grading.ts
+```
+
+API responsibilities:
+
+* authentication
+* enrollments
+* progress
+* `/submit`
+* `/check`
+* certificate verification data
+* portfolio evidence
+* `/api/runs/sign`
+* signed envelope verification
+* nonce insertion / replay prevention
+* canary gating
+* admin envelope metrics
+* payments/billing logic if enabled
+
+## 3.3 Execution core library
+
+Likely path:
+
+```text
+lib/execution-core/
+```
+
+Important areas:
+
+```text
+lib/execution-core/src/runEnvelope.ts
+lib/execution-core/src/runEnvelope.test.ts
+```
+
+Responsibilities:
+
+* RunCapture types
+* RunEnvelope types
+* SignedRunEnvelope types
+* canonicalization
+* SHA-256 helpers
+* HMAC signing
+* HMAC verification
+* expiry checks
+* binding checks
+* defensive verifier errors
+
+Important constraint:
+
+* signed-envelope primitives are exported through a server-only subpath such as `@workspace/execution-core/run-envelope`
+* root barrel intentionally avoids exporting Node crypto-dependent functionality to prevent frontend bundle leaks
+
+## 3.4 Curriculum quality library
+
+Likely path:
+
+```text
+lib/curriculum-quality/
+```
+
+Important areas:
+
+```text
+lib/curriculum-quality/src/validationEnforcement.ts
+lib/curriculum-quality/src/authoringAudit.ts
+```
+
+Responsibilities:
+
+* classify validation kinds
+* detect unknown validation kinds
+* detect legacy spec-key issues
+* detect `json_equal` submission-shape mismatch
+* support publish-readiness audits
+* enforce authoring honesty
+
+## 3.5 API spec and generated clients
+
+Likely paths:
+
+```text
+lib/api-spec/openapi.yaml
+lib/api-client-react/src/generated/*
+lib/api-zod/src/generated/*
+```
+
+Responsibilities:
+
+* OpenAPI contract
+* generated React API hooks
+* generated Zod schemas
+* client usage of `/api/runs/sign`
+
+## 3.6 Database and migrations
+
+Likely paths:
+
+```text
+lib/db/drizzle/
+```
+
+Known DB work:
+
+* baseline migration
+* `run_envelope_nonces` table
+* Drizzle migration journal
+* project candidates
+* projects
+* user progress
+* XP transactions
+* certificates
+* portfolio evidence
+* enrollments
+
+## 3.7 Scripts
+
+Likely path:
+
+```text
+scripts/src/
+```
+
+Important files:
+
+```text
+scripts/src/authored/*
+scripts/src/authored/index.ts
+scripts/src/authored-lineage.ts
+scripts/src/backfill-phase55-candidates.ts
+scripts/src/backfill-enrolled-count.ts
+scripts/src/audit-project-authoring.ts
+scripts/src/audit-pedagogy.ts
+scripts/src/migrate.ts
+scripts/src/cleanup-run-envelope-nonces.ts
+scripts/src/lib/enrollment-check.ts
+scripts/src/lib/candidate-check.ts
+```
+
+Responsibilities:
+
+* seed projects
+* author projects
+* promote authored projects
+* run audits
+* backfill counters
+* validate project candidates
+* run migrations
+* clean expired nonces
+* generate reports
+
+## 3.8 Documentation
+
+Important docs:
+
+```text
+HANDOFF.md
+replit.md
+docs/phases/INDEX.md
+docs/phases/phase-*.md
+docs/project-authoring-spec.md
+docs/templates/project-template.md
+docs/templates/project-publish-readiness-checklist.md
+docs/runtime-validation-threat-model.md
+docs/signed-run-result-design.md
+docs/runbooks/envelope-canary.md
+docs/phases/phase-52-canary-1pct-flip-kit.md
+docs/deployment-checklist.md
+docs/validation-kind-matrix.md
+```
+
+Docs responsibilities:
+
+* phase closeouts
+* current project state
+* deployment checklist
+* runtime validation threat model
+* canary runbook
+* project authoring standard
+* publish-readiness checklist
+* copy-safety constraints
+* operator flip kit
+
+---
+
+# 4. Project Ambition
+
+Atlas should become a premium project-based learning platform that competes with or surpasses:
+
+* DataCamp projects
+* Coursera guided projects
+* Maven / bootcamp capstones
+* Codecademy-style interactive learning
+* Dataquest-style project labs
+* cloud academy labs
+* AI/LLM engineering bootcamps
+* practical MLOps project platforms
+* recruiter-facing portfolio platforms
+
+But Atlas’ intended differentiation is stronger:
+
+1. It is role-path oriented.
+2. It is project-first.
+3. It uses AI tutoring but under strict mode contracts.
+4. It supports progressive learner autonomy.
+5. It produces evidence-backed completion records.
+6. It aims for portfolio-grade deliverables.
+7. It has runtime validation and canary rollout discipline.
+8. It avoids false anti-cheat and authorship claims.
+9. It has an authoring factory to scale curriculum.
+10. It can eventually connect projects directly to GitHub/LinkedIn/job applications.
+
+---
+
+# 5. Tech Stack
+
+## 5.1 Frontend
+
+Likely stack:
+
+* React
+* TypeScript
+* Vite or similar workspace build setup
+* Tailwind or utility-first styling
+* Vitest
+* jsdom tests
+* generated React API client
+* Pyodide for Python execution
+* DuckDB-WASM for SQL feedback paths
+* browser-side runtime capture for signed envelopes
+
+## 5.2 Backend
+
+Likely stack:
+
+* Node.js
+* TypeScript
+* Express or similar route structure
+* Drizzle ORM
+* PostgreSQL / Neon target
+* Pino-style logging
+* Clerk or JWT auth integration
+* Zod/schema validation
+* Vitest for API tests
+
+## 5.3 Database
+
+Likely:
+
+* PostgreSQL
+* Neon for production
+* Drizzle migrations
+* `projects`
+* `project_candidates`
+* `user_progress`
+* `xp_transactions`
+* `certificates`
+* `run_envelope_nonces`
+* payment/billing-related tables if Stripe is active
+
+## 5.4 AI / tutor
+
+* Ada AI tutor
+* mode-aware system prompts/contracts
+* tutor request telemetry
+* hint escalation logging
+* likely Claude/OpenAI upstream support depending on environment
+* no current claim of full learner-memory personalization
+
+## 5.5 Runtime validation
+
+* Pyodide for browser Python execution
+* DuckDB-WASM for browser SQL execution
+* signed RunCapture envelope
+* HMAC signing
+* SHA-256 canonicalization
+* nonce replay prevention
+* canary allow-list
+* process-local metrics
+* log aggregator for durable monitoring
+
+## 5.6 Testing and quality
+
+* TypeScript typecheck
+* Vitest frontend/backend/library tests
+* `audit:authoring`
+* `audit:pedagogy`
+* `audit:difficulty-labels`
+* `check:no-heuristic-runtime`
+* wave-report for project authoring
+* Architect review process
+* banned phrase tests for H1/H2 overclaims
+
+## 5.7 Deployment and operations
+
+* Replit Autoscale target
+* Neon PostgreSQL target
+* explicit migration script
+* no boot-time migrations
+* env var checklist
+* cron for nonce janitor
+* operator runbooks
+* staged canary rollout plan
+
+---
+
+# 6. Short-, Medium-, and Long-Term Ambition
+
+## 6.1 Next few weeks
+
+The next few weeks should focus on converting the current strong engineering base into a visible, trustworthy, usable product surface.
+
+Priorities:
+
+1. Manual publish-readiness review for C1 and C2.
+2. Flip C1/C2 visible only after checklist pass.
+3. Execute Phase 52 operator canary kit in staging.
+4. Register production nonce janitor.
+5. Validate production metrics/log filters.
+6. Run the 1% `json_equal` production canary.
+7. Hold 48h or 500 successful verifies.
+8. Decide whether to ramp to 10%.
+9. Improve runtime graders for `contains`, `sql_resultset`, `csv_set_equal`.
+10. Continue project production with high-quality 1–2 project batches.
+
+## 6.2 Next few months
+
+The next few months should turn Atlas into a launchable paid learning product.
+
+Goals:
+
+1. 100+ visible high-quality projects.
+2. At least 15–25 truly portfolio-grade flagship projects.
+3. Real capstone paths per major role.
+4. GitHub export / repo scaffold.
+5. LinkedIn share flow.
+6. Stronger certificate/portfolio pages.
+7. Learner skill model.
+8. Diagnostic assessment.
+9. Adaptive recommendations based on actual performance.
+10. Admin project review queue.
+11. Runtime grader expansion.
+12. Production deployment.
+13. Stripe/billing production readiness.
+14. Public marketing site.
+15. Launch feedback loop with early users.
+
+## 6.3 Next few years
+
+Atlas should become a serious technical upskilling platform with:
+
+1. AI-assisted project learning paths.
+2. Deep skills graph.
+3. Verified project evidence.
+4. Employer-facing portfolio pages.
+5. Live project labs.
+6. Cloud sandboxes.
+7. Team / enterprise offerings.
+8. Instructor/content marketplace.
+9. AI-generated but human-audited project authoring.
+10. Hiring signal integration.
+11. Role readiness analytics.
+12. Interview simulation tied to completed projects.
+13. Cohort/community layer.
+14. Premium capstones.
+15. Possible credentialing partnerships.
+
+---
+
+# 7. Goal the Project Has Been Working Toward
+
+The current working goal has been:
+
+> Make Atlas launch-worthy as a credible project-learning platform with trustworthy validation, portfolio-grade projects, adaptive learning modes, evidence-backed completion, and scalable curriculum production.
+
+This means the project is not merely “build pages.” It is building trust infrastructure:
+
+* truthful validation
+* evidence records
+* privacy-respecting verification
+* project authoring quality gates
+* deployment readiness
+* honest marketing language
+* learner-mode pedagogy
+* scalable content production
+
+The immediate strategic tension is:
+
+* Atlas needs more content to be market-compelling.
+* Atlas also needs stronger runtime validation so certificates and portfolio claims remain credible.
+* Atlas must not overclaim trust or anti-cheat guarantees.
+
+The current strategy has correctly alternated between:
+
+1. validation/integrity hardening
+2. launch-readiness copy safety
+3. content production
+4. canary readiness
+5. project publish review
+
+---
+
+# 8. Current State of the Codebase
+
+## 8.1 Latest known state
+
+The latest known project state:
+
+* Phase 55 is reported closed by Replit.
+* C1 and C2 have been authored.
+* Both are hidden pending manual publish-readiness sign-off.
+* Phase 52 operator canary remains pending.
+* No production canary has been executed.
+* No production deploy has been executed by the agent.
+* No production env vars have been flipped.
+* No production DB has been touched by the agent.
+* H3 honest-claim ceiling remains in force.
+
+## 8.2 Current visible catalog
+
+Known recent audit:
+
+* 58 visible projects were publish-ready.
+* C1 and C2 are hidden.
+* The visible catalog had all publish-readiness gates passing before C1/C2 visibility.
+* After C2, wave-report showed 58/58 passing among authored wave/project checks.
+* If C1/C2 are flipped visible, visible project count should increase, but only after manual checklist sign-off.
+
+## 8.3 Current validation state
+
+Validation reality:
+
+* `contains` is audit-classified enforced but runtime-thin.
+* `exact` is stronger server-side.
+* `sql_resultset` and `csv_set_equal` can provide real browser-side DuckDB-WASM feedback but server commit grader still auto-passes.
+* `json_equal` has signed-envelope pilot support.
+* `numeric_tolerance` remains contract-shaped in some contexts.
+* `/check` remains unchanged and is not envelope-aware.
+* `/submit` can optionally process signed envelopes.
+* Production enforcement is still disabled unless configured.
+
+## 8.4 Current canary state
+
+* Signed envelope machinery exists.
+* Canary env vars exist.
+* Metrics endpoint exists.
+* Flip kit exists.
+* Operator prerequisites are not complete.
+* The 1% canary is NO-GO until operator evidence exists.
+
+## 8.5 Current test/gate state
+
+Latest known gate families:
+
+* typecheck: green in latest phases
+* Atlas frontend tests: green after Phase 54 at 150/150
+* API server tests: green after Phase 51 at 395/395
+* execution-core tests: green at 83/83
+* curriculum-quality tests: green at 93/93
+* audit:authoring: green
+* audit:pedagogy: green
+* check:no-heuristic-runtime: green
+* C1/C2 authoring/pedagogy/difficulty/wave reports: green
+
+Exact counts may change after Phase 55 closeout; a new agent should re-run gates before making changes.
+
+---
+
+# 9. Files Actively Edited / Recently Important
+
+## 9.1 Runtime validation and envelope system
+
+```text
+lib/execution-core/src/runEnvelope.ts
+lib/execution-core/src/runEnvelope.test.ts
+artifacts/api-server/src/routes/runs.ts
+artifacts/api-server/src/routes/user.ts
+artifacts/api-server/src/lib/envelopeSubmit.ts
+artifacts/api-server/src/lib/envelopeGrade.ts
+artifacts/api-server/src/lib/envelopeMetrics.ts
+artifacts/api-server/src/lib/envelopeSubmit.test.ts
+artifacts/api-server/src/lib/envelopeGrade.test.ts
+artifacts/api-server/src/lib/envelopeMetrics.test.ts
+artifacts/api-server/src/routes/user-submit-envelope.test.ts
+artifacts/api-server/src/routes/user-submit-envelope-pilot.test.ts
+artifacts/api-server/src/routes/admin.envelope-metrics.test.ts
+```
+
+## 9.2 Frontend signed runtime wiring
+
+```text
+artifacts/atlas/src/lib/envelopeClient.ts
+artifacts/atlas/src/lib/envelopeClient.test.ts
+artifacts/atlas/src/lib/pyodideRunner.ts
+artifacts/atlas/src/pages/project-workspace.tsx
+```
+
+## 9.3 H3 disclosure and copy safety
+
+```text
+artifacts/atlas/src/pages/how-atlas-grades.tsx
+artifacts/atlas/src/pages/how-atlas-grades.test.tsx
+artifacts/atlas/src/lib/banned-h1h2-phrases.ts
+artifacts/atlas/src/lib/banned-h1h2-phrases.test.ts
+artifacts/atlas/src/pages/home.tsx
+artifacts/atlas/src/pages/certificates.tsx
+artifacts/atlas/src/pages/profile.tsx
+artifacts/atlas/src/pages/verify.tsx
+artifacts/atlas/src/pages/cert-print.tsx
+artifacts/atlas/src/components/studio/ValidationFeedbackPanel.tsx
+```
+
+## 9.4 Project authoring and Phase 55 projects
+
+```text
+scripts/src/authored/applied-llm-engineer__guardrails-and-structured-output-safety.ts
+scripts/src/authored/analytics-engineer__semantic-layer-with-dbt-and-duckdb.ts
+scripts/src/authored/index.ts
+scripts/src/authored-lineage.ts
+scripts/src/backfill-phase55-candidates.ts
+scripts/package.json
+```
+
+## 9.5 Curriculum quality
+
+```text
+lib/curriculum-quality/src/validationEnforcement.ts
+lib/curriculum-quality/src/authoringAudit.ts
+scripts/src/audit-project-authoring.ts
+docs/validation-kind-matrix.md
+docs/project-authoring-spec.md
+docs/templates/project-template.md
+docs/templates/project-publish-readiness-checklist.md
+```
+
+## 9.6 Deployment and operations
+
+```text
+lib/db/drizzle/0000_phase31_baseline.sql
+scripts/src/migrate.ts
+scripts/src/cleanup-run-envelope-nonces.ts
+docs/deployment-checklist.md
+docs/runbooks/envelope-canary.md
+docs/phases/phase-52-canary-1pct-flip-kit.md
+```
+
+## 9.7 Control-plane docs
+
+```text
+HANDOFF.md
+replit.md
+docs/phases/INDEX.md
+docs/phases/phase-*.md
+```
+
+---
+
+# 10. Everything Tried That Failed or Required Correction
+
+This project has had unusually strong correction discipline. Important failed attempts and corrections:
+
+## 10.1 Naive `json_equal` server grading was rejected
+
+Attempted idea:
+
+* parse the `/submit` payload as JSON and compare directly.
+
+Why it failed:
+
+* all visible `json_equal` steps were code-based Python steps
+* server received source code, not runtime JSON output
+* naive parsing would break existing submissions
+
+Final decision:
+
+* do not implement naive server parsing
+* use signed runtime capture instead
+
+## 10.2 Validation enum audit missed `csv_ordered`
+
+Problem:
+
+* initial classifier covered 8 enum values
+* DB enum had 9
+
+Fix:
+
+* added `csv_ordered` coverage
+* updated tests/docs/classifier
+
+## 10.3 Root barrel crypto leak risk
+
+Problem:
+
+* exporting signed-envelope primitives from root barrel risked bundling Node `crypto` into frontend
+
+Fix:
+
+* server-only subpath export for run-envelope primitives
+
+## 10.4 Migration dry-run issue
+
+Problem:
+
+* Phase 31 migration dry-run hit mismatch against db-push-built dev DB
+
+Fix:
+
+* deployment checklist clarified fresh production DB vs db:push recovery/stamping paths
+
+## 10.5 Stale `enrolled_count`
+
+Problem:
+
+* archive logic trusted stale `projects.enrolled_count`
+
+Fix:
+
+* switched to querying `user_progress`
+* added backfill and durable counter writer
+* hardened archive gates
+
+## 10.6 Phase 49 runtime wiring race conditions
+
+Architect caught:
+
+* soft-fail issues
+* race conditions
+* schema drift
+* NaN duration issues
+* step navigation stale-envelope races
+
+Fix:
+
+* stale envelope invalidation
+* run generation counters
+* NaN-safe duration
+* soft-fail contract
+
+## 10.7 Phase 51 zero-counter gate was wrong
+
+Problem:
+
+* runbook expected zero pre-flip metrics
+* but Phase 49+ clients can legitimately send envelopes for non-enabled kinds, creating fallback traffic
+
+Fix:
+
+* corrected pre-flip interpretation
+* added rule-1 short-circuit caveat
+* `fallbackRate=1.0` only meaningful after envelopes observed
+
+## 10.8 Phase 54 copy-safety bypasses
+
+Initial guard missed:
+
+* zero-width joiners
+* Unicode format controls
+* fullwidth letters
+* word-boundary overmatching
+* unbounded `100% verified`
+
+Fix:
+
+* NFKC normalization
+* `\p{Cf}` stripping
+* dash/whitespace normalization
+* Unicode letter/number lookarounds
+* bounded `100% verified`
+* phrase variant patterns
+
+## 10.9 C1 internal wording overstated enforcement
+
+Problem:
+
+* internal notes said “7-of-8 server-enforced”
+* actual `contains` runtime grader is thin
+
+Fix:
+
+* changed wording to “audit-classified enforced kind”
+* learner-facing copy did not overclaim
+
+## 10.10 C2 invalid step type
+
+Problem:
+
+* `code_yaml` was used but not a valid step type
+
+Fix:
+
+* changed YAML-oriented steps to `multi_file`
+
+## 10.11 C1/C2 visibility default
+
+Problem:
+
+* newly promoted projects could become visible by default
+
+Fix:
+
+* explicitly hid C1/C2 with `learner_visible=false` pending manual sign-off
+
+## 10.12 Hide script top-level await issue
+
+Problem:
+
+* quick hide script errored due to top-level await issue
+
+Fix:
+
+* re-hid properly and verified hidden status
+
+## 10.13 Test interruptions
+
+Some test commands were killed mid-run or truncated. They were rerun focused/full as appropriate and passed.
+
+---
+
+# 11. Success Story of the Project
+
+Atlas has succeeded in several important ways.
+
+## 11.1 The project avoided fake validation
+
+The biggest success is that Atlas refused to ship a naive `json_equal` grader that would have broken the catalog or created false trust. Instead, it built a signed runtime-output architecture with honest limitations.
+
+## 11.2 The project developed a mature H3 trust model
+
+Most learning platforms casually overclaim “verified skills.” Atlas built a disciplined model:
+
+* output match can be verified
+* authorship cannot be proven
+* absence of outside help cannot be proven
+* marketing copy must respect that boundary
+
+## 11.3 The project now has a scalable content factory
+
+Phase 35’s authoring spec and Phase 55’s C1/C2 production show Atlas can produce new projects with:
+
+* full steps
+* hint ladders
+* validation metadata
+* audits
+* hidden staging
+* manual sign-off before visibility
+
+## 11.4 The platform architecture is increasingly production-grade
+
+Atlas has:
+
+* migration discipline
+* deployment checklist
+* runbooks
+* audit gates
+* tests
+* privacy contracts
+* copy-safety guards
+* canary controls
+* rollback planning
+* admin metrics
+
+## 11.5 The project produced strong real curriculum additions
+
+C1 and C2 are highly relevant:
+
+* Applied LLM Guardrails is a 2026-ready AI engineering signal.
+* Semantic Layer with dbt + DuckDB is a strong analytics engineering signal.
+
+Both are portfolio-grade and recruiter-readable.
+
+## 11.6 The project has strong phase discipline
+
+Work is deliberately scoped. Hard stops are honored. Dangerous production actions are deferred to operators. This is a major strength.
+
+---
+
+# 12. What I Would Do Next
+
+The immediate next step should be:
+
+## Manual Publish-Readiness Review + Visibility Flip for C1/C2
+
+Do this before starting new feature work.
+
+Sequence:
+
+1. Review C1 manually using the publish-readiness checklist.
+2. If C1 passes, flip C1 visible.
+3. Review C2 manually using the publish-readiness checklist.
+4. If C2 passes, flip C2 visible.
+5. Run all gates.
+6. Update docs.
+7. Stop and decide next phase.
+
+Why:
+
+* Hidden projects do not help learners.
+* Phase 55 value is not realized until C1/C2 are visible.
+* Manual review catches quality issues audits may miss.
+* This completes the content factory loop.
+
+After that, choose between:
+
+1. Grader/platform hardening
+2. Phase 52 operator canary execution
+3. Another small net-new project phase
+
+My preferred sequence:
+
+1. Publish C1/C2 if ready.
+2. Harden graders for `contains`, `sql_resultset`, `csv_set_equal`.
+3. Execute Phase 52 staging/prod canary kit.
+4. Expand content with another 1–2 projects.
+5. Build GitHub/LinkedIn export.
+
+---
+
+# 13. Build-from-Zero Blueprint
+
+This section is for a builder starting from nothing.
+
+## 13.1 Stage 1 — Define product contract
+
+Create a document that states:
+
+* Atlas is a project-first technical learning platform.
+* Primary roles: Data Engineer, AI Engineer, MLOps Engineer, Analytics Engineer, Cloud Data Engineer, Applied LLM Engineer.
+* The platform verifies outputs/artifacts, not independent authorship.
+* Every project must produce a portfolio artifact.
+* Every project must have progressive hint ladders.
+* Every completion must produce learner evidence.
+
+Deliverables:
+
+```text
+PRODUCT_SPEC.md
+TRUST_MODEL.md
+ROLE_PATHS.md
+PROJECT_AUTHORING_SPEC.md
+```
+
+## 13.2 Stage 2 — Build monorepo skeleton
+
+Create workspace packages:
+
+```text
+artifacts/atlas/                 # frontend
+artifacts/api-server/            # backend
+lib/db/                          # schema/migrations
+lib/execution-core/              # runtime/envelope logic
+lib/curriculum-quality/          # audits/classifiers
+lib/api-spec/                    # OpenAPI
+lib/api-client-react/            # generated client
+lib/api-zod/                     # generated schemas
+scripts/                         # seed/audit/backfill/migrate
+docs/                            # phase docs/runbooks/specs
+```
+
+## 13.3 Stage 3 — Database foundation
+
+Create tables for:
+
+* users
+* projects
+* project_candidates
+* project_steps
+* user_progress
+* submissions
+* xp_transactions
+* certificates
+* portfolio evidence
+* enrollments
+* hints
+* AI tutor telemetry
+* run_envelope_nonces
+* billing if needed
+
+Use Drizzle migrations. Do not rely only on db push.
+
+## 13.4 Stage 4 — Backend foundation
+
+Implement:
+
+* auth middleware
+* project catalog endpoints
+* project detail endpoint
+* enrollment endpoint
+* progress endpoint
+* `/check`
+* `/submit`
+* certificates
+* portfolio
+* admin routes
+* migration command
+* seed scripts
+
+## 13.5 Stage 5 — Frontend foundation
+
+Implement pages:
+
+* home
+* courses/role paths
+* project catalog
+* project detail
+* workspace
+* profile
+* certificates
+* verify page
+* admin
+* how grading works
+* auth flows
+* pricing/billing if needed
+
+## 13.6 Stage 6 — Project workspace
+
+Workspace must include:
+
+* step navigation
+* instructions
+* code editor
+* run button
+* check button
+* submit button
+* validation feedback
+* hints
+* Ada tutor panel
+* mode selector
+* progress state
+* completion state
+
+## 13.7 Stage 7 — Learning modes
+
+Implement:
+
+* Guided
+* Hint-Based
+* Independent
+* Adaptive
+
+Each mode controls:
+
+* hint availability
+* tutor strictness
+* feedback detail
+* solution leakage limits
+* remediation style
+
+## 13.8 Stage 8 — Ada tutor
+
+Implement:
+
+* project/step context injection
+* mode-aware tutor contract
+* hard boundaries for independent mode
+* hint escalation logging
+* quota/rate limits
+* tutor request telemetry
+* future skill-model hooks
+
+## 13.9 Stage 9 — Project authoring system
+
+Implement:
+
+* typed `AuthoredProject`
+* authored project modules
+* project lineage maps
+* authoring audit
+* pedagogy audit
+* publish checklist
+* difficulty audit
+* candidate/promote scripts
+* hidden-by-default publish flow
+
+## 13.10 Stage 10 — Runtime execution
+
+Implement:
+
+* Pyodide Python runner
+* DuckDB-WASM SQL runner
+* runtime result capture
+* stdout/stderr/duration/exit code
+* browser feedback
+* safe limits for timeout/output size
+
+## 13.11 Stage 11 — Signed runtime evidence
+
+Implement:
+
+* RunCapture
+* RunEnvelope
+* SignedRunEnvelope
+* HMAC signer
+* canonicalizer
+* SHA-256 hashing
+* `/api/runs/sign`
+* nonce table
+* nonce cleanup
+* `/submit` optional envelope branch
+* canary gating
+* metrics endpoint
+
+## 13.12 Stage 12 — Certificates/portfolio
+
+Implement:
+
+* completion records
+* public verify page
+* authenticated portfolio page
+* evidence summary
+* no private data leaks
+* shareable proof links
+* H3-only language
+
+## 13.13 Stage 13 — Copy safety
+
+Implement:
+
+* `/how-atlas-grades`
+* banned phrase guard
+* Unicode-normalized pattern matching
+* no H1/H2 claims
+* scan certificate/profile/home/workspace surfaces
+
+## 13.14 Stage 14 — Deployment
+
+Implement:
+
+* production Neon DB
+* baseline migration
+* migration command
+* env var matrix
+* secrets checklist
+* Stripe seed if applicable
+* admin grant flow
+* rollback plan
+* smoke tests
+* monitoring
+
+## 13.15 Stage 15 — Launch loop
+
+Implement:
+
+* early user onboarding
+* feedback collection
+* support queue
+* analytics dashboard
+* project engagement metrics
+* completion funnel
+* learning outcomes
+* conversion funnel
+
+---
+
+# 14. Next Top 30 Things to Implement
+
+Below are the 30 most important remaining work items. HIGH items dominate because Atlas is not yet market-complete.
+
+## HIGH 1 — Manual publish-readiness review and visibility flip for C1/C2
+
+Finish Phase 55’s content loop.
+
+Acceptance criteria:
+
+* C1 checklist passed
+* C2 checklist passed
+* both flipped visible only if clean
+* gates re-run
+* docs updated
+
+## HIGH 2 — Execute Phase 52 staging smoke
+
+Run the 6-scenario smoke from the flip kit.
+
+Acceptance criteria:
+
+* pass case
+* fail case
+* replay case
+* stale envelope case
+* fallback case
+* canary skip case
+* logs captured
+
+## HIGH 3 — Register production nonce janitor cron
+
+Signed envelope nonce table requires cleanup.
+
+Acceptance criteria:
+
+* cron registered
+* ran successfully once
+* deletion count observed after TTL window
+
+## HIGH 4 — Validate production envelope metrics
+
+Confirm admin metrics endpoint and log aggregator.
+
+Acceptance criteria:
+
+* endpoint returns 200
+* no PII
+* fallback metrics make sense
+* log filter catches envelope events
+
+## HIGH 5 — Run 1% `json_equal` signed-envelope canary
+
+Only after operator prerequisites.
+
+Acceptance criteria:
+
+* 1% only
+* 48h or 500 successful verify events
+* no bad signatures
+* p95 latency acceptable
+* no learner support spike
+
+## HIGH 6 — Harden `contains` grader
+
+Current `contains` is thin.
+
+Acceptance criteria:
+
+* structured contains specs
+* multiple needles
+* path-aware checks if needed
+* avoid accidental substring pass
+* migrate authored modules carefully
+
+## HIGH 7 — Server-side grader for `sql_resultset`
+
+Currently client gives real feedback, server auto-passes.
+
+Acceptance criteria:
+
+* deterministic SQL result comparison
+* sandbox-safe execution or trusted signed output
+* exact row/column/value matching
+* strong tests
+
+## HIGH 8 — Server-side grader for `csv_set_equal`
+
+Needed for analytics/data projects.
+
+Acceptance criteria:
+
+* canonical CSV parser
+* unordered row-set comparison
+* clear diff feedback
+* tests for quoting/types/order
+
+## HIGH 9 — `/check` parity strategy
+
+Currently envelope pilot is `/submit` only.
+
+Acceptance criteria:
+
+* decide whether `/check` should stay learner-friendly or become envelope-aware
+* avoid nonce burn on check unless designed
+* clear learner UX
+
+## HIGH 10 — Portfolio artifact export
+
+Every project should produce GitHub/portfolio-ready output.
+
+Acceptance criteria:
+
+* README generator
+* project summary
+* skills practiced
+* files/artifacts checklist
+* copy-safe share text
+
+## HIGH 11 — GitHub repo scaffold/export
+
+Recruiter relevance increases greatly.
+
+Acceptance criteria:
+
+* downloadable repo scaffold
+* generated README
+* project file tree
+* optional GitHub push flow
+
+## HIGH 12 — LinkedIn sharing flow
+
+Needed for growth and learner outcomes.
+
+Acceptance criteria:
+
+* copy-safe share text
+* verify link
+* project summary card
+* no H1/H2 claims
+
+## HIGH 13 — Learner skill model
+
+Adaptive learning needs explicit skill estimates.
+
+Acceptance criteria:
+
+* skill tags per step/project
+* confidence per skill
+* update on attempts/hints/submits
+* used by recommendations
+
+## HIGH 14 — Diagnostic assessment
+
+Learners need correct starting point.
+
+Acceptance criteria:
+
+* role-specific diagnostic
+* skill baseline
+* recommended first project
+* adaptive path seed
+
+## HIGH 15 — Project prerequisite graph
+
+Role paths need real sequencing.
+
+Acceptance criteria:
+
+* prerequisite edges
+* next-best project logic
+* capstone readiness
+* prevents random catalog browsing
+
+## HIGH 16 — Learner analytics dashboard
+
+Learners need to see progress and weaknesses.
+
+Acceptance criteria:
+
+* skills improving
+* weak areas
+* completed projects
+* recommended next actions
+* role readiness trajectory
+
+## HIGH 17 — Admin project review queue
+
+Scripts are good, but review needs UI/workflow.
+
+Acceptance criteria:
+
+* hidden projects queue
+* audit status
+* checklist status
+* reviewer notes
+* approve/publish action
+
+## HIGH 18 — Content expansion to 100+ visible quality projects
+
+Atlas needs market depth.
+
+Acceptance criteria:
+
+* controlled 1–2 project batches
+* every project audited
+* no placeholders
+* role coverage map
+
+## HIGH 19 — Capstone projects per role
+
+No true capstones yet.
+
+Acceptance criteria:
+
+* one capstone per major role
+* 8–12 meaningful steps
+* portfolio deliverable
+* credible validation strategy
+
+## HIGH 20 — Production deployment
+
+Atlas must leave dev.
+
+Acceptance criteria:
+
+* Neon prod DB
+* migrations run
+* secrets set
+* smoke tests pass
+* admin user granted
+* monitoring active
+
+## HIGH 21 — Payments/billing production readiness
+
+If monetized, Stripe must be real.
+
+Acceptance criteria:
+
+* live products/prices
+* webhook secret
+* subscription gates
+* billing audit
+* cancellation flow
+* test/live mode separation
+
+## HIGH 22 — Onboarding flow
+
+Learners need guided activation.
+
+Acceptance criteria:
+
+* choose role
+* diagnostic
+* first project recommendation
+* mode explanation
+* how grading works link
+
+## HIGH 23 — Public marketing site
+
+Needed for market launch.
+
+Acceptance criteria:
+
+* clear positioning
+* role paths
+* sample projects
+* trust-safe proof language
+* pricing
+* waitlist/signup
+
+## HIGH 24 — End-to-end QA walkthroughs
+
+Run real learner journeys.
+
+Acceptance criteria:
+
+* new learner signup
+* enroll
+* guided project
+* run/check/submit
+* certificate
+* portfolio
+* billing if enabled
+
+## HIGH 25 — Support and feedback loop
+
+Real users will hit issues.
+
+Acceptance criteria:
+
+* support form
+* bug report
+* project feedback
+* admin triage
+* learner confusion tracking
+
+## MEDIUM 26 — Tutor memory
+
+Useful after skill model.
+
+Acceptance criteria:
+
+* remembers learner struggle patterns
+* respects privacy
+* feeds adaptive hints
+
+## MEDIUM 27 — Better remediation panels
+
+Use validation failures to explain next steps.
+
+Acceptance criteria:
+
+* error-to-remediation mapping
+* mode-aware remediation
+* non-leaky independent mode
+
+## MEDIUM 28 — Instructor/author tooling
+
+Scale content creation.
+
+Acceptance criteria:
+
+* author preview
+* validation preview
+* hint leak checker UI
+* publish workflow
+
+## MEDIUM 29 — Role-readiness reports
+
+Learners need outcome framing.
+
+Acceptance criteria:
+
+* role gap report
+* project evidence
+* skills matrix
+* recommended capstone
+
+## LOW 30 — Cosmetic polish and animation pass
+
+Important, but after core launch.
+
+Acceptance criteria:
+
+* consistent UI
+* premium feel
+* responsive polish
+* empty states
+* skeleton loaders
+
+---
+
+# 15. Recommended Immediate Prompt to Give Replit
+
+Use this next:
+
+```text
+We are continuing Atlas after Phase 55. Do not start new feature work yet.
+
+Goal:
+Run manual publish-readiness review for the two Phase 55 projects and flip them visible only if they pass.
+
+Projects:
+1. applied-llm-engineer-guardrails-and-structured-output-safety
+2. analytics-engineer-semantic-layer-with-dbt-and-duckdb
+
+Hard stops:
+- no canary execution
+- no env-var changes
+- no /check changes
+- no grading logic changes
+- no schema/migration changes
+- no new project authoring
+- no production deploy
+- preserve Phase 52 as operator-pending
+
+Tasks:
+1. Confirm both projects are learner_visible=false before review.
+2. Review C1 against the publish-readiness checklist.
+3. Fix only true blockers.
+4. If C1 passes, flip C1 visible.
+5. Review C2 against the publish-readiness checklist.
+6. Fix only true blockers.
+7. If C2 passes, flip C2 visible.
+8. Run gates:
+   - pnpm run typecheck
+   - audit:authoring
+   - audit:pedagogy
+   - audit:difficulty-labels
+   - check:no-heuristic-runtime
+   - relevant tests
+9. Update docs/phases/INDEX.md, HANDOFF.md, replit.md, and create a close-out if needed.
+
+End with:
+1. C1 checklist result
+2. C2 checklist result
+3. any fixes made
+4. visibility status
+5. gates run
+6. next recommended phase
+```
+
+---
+
+# 16. Final Strategic Recommendation
+
+Atlas should not rush into more platform complexity before visible learner value increases.
+
+Recommended sequence:
+
+1. Publish C1/C2 after manual checklist.
+2. Harden graders for `contains`, `sql_resultset`, and `csv_set_equal`.
+3. Execute Phase 52 operator canary kit.
+4. Ramp `json_equal` if metrics are clean.
+5. Add 3–5 more portfolio-grade projects.
+6. Build GitHub/LinkedIn export.
+7. Deploy production.
+8. Onboard first private beta users.
+9. Use real learner data to improve skill model and adaptive mode.
+10. Prepare public launch.
+
+Atlas is not finished, but it has crossed an important threshold: it is no longer a loose prototype. It is now a structured, audited, trust-conscious learning platform with a credible path to launch.

@@ -1,0 +1,1975 @@
+# ATLAS MASTER HANDOFF ADDENDUM
+
+## Frontend, Backend, Database, Ada Tutor, Study Modes, IDE, SQL Editor, and Cloud Platform Integration Blueprint
+
+## 0. Purpose of This Addendum
+
+This addendum expands the Atlas Master Handoff with the technical architecture areas that were under-detailed in the first report.
+
+The first handoff explained:
+
+* what Atlas is
+* what has shipped
+* the phase history
+* the current codebase state
+* validation/canary status
+* project authoring progress
+* next roadmap items
+
+This addendum focuses on the “build from zero” technical blueprint for the core platform systems:
+
+1. Frontend architecture
+2. Backend architecture
+3. Database schema design
+4. Ada AI tutor architecture
+5. Guided / hint / independent / adaptive learning modes
+6. Python IDE
+7. SQL editor
+8. Runtime validation
+9. Project authoring system
+10. Certificate and portfolio evidence
+11. Cloud platform integrations
+12. AWS / Azure / GCP / Snowflake / Databricks lab strategy
+13. Credential security
+14. Admin/instructor workflow
+15. Deployment and production operations
+16. What is shipped now vs what still needs to be built
+
+This document should be read together with the Atlas Master Handoff. Together, they form a more complete blueprint for rebuilding Atlas from scratch.
+
+---
+
+# 1. Atlas Technical Product Vision
+
+Atlas is a role-based, project-first technical learning platform.
+
+It should feel like a combination of:
+
+* a guided bootcamp
+* a project portfolio builder
+* an interactive coding lab
+* a data/AI engineering IDE
+* a tutor-assisted learning environment
+* a recruiter-facing evidence platform
+
+The platform’s long-term architecture should support:
+
+```text
+Learner chooses role path
+→ takes diagnostic
+→ receives recommended project sequence
+→ enters project workspace
+→ selects study mode
+→ works in Python/SQL/cloud/data IDE
+→ uses Ada tutor when needed
+→ runs code locally or in sandbox
+→ checks outputs
+→ submits evidence
+→ earns project completion
+→ generates portfolio artifact
+→ shares public verification or GitHub/LinkedIn proof
+```
+
+Atlas must support both:
+
+1. **Sandbox learning**
+   Browser/local execution with Pyodide, DuckDB-WASM, mock APIs, local fixtures, deterministic mock LLMs.
+
+2. **Real-world cloud labs**
+   Optional BYO-cloud integrations with AWS, Azure, GCP, Snowflake, Databricks, and possibly local Docker/devcontainer labs.
+
+The platform should always preserve the H3 honesty boundary:
+
+> Atlas can verify that an enabled runtime output or artifact matched the expected result. Atlas cannot prove independent authorship or absence of outside help.
+
+---
+
+# 2. Frontend Architecture Blueprint
+
+## 2.1 Frontend stack
+
+Recommended / current-aligned frontend stack:
+
+```text
+React
+TypeScript
+Vite or equivalent modern bundler
+Tailwind or utility-first styling
+Vitest
+React Testing Library
+Generated React API client
+Zod-generated API schemas
+Pyodide for browser Python execution
+DuckDB-WASM for browser SQL execution
+Monaco Editor or CodeMirror for coding experience
+```
+
+## 2.2 Frontend directory blueprint
+
+```text
+artifacts/atlas/src/
+  App.tsx
+
+  pages/
+    home.tsx
+    courses.tsx
+    course-detail.tsx
+    project-workspace.tsx
+    profile.tsx
+    certificates.tsx
+    cert-print.tsx
+    verify.tsx
+    how-atlas-grades.tsx
+    onboarding.tsx
+    pricing.tsx
+    admin/
+
+  components/
+    layout/
+      AppShell.tsx
+      Navbar.tsx
+      Footer.tsx
+
+    catalog/
+      CourseCard.tsx
+      ProjectCard.tsx
+      RolePathCard.tsx
+      DifficultyBadge.tsx
+
+    studio/
+      StudioShell.tsx
+      ProjectStepNavigator.tsx
+      InstructionsPanel.tsx
+      ModeSelector.tsx
+      AdaTutorPanel.tsx
+      CodeEditor.tsx
+      SqlEditor.tsx
+      FileTree.tsx
+      RunOutputPanel.tsx
+      ValidationFeedbackPanel.tsx
+      RemediationPanel.tsx
+      HintLadder.tsx
+      CompletionPanel.tsx
+
+    portfolio/
+      PortfolioProjectCard.tsx
+      CertificateSummary.tsx
+      EvidenceSummary.tsx
+
+    admin/
+      ProjectReviewQueue.tsx
+      ProjectQualityPanel.tsx
+      EnvelopeMetricsPanel.tsx
+      UserProgressInspector.tsx
+
+  hooks/
+    useLearningMode.ts
+    useProjectWorkspace.ts
+    useRunPython.ts
+    useRunSql.ts
+    useAdaTutor.ts
+    useSignRun.ts
+    useProjectProgress.ts
+
+  lib/
+    apiClient.ts
+    envelopeClient.ts
+    pyodideRunner.ts
+    duckdbRunner.ts
+    learningMode.ts
+    validationDisplay.ts
+    banned-h1h2-phrases.ts
+    portfolioExport.ts
+```
+
+## 2.3 Main frontend pages
+
+### Home page
+
+Purpose:
+
+* explain Atlas
+* present role paths
+* show sample projects
+* communicate project-first value
+* link to `/how-atlas-grades`
+* avoid overclaiming
+
+Should include:
+
+```text
+Hero
+Role paths
+Sample projects
+How project learning works
+Trust/disclosure link
+Pricing/waitlist CTA
+```
+
+### Course / role path page
+
+Purpose:
+
+* show projects by role path
+* show beginner/intermediate/advanced sequence
+* show learner progress
+* recommend next project
+
+Should include:
+
+```text
+Role overview
+Skill map
+Project sequence
+Difficulty filters
+Completion status
+Recommended next project
+Capstone readiness
+```
+
+### Project workspace
+
+This is the most important frontend page.
+
+Responsibilities:
+
+```text
+Display project context
+Display current step
+Render instructions
+Render selected study mode
+Render code/SQL/file editor
+Run learner code
+Show stdout/stderr/result table
+Call /api/runs/sign when appropriate
+Submit work
+Display validation feedback
+Render hints
+Render Ada tutor
+Track progress
+Show completion panel
+Link to /how-atlas-grades
+```
+
+Workspace flow:
+
+```text
+Load project
+→ load user progress
+→ determine current step
+→ load selected learning mode
+→ learner edits code/files
+→ learner clicks Run
+→ Pyodide or DuckDB executes
+→ result captured
+→ optional /api/runs/sign call
+→ signed envelope stored per step
+→ learner clicks Submit
+→ frontend sends legacy submission or signed envelope
+→ backend verifies/grades
+→ UI renders pass/fail/remediation
+```
+
+### Profile page
+
+Purpose:
+
+* show learner identity
+* show completed projects
+* show role path progress
+* show portfolio evidence
+* show skill growth
+
+Future additions:
+
+```text
+Skill confidence chart
+Weak areas
+Recommended next project
+Public portfolio toggle
+Share settings
+```
+
+### Certificates page
+
+Purpose:
+
+* show completed records
+* show project completion summaries
+* link to public verification pages
+* avoid overclaiming
+
+Correct language:
+
+```text
+Verified completion record
+Skills practiced in this project
+Evidence-backed project completion
+```
+
+Avoid:
+
+```text
+Verified authorship
+Tamper-proof skill proof
+Cheat-proof certificate
+Guaranteed job readiness
+```
+
+### How Atlas Grades page
+
+Purpose:
+
+* explain validation honestly
+* explain signed runtime captures
+* explain what Atlas does not prove
+* build user trust
+
+Must include:
+
+```text
+What Atlas checks
+What signed runtime captures mean
+What Atlas does not prove
+Why some checks vary by step type
+Why we avoid overclaiming
+```
+
+---
+
+# 3. Backend Architecture Blueprint
+
+## 3.1 Backend stack
+
+Recommended / current-aligned backend stack:
+
+```text
+Node.js
+TypeScript
+Express-style routing or equivalent
+Drizzle ORM
+PostgreSQL / Neon
+Zod validation
+JWT / Clerk authentication
+Pino-style structured logging
+Vitest
+OpenAPI contract
+Generated clients
+Stripe integration for billing
+```
+
+## 3.2 Backend directory blueprint
+
+```text
+artifacts/api-server/src/
+  index.ts
+  app.ts
+
+  routes/
+    user.ts
+    projects.ts
+    enrollment.ts
+    runs.ts
+    tutor.ts
+    admin.ts
+    verify.ts
+    payments.ts
+    portfolio.ts
+
+  lib/
+    auth.ts
+    db.ts
+    logger.ts
+    grading.ts
+    envelopeSubmit.ts
+    envelopeGrade.ts
+    envelopeMetrics.ts
+    certificates.ts
+    portfolioEvidence.ts
+    learningModes.ts
+    tutorPolicy.ts
+    tutorContext.ts
+    rateLimit.ts
+    privacy.ts
+    payments.ts
+
+  middleware/
+    requireAuth.ts
+    requireAdmin.ts
+    errorHandler.ts
+    requestLogger.ts
+
+  tests/
+    user-submit.test.ts
+    user-submit-envelope.test.ts
+    runs-sign.test.ts
+    admin.envelope-metrics.test.ts
+```
+
+## 3.3 Core backend routes
+
+### Project routes
+
+```text
+GET /api/projects
+GET /api/projects/:projectId
+GET /api/courses/:courseSlug/projects
+```
+
+Responsibilities:
+
+* return visible projects
+* filter by role path
+* include learner progress if authenticated
+* hide unpublished projects
+
+### Enrollment routes
+
+```text
+POST /api/enrollments
+GET /api/user/enrollments
+```
+
+Responsibilities:
+
+* enroll learner in project
+* initialize progress
+* prevent duplicate enrollment
+* update enrollment counters safely
+
+### Workspace routes
+
+```text
+POST /api/user/projects/:projectId/steps/:stepId/check
+POST /api/user/projects/:projectId/steps/:stepId/submit
+```
+
+Responsibilities:
+
+* receive learner submission
+* grade or verify result
+* update attempt records
+* update progress
+* award XP
+* complete project when final step passes
+* generate completion evidence
+
+Important distinction:
+
+* `/check` should remain learner-friendly and low-risk.
+* `/submit` is the durable evidence path.
+
+### Runtime signing route
+
+```text
+POST /api/runs/sign
+```
+
+Responsibilities:
+
+* authenticate learner
+* validate capture body
+* verify project/step ownership
+* verify enrollment
+* check signable validation kind
+* enforce byte limits
+* sign RunCapture
+* return SignedRunEnvelope
+
+### Admin routes
+
+```text
+GET /api/admin/envelope/metrics
+GET /api/admin/projects/review
+GET /api/admin/validation/audit
+GET /api/admin/users/:id/progress
+```
+
+Responsibilities:
+
+* admin-only operational insight
+* curriculum quality review
+* envelope metrics
+* project review queue
+* learner support diagnostics
+
+### Tutor routes
+
+```text
+POST /api/tutor/message
+```
+
+Responsibilities:
+
+* receive learner question
+* construct tutor context
+* apply learning mode policy
+* call model provider
+* log tutor telemetry
+* return safe response
+
+---
+
+# 4. Database Schema Blueprint
+
+## 4.1 Database
+
+Recommended database:
+
+```text
+PostgreSQL
+Drizzle ORM
+Neon for production
+Explicit migrations
+No automatic boot-time schema mutation
+```
+
+## 4.2 Core tables
+
+### users
+
+```text
+users
+  id uuid primary key
+  clerk_id text unique
+  email text
+  display_name text
+  role_goal text
+  created_at timestamp
+  updated_at timestamp
+```
+
+### projects
+
+```text
+projects
+  id uuid primary key
+  slug text unique
+  title text
+  course text
+  role_path text
+  domain text
+  difficulty text
+  description text
+  scenario text
+  estimated_minutes integer
+  xp integer
+  learner_visible boolean
+  quality_status text
+  source_candidate_id uuid nullable
+  enrolled_count integer
+  created_at timestamp
+  updated_at timestamp
+```
+
+### project_steps
+
+```text
+project_steps
+  id uuid primary key
+  project_id uuid references projects(id)
+  step_number integer
+  title text
+  instruction_md text
+  step_type text
+  validation_kind text
+  validation_spec jsonb
+  expected_output jsonb
+  hints jsonb
+  success_feedback text
+  failure_feedback text
+  portfolio_relevance text
+  final_explanation text
+  misconception_to_watch_for text
+  created_at timestamp
+  updated_at timestamp
+```
+
+### project_candidates
+
+```text
+project_candidates
+  id uuid primary key
+  slug text unique
+  source text
+  status text
+  reviewer_notes text
+  authored_payload jsonb
+  promoted_project_id uuid nullable
+  created_at timestamp
+  updated_at timestamp
+```
+
+### user_progress
+
+```text
+user_progress
+  id uuid primary key
+  user_id uuid references users(id)
+  project_id uuid references projects(id)
+  status text
+  current_step_id uuid nullable
+  selected_learning_mode text
+  started_at timestamp
+  completed_at timestamp nullable
+  xp_earned integer
+  created_at timestamp
+  updated_at timestamp
+```
+
+### step_attempts
+
+```text
+step_attempts
+  id uuid primary key
+  user_id uuid references users(id)
+  project_id uuid references projects(id)
+  step_id uuid references project_steps(id)
+  attempt_type text       -- check | submit
+  validation_kind text
+  submission_sha256 text
+  passed boolean
+  feedback text
+  envelope_used boolean
+  runtime_duration_ms integer nullable
+  created_at timestamp
+```
+
+### xp_transactions
+
+```text
+xp_transactions
+  id uuid primary key
+  user_id uuid references users(id)
+  project_id uuid references projects(id)
+  step_id uuid nullable
+  amount integer
+  reason text
+  created_at timestamp
+```
+
+### certificates
+
+```text
+certificates
+  id uuid primary key
+  public_cert_id text unique
+  user_id uuid references users(id)
+  project_id uuid references projects(id)
+  issued_at timestamp
+  evidence_summary jsonb
+  public_verify_enabled boolean
+```
+
+### portfolio_evidence
+
+```text
+portfolio_evidence
+  id uuid primary key
+  user_id uuid references users(id)
+  project_id uuid references projects(id)
+  certificate_id uuid nullable
+  steps_completed integer
+  total_steps integer
+  total_xp integer
+  evidence_hash_count integer
+  first_step_completed_at timestamp
+  completed_at timestamp
+  duration_seconds integer
+  created_at timestamp
+```
+
+### run_envelope_nonces
+
+```text
+run_envelope_nonces
+  nonce text primary key
+  user_id uuid
+  project_id uuid
+  step_id uuid
+  validation_kind text
+  expires_at timestamp
+  used_at timestamp
+  created_at timestamp
+```
+
+Purpose:
+
+* prevent replay of signed envelopes
+* support fail-closed nonce burn semantics
+* cleaned by nightly janitor
+
+### tutor_messages
+
+```text
+tutor_messages
+  id uuid primary key
+  user_id uuid
+  project_id uuid nullable
+  step_id uuid nullable
+  learning_mode text
+  role text          -- user | assistant | system
+  content text
+  created_at timestamp
+```
+
+### tutor_events
+
+```text
+tutor_events
+  id uuid primary key
+  user_id uuid
+  project_id uuid nullable
+  step_id uuid nullable
+  event_type text
+  learning_mode text
+  hint_level integer nullable
+  tokens_in integer nullable
+  tokens_out integer nullable
+  solution_leak_risk boolean
+  created_at timestamp
+```
+
+### learner_skill_state
+
+Future table:
+
+```text
+learner_skill_state
+  id uuid primary key
+  user_id uuid
+  skill_tag text
+  confidence numeric
+  evidence_count integer
+  last_evidence_at timestamp
+  updated_at timestamp
+```
+
+### cloud_connections
+
+Future table:
+
+```text
+cloud_connections
+  id uuid primary key
+  user_id uuid
+  provider text       -- aws | azure | gcp | snowflake | databricks
+  display_name text
+  encrypted_secret_ref text
+  scopes jsonb
+  status text
+  last_validated_at timestamp
+  created_at timestamp
+```
+
+### cloud_lab_runs
+
+Future table:
+
+```text
+cloud_lab_runs
+  id uuid primary key
+  user_id uuid
+  project_id uuid
+  provider text
+  status text
+  resource_tags jsonb
+  estimated_cost numeric
+  started_at timestamp
+  completed_at timestamp nullable
+  cleaned_up_at timestamp nullable
+```
+
+---
+
+# 5. Ada AI Tutor Blueprint
+
+## 5.1 What Ada is
+
+Ada is Atlas’ AI tutor.
+
+Ada should not behave like a generic chatbot. Ada is a role-aware, project-aware, mode-aware tutor that helps learners make progress without destroying the learning value.
+
+Ada’s purpose:
+
+```text
+Explain concepts
+Guide debugging
+Provide hints
+Respond to validation failures
+Encourage independent reasoning
+Adapt to learner mode
+Help learners understand portfolio relevance
+Avoid doing the whole project for the learner
+```
+
+## 5.2 Ada system architecture
+
+```text
+Frontend AdaTutorPanel
+→ POST /api/tutor/message
+→ auth + rate limit
+→ load learner/project/step context
+→ load selected learning mode
+→ load recent attempts/hints
+→ build tutor policy prompt
+→ call LLM provider
+→ post-process response for safety/leakage
+→ log tutor event
+→ return response
+```
+
+## 5.3 Ada context packet
+
+Every tutor call should include:
+
+```text
+user_id
+project_id
+step_id
+project title
+role path
+difficulty
+current step instructions
+selected learning mode
+hint level already used
+last validation result
+last error message
+recent attempt count
+allowed response style
+forbidden response style
+```
+
+## 5.4 Ada mode behavior
+
+### Guided Mode
+
+Ada can:
+
+* explain step goals clearly
+* provide examples
+* walk through debugging
+* offer larger hints
+* show partial patterns
+
+Ada should still avoid:
+
+* dumping complete final answers immediately
+* bypassing the project task
+
+### Hint-Based Mode
+
+Ada can:
+
+* give one hint at a time
+* ask the learner to try again
+* gradually reveal more detail
+* provide targeted debugging
+
+Ada should avoid:
+
+* jumping to final solution
+* revealing expected outputs directly
+
+### Independent Mode
+
+Ada should:
+
+* ask questions
+* identify likely error category
+* point to relevant concept
+* keep feedback minimal
+* avoid code-level answer leakage
+
+Ada must not:
+
+* provide final solution code
+* reveal expected output
+* turn independent mode into guided mode
+
+### Adaptive Mode
+
+Ada should:
+
+* inspect learner history
+* choose support level
+* recommend more or less help
+* explain why a mode is recommended
+* escalate only when learner is stuck
+
+Future adaptive inputs:
+
+```text
+attempt count
+hint count
+time on step
+past completion rate
+error categories
+skill confidence
+mode success history
+```
+
+## 5.5 Ada prompt contract
+
+Ada’s system prompt should include:
+
+```text
+You are Ada, the Atlas project tutor.
+You help learners complete projects without removing the learning value.
+Respect the selected learning mode.
+Never claim Atlas proves independent authorship.
+Never say Atlas is cheat-proof, tamper-proof, or 100% verified.
+Never reveal secrets, env vars, or hidden expected outputs.
+If the learner asks for a full answer in independent mode, refuse gently and provide a diagnostic hint.
+If the learner is stuck after multiple attempts in guided mode, provide more concrete scaffolding.
+Always connect the step to portfolio/job relevance when helpful.
+```
+
+## 5.6 Ada telemetry
+
+Track:
+
+```text
+tutor message count
+mode used
+hint level
+attempt count before tutor request
+whether learner passed after tutor use
+token usage
+safety flags
+solution-leak risk
+```
+
+Future use:
+
+* skill model
+* tutor quality review
+* adaptive recommendations
+* cost control
+* abuse detection
+
+---
+
+# 6. Learning / Studying Modes Blueprint
+
+## 6.1 Mode overview
+
+Atlas should have four learning modes:
+
+```text
+Guided
+Hint-Based
+Independent
+Adaptive / Choose for Me
+```
+
+## 6.2 Mode matrix
+
+| Mode        | Best for                    | Tutor style      | Hint behavior     | Feedback detail | Solution leakage tolerance |
+| ----------- | --------------------------- | ---------------- | ----------------- | --------------- | -------------------------- |
+| Guided      | Beginners                   | Explanatory      | More available    | Detailed        | Low-to-medium              |
+| Hint-Based  | Intermediate learners       | Socratic + hints | Progressive       | Moderate        | Low                        |
+| Independent | Interview/capstone practice | Minimal          | Restricted        | Compact         | Very low                   |
+| Adaptive    | Personalized learning       | Dynamic          | Based on evidence | Dynamic         | Controlled                 |
+
+## 6.3 Guided Mode UX
+
+Features:
+
+```text
+Step walkthrough
+Concept explanation
+Larger hints
+More detailed validation feedback
+Ada can give patterns
+Remediation can be explicit
+```
+
+## 6.4 Hint-Based Mode UX
+
+Features:
+
+```text
+Hint ladder visible
+Learner chooses next hint
+Ada encourages retry
+Feedback points to category of issue
+No full answer by default
+```
+
+## 6.5 Independent Mode UX
+
+Features:
+
+```text
+Hints hidden or delayed
+Ada asks diagnostic questions
+Validation feedback is less revealing
+No expected output echoing
+No exact solution diff
+```
+
+## 6.6 Adaptive Mode UX
+
+Features:
+
+```text
+Platform recommends mode
+Learner can accept or override
+System explains recommendation
+Mode can change after repeated failure or success
+```
+
+Adaptive mode requires future skill model.
+
+---
+
+# 7. Python IDE Blueprint
+
+## 7.1 Purpose
+
+Atlas needs an in-browser Python IDE for data engineering, AI engineering, and MLOps projects.
+
+## 7.2 Runtime
+
+Recommended/current-aligned:
+
+```text
+Pyodide
+Browser-based execution
+No external Python server required for beginner/intermediate tasks
+Timeout controls
+stdout/stderr capture
+duration measurement
+```
+
+## 7.3 IDE features
+
+```text
+Code editor
+Run button
+Check button
+Submit button
+stdout panel
+stderr panel
+result panel
+file tree
+fixture panel
+test panel
+package availability warning
+reset code
+load previous attempt
+copy output
+download project files
+```
+
+## 7.4 Python RunCapture
+
+When the learner runs Python, Atlas should capture:
+
+```text
+language: python
+code
+stdout
+stderr
+exitCode
+durationMs
+projectId
+stepId
+validationKind
+createdAt
+```
+
+The capture can then be signed by `/api/runs/sign`.
+
+## 7.5 Stale envelope invalidation
+
+If learner changes code after a run:
+
+```text
+clear signed envelope
+increment run generation counter
+ignore stale sign response if it returns late
+require re-run before signed submit
+```
+
+## 7.6 Python project types
+
+Atlas should support:
+
+```text
+single-file Python
+multi-file Python
+CLI projects
+pytest-style projects
+JSON/CSV fixture generation
+LLM mock clients
+data transformation scripts
+evaluation harnesses
+```
+
+## 7.7 Future Python IDE improvements
+
+```text
+Package manager simulation
+pytest output parser
+file explorer
+download repo zip
+GitHub export
+notebook-like cells
+debugger-lite
+visual diff
+memory/time usage display
+```
+
+---
+
+# 8. SQL Editor Blueprint
+
+## 8.1 Purpose
+
+Atlas needs a strong SQL editor for analytics engineering, data engineering, warehouse, semantic layer, and dbt-style projects.
+
+## 8.2 Runtime
+
+Recommended/current-aligned:
+
+```text
+DuckDB-WASM
+Browser-side execution
+CSV seed loading
+SQL result table
+Result-set comparison
+```
+
+## 8.3 SQL editor features
+
+```text
+SQL editor
+Run query
+Result grid
+Expected vs actual diff
+Schema browser
+Seed data preview
+Error explanation
+Query history
+Submit result
+```
+
+## 8.4 SQL validation kinds
+
+Atlas should support:
+
+```text
+sql_resultset
+csv_set_equal
+csv_ordered
+exact
+contains
+```
+
+## 8.5 Current caveat
+
+`sql_resultset` and `csv_set_equal` currently provide strong client-side feedback but server-side commit grading may auto-pass. This should be hardened.
+
+## 8.6 Future server-side SQL validation
+
+Possible paths:
+
+1. server-side DuckDB execution
+2. signed browser execution output
+3. hybrid: browser executes, server verifies signed result
+4. trusted sandbox service
+
+Recommended next step:
+
+* use signed runtime envelope path for SQL outputs
+* then add server-side canonical result comparison where feasible
+
+## 8.7 SQL result canonicalization
+
+Need to define:
+
+```text
+column name normalization
+numeric tolerance rules
+date/time formatting
+NULL handling
+row ordering rules
+CSV quoting rules
+type coercion rules
+```
+
+---
+
+# 9. Runtime Validation Blueprint
+
+## 9.1 Validation kinds
+
+Current/future validation kinds:
+
+```text
+contains
+exact
+json_equal
+numeric_tolerance
+sql_resultset
+csv_set_equal
+csv_ordered
+self_attest
+regex / future
+```
+
+## 9.2 Validation classes
+
+Atlas should classify validation kinds honestly:
+
+```text
+server-enforced
+client-provisional
+contract-shaped
+self-attested
+unknown
+```
+
+## 9.3 Signed runtime envelope
+
+Signed runtime flow:
+
+```text
+Frontend executes code
+→ creates RunCapture
+→ sends capture to /api/runs/sign
+→ backend signs capture
+→ frontend stores SignedRunEnvelope
+→ learner submits
+→ /submit verifies envelope
+→ nonce consumed
+→ gradeEnvelopeCapture compares output
+→ progress updated
+```
+
+## 9.4 What signed envelopes prove
+
+They can prove:
+
+```text
+Atlas signed this runtime capture
+Envelope was not tampered with
+Envelope was not replayed
+Output matched expected result for enabled kind
+```
+
+They do not prove:
+
+```text
+learner wrote the code independently
+learner did not use AI/outside help
+learner did not forge a capture before signing
+```
+
+## 9.5 Canary system
+
+Env vars:
+
+```text
+ATLAS_ENVELOPE_REQUIRED_KINDS
+ATLAS_ENVELOPE_CANARY_KINDS
+ATLAS_ENVELOPE_CANARY_PERCENT
+RUN_ENVELOPE_SIGNING_SECRET
+```
+
+Canary decision:
+
+```text
+kind not required → fallback
+kind required but canary unset → enforce 100%
+kind required and canary kind → bucket by userId/kind
+user in bucket → enforce
+user out of bucket → fallback
+```
+
+---
+
+# 10. Cloud Platform Integration Blueprint
+
+## 10.1 Current status
+
+Cloud platform integrations are not fully implemented. They should be treated as future major roadmap work.
+
+Atlas should eventually support:
+
+```text
+AWS
+Azure
+GCP
+Snowflake
+Databricks
+```
+
+## 10.2 Two lab modes
+
+### Sandbox Mode
+
+Learner does not connect real cloud.
+
+Used for:
+
+```text
+DuckDB
+Pyodide
+mock S3/GCS/Blob
+local dbt
+mock Kafka
+mock LLM
+sample APIs
+deterministic fixtures
+```
+
+Advantages:
+
+```text
+safe
+cheap
+fast
+beginner-friendly
+no credentials
+no accidental bills
+```
+
+### BYO Cloud Mode
+
+Learner connects their own cloud account.
+
+Used for:
+
+```text
+real object storage
+real warehouses
+real serverless jobs
+real cloud monitoring
+real IAM/service accounts
+real Databricks/Snowflake projects
+```
+
+Advantages:
+
+```text
+real-world credibility
+portfolio realism
+cloud troubleshooting experience
+```
+
+Risks:
+
+```text
+credentials
+cost
+resource cleanup
+provider API changes
+account limits
+security mistakes
+```
+
+## 10.3 AWS integration
+
+Supported future services:
+
+```text
+S3
+IAM
+Lambda
+Glue
+Athena
+Redshift
+Step Functions
+EventBridge
+Kinesis
+EMR
+Bedrock
+CloudWatch
+```
+
+AWS integration features:
+
+```text
+credential connection wizard
+least-privilege IAM policy generator
+resource tagging
+dry-run checks
+cost estimate
+lab provisioning
+cleanup script
+CloudWatch log fetch
+validation checks
+```
+
+Example AWS project:
+
+```text
+Build an S3 → Glue → Athena analytics pipeline with partitioned Parquet data, data quality checks, and cost-aware query design.
+```
+
+## 10.4 Azure integration
+
+Supported future services:
+
+```text
+Azure Blob Storage
+Azure Data Factory
+Azure Synapse
+Azure Functions
+Event Hubs
+Azure Databricks
+Azure OpenAI
+Key Vault
+Azure Monitor
+```
+
+Azure integration features:
+
+```text
+service principal connection
+resource group isolation
+cost warnings
+template deployment
+pipeline trigger
+cleanup automation
+monitoring fetch
+```
+
+Example Azure project:
+
+```text
+Build a Blob Storage → Data Factory → Synapse pipeline with schema validation and dashboard-ready marts.
+```
+
+## 10.5 GCP integration
+
+Supported future services:
+
+```text
+Cloud Storage
+BigQuery
+Pub/Sub
+Dataflow
+Cloud Run
+Cloud Functions
+Dataproc
+Vertex AI
+Secret Manager
+Cloud Logging
+```
+
+GCP integration features:
+
+```text
+service account onboarding
+BigQuery dataset creation
+GCS bucket isolation
+Pub/Sub topic creation
+job monitoring
+cleanup script
+cost guardrails
+```
+
+Example GCP project:
+
+```text
+Build a GCS → BigQuery ELT pipeline with dbt transformations and scheduled data quality checks.
+```
+
+## 10.6 Snowflake integration
+
+Snowflake features:
+
+```text
+account connection
+warehouse validation
+database/schema setup
+role validation
+dbt profiles.yml generator
+SQL execution
+query history
+cost/warehouse warning
+```
+
+Example Snowflake project:
+
+```text
+Build a Snowflake warehouse mart with dbt staging, marts, tests, and metric definitions.
+```
+
+## 10.7 Databricks integration
+
+Databricks features:
+
+```text
+workspace connection
+cluster policy guidance
+job submission
+Delta Lake tables
+MLflow tracking
+Unity Catalog
+notebook/job runs
+```
+
+Example Databricks project:
+
+```text
+Build a Delta Lake medallion pipeline with Auto Loader, DLT-style transformations, and MLflow experiment tracking.
+```
+
+---
+
+# 11. Cloud Credential Security Model
+
+## 11.1 Required principles
+
+Atlas must never casually store or expose cloud credentials.
+
+Rules:
+
+```text
+never log secrets
+never send secrets to Ada
+never expose stored secrets back to frontend
+encrypt at rest
+allow deletion/revocation
+scope credentials narrowly
+tag all resources
+provide cleanup scripts
+warn about cost
+```
+
+## 11.2 Credential flow
+
+```text
+Learner chooses provider
+→ Atlas shows least-privilege instructions
+→ learner creates IAM role/service principal/token
+→ learner submits credential
+→ backend validates
+→ backend stores encrypted reference
+→ frontend only sees connection status
+```
+
+## 11.3 Suggested tables
+
+```text
+cloud_connections
+cloud_lab_runs
+cloud_resource_inventory
+cloud_cost_estimates
+cloud_cleanup_events
+```
+
+## 11.4 Safety requirements
+
+Every cloud lab must have:
+
+```text
+cost estimate
+resource tags
+cleanup command
+least-privilege policy
+timeout
+teardown checklist
+billing warning
+```
+
+---
+
+# 12. Admin and Instructor Workflow Blueprint
+
+## 12.1 Admin roles
+
+Admin users should be able to:
+
+```text
+review hidden projects
+inspect audit results
+approve publish-readiness
+view project feedback
+inspect validation metrics
+view envelope canary metrics
+manage user support issues
+review tutor safety logs
+```
+
+## 12.2 Project review queue
+
+A future admin review queue should show:
+
+```text
+project title
+slug
+role path
+difficulty
+visible/hidden
+audit:authoring status
+audit:pedagogy status
+validation mix
+known caveats
+reviewer notes
+publish checklist status
+approve button
+reject/request changes button
+```
+
+## 12.3 Manual publish-readiness checklist
+
+Checklist should include:
+
+```text
+scenario coherent
+steps coherent
+instructions complete
+hints useful
+hints non-leaky
+validation honest
+portfolio deliverable clear
+difficulty estimate reasonable
+no H1/H2 overclaims
+no placeholder content
+passes audits
+hidden until approved
+```
+
+---
+
+# 13. Certificate and Portfolio Blueprint
+
+## 13.1 Certificate language
+
+Use:
+
+```text
+Verified completion record
+Skills practiced in this project
+Evidence-backed project completion
+```
+
+Avoid:
+
+```text
+Verified authorship
+Proof you wrote this
+Tamper-proof
+Cheat-proof
+100% verified
+Job guaranteed
+```
+
+## 13.2 Public verify page
+
+Should show:
+
+```text
+project title
+completion date
+steps completed
+total steps
+XP
+duration
+evidence hash count
+skills practiced
+how Atlas grades link
+```
+
+Must not show:
+
+```text
+email
+internal user ID
+raw submissions
+raw hashes
+Stripe fields
+private tutor messages
+```
+
+## 13.3 Portfolio page
+
+Should show:
+
+```text
+completed projects
+role path progress
+skills practiced
+project summaries
+cert links
+GitHub/LinkedIn export options
+```
+
+Future:
+
+```text
+public portfolio toggle
+custom URL
+project artifact upload
+GitHub repo linking
+```
+
+---
+
+# 14. GitHub and LinkedIn Export Blueprint
+
+## 14.1 GitHub export
+
+Future feature:
+
+```text
+Generate repo scaffold
+Generate README
+Generate project files
+Generate architecture diagram
+Generate run instructions
+Generate test instructions
+Push to GitHub or download ZIP
+```
+
+## 14.2 LinkedIn share
+
+Future feature:
+
+```text
+project title
+skills practiced
+completion record link
+portfolio link
+copy-safe share text
+```
+
+Example safe copy:
+
+```text
+I completed a hands-on Atlas project on Analytics Engineering Semantic Layers with dbt and DuckDB. The project helped me practice source contracts, star schema modeling, metric definitions, tests, and stakeholder-facing documentation.
+```
+
+Avoid:
+
+```text
+Atlas verified I mastered analytics engineering.
+Atlas proves I independently built this.
+```
+
+---
+
+# 15. Deployment Architecture Blueprint
+
+## 15.1 Production target
+
+Likely:
+
+```text
+Replit Autoscale or equivalent
+Neon PostgreSQL
+Stripe
+Clerk/Auth provider
+LLM provider
+Log aggregator
+Cron runner
+```
+
+## 15.2 Deployment steps
+
+```text
+provision production DB
+set env vars
+run migration
+seed catalog
+seed billing products
+grant admin
+deploy API/frontend
+run smoke tests
+verify logs
+verify /health
+verify auth
+verify project flow
+verify payment flow
+verify certificate flow
+```
+
+## 15.3 Required production env vars
+
+Examples:
+
+```text
+DATABASE_URL
+CLERK_SECRET_KEY
+JWT_SECRET
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+RUN_ENVELOPE_SIGNING_SECRET
+ATLAS_ENVELOPE_REQUIRED_KINDS
+ATLAS_ENVELOPE_CANARY_KINDS
+ATLAS_ENVELOPE_CANARY_PERCENT
+LLM_PROVIDER_API_KEY
+```
+
+## 15.4 Production cron
+
+Required:
+
+```text
+pnpm --filter @workspace/scripts run cleanup:run-envelope-nonces
+```
+
+Future:
+
+```text
+billing reconciliation
+stale session cleanup
+project analytics aggregation
+email digest
+```
+
+---
+
+# 16. Shipped Now vs Future Build
+
+## 16.1 Shipped / materially implemented
+
+```text
+role-path project catalog
+project workspace
+learning modes
+Ada tutor contract foundation
+project authoring system
+authoring audits
+pedagogy audits
+certificate/verify evidence surfaces
+signed runtime envelope library
+/api/runs/sign
+/submit envelope branch
+json_equal envelope pilot grader
+frontend RunCapture wiring
+canary controls
+metrics endpoint
+operator flip kit
+copy-safety guard
+C1 and C2 hidden projects
+deployment checklist
+baseline migration
+```
+
+## 16.2 Not fully complete
+
+```text
+production canary execution
+production deployment
+server-side graders for sql_resultset/csv_set_equal
+stronger contains grader
+/check parity
+full learner skill model
+diagnostic assessment
+prerequisite graph
+GitHub export
+LinkedIn sharing
+BYO cloud labs
+Snowflake/Databricks integrations
+admin project review UI
+public marketing launch
+multi-tenant/enterprise readiness
+```
+
+---
+
+# 17. Highest-Priority Engineering Roadmap From This Addendum
+
+## HIGH 1 — Publish C1/C2 after manual checklist
+
+Complete the hidden project lifecycle.
+
+## HIGH 2 — Harden runtime graders
+
+Prioritize:
+
+```text
+contains
+sql_resultset
+csv_set_equal
+csv_ordered
+numeric_tolerance
+```
+
+## HIGH 3 — Execute Phase 52 operator canary
+
+Do the real staging/prod evidence work.
+
+## HIGH 4 — Build learner skill model
+
+Required for true adaptive learning.
+
+## HIGH 5 — Build GitHub/LinkedIn export
+
+Required for portfolio value.
+
+## HIGH 6 — Build cloud integration foundation
+
+Start with credential model and sandbox-vs-BYO design before provider-specific labs.
+
+## HIGH 7 — Build admin project review queue
+
+Turn scripts into an operational curriculum workflow.
+
+## HIGH 8 — Production deploy
+
+Atlas must reach real users.
+
+---
+
+# 18. Recommended Builder Sequence From Zero
+
+A builder starting from zero should build in this order:
+
+```text
+1. Product spec + trust model
+2. Monorepo skeleton
+3. Database schema
+4. Backend API foundation
+5. Frontend catalog/workspace
+6. Project authoring system
+7. Python IDE
+8. SQL editor
+9. Learning modes
+10. Ada tutor
+11. Validation and grading
+12. Certificates/portfolio
+13. Signed runtime envelope
+14. Copy-safety guard
+15. Admin/audit tooling
+16. Deployment checklist
+17. First 20 projects
+18. Runtime grader hardening
+19. Cloud integration foundation
+20. GitHub/LinkedIn sharing
+21. Private beta
+22. Production launch
+```
+
+---
+
+# 19. Final Summary
+
+This addendum fills the missing architectural depth from the original Atlas Master Handoff.
+
+The complete Atlas blueprint must include both:
+
+1. The project history, current phase state, shipped accomplishments, failures, and roadmap.
+2. The system architecture details: frontend, backend, database, Ada tutor, learning modes, IDEs, validation, certificates, cloud integrations, credential security, admin workflows, and deployment.
+
+The project should now be understood as a serious technical learning platform with three major pillars:
+
+```text
+Learning product
+→ role paths, projects, modes, Ada tutor, IDE
+
+Trust infrastructure
+→ validation, signed runtime evidence, certificates, H3 copy-safety
+
+Career platform
+→ portfolio, GitHub export, LinkedIn sharing, cloud labs, role-readiness
+```
+
+Atlas is already structurally impressive, but not yet 100% complete. The next stage should convert hidden content and platform infrastructure into visible learner value, then strengthen runtime grading and production operations.
