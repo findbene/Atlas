@@ -1,0 +1,1928 @@
+# ATLAS TOP-TIER COMPETITIVE SYSTEMS AND ENGINES — BUILD-GRADE SPECIFICATION
+
+## Purpose of This Document
+
+This document defines the major systems and engines required to make Atlas a top-tier, industry-leading, project-first learning platform. It is written for a coding agent, product architect, curriculum architect, or technical builder who needs enough detail to begin implementation without guessing the product intent.
+
+Atlas is not a generic course platform. Atlas is intended to become a serious technical learning operating system for Data Engineering, AI Engineering, MLOps Engineering, Analytics Engineering, Cloud Data Engineering, Applied LLM Engineering, Python Mastery, and SQL Mastery.
+
+The long-term ambition is to scale Atlas to **900–1000 premium, portfolio-grade, recruiter-relevant projects** without allowing the catalog to degrade into shallow AI-generated content.
+
+The systems below are the platform infrastructure required to make that possible.
+
+---
+
+# GLOBAL PRODUCT ARCHITECTURE CONTEXT
+
+## Product Name
+
+Atlas
+
+## Product Category
+
+Progressive Web App learning platform for technical career transformation.
+
+## Core Product Thesis
+
+Learners become employable by completing realistic projects, not by passively watching lectures.
+
+Atlas should help learners:
+
+* choose a role path
+* start at the right level
+* learn through projects
+* code inside an integrated workspace
+* receive Ada AI tutor support
+* validate their work honestly
+* build portfolio artifacts
+* earn evidence-backed completion records
+* prepare for interviews
+* share work to GitHub and LinkedIn
+* progress toward role readiness
+
+## Target Disciplines
+
+1. Data Engineering
+2. AI Engineering
+3. MLOps Engineering
+4. Analytics Engineering
+5. Cloud Data Engineering
+6. Applied LLM Engineering
+7. Python Mastery
+8. SQL Mastery
+
+## Target Project Scale
+
+Atlas should eventually support:
+
+* 900–1000 total premium projects
+* about 120 projects per discipline
+* beginner, intermediate, and advanced project tiers
+* 5–10 flagship capstones per discipline
+* cloud platform coverage across AWS, Azure, GCP, Snowflake, and Databricks
+* deep SQL and Python mastery coverage
+
+## Core Tech Stack Recommendation
+
+Frontend:
+
+* React
+* TypeScript
+* Vite or equivalent modern frontend build system
+* Tailwind or utility-first design system
+* React Query or generated API client hooks
+* Vitest and React Testing Library
+* Monaco Editor or CodeMirror for code editing
+* Pyodide for browser Python execution
+* DuckDB-WASM for browser SQL execution
+
+Backend:
+
+* Node.js
+* TypeScript
+* Express-style API server or compatible lightweight HTTP framework
+* Drizzle ORM
+* PostgreSQL / Neon
+* Zod for validation
+* OpenAPI contract
+* Vitest for tests
+* Structured logging
+* Admin-gated metrics endpoints
+
+AI Layer:
+
+* Ada AI tutor
+* LLM provider abstraction
+* mode-aware tutor contract
+* project/step/context injection
+* token/cost controls
+* tutor safety and leakage guardrails
+
+Runtime / Validation:
+
+* Pyodide runtime for Python projects
+* DuckDB-WASM runtime for SQL projects
+* signed RunEnvelope for runtime evidence
+* deterministic validators
+* validation maturity classifier
+* `/check` for practice feedback
+* `/submit` for durable evidence path
+
+Infrastructure:
+
+* PostgreSQL / Neon
+* Replit or equivalent deployment target initially
+* future Vercel/Fly/Render/AWS/GCP deployment possible
+* cron for cleanup tasks
+* Stripe for billing
+* Clerk/JWT-style auth
+* secure secret handling
+* future cloud credential vault
+
+---
+
+# SYSTEM 1: ATLAS AUTONOMOUS PROJECT SCOUTING, MEASUREMENT, SELECTION, AND QUALITY-CONTROL SYSTEM
+
+## System Name
+
+Atlas Autonomous Project Scouting, Measurement, Selection, and Quality-Control System
+
+## Product Purpose
+
+This is the system that allows Atlas to scale to 900–1000 premium projects without becoming a pile of shallow AI-generated lessons.
+
+Its job is to continuously discover, score, rank, reject, refine, and recommend project ideas based on market demand, hiring relevance, portfolio strength, platform feasibility, validation strength, cloud relevance, and role-path coverage.
+
+## Why This System Exists
+
+Without this system, Atlas risks scaling in the wrong direction:
+
+* too many generic projects
+* duplicate projects
+* trendy but low-value topics
+* fake cloud projects
+* projects that cannot be validated
+* projects that do not impress hiring managers
+* projects that do not produce portfolio artifacts
+* projects with weak or misleading claims
+
+This system prevents that by treating project creation as a curriculum intelligence pipeline.
+
+## Lead Agent
+
+Atlas Project Scout & Selection Agent
+
+## Supporting Agents
+
+* Market Signal Agent
+* Catalog Analyst Agent
+* Project Scout Agent
+* Deduplication Agent
+* Feasibility Agent
+* Validation Architect Agent
+* Hiring Manager Reviewer Agent
+* Portfolio Artifact Agent
+* Project Author Agent
+* Pedagogy Reviewer Agent
+* Red-Team Reviewer Agent
+* Publisher Agent
+* AWS Project Agent
+* Azure Project Agent
+* GCP Project Agent
+* Snowflake Project Agent
+* Databricks Project Agent
+
+## Tech Stack
+
+Recommended implementation:
+
+* TypeScript agent orchestration layer
+* PostgreSQL tables for candidates, scores, reviews, and project lineage
+* Drizzle ORM
+* scheduled scouting jobs
+* web research connector or manual research ingestion
+* LLM provider abstraction
+* scoring pipeline
+* audit scripts
+* admin review UI
+* project authoring module generator
+* JSON schema for candidate project proposals
+
+## Core Database Tables
+
+Candidate projects table:
+
+> project_candidates
+> id
+> slug
+> title
+> discipline
+> difficulty
+> candidate_status
+> generated_by_agent
+> source_signals_json
+> scenario
+> tools_json
+> skills_json
+> validation_plan_json
+> portfolio_artifact_json
+> sandbox_feasibility_score
+> hiring_signal_score
+> portfolio_score
+> validation_score
+> cloud_relevance_score
+> differentiation_score
+> build_risk_score
+> total_score
+> recommendation
+> reviewer_notes
+> created_at
+> updated_at
+
+Project scoring table:
+
+> project_candidate_scores
+> id
+> candidate_id
+> scorer_agent
+> score_type
+> score_value
+> rationale
+> created_at
+
+Project review table:
+
+> project_candidate_reviews
+> id
+> candidate_id
+> reviewer_type
+> verdict
+> blockers_json
+> nits_json
+> recommendation
+> created_at
+
+## Inputs
+
+The system consumes:
+
+* current Atlas catalog
+* job descriptions
+* cloud documentation
+* competitor course catalogs
+* GitHub repositories
+* role-path gaps
+* validation-kind distribution
+* project difficulty distribution
+* learner completion data if available
+* hiring-market research
+* authoring spec
+* publish-readiness checklist
+
+## Outputs
+
+The system produces:
+
+* candidate project slate
+* ranked project list
+* rejected candidate list
+* project wave plan
+* validation plan
+* portfolio artifact plan
+* feasibility matrix
+* red-team review
+* publish recommendation
+
+## Core Scoring Rubric
+
+Each candidate receives a 0–100 score.
+
+Hiring Signal Score: 20 points
+
+Measures whether the project maps to real job requirements.
+
+Portfolio Artifact Score: 15 points
+
+Measures whether the project produces a recruiter-readable artifact.
+
+Sandbox Feasibility Score: 15 points
+
+Measures whether the project can run safely in Atlas without expensive external resources.
+
+Validation Strength Score: 15 points
+
+Measures whether Atlas can verify meaningful output.
+
+Role Coverage Score: 10 points
+
+Measures whether the project fills a role-path gap.
+
+Cloud / Platform Relevance Score: 10 points
+
+Measures relevance to AWS, Azure, GCP, Snowflake, Databricks, dbt, Spark, Airflow, Kafka, MLflow, Bedrock, Vertex AI, Azure OpenAI, and similar tools.
+
+Differentiation Score: 10 points
+
+Measures whether the project is better than generic online tutorials.
+
+Build Risk Score: 5 points
+
+Measures implementation risk. Lower risk gets higher score.
+
+## Acceptance Bands
+
+> 90–100: flagship candidate
+> 80–89: strong candidate
+> 70–79: acceptable if strategic
+> 60–69: revise
+> below 60: reject
+
+## End-to-End Workflow
+
+Step 1: Market signal collection
+
+Market Signal Agent collects job postings, company career pages, cloud provider docs, GitHub trends, industry blogs, and competitor course catalogs.
+
+Step 2: Atlas catalog gap analysis
+
+Catalog Analyst Agent checks discipline coverage, difficulty distribution, validation gaps, cloud platform coverage, SQL/Python coverage, and duplicate topics.
+
+Step 3: Candidate generation
+
+Project Scout Agent proposes candidate projects with title, slug, discipline, scenario, tools, final artifact, validation idea, sandbox feasibility, and BYO-cloud extension.
+
+Step 4: Deduplication
+
+Deduplication Agent checks overlap in title, slug, skills, final artifact, role path, and difficulty tier.
+
+Step 5: Feasibility analysis
+
+Feasibility Agent determines whether the project can run in Pyodide, DuckDB-WASM, local dbt, mock cloud, or BYO-cloud.
+
+Step 6: Validation strategy
+
+Validation Architect Agent designs validation type per step and determines whether the project requires signed runtime output, server-side comparison, structured contains, exact match, SQL result-set comparison, CSV comparison, or self-attestation.
+
+Step 7: Hiring-manager scoring
+
+Hiring Manager Reviewer Agent evaluates whether a recruiter would care about the project.
+
+Step 8: Portfolio scoring
+
+Portfolio Artifact Agent determines whether the output can become a GitHub repo, README, diagram, LinkedIn post, resume bullet, and interview artifact.
+
+Step 9: Ranking
+
+Scoring Agent combines all scores and recommends projects to author.
+
+Step 10: Human approval
+
+Human operator approves the project wave.
+
+Step 11: Authoring
+
+Project Author Agent writes hidden authored project modules.
+
+Step 12: Audit
+
+Automated scripts run authoring, pedagogy, difficulty, validation, and copy-safety checks.
+
+Step 13: Red-team review
+
+Red-Team Reviewer Agent checks for weak validation, fake cloud claims, answer leakage, cost risk, and overclaims.
+
+Step 14: Manual checklist
+
+Human or trusted reviewer confirms publish-readiness.
+
+Step 15: Visibility flip
+
+Publisher Agent flips `learner_visible=true` only after approval.
+
+## Tools Allowed
+
+Allowed:
+
+* web search
+* job market research
+* GitHub search
+* cloud docs
+* internal catalog queries
+* audit scripts
+* scoring matrix
+* project templates
+* authoring spec
+* validation matrix
+
+Forbidden:
+
+* direct publishing
+* production DB mutations
+* grading logic changes
+* auth changes
+* billing changes
+* credential changes
+* schema changes
+* visibility flips without approval
+
+## Example Strong Project Candidate
+
+AWS S3 → Glue → Athena Lakehouse with Partitioning, Data Quality, Cost-Aware Queries, and Terraform Cleanup
+
+Why strong:
+
+* real cloud provider
+* data engineering workflow
+* cost-aware query design
+* partitioning
+* data quality checks
+* infrastructure-as-code
+* cleanup workflow
+* portfolio-ready README
+* realistic employer task
+
+## Example Weak Project Candidate
+
+Print numbers from 1 to 10 in Python
+
+Why weak:
+
+* no business context
+* no portfolio value
+* no hiring signal
+* no real system thinking
+* no meaningful validation
+
+## Acceptance Criteria
+
+This system is ready when:
+
+* candidates are scored consistently
+* projects are hidden-first
+* no project bypasses audits
+* no project publishes without manual review
+* every project has hiring and portfolio rationale
+* every project has validation strategy
+* every project has sandbox feasibility classification
+* every project has duplicate detection
+* every cloud project has safety classification
+
+---
+
+# SYSTEM 2: ATLAS SKILLS GRAPH SYSTEM
+
+## System Name
+
+Atlas Skills Graph System
+
+## Product Purpose
+
+The Skills Graph System maps every Atlas project, step, validation, hint, runtime action, and portfolio artifact to granular skills. It turns Atlas from a simple project catalog into an adaptive learning intelligence system.
+
+## Why This System Exists
+
+Without a skills graph, Atlas can only say:
+
+“Learner completed project X.”
+
+With a skills graph, Atlas can say:
+
+“Learner has demonstrated evidence across SQL joins, window functions, dbt staging, model testing, data quality, and semantic metrics.”
+
+The skills graph powers personalization, diagnostics, role readiness, remediation, and employer-facing evidence.
+
+## Tech Stack
+
+Recommended implementation:
+
+* PostgreSQL skill tables
+* Drizzle ORM
+* TypeScript scoring service
+* skill taxonomy JSON/YAML source file
+* background job to recompute learner skill confidence
+* API endpoints for learner skill profile
+* admin UI for skill coverage
+* graph visualization in frontend later
+
+## Core Data Model
+
+Skill taxonomy table:
+
+> skills
+> id
+> slug
+> name
+> category
+> discipline
+> description
+> parent_skill_id
+> difficulty_band
+> created_at
+
+Project-skill mapping table:
+
+> project_skills
+> id
+> project_id
+> skill_id
+> weight
+> evidence_type
+> created_at
+
+Step-skill mapping table:
+
+> step_skills
+> id
+> step_id
+> skill_id
+> weight
+> required
+> created_at
+
+Learner skill state table:
+
+> learner_skill_state
+> id
+> user_id
+> skill_id
+> confidence_score
+> evidence_count
+> last_evidence_at
+> updated_at
+
+Skill evidence table:
+
+> skill_evidence_events
+> id
+> user_id
+> project_id
+> step_id
+> skill_id
+> event_type
+> validation_type
+> passed
+> mode
+> hint_count
+> confidence_delta
+> created_at
+
+## Example Skill Tags
+
+> python.data_classes
+> python.error_handling
+> python.cli
+> python.pydantic
+> sql.window_functions
+> sql.cte
+> sql.joins
+> dbt.sources
+> dbt.tests
+> dbt.semantic_layer
+> aws.s3
+> aws.glue
+> aws.athena
+> snowflake.streams_tasks
+> databricks.delta_lake
+> llm.structured_outputs
+> llm.guardrails
+> mlops.model_monitoring
+
+## Example Learner Skill Profile
+
+> Skill: sql.window_functions
+> Confidence: 0.74
+> Evidence:
+>
+> * completed SQL Window Functions project
+> * failed 2 attempts on partitioning
+> * passed csv_set_equal validation
+> * used 1 hint
+
+## Core Workflow
+
+Step 1: Project author assigns skills to project.
+
+Step 2: Each step maps to one or more skills.
+
+Step 3: Learner attempts step.
+
+Step 4: Validation result creates skill evidence event.
+
+Step 5: Confidence score updates.
+
+Step 6: Role Readiness Engine consumes skill confidence.
+
+Step 7: Ada uses skill state for adaptive tutoring.
+
+Step 8: Portfolio evidence references skill evidence.
+
+## Confidence Scoring Logic
+
+Recommended formula:
+
+* successful independent submit: strong positive delta
+* successful guided submit: moderate positive delta
+* passed after many hints: small positive delta
+* repeated failed attempts: negative or low-confidence signal
+* signed runtime output: higher evidence weight
+* self-attest: low evidence weight
+* capstone defense pass: high evidence weight
+
+## API Endpoints
+
+Recommended:
+
+> GET /api/user/skills
+> Returns learner skill profile.
+
+> GET /api/user/skills/:skillSlug
+> Returns evidence history for a skill.
+
+> GET /api/admin/skills/coverage
+> Returns project and role coverage by skill.
+
+## Frontend UI
+
+Learner sees:
+
+* skill map
+* strengths
+* weak areas
+* next recommended skills
+* role-path readiness
+* evidence trail
+
+Admin sees:
+
+* project coverage by skill
+* missing skills
+* overrepresented skills
+* validation maturity per skill
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every project has skill tags
+* every step has skill tags
+* learner progress updates skill confidence
+* role readiness consumes skill state
+* Ada can read skill context
+* admin can see coverage gaps
+* portfolio evidence can cite skills practiced
+
+---
+
+# SYSTEM 3: ROLE READINESS ENGINE
+
+## System Name
+
+Role Readiness Engine
+
+## Product Purpose
+
+The Role Readiness Engine calculates how close a learner is to being ready for a specific role, such as Data Engineer, AI Engineer, MLOps Engineer, Analytics Engineer, Applied LLM Engineer, Cloud Data Engineer, Python Developer, or SQL-focused Analyst.
+
+## Why This System Exists
+
+Most platforms show course completion. Hiring managers care about whether the learner can perform role-specific work.
+
+The Role Readiness Engine gives learners a practical answer:
+
+“How close am I to being ready for this job?”
+
+## Tech Stack
+
+Recommended implementation:
+
+* PostgreSQL role requirement tables
+* TypeScript readiness scoring service
+* Skills Graph as input
+* project completion evidence as input
+* API endpoint for readiness reports
+* frontend readiness dashboard
+* admin role-path editor
+
+## Core Data Model
+
+Role table:
+
+> roles
+> id
+> slug
+> name
+> description
+> target_level
+> created_at
+
+Role skill requirement table:
+
+> role_skill_requirements
+> id
+> role_id
+> skill_id
+> required_weight
+> minimum_confidence
+> importance_level
+> created_at
+
+Role readiness snapshot table:
+
+> role_readiness_snapshots
+> id
+> user_id
+> role_id
+> readiness_score
+> strengths_json
+> gaps_json
+> recommended_projects_json
+> created_at
+
+## Example Output
+
+> Data Engineer readiness:
+>
+> * Python scripting: 82%
+> * SQL transformations: 77%
+> * orchestration: 45%
+> * cloud storage: 52%
+> * data modeling: 70%
+> * testing/quality: 63%
+> * streaming: 25%
+
+Recommended next project:
+
+> Build an Airflow + dbt orchestration pipeline because orchestration is your weakest required skill.
+
+## Core Workflow
+
+Step 1: Define role requirements.
+
+Step 2: Map role requirements to skill graph.
+
+Step 3: Read learner skill confidence.
+
+Step 4: Weight each skill by role importance.
+
+Step 5: Calculate readiness score.
+
+Step 6: Identify gaps.
+
+Step 7: Recommend next projects.
+
+Step 8: Display dashboard.
+
+## API Endpoints
+
+Recommended:
+
+> GET /api/user/role-readiness
+> Returns readiness for all selected roles.
+
+> GET /api/user/role-readiness/:roleSlug
+> Returns detailed score, gaps, and project recommendations.
+
+> GET /api/admin/roles/:roleSlug/coverage
+> Returns whether Atlas has enough projects for that role.
+
+## Frontend UI
+
+Learner dashboard should show:
+
+* selected target role
+* overall readiness percentage
+* skill breakdown
+* weakest required areas
+* strongest evidence areas
+* next recommended project
+* capstone readiness
+* portfolio gaps
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every role has weighted skill requirements
+* learner readiness can be computed from skill graph
+* next-best project recommendations are generated
+* dashboard explains why a project is recommended
+* readiness scores avoid fake job-guarantee language
+* role readiness supports portfolio planning
+
+---
+
+# SYSTEM 4: EVIDENCE LEDGER SYSTEM
+
+## System Name
+
+Evidence Ledger System
+
+## Product Purpose
+
+The Evidence Ledger System records meaningful learner actions and validation results. It is the trust foundation behind certificates, public verification, role readiness, and portfolio evidence.
+
+## Why This System Exists
+
+Atlas must be able to explain what it actually verified.
+
+It must preserve the H3 honesty boundary:
+
+Atlas can say:
+
+> This learner completed this project and submitted outputs that matched enabled validation checks.
+
+Atlas must not say:
+
+> This proves the learner independently authored everything.
+
+## Tech Stack
+
+Recommended implementation:
+
+* PostgreSQL evidence tables
+* append-only event model
+* SHA-256 hashes for submissions/artifacts
+* signed RunEnvelope references where available
+* TypeScript evidence service
+* public verify endpoint
+* portfolio evidence renderer
+* privacy allowlist
+
+## Core Data Model
+
+Evidence event table:
+
+> evidence_events
+> id
+> user_id
+> project_id
+> step_id
+> event_type
+> validation_type
+> passed
+> submission_sha256
+> runtime_evidence_id
+> mode
+> hint_count
+> metadata_json
+> created_at
+
+Runtime evidence table:
+
+> runtime_evidence
+> id
+> user_id
+> project_id
+> step_id
+> validation_type
+> run_capture_hash
+> envelope_nonce
+> signed
+> duration_ms
+> created_at
+
+Public evidence summary table:
+
+> public_evidence_summaries
+> id
+> certificate_id
+> project_id
+> public_summary_json
+> privacy_reviewed
+> created_at
+
+## What It Records
+
+* project started
+* step attempted
+* code run
+* check passed
+* submit passed
+* validation kind used
+* signed runtime evidence if available
+* hints used
+* mode used
+* completion time
+* portfolio artifact generated
+
+## Core Workflow
+
+Step 1: Learner runs or submits.
+
+Step 2: Runtime or server validation produces result.
+
+Step 3: Evidence event is recorded.
+
+Step 4: If durable submit passes, progress updates.
+
+Step 5: Project completion aggregates evidence.
+
+Step 6: Certificate summary is generated.
+
+Step 7: Public verify page exposes only safe fields.
+
+## Privacy Rules
+
+Public verify must not expose:
+
+* email
+* internal user IDs
+* raw submissions
+* raw hashes
+* private tutor messages
+* billing fields
+* cloud credentials
+* raw signed envelope payloads
+
+## API Endpoints
+
+Recommended:
+
+> GET /api/user/evidence
+> Returns authenticated learner evidence.
+
+> GET /api/verify/:certId
+> Returns public safe verification summary.
+
+> GET /api/user/portfolio
+> Returns portfolio-ready evidence.
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* durable evidence exists for every completed project
+* public verify page uses privacy allowlist
+* certificate claims match actual validation maturity
+* evidence supports role readiness
+* evidence supports portfolio compiler
+* evidence never overclaims authorship
+
+---
+
+# SYSTEM 5: PROJECT QUALITY CONTROL SYSTEM
+
+## System Name
+
+Project Quality Control System
+
+## Product Purpose
+
+This system ensures no project becomes visible unless it meets Atlas’ quality bar.
+
+## Why This System Exists
+
+At 900–1000 projects, manual intuition is not enough. Atlas needs a quality-control pipeline that prevents weak, duplicate, misleading, or unvalidated projects from reaching learners.
+
+## Tech Stack
+
+Recommended implementation:
+
+* authoring audit scripts
+* pedagogy audit scripts
+* validation audit scripts
+* quality score table
+* admin project review UI
+* red-team review workflow
+* publish checklist storage
+* copy-safety scanner
+* CI gates
+
+## Core Data Model
+
+Project quality score table:
+
+> project_quality_scores
+> id
+> project_id
+> authoring_score
+> pedagogy_score
+> validation_score
+> hiring_signal_score
+> portfolio_score
+> cloud_safety_score
+> copy_safety_score
+> total_score
+> verdict
+> created_at
+
+Project review checklist table:
+
+> project_publish_reviews
+> id
+> project_id
+> reviewer_id
+> checklist_json
+> blockers_json
+> nits_json
+> verdict
+> created_at
+
+## Quality Pipeline
+
+> Project drafted
+> → authoring audit
+> → pedagogy audit
+> → validation audit
+> → hiring-signal score
+> → portfolio artifact score
+> → cloud safety audit
+> → H3 copy-safety scan
+> → red-team review
+> → manual publish checklist
+> → visible
+
+## Example Quality Score
+
+> Project Quality Score: 91/100
+> Hiring Signal: 18/20
+> Validation Strength: 13/15
+> Portfolio Artifact: 15/15
+> Pedagogy: 14/15
+> Cloud Safety: 10/10
+
+## Visibility Threshold
+
+Recommended:
+
+* 90+: flagship-ready
+* 80–89: publish-ready
+* 70–79: revise before publish
+* below 70: reject or park
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every visible project has quality metadata
+* hidden projects cannot publish without checklist pass
+* copy-safety scan runs
+* validation maturity is scored
+* portfolio artifact quality is scored
+* admin can see blockers
+* publish history is auditable
+
+---
+
+# SYSTEM 6: VALIDATION MATURITY SYSTEM
+
+## System Name
+
+Validation Maturity System
+
+## Product Purpose
+
+This system classifies each validation path by trust level so Atlas knows what it can honestly claim.
+
+## Why This System Exists
+
+Atlas cannot treat self-attestation, substring checks, signed runtime outputs, and deterministic server execution as equivalent. Different validation types support different claim levels.
+
+## Tech Stack
+
+Recommended implementation:
+
+* TypeScript validation classifier
+* validation-kind matrix document
+* project validation score computation
+* admin validation dashboard
+* certificate claim guard
+* copy-safety integration
+
+## Maturity Levels
+
+> Level 0: self-attest
+> Level 1: contract-shaped metadata
+> Level 2: thin server check
+> Level 3: structured server check
+> Level 4: client runtime feedback
+> Level 5: signed runtime output
+> Level 6: server-executed deterministic validation
+> Level 7: reviewed portfolio artifact + runtime evidence
+
+## Example Project Validation Summary
+
+> This project has:
+>
+> * 3 structured server checks
+> * 2 signed runtime checks
+> * 1 portfolio artifact check
+
+## Core Workflow
+
+Step 1: Inspect every project step.
+
+Step 2: Classify validation kind.
+
+Step 3: Compute project validation maturity score.
+
+Step 4: Store or derive validation summary.
+
+Step 5: Use summary in admin dashboard and certificate claim guard.
+
+Step 6: Prevent overclaiming.
+
+## API Endpoints
+
+Recommended:
+
+> GET /api/admin/validation/maturity
+> Returns validation maturity distribution.
+
+> GET /api/projects/:slug/validation-summary
+> Returns internal project validation summary.
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every validation kind has maturity classification
+* every project has computed maturity
+* certificate copy is constrained by maturity
+* admin can see weak validation hotspots
+* project authoring can reject weak validation patterns
+
+---
+
+# SYSTEM 7: PORTFOLIO COMPILER SYSTEM
+
+## System Name
+
+Portfolio Compiler System
+
+## Product Purpose
+
+This system automatically turns completed projects into recruiter-readable portfolio packages.
+
+## Why This System Exists
+
+Learners do not just need completion. They need artifacts that can be understood by hiring managers, recruiters, and interviewers.
+
+## Tech Stack
+
+Recommended implementation:
+
+* TypeScript portfolio compiler service
+* Markdown generator
+* README generator
+* artifact schema
+* GitHub export integration later
+* LinkedIn-safe copy generator
+* resume bullet generator
+* architecture diagram generator later
+* public portfolio page
+
+## Generated Portfolio Package
+
+For each completed project, Atlas should generate:
+
+> README.md
+> architecture.md
+> skills-practiced.md
+> setup.md
+> runbook.md
+> sample-output.md
+> tradeoffs.md
+> interview-notes.md
+> linkedin-share.md
+
+## Learner Outputs
+
+The learner should get:
+
+* GitHub repo scaffold
+* LinkedIn post draft
+* resume bullet suggestions
+* interview explanation
+* architecture diagram
+* project summary card
+
+## Data Model
+
+Portfolio artifact table:
+
+> portfolio_artifacts
+> id
+> user_id
+> project_id
+> artifact_type
+> artifact_content
+> generated_from_evidence_id
+> public_visible
+> created_at
+
+## Example LinkedIn-Safe Copy
+
+> I completed a hands-on Atlas project on building a semantic layer with dbt and DuckDB. The project helped me practice source modeling, metric definitions, tests, stakeholder mapping, and queryable analytics workflows.
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every completed project generates portfolio output
+* outputs avoid H1/H2 overclaims
+* learner can download artifacts
+* GitHub scaffold can be generated
+* LinkedIn post can be generated
+* resume bullets can be generated
+* project evidence links are included safely
+
+---
+
+# SYSTEM 8: CLOUD LAB SAFETY SYSTEM
+
+## System Name
+
+Cloud Lab Safety System
+
+## Product Purpose
+
+This system makes AWS, Azure, GCP, Snowflake, and Databricks learning safe, cost-controlled, and credential-safe.
+
+## Why This System Exists
+
+Cloud labs can create real risk:
+
+* accidental bills
+* leaked credentials
+* orphaned resources
+* learners using production accounts
+* unsafe IAM permissions
+* cloud provider complexity
+
+Atlas must solve this before scaling cloud projects.
+
+## Tech Stack
+
+Recommended implementation:
+
+* cloud lab spec schema
+* cost estimate metadata
+* cleanup checklist metadata
+* resource tagging policy
+* BYO-cloud connection model later
+* encrypted credential vault later
+* provider-specific safety validators
+* admin cloud safety dashboard
+
+## Required Cloud Project Components
+
+Every cloud project should have:
+
+> Sandbox Mode
+> BYO Cloud Mode
+> Cost warning
+> Least-privilege policy
+> Cleanup script
+> Resource tags
+> Time limit
+> Credential safety check
+> Teardown checklist
+
+## Example AWS Safety Pattern
+
+> AWS project:
+>
+> * Sandbox Mode: DuckDB + local S3-like folders
+> * BYO Mode: real S3 + Glue + Athena
+> * Cost warning: expected <$2 if cleanup completed
+> * Cleanup: delete bucket, crawler, database, Athena results
+
+## Cloud Credential Rules
+
+Atlas must never:
+
+* log cloud secrets
+* send secrets to Ada
+* expose stored secrets back to frontend
+* store raw credentials unencrypted
+* recommend production accounts for beginner labs
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every cloud project has sandbox mode
+* every cloud project has cost warning
+* every BYO-cloud extension has cleanup steps
+* every provider has least-privilege guidance
+* credential handling spec exists
+* no cloud project publishes without safety review
+
+---
+
+# SYSTEM 9: ATLAS LAB RUNTIME SYSTEM
+
+## System Name
+
+Atlas Lab Runtime System
+
+## Product Purpose
+
+This system standardizes how Atlas projects execute code, SQL, mock cloud workflows, notebooks, and future real cloud labs.
+
+## Why This System Exists
+
+At 900–1000 projects, every project cannot invent its own execution model. Atlas needs a uniform runtime declaration system.
+
+## Tech Stack
+
+Recommended implementation:
+
+* runtime spec JSON
+* TypeScript runtime dispatcher
+* Pyodide adapter
+* DuckDB-WASM adapter
+* mock cloud adapter
+* future BYO-cloud adapter
+* API mock adapter
+* validation binding layer
+* timeout/resource guard
+
+## Runtime Declaration
+
+Every lab should declare:
+
+> runtime:
+> type: pyodide | duckdb | mock_cloud | byo_cloud | notebook | api_mock
+> packages:
+> fixtures:
+> expected_outputs:
+> timeout:
+> validation_kind:
+
+## Supported Lab Types
+
+This lets Atlas support:
+
+* Python labs
+* SQL labs
+* dbt labs
+* mock cloud labs
+* LLM eval labs
+* Databricks/Snowflake simulations
+* future real cloud labs
+
+## Runtime Events
+
+Recommended event model:
+
+> run_started
+> run_completed
+> run_failed
+> stdout_captured
+> stderr_captured
+> result_rows_captured
+> signed_capture_created
+> validation_passed
+> validation_failed
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* project runtime type is declared
+* Python steps use Pyodide adapter
+* SQL steps use DuckDB adapter
+* cloud simulations use mock cloud adapter
+* validation can consume runtime output
+* stale runtime captures are invalidated
+* runtime output can feed evidence ledger
+
+---
+
+# SYSTEM 10: ADAPTIVE TUTOR ORCHESTRATOR
+
+## System Name
+
+Adaptive Tutor Orchestrator
+
+## Product Purpose
+
+This system upgrades Ada from a generic chat assistant into a mode-aware, context-aware, skill-aware tutor.
+
+## Why This System Exists
+
+A normal chatbot gives answers. Ada must teach, guide, debug, challenge, and protect learning value.
+
+## Tech Stack
+
+Recommended implementation:
+
+* Ada tutor backend route
+* LLM provider abstraction
+* prompt assembly service
+* project/step context loader
+* skill graph context loader
+* validation result context loader
+* tutor event logging
+* mode policy engine
+* leakage guard
+* token budget control
+
+## Ada Context Inputs
+
+Ada should use:
+
+* current step context
+* selected mode
+* learner skill graph
+* last error
+* validation result
+* hint usage
+* project goal
+* role goal
+
+## Adaptive Behavior Examples
+
+> Beginner + repeated failure → explain concept simply
+> Intermediate + one failure → ask diagnostic question
+> Independent mode → minimal hint, no solution
+> Capstone mode → behave like interviewer/reviewer
+
+## Tutor Mode Rules
+
+Guided Mode:
+
+* explain more
+* provide scaffolding
+* allow stronger hints
+
+Hint-Based Mode:
+
+* provide progressive hints
+* avoid full solution too early
+
+Independent Mode:
+
+* ask diagnostic questions
+* avoid solution leakage
+* keep feedback minimal
+
+Adaptive Mode:
+
+* select help level based on learner evidence
+* adjust over time
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* Ada receives project/step/mode context
+* Ada respects mode policy
+* Ada logs tutor events
+* Ada avoids answer leakage in Independent Mode
+* Ada uses validation failure context
+* Ada can recommend next actions based on skill gaps
+
+---
+
+# SYSTEM 11: LEARNER DIAGNOSTIC SYSTEM
+
+## System Name
+
+Learner Diagnostic System
+
+## Product Purpose
+
+This system evaluates a learner before they begin a role path and recommends the right starting point.
+
+## Why This System Exists
+
+Learners often start too advanced or too basic. Wrong placement causes frustration, slow progress, or false confidence.
+
+## Tech Stack
+
+Recommended implementation:
+
+* diagnostic question bank
+* coding/SQL micro-tasks
+* scoring service
+* skill graph initialization
+* role-path recommender
+* frontend diagnostic flow
+
+## Diagnostic Areas
+
+Example:
+
+> Python diagnostic
+> SQL diagnostic
+> Data modeling diagnostic
+> Cloud fundamentals diagnostic
+> LLM systems diagnostic
+
+## Example Recommendation
+
+> Start with:
+>
+> 1. SQL Mastery: Joins and Aggregations
+> 2. Python Mastery: Files and Data Classes
+> 3. Data Engineering: CSV Cleanup Pipeline
+
+## Data Model
+
+Diagnostic attempt table:
+
+> diagnostic_attempts
+> id
+> user_id
+> diagnostic_type
+> score
+> skill_results_json
+> recommended_starting_projects_json
+> created_at
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* learners can take diagnostics
+* diagnostics map to skill graph
+* starting projects are recommended
+* diagnostic results feed role readiness
+* learners can retake after progress
+
+---
+
+# SYSTEM 12: CAPSTONE DEFENSE SYSTEM
+
+## System Name
+
+Capstone Defense System
+
+## Product Purpose
+
+This system makes advanced projects feel like real technical interviews or architecture reviews.
+
+## Why This System Exists
+
+Checking code output is not enough for advanced readiness. Learners must explain decisions, tradeoffs, failure modes, monitoring, cost, and stakeholder impact.
+
+## Tech Stack
+
+Recommended implementation:
+
+* Ada defense mode
+* capstone question bank
+* rubric scoring
+* evidence ledger integration
+* portfolio defense summary
+* optional human review workflow
+
+## Defense Questions
+
+After completing a capstone, Ada or another agent asks:
+
+> Why did you choose this architecture?
+> What would break at scale?
+> How would you monitor this?
+> How would you reduce cost?
+> How would you handle bad data?
+> How would you explain this to a stakeholder?
+
+## Data Model
+
+Capstone defense table:
+
+> capstone_defenses
+> id
+> user_id
+> project_id
+> questions_json
+> answers_json
+> score_json
+> reviewer_type
+> created_at
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* advanced projects can trigger defense mode
+* learner answers are stored
+* feedback is generated
+* portfolio includes defense summary
+* no defense claim overstates authorship
+
+---
+
+# SYSTEM 13: HIRING MANAGER REVIEW SIMULATOR
+
+## System Name
+
+Hiring Manager Review Simulator
+
+## Product Purpose
+
+This system simulates how a hiring manager would evaluate a learner’s portfolio.
+
+## Why This System Exists
+
+Learners need feedback on whether their project work looks credible to employers.
+
+## Tech Stack
+
+Recommended implementation:
+
+* portfolio evaluator agent
+* hiring rubric
+* resume/README parser
+* skill evidence reader
+* feedback generator
+* improvement recommendation engine
+
+## Example Feedback
+
+> Strong:
+>
+> * clear architecture
+> * realistic dbt tests
+> * good README
+>
+> Weak:
+>
+> * no monitoring discussion
+> * unclear rollback plan
+> * no cost awareness
+
+## Output
+
+The simulator recommends improvements:
+
+* add architecture diagram
+* improve README
+* add monitoring section
+* add test evidence
+* clarify tradeoffs
+* add cost/security notes
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* learner can request portfolio review
+* system scores portfolio against role rubric
+* system gives specific improvement suggestions
+* feedback maps to hiring-manager language
+* output avoids fake hiring guarantees
+
+---
+
+# SYSTEM 14: PROJECT DEPENDENCY GRAPH
+
+## System Name
+
+Project Dependency Graph
+
+## Product Purpose
+
+This system gives Atlas prerequisite awareness across projects.
+
+## Why This System Exists
+
+A flat catalog does not teach learners in the right order. Atlas needs dependency relationships to support role paths, capstones, adaptive recommendations, and diagnostics.
+
+## Tech Stack
+
+Recommended implementation:
+
+* project dependency table
+* skill prerequisite graph
+* graph traversal service
+* next-best project algorithm
+* admin graph editor
+
+## Example Dependency Graph
+
+> SQL Joins
+> → SQL CTEs
+> → Window Functions
+> → dbt Staging Models
+> → Semantic Layer
+> → Revenue Analytics Capstone
+
+## Data Model
+
+Project dependency table:
+
+> project_dependencies
+> id
+> prerequisite_project_id
+> dependent_project_id
+> dependency_type
+> required
+> created_at
+
+Skill dependency table:
+
+> skill_dependencies
+> id
+> prerequisite_skill_id
+> dependent_skill_id
+> created_at
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* projects can declare prerequisites
+* role paths use dependency order
+* capstones check readiness
+* recommendations respect prerequisites
+* admin can inspect missing links
+
+---
+
+# SYSTEM 15: PROJECT WAVE FACTORY SYSTEM
+
+## System Name
+
+Project Wave Factory System
+
+## Product Purpose
+
+This system allows Atlas to produce projects in quality-controlled waves instead of one at a time or through uncontrolled bulk generation.
+
+## Why This System Exists
+
+Atlas needs speed, but speed without process creates quality collapse. The wave factory gives Atlas throughput while preserving review gates.
+
+## Tech Stack
+
+Recommended implementation:
+
+* project wave table
+* candidate generation workflow
+* scoring pipeline
+* hidden project promotion script
+* wave audit report
+* admin wave dashboard
+* publish checklist integration
+
+## Core Process
+
+Each wave:
+
+> 10 candidate ideas
+> → score
+> → select 6
+> → author hidden
+> → audit
+> → red-team
+> → publish 4–6
+> → park the rest
+
+Each wave should target one area:
+
+> AWS Data Engineering Wave
+> Snowflake Analytics Wave
+> Databricks MLOps Wave
+> Python Mastery Wave
+> SQL Mastery Wave
+> Applied LLM Guardrails Wave
+
+## Data Model
+
+Project wave table:
+
+> project_waves
+> id
+> title
+> target_discipline
+> target_tools_json
+> candidate_count
+> authored_count
+> published_count
+> parked_count
+> status
+> created_at
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* waves can be planned
+* candidates can be scored
+* hidden projects can be authored in batches
+* audits run at wave level
+* only approved projects go visible
+* parked projects retain revision notes
+
+---
+
+# SYSTEM 16: ATLAS QUALITY DASHBOARD
+
+## System Name
+
+Atlas Quality Dashboard
+
+## Product Purpose
+
+This system gives admins visibility into the health, coverage, and quality of the entire Atlas catalog.
+
+## Why This System Exists
+
+At 900–1000 projects, Atlas needs operational intelligence. Admins must see which projects are strong, weak, hidden, duplicated, under-validated, or missing coverage.
+
+## Tech Stack
+
+Recommended implementation:
+
+* admin API endpoints
+* PostgreSQL aggregate queries
+* validation maturity reports
+* project coverage reports
+* quality score reports
+* React admin dashboard
+* charts/tables
+
+## Dashboard Metrics
+
+Admin should see:
+
+> Visible projects: 60
+> Hidden projects: 45
+> Publish-ready: 60/60
+> Projects with strong validation: X
+> Projects with weak validation: Y
+> Projects needing review: Z
+> Projects by discipline
+> Projects by difficulty
+> Projects by cloud provider
+> Projects by validation maturity
+
+## API Endpoints
+
+Recommended:
+
+> GET /api/admin/catalog/summary
+> GET /api/admin/catalog/quality
+> GET /api/admin/catalog/gaps
+> GET /api/admin/validation/maturity
+> GET /api/admin/project-waves
+> GET /api/admin/projects/review-queue
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* admin sees full catalog health
+* validation weaknesses are visible
+* project gaps are visible
+* hidden projects are tracked
+* publish readiness is clear
+* wave production is measurable
+
+---
+
+# SYSTEM 17: ATLAS STRATEGIC PRIORITIZATION ENGINE
+
+## System Name
+
+Atlas Strategic Prioritization Engine
+
+## Product Purpose
+
+This engine decides what Atlas should build next.
+
+## Why This System Exists
+
+Atlas has many valuable possible directions: validation hardening, portfolio export, cloud labs, project waves, Ada, diagnostics, skill graph, and deployment. The Strategic Prioritization Engine prevents chaotic sequencing.
+
+## Tech Stack
+
+Recommended implementation:
+
+* roadmap table
+* dependency graph
+* project/system scoring
+* readiness gates
+* admin planning dashboard
+* phase recommendation generator
+
+## Recommended Build Order
+
+Before large project waves, build these systems in this order:
+
+> 1. Validation Maturity System
+> 2. /check vs /submit Evidence Policy
+> 3. Portfolio Artifact Contract
+> 4. Skills Graph v1
+> 5. Project Quality Control Dashboard
+> 6. Cloud Lab Safety Standard
+> 7. Project Wave Factory System
+> 8. Hiring Manager Review Simulator
+> 9. Role Readiness Engine
+> 10. GitHub/LinkedIn Portfolio Export
+
+## Most Important Three Systems
+
+The most important three are:
+
+1. Skills Graph System
+
+This makes Atlas intelligent.
+
+2. Portfolio Compiler System
+
+This makes Atlas career-relevant.
+
+3. Validation Maturity System
+
+This makes Atlas trustworthy.
+
+## Acceptance Criteria
+
+This system is complete when:
+
+* every major initiative has priority score
+* dependencies are explicit
+* project waves do not start before required platform gates
+* admin can see roadmap status
+* system recommends next phase based on readiness
+* decisions are explainable
+
+## Final Strategic Statement
+
+If Atlas has the Skills Graph System, Portfolio Compiler System, Validation Maturity System, and Autonomous Project Scouting System, it can become genuinely top-tier.

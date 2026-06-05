@@ -54,3 +54,6 @@ CLAUDE.local.md
 .claude/agent-memory-local/
 .agentic/self-review.log
 .agentic/code-review-queue.jsonl
+
+# Session handoff — written by ~/.claude/hooks/session-end-handoff.py
+HANDOFF.md

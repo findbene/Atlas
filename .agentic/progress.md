@@ -14,12 +14,15 @@
 ### Phase 0.1a — DONE (executable spine)
 Created: `CLAUDE.md` (project tier, 47 lines) · `.claude/settings.json` · `.claude/commands/{atlas-phase-plan,atlas-validate,atlas-phase-close}.md` · `.claude/agents/atlas-architect-reviewer.md` · `.claude/skills/atlas-conventions/SKILL.md`. `.gitignore` updated for Claude local files. The build is now drivable by the universal commands.
 
+### Phase 0.1b — DONE (root docs)
+Wrote 7 docs via parallel Sonnet agents (one per file, no shared-file conflict), Opus-reconciled against code: `README.md` (245), `PRD.md` (685), `BRD.md` (384), `ARD.md` (653), `TRD.md` (735), `DESIGN.md` (702), `DRD.md` (465). With CLAUDE.md + HANDOFF.md, the full requested doc set exists.
+**Reconciliation fixes (Opus review vs ground truth):** README Pyodide `0.28.4`→`0.29` (package.json says `^0.29.3`; `replit.md` was stale) · README Clerk env var `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`→`CLERK_PUBLISHABLE_KEY` (Vite app, not Next; dev script maps to `VITE_CLERK_PUBLISHABLE_KEY`). **Confirmed real:** `/submit` per-user advisory lock at `artifacts/api-server/src/routes/user.ts:584` (`pg_advisory_xact_lock(hashtextextended('atlas-submit:'||user.id,0))`); `vite-plugin-pwa`+`workbox-window` installed but not configured (so "PWA = configure, not add" at Phase 7).
+
 ## Next steps
 
-1. **Phase 0.1b** — write remaining 4 root docs: README.md, DESIGN.md, PRD.md, BRD.md. (CLAUDE.md ✅, HANDOFF.md exists ✅.)
-2. **Phase 0.2** — decouple from Replit connectors (direct SDKs behind env adapter) so it boots locally on Windows. Phase-specific commands built just-in-time.
-3. **Phase 0.3** — local dev green (Neon/Postgres branch, `pnpm dev`, seed).
-4. Then Phase 1 = E1 (finish validation hardening); Phase 5 = E4 factory runs continuously.
+1. **Phase 0.2** — decouple from Replit connectors (direct Stripe/Resend/Anthropic SDKs behind an env adapter; keep Replit path as a fallback flag) so `pnpm dev` boots locally on Windows. First architect-gated code phase. Invoke before: `senior-devops`, `env-secrets-manager`, `/atlas-phase-plan E0.2`.
+2. **Phase 0.3** — local dev green (Neon/Postgres branch, `pnpm dev`, seed). Needs owner's `DATABASE_URL` in a gitignored `.env`.
+3. Then Phase 1 = E1 (finish validation hardening); Phase 5 = E4 factory runs continuously.
 
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.

@@ -1,0 +1,1900 @@
+# ATLAS AUTONOMOUS PROJECT SCOUTING, MEASUREMENT, SELECTION, AND QUALITY-CONTROL SYSTEM
+
+## How Atlas Can Scale to 900–1000 Premium Projects Without Becoming Shallow AI-Generated Content
+
+---
+
+## 0. Executive Summary
+
+Atlas cannot scale to 900–1000 premium, hiring-manager-grade projects by having one generic AI agent casually invent project ideas. That would create shallow, repetitive, low-trust content.
+
+To scale properly, Atlas needs a controlled **multi-agent curriculum intelligence system**.
+
+The main agent should be a specialized autonomous agent called:
+
+# Atlas Project Scout & Selection Agent
+
+Its job is to continuously identify, score, rank, reject, refine, and recommend high-value project ideas for Atlas.
+
+However, the Project Scout & Selection Agent should **not directly publish projects**.
+
+It scouts the market, measures candidates against custom metrics, selects the strongest ones, and hands them to a controlled authoring and review pipeline.
+
+The correct operating principle is:
+
+> Atlas can scale to 900–1000 premium projects only if project generation is treated like a serious curriculum-production system, not like random AI content generation.
+
+The current Atlas system does **not yet have this fully autonomous scouting system implemented**. Today, this role has mostly been performed manually through product strategy, Replit execution, audit scripts, and human review.
+
+For Atlas’ long-term vision, this must become a specialized agentic system.
+
+---
+
+# 1. The Main Agent: Atlas Project Scout & Selection Agent
+
+## 1.1 Agent Name
+
+Primary name:
+
+```text
+Atlas Project Scout & Selection Agent
+```
+
+Alternative names:
+
+```text
+Curriculum Intelligence Agent
+Hiring-Signal Scout Agent
+Project Opportunity Scout
+Market-to-Project Strategy Agent
+```
+
+## 1.2 Mission
+
+The Atlas Project Scout & Selection Agent finds the best possible project ideas for Atlas learners based on:
+
+```text
+2026+ hiring-market demand
+recruiter and hiring-manager value
+portfolio strength
+feasibility inside Atlas
+validation quality
+role-path coverage
+cloud/platform relevance
+SQL mastery coverage
+Python mastery coverage
+differentiation from generic online courses
+ability to produce visible artifacts
+ability to become GitHub/LinkedIn portfolio evidence
+ability to support future cloud integration
+ability to support evidence-backed completion
+```
+
+Its job is not simply:
+
+```text
+make more projects
+```
+
+Its real job is:
+
+> Find projects that would make a hiring manager say: “This learner has actually built something close to what we do at work.”
+
+## 1.3 Core Responsibility
+
+The Project Scout & Selection Agent must identify projects that are:
+
+```text
+realistic
+role-aligned
+portfolio-grade
+technically feasible
+validated honestly
+not duplicated
+not shallow
+not generic
+not impossible to run
+not fake-cloud projects
+not fake-AI projects
+not mere tutorial clones
+```
+
+It should continuously answer:
+
+```text
+What should Atlas build next?
+Why does this project matter?
+Who is this project for?
+What job signal does it create?
+Can Atlas validate it?
+Can the learner show it in a portfolio?
+Can it run in the Atlas sandbox?
+Can it have an optional BYO-cloud extension?
+Does it fill a catalog gap?
+Does it move Atlas closer to 900–1000 premium projects?
+```
+
+---
+
+# 2. What the Project Scout Agent Is Allowed To Do
+
+## 2.1 Allowed Actions
+
+The Project Scout Agent is allowed to:
+
+```text
+research job postings and skill trends
+inspect current Atlas catalog coverage
+identify gaps by discipline and difficulty
+propose new project ideas
+score each idea against a rubric
+reject weak ideas
+cluster projects into learning paths
+recommend project waves
+recommend prerequisite order
+recommend validation strategy
+recommend sandbox vs BYO-cloud design
+recommend whether a project should be beginner, intermediate, or advanced
+recommend whether a project should become a flagship project
+recommend whether a project should become a capstone
+generate candidate briefs
+hand off selected candidates to the Project Author Agent
+```
+
+## 2.2 Forbidden Actions
+
+The Project Scout Agent is not allowed to:
+
+```text
+publish projects directly
+flip learner_visible=true
+modify production database rows
+change grading logic
+change auth logic
+change billing logic
+change cloud credentials
+change schema or migrations
+claim market facts without evidence
+invent “verified” claims
+bypass manual publish-readiness review
+write project content directly into the visible catalog
+generate low-quality placeholder projects
+fake cloud integration
+fake validation strength
+fake hiring relevance
+```
+
+## 2.3 Output Boundary
+
+The Project Scout Agent’s output should always be a **candidate project slate**, not a live catalog change.
+
+Correct output:
+
+```text
+Here are the top 10 candidate projects.
+Here is the scoring matrix.
+Here are the recommended 6 to author first.
+Here are the risks.
+Here are the validation strategies.
+Here are the rejected candidates and why.
+```
+
+Incorrect output:
+
+```text
+I created and published 10 new projects.
+I made them visible.
+I skipped review because they looked good.
+```
+
+---
+
+# 3. What “Brain” the Scout Agent Uses
+
+## 3.1 Recommended Model Class
+
+The Project Scout Agent should use a strong reasoning model, not a cheap summarizer.
+
+Recommended model class:
+
+```text
+Planning / scouting brain:
+- GPT-5.5 Thinking
+- Claude Opus-class reasoning model
+- equivalent frontier reasoning model
+
+Fast extraction / summarization brain:
+- cheaper model for scraping summaries, deduping, clustering, and raw extraction
+
+Final ranking / review brain:
+- strongest reasoning model again
+```
+
+## 3.2 Multi-Brain Setup
+
+The best setup is not one model pass.
+
+The correct setup is:
+
+```text
+scout
+→ extract
+→ cluster
+→ score
+→ feasibility check
+→ validation design
+→ red-team
+→ select
+→ human approval
+```
+
+## 3.3 Model Assignment by Task
+
+| Task                            | Brain                           |
+| ------------------------------- | ------------------------------- |
+| Research extraction             | cheaper / fast model            |
+| Job description summarization   | cheaper / fast model            |
+| Tool trend clustering           | cheaper / fast model            |
+| Market signal synthesis         | strong reasoning model          |
+| Project scoring                 | strong reasoning model          |
+| Validation feasibility analysis | strong reasoning model          |
+| Cloud feasibility analysis      | strong reasoning model          |
+| Hiring-manager review           | strong reasoning model          |
+| Red-team review                 | separate strong reasoning model |
+| Final recommendation            | lead orchestrator model         |
+
+## 3.4 Why Multi-Brain Matters
+
+A single model pass tends to:
+
+```text
+overvalue trendy topics
+under-detect duplicate projects
+miss validation weaknesses
+invent fake feasibility
+underestimate cloud cost/security risk
+produce shallow project lists
+overclaim project value
+```
+
+A multi-agent, multi-brain system reduces these risks by forcing separate checks for:
+
+```text
+market value
+catalog fit
+technical feasibility
+validation strength
+portfolio strength
+safety
+cloud realism
+hiring relevance
+```
+
+---
+
+# 4. Tools the Project Scout Agent Can Use
+
+## 4.1 External Research Tools
+
+The Project Scout Agent is allowed to use external research tools such as:
+
+```text
+web search
+job board search
+company career pages
+LinkedIn job descriptions, if accessible
+GitHub search
+Stack Overflow trends, if accessible
+cloud provider documentation
+dbt documentation
+Snowflake documentation
+Databricks documentation
+AWS documentation
+Azure documentation
+GCP documentation
+Anthropic/OpenAI/LLM provider documentation
+arXiv or technical papers for AI/LLM topics
+industry reports
+public course syllabi
+competitor course catalogs
+technical blogs
+engineering blogs
+```
+
+## 4.2 Purpose of External Research
+
+External research is used to identify:
+
+```text
+market demand
+tools hiring managers mention
+skills repeatedly appearing in job descriptions
+production workflows learners should practice
+project patterns competitors do not teach well
+emerging role requirements
+cloud/platform trends
+AI/LLM engineering patterns
+MLOps expectations
+analytics engineering expectations
+data engineering expectations
+```
+
+## 4.3 Internal Atlas Tools
+
+The Project Scout Agent is allowed to inspect Atlas internally through read-only tools such as:
+
+```text
+query project catalog
+query project steps
+query validation kinds
+query project difficulty distribution
+query role-path coverage
+query project visibility status
+query learner progress metrics if available
+run audit:authoring
+run audit:pedagogy
+inspect project difficulty labels
+inspect validation coverage
+inspect prerequisite map
+inspect existing project slugs and titles
+inspect existing authored project files
+inspect project templates
+inspect authoring specification
+inspect publish-readiness checklist
+```
+
+## 4.4 Scoring Tools
+
+The Project Scout Agent is allowed to use:
+
+```text
+custom scoring rubric
+matrix ranking
+gap analysis
+duplicate detection
+dependency graph analysis
+role-path balancing
+difficulty balancing
+validation-strength classifier
+sandbox feasibility classifier
+cloud feasibility classifier
+portfolio artifact classifier
+```
+
+## 4.5 Codebase Tools
+
+The Project Scout Agent may inspect codebase files in proposal mode:
+
+```text
+read authored project files
+read validation config patterns
+read project authoring spec
+read project templates
+read audit scripts
+read validation-kind matrix
+read project lineage files
+read current course/role path structure
+```
+
+The Project Scout Agent may not:
+
+```text
+write project files without approval
+modify grading logic
+change schema
+make DB updates
+flip visibility
+touch production env vars
+alter cloud credentials
+```
+
+---
+
+# 5. Agent Harness and Guardrails
+
+The Project Scout Agent needs a strong harness around itself. Otherwise, it will hallucinate trendy projects and pollute the catalog.
+
+## 5.1 Required Inputs
+
+The agent receives:
+
+```text
+current Atlas catalog
+role path list
+current project count per discipline
+current project count per difficulty
+current visible vs hidden project count
+validation-kind distribution
+known platform constraints
+current hiring-signal themes
+cloud provider roadmap
+authoring spec
+publish-readiness checklist
+quality rubric
+do-not-build list
+current validator limitations
+current IDE/runtime limitations
+current cloud integration status
+current portfolio export status
+```
+
+## 5.2 Required Outputs
+
+For every project candidate, the agent must output:
+
+```text
+candidate project title
+slug
+discipline
+difficulty
+target learner
+hiring signal
+business scenario
+tools involved
+sandbox feasibility
+BYO-cloud extension feasibility
+full cloud integration feasibility
+validation strategy
+portfolio artifact
+estimated steps
+estimated time
+prerequisites
+risk score
+quality score
+recommendation: accept / revise / reject
+reason for recommendation
+```
+
+## 5.3 Hard Constraints
+
+Every recommended project must satisfy:
+
+```text
+No placeholder concept
+No fake cloud integration
+No fake validation claim
+No project that cannot be executed or simulated
+No project without portfolio artifact
+No project without role-path value
+No duplicate of existing catalog
+No project that worsens validation debt without justification
+No project that teaches obsolete or low-value workflows unless foundational
+No project that makes H1/H2 overclaims
+No project that requires unsafe credentials without a security model
+No project that requires paid cloud resources without cost controls
+```
+
+## 5.4 Human Approval Gate
+
+The Project Scout Agent can recommend.
+
+It cannot publish.
+
+Final visibility flow:
+
+```text
+Scout proposes
+→ scoring agent ranks
+→ authoring agent drafts hidden project
+→ audit scripts run
+→ red-team agent reviews
+→ human/manual checklist
+→ only then learner_visible=true
+```
+
+## 5.5 Hidden-First Rule
+
+Every new project must start hidden.
+
+Correct flow:
+
+```text
+author project
+→ promote hidden
+→ audit
+→ review
+→ revise if needed
+→ manual publish checklist
+→ flip visible
+```
+
+Incorrect flow:
+
+```text
+author project
+→ publish immediately
+```
+
+---
+
+# 6. Custom Metrics the Scout Uses
+
+This is the most important part of the system.
+
+Every candidate project should be scored from 0–100.
+
+## 6.1 Hiring Signal Score — 20 Points
+
+Measures how strongly the project maps to real 2026+ hiring needs.
+
+Signals:
+
+```text
+appears in job descriptions
+maps to actual job tasks
+uses tools employers ask for
+produces interview-discussable work
+aligns to senior/practical expectations
+shows production judgment
+teaches current workflows
+supports role-path readiness
+```
+
+Example:
+
+```text
+Databricks Delta Lake medallion pipeline: 18/20
+Toy CSV calculator: 3/20
+```
+
+## 6.2 Portfolio Artifact Score — 15 Points
+
+Measures how impressive the final deliverable is.
+
+High score if it produces:
+
+```text
+GitHub repo
+README
+architecture diagram
+tests
+sample outputs
+deploy/run instructions
+dashboard/report
+CI workflow
+monitoring output
+data quality report
+model evaluation report
+cost/security notes
+tradeoff documentation
+```
+
+## 6.3 Sandbox Feasibility Score — 15 Points
+
+Measures whether Atlas can teach it without requiring dangerous or expensive cloud access.
+
+High score if it can run with:
+
+```text
+Pyodide
+DuckDB-WASM
+local dbt
+mock APIs
+fixture data
+deterministic LLM mocks
+simulated cloud resources
+mock event streams
+local JSON/CSV/Parquet files
+```
+
+Low score if it requires:
+
+```text
+paid cloud infrastructure
+external API keys
+unstable third-party APIs
+long-running compute
+expensive GPU usage
+manual provider setup
+```
+
+## 6.4 Validation Strength Score — 15 Points
+
+Measures whether Atlas can verify meaningful learner output.
+
+High score if validation can use:
+
+```text
+exact
+structured contains
+signed runtime output
+csv_set_equal
+sql_resultset
+deterministic test harness
+schema validation
+lint checks
+artifact checks
+row-set comparison
+metrics threshold comparison
+```
+
+Low score if it depends mostly on:
+
+```text
+self-attest
+prose-only validation
+contract-shaped metadata
+unverified screenshots
+manual-only review
+```
+
+## 6.5 Role-Path Coverage Score — 10 Points
+
+Measures whether it fills a catalog gap.
+
+High score if it fills:
+
+```text
+under-covered discipline
+missing difficulty tier
+missing capstone
+missing cloud lane
+missing SQL mastery skill
+missing Python mastery skill
+missing prerequisite bridge
+missing project type
+```
+
+## 6.6 Cloud / Platform Relevance Score — 10 Points
+
+Measures how well the project maps to important platforms and tools:
+
+```text
+AWS
+Azure
+GCP
+Snowflake
+Databricks
+dbt
+Spark
+Airflow
+Kafka
+Kubernetes
+MLflow
+Bedrock
+Vertex AI
+Azure OpenAI
+Glue
+Athena
+BigQuery
+Delta Lake
+Unity Catalog
+Redshift
+Synapse
+```
+
+## 6.7 Differentiation Score — 10 Points
+
+Measures whether the project is better than generic online tutorials.
+
+High score if it includes:
+
+```text
+realistic business scenario
+production-style constraints
+testing/evaluation
+failure handling
+cost awareness
+security awareness
+privacy awareness
+architecture tradeoffs
+monitoring/observability
+data quality
+CI/CD
+debugging
+incident-style thinking
+stakeholder requirements
+```
+
+## 6.8 Build Risk Score — 5 Points
+
+This is reverse-scored. Low risk receives high points.
+
+Risks:
+
+```text
+requires real paid cloud resources
+requires unstable external APIs
+requires unavailable browser runtime
+requires secrets
+is hard to validate
+is too large for one project
+requires unsupported package
+depends on provider UI changes
+requires long-running jobs
+```
+
+---
+
+# 7. Example Project Scoring Matrix
+
+| Candidate                           | Hiring | Portfolio | Sandbox | Validation | Coverage | Cloud | Differentiation | Risk | Total |
+| ----------------------------------- | -----: | --------: | ------: | ---------: | -------: | ----: | --------------: | ---: | ----: |
+| Databricks Delta Lake Medallion Lab |     20 |        15 |       9 |         10 |       10 |    10 |              10 |    3 |    87 |
+| Snowflake dbt Metrics Mart          |     18 |        14 |      13 |         13 |        9 |    10 |               8 |    4 |    89 |
+| AWS S3 Glue Athena Pipeline         |     19 |        14 |      12 |         11 |       10 |    10 |               9 |    4 |    89 |
+| RAG Evaluation Harness              |     20 |        15 |      15 |         14 |       10 |     5 |              10 |    5 |    94 |
+| Prompt Engineering Basics           |     10 |         6 |      15 |          8 |        5 |     2 |               3 |    5 |    54 |
+
+Thresholds:
+
+```text
+90–100: flagship candidate
+80–89: strong candidate
+70–79: acceptable if it fills a strategic gap
+60–69: revise
+below 60: reject
+```
+
+---
+
+# 8. Step-by-Step Project Identification and Selection Process
+
+## Step 1 — Market Signal Collection
+
+The Market Signal Agent collects signals from:
+
+```text
+job descriptions
+company career pages
+cloud provider role guides
+tool documentation
+GitHub popular repositories
+industry blogs
+competitor course catalogs
+recruiter language
+current platform gaps
+emerging technology trends
+```
+
+Output:
+
+```text
+top tools
+top workflows
+top project patterns
+repeated job phrases
+emerging skill clusters
+role-specific requirements
+cloud/platform trends
+```
+
+## Step 2 — Atlas Catalog Gap Analysis
+
+The Catalog Analyst Agent inspects Atlas.
+
+It answers:
+
+```text
+How many projects exist per discipline?
+How many projects exist per difficulty?
+Which skills are missing?
+Which providers are missing?
+Which validation kinds dominate?
+Which projects are too similar?
+Which projects lack strong portfolio artifacts?
+Which role paths lack capstones?
+Which beginner-to-advanced transitions are weak?
+Which disciplines lack SQL mastery?
+Which disciplines lack Python mastery?
+Which cloud providers are underrepresented?
+```
+
+## Step 3 — Candidate Generation
+
+The Project Scout Agent proposes candidate projects.
+
+For each candidate:
+
+```text
+title
+slug
+discipline
+difficulty
+scenario
+tools
+final artifact
+validation idea
+sandbox mode
+BYO cloud extension
+prerequisites
+estimated steps
+estimated time
+expected role signal
+```
+
+## Step 4 — Deduplication
+
+The Deduplication Agent checks:
+
+```text
+title overlap
+slug overlap
+scenario overlap
+skill overlap
+tool overlap
+final artifact overlap
+role-path redundancy
+difficulty redundancy
+```
+
+It returns one of:
+
+```text
+keep
+merge
+rename
+revise
+reject
+```
+
+## Step 5 — Feasibility Analysis
+
+The Sandbox Feasibility Agent decides:
+
+```text
+Can this run in browser?
+Can it run with DuckDB-WASM?
+Can it run with Pyodide?
+Does it require real cloud?
+Can cloud be mocked?
+Does it need external API keys?
+Can it be validated deterministically?
+Does it require unsupported packages?
+Does it require long-running compute?
+Can it have a BYO-cloud extension?
+```
+
+## Step 6 — Validation Strategy Design
+
+The Validation Architect Agent proposes:
+
+```text
+validation kind per step
+server-side vs client-provisional
+signed runtime evidence need
+expected output format
+grader gaps
+test plan
+rollback plan
+H3 claim level
+```
+
+If validation is too weak, the project gets revised or rejected.
+
+## Step 7 — Hiring-Manager Scoring
+
+The Hiring Signal Agent scores:
+
+```text
+Would this project impress a hiring manager?
+Can it be discussed in interviews?
+Does it map to real job tasks?
+Does it show practical judgment?
+Does it show architecture thinking?
+Does it show debugging/failure-handling?
+Does it show tool fluency?
+```
+
+## Step 8 — Portfolio Scoring
+
+The Portfolio Artifact Agent asks:
+
+```text
+Will this produce a strong GitHub repo?
+Can it generate a README?
+Can it generate diagrams?
+Can it create evidence?
+Can it be shared on LinkedIn?
+Can a recruiter understand it in 60 seconds?
+Can the learner explain it in an interview?
+```
+
+## Step 9 — Ranking
+
+The Scoring Agent combines all scores.
+
+Output:
+
+```text
+Top 10 candidates
+Recommended 6 to author
+Rejected list with reasons
+Risks and prerequisites
+Provider coverage analysis
+Discipline coverage analysis
+Validation coverage analysis
+```
+
+## Step 10 — Human Approval
+
+The human operator approves:
+
+```text
+Build these 6
+Revise these 2
+Reject these 2
+Hold these for later
+```
+
+## Step 11 — Authoring
+
+The Project Author Agent writes hidden project modules.
+
+Output:
+
+```text
+scripts/src/authored/<course>__<slug>.ts
+```
+
+## Step 12 — Audit
+
+Automated audits run:
+
+```text
+typecheck
+audit:authoring
+audit:pedagogy
+audit:difficulty-labels
+validation-kind audit
+copy-safety scan
+BC audits if relevant
+```
+
+## Step 13 — Red-Team Review
+
+The Red-Team Reviewer checks:
+
+```text
+overclaims
+weak validation
+hidden answer leakage
+fake cloud claims
+bad instructions
+duplicate content
+unrealistic time estimates
+security issues
+cost issues
+credential issues
+```
+
+## Step 14 — Manual Publish Checklist
+
+A human or high-trust review agent signs off.
+
+Checklist:
+
+```text
+instructions complete
+hints non-leaky
+validation honest
+scenario coherent
+portfolio deliverable clear
+difficulty reasonable
+no H1/H2 overclaims
+no fake cloud integration
+no placeholder content
+audits green
+```
+
+## Step 15 — Visibility Flip
+
+Only then:
+
+```text
+learner_visible=true
+```
+
+---
+
+# 9. The Agent Team Involved
+
+## 9.1 Market Signal Agent
+
+### Job Description
+
+Find what the market wants.
+
+### Skills
+
+```text
+job-market research
+trend extraction
+skill clustering
+competitor analysis
+tool ecosystem awareness
+cloud platform awareness
+AI/LLM tooling awareness
+data engineering workflow awareness
+```
+
+### Tools
+
+```text
+web search
+job boards
+company career pages
+GitHub search
+cloud docs
+course catalog comparisons
+industry reports
+```
+
+### Output
+
+```text
+market_signal_report.md
+```
+
+---
+
+## 9.2 Catalog Analyst Agent
+
+### Job Description
+
+Understand Atlas’ current catalog and identify gaps.
+
+### Skills
+
+```text
+SQL/catalog analysis
+role-path mapping
+difficulty distribution analysis
+validation-kind analysis
+coverage analysis
+duplicate detection
+project sequencing analysis
+```
+
+### Tools
+
+```text
+database read queries
+audit:authoring
+audit:pedagogy
+project metadata scanner
+validation distribution scripts
+difficulty audit
+```
+
+### Output
+
+```text
+catalog_gap_report.md
+```
+
+---
+
+## 9.3 Project Scout Agent
+
+### Job Description
+
+Generate candidate project ideas from market signals and catalog gaps.
+
+### Skills
+
+```text
+curriculum design
+technical project design
+job-readiness mapping
+scenario writing
+role-path planning
+project sequencing
+cloud/project feasibility awareness
+```
+
+### Tools
+
+```text
+market signal report
+catalog gap report
+authoring spec
+project template
+project scoring rubric
+```
+
+### Output
+
+```text
+candidate_project_slate.json
+```
+
+---
+
+## 9.4 Feasibility Agent
+
+### Job Description
+
+Decide whether each candidate can actually run inside Atlas.
+
+### Skills
+
+```text
+browser runtime analysis
+Pyodide feasibility
+DuckDB feasibility
+cloud simulation design
+package/runtime constraints
+mock-service design
+dependency risk analysis
+```
+
+### Tools
+
+```text
+runtime compatibility matrix
+dependency checker
+browser execution tests
+mock service patterns
+package availability list
+```
+
+### Output
+
+```text
+feasibility_matrix.md
+```
+
+---
+
+## 9.5 Validation Architect Agent
+
+### Job Description
+
+Design how each project can be validated honestly.
+
+### Skills
+
+```text
+grader design
+signed runtime evidence
+SQL canonicalization
+CSV canonicalization
+expected output design
+H3 trust boundary
+test design
+rollback planning
+```
+
+### Tools
+
+```text
+validation-kind matrix
+grading tests
+RunEnvelope spec
+authoring audits
+BC audit scripts
+runtime comparators
+```
+
+### Output
+
+```text
+validation_plan.md
+```
+
+---
+
+## 9.6 Hiring Manager Reviewer Agent
+
+### Job Description
+
+Evaluate whether projects are recruiter/hiring-manager impressive.
+
+### Skills
+
+```text
+role expectations
+portfolio judgment
+resume signal evaluation
+interview relevance
+industry workflow awareness
+seniority calibration
+```
+
+### Tools
+
+```text
+hiring rubric
+market signal report
+role path goals
+job description clusters
+```
+
+### Output
+
+```text
+hiring_signal_scores.csv
+```
+
+---
+
+## 9.7 Portfolio Artifact Agent
+
+### Job Description
+
+Ensure each project produces a strong artifact.
+
+### Skills
+
+```text
+GitHub README design
+portfolio storytelling
+architecture documentation
+LinkedIn-safe copy
+technical writing
+artifact packaging
+```
+
+### Tools
+
+```text
+portfolio artifact schema
+README generator
+share-copy guard
+H1/H2 banned phrase guard
+project deliverable checklist
+```
+
+### Output
+
+```text
+portfolio_artifact_plan.md
+```
+
+---
+
+## 9.8 Project Author Agent
+
+### Job Description
+
+Write the actual authored project.
+
+### Skills
+
+```text
+technical curriculum writing
+step design
+hint ladder design
+validation config design
+scenario design
+portfolio deliverable design
+```
+
+### Tools
+
+```text
+docs/project-authoring-spec.md
+project template
+authored project examples
+validation configs
+audit scripts
+```
+
+### Output
+
+```text
+scripts/src/authored/<course>__<slug>.ts
+```
+
+---
+
+## 9.9 Pedagogy Reviewer Agent
+
+### Job Description
+
+Ensure the project teaches properly.
+
+### Skills
+
+```text
+instructional design
+hint ladder review
+misconception detection
+feedback design
+mode-aware pedagogy
+beginner/intermediate/advanced calibration
+```
+
+### Tools
+
+```text
+audit:pedagogy
+hint leak detector
+learning mode matrix
+project authoring spec
+```
+
+### Output
+
+```text
+pedagogy_review.md
+```
+
+---
+
+## 9.10 Red-Team Reviewer Agent
+
+### Job Description
+
+Try to break the project and detect overclaims.
+
+### Skills
+
+```text
+adversarial review
+validation bypass detection
+copy safety
+hidden-answer leakage detection
+cloud cost/security risk review
+prompt-injection awareness
+credential safety review
+```
+
+### Tools
+
+```text
+banned phrase guard
+validation tests
+H3 trust model
+cost/security checklist
+cloud safety checklist
+```
+
+### Output
+
+```text
+red_team_review.md
+```
+
+---
+
+## 9.11 Publisher Agent
+
+### Job Description
+
+Prepare projects for visibility after approval.
+
+### Skills
+
+```text
+checklist workflow
+DB safety
+publish state verification
+docs update
+audit verification
+```
+
+### Tools
+
+```text
+publish-readiness checklist
+visibility query
+audit scripts
+project status query
+```
+
+### Critical Restriction
+
+The Publisher Agent cannot publish without approval.
+
+---
+
+# 10. Agent Orchestration Flow
+
+```text
+Market Signal Agent
+→ Catalog Analyst Agent
+→ Project Scout Agent
+→ Deduplication Agent
+→ Feasibility Agent
+→ Validation Architect Agent
+→ Hiring Manager Reviewer Agent
+→ Portfolio Artifact Agent
+→ Scoring Agent
+→ Human Approval
+→ Project Author Agent
+→ Pedagogy Reviewer Agent
+→ Red-Team Reviewer Agent
+→ Audit Scripts
+→ Manual Publish Checklist
+→ Publisher Agent
+```
+
+Equivalent Mermaid-style flow:
+
+```mermaid
+flowchart TD
+  A[Market Signal Agent] --> C[Project Scout Agent]
+  B[Catalog Analyst Agent] --> C
+  C --> D[Deduplication Agent]
+  D --> E[Feasibility Agent]
+  E --> F[Validation Architect Agent]
+  F --> G[Hiring Manager Reviewer]
+  G --> H[Portfolio Artifact Agent]
+  H --> I[Scoring Agent]
+  I --> J[Human Approval]
+  J --> K[Project Author Agent]
+  K --> L[Pedagogy Reviewer]
+  L --> M[Red-Team Reviewer]
+  M --> N[Audit Scripts]
+  N --> O[Manual Publish Checklist]
+  O --> P[Publisher Agent]
+```
+
+---
+
+# 11. The Custom Scoring Rubric
+
+Every project candidate receives:
+
+```text
+Hiring Signal Score: 0–20
+Portfolio Artifact Score: 0–15
+Sandbox Feasibility Score: 0–15
+Validation Strength Score: 0–15
+Role Coverage Score: 0–10
+Cloud/Platform Relevance Score: 0–10
+Differentiation Score: 0–10
+Build Risk Score: 0–5
+Total: 0–100
+```
+
+Acceptance bands:
+
+```text
+90–100 = flagship
+80–89 = strong
+70–79 = acceptable if strategic
+60–69 = revise
+below 60 = reject
+```
+
+---
+
+# 12. What Makes a Project a “Hiring Manager’s Dream”
+
+A project is excellent if it shows:
+
+```text
+real business context
+real tools
+real failure modes
+testing
+validation
+monitoring
+security awareness
+cost awareness
+deployment or reproducibility
+clean GitHub artifact
+interview-discussable tradeoffs
+role-specific skill signal
+debugging ability
+production judgment
+system design thinking
+stakeholder awareness
+```
+
+Example strong project:
+
+```text
+AWS S3 → Glue → Athena Lakehouse with Partitioning, Data Quality, Cost-Aware Queries, and Terraform Cleanup
+```
+
+Why strong:
+
+```text
+cloud provider
+data engineering
+cost awareness
+query optimization
+data quality
+IaC
+portfolio-ready README
+realistic employer task
+```
+
+Example weak project:
+
+```text
+Print numbers from 1 to 10 in Python
+```
+
+Why weak:
+
+```text
+no business context
+no portfolio value
+no hiring signal
+no real system thinking
+```
+
+---
+
+# 13. Cloud Project Scouting Criteria
+
+For AWS, Azure, GCP, Snowflake, and Databricks projects, the Scout Agent must classify each project as one of three types.
+
+## 13.1 Sandbox-First
+
+Can run inside Atlas without credentials.
+
+Examples:
+
+```text
+DuckDB simulates warehouse
+local dbt project
+fake S3 folder structure
+JSON IAM policy validation
+mock event stream
+local Spark-like fixture
+mock object storage
+local Delta/Iceberg-style table simulation
+```
+
+## 13.2 BYO-Cloud Extension
+
+Atlas gives optional real-cloud instructions.
+
+Examples:
+
+```text
+Terraform template
+IAM least privilege
+cleanup script
+cost warning
+deployment checklist
+provider-specific setup guide
+```
+
+## 13.3 Full Integration
+
+Atlas directly connects to provider API.
+
+This is future-only until credential safety is fully designed.
+
+Full integration requires:
+
+```text
+encrypted credentials
+least-privilege scopes
+revocation flow
+no secrets in logs
+no secrets in Ada prompts
+cost controls
+resource tagging
+cleanup automation
+audit logging
+```
+
+---
+
+# 14. Cloud Provider Agent Specialists
+
+## 14.1 AWS Project Agent
+
+Focus:
+
+```text
+S3
+Glue
+Athena
+Lambda
+Step Functions
+Kinesis
+Redshift
+EMR
+Bedrock
+CloudWatch
+IAM
+EventBridge
+DynamoDB where relevant
+Lake Formation where relevant
+```
+
+Example AWS projects:
+
+```text
+S3 + Glue + Athena partitioned lakehouse
+Lambda + EventBridge ingestion automation
+Kinesis streaming analytics simulation
+Bedrock RAG evaluation pipeline
+Redshift warehouse mart with dbt
+```
+
+## 14.2 Azure Project Agent
+
+Focus:
+
+```text
+ADLS
+Azure Data Factory
+Synapse
+Azure Functions
+Event Hubs
+Azure Databricks
+Azure OpenAI
+Key Vault
+Azure Monitor
+Fabric where relevant
+```
+
+Example Azure projects:
+
+```text
+ADLS + ADF + Synapse pipeline
+Event Hubs streaming ingestion
+Azure OpenAI document QA pipeline
+Azure Databricks Delta medallion workflow
+```
+
+## 14.3 GCP Project Agent
+
+Focus:
+
+```text
+GCS
+BigQuery
+Pub/Sub
+Dataflow
+Dataproc
+Vertex AI
+Cloud Run
+Secret Manager
+Cloud Logging
+Cloud Composer where relevant
+```
+
+Example GCP projects:
+
+```text
+GCS + BigQuery ELT with dbt
+Pub/Sub + Dataflow streaming pipeline
+Vertex AI batch prediction monitoring
+Cloud Run API for model serving
+```
+
+## 14.4 Snowflake Project Agent
+
+Focus:
+
+```text
+warehouses
+databases
+schemas
+Snowpark
+Streams
+Tasks
+data sharing
+dbt on Snowflake
+cost-aware warehouse design
+secure views
+dynamic tables where relevant
+```
+
+Example Snowflake projects:
+
+```text
+Snowflake dbt warehouse mart
+Streams and Tasks CDC pipeline
+Snowpark feature engineering project
+cost-optimized warehouse monitoring lab
+```
+
+## 14.5 Databricks Project Agent
+
+Focus:
+
+```text
+Spark
+Delta Lake
+Unity Catalog
+MLflow
+Databricks Workflows
+Auto Loader
+medallion architecture
+feature engineering
+model monitoring
+```
+
+Example Databricks projects:
+
+```text
+Delta Lake medallion architecture
+Auto Loader ingestion pipeline
+MLflow experiment tracking
+Unity Catalog governance lab
+Databricks Jobs orchestration
+```
+
+Each provider specialist proposes projects but cannot publish them.
+
+---
+
+# 15. The Full 900–1000 Project Scaling Strategy
+
+Atlas should not attempt to generate 900–1000 projects randomly.
+
+It should scale through disciplined waves.
+
+## 15.1 Discipline-Level Target
+
+Eight disciplines:
+
+```text
+Data Engineering
+AI Engineering
+MLOps Engineering
+Analytics Engineering
+Cloud Data Engineering
+Applied LLM Engineering
+Python Mastery
+SQL Mastery
+```
+
+Long-term target:
+
+```text
+~120 projects per discipline
+≈ 960 projects total
+```
+
+Practical premium range:
+
+```text
+900–1000 premium projects
+```
+
+## 15.2 Project Distribution per Discipline
+
+Each discipline should have:
+
+```text
+30–40 beginner projects
+40–50 intermediate projects
+30–40 advanced projects
+5–10 flagship capstones
+```
+
+## 15.3 Project Wave Strategy
+
+Each wave should generate:
+
+```text
+8–12 candidates
+6–8 selected for authoring
+4–6 published after review
+2–4 parked or revised
+```
+
+This avoids publishing everything the AI generates.
+
+## 15.4 Hidden-First Production Rule
+
+Every project wave follows:
+
+```text
+generate candidates
+→ score
+→ approve selected candidates
+→ author hidden projects
+→ run audits
+→ red-team
+→ manual checklist
+→ publish only winners
+```
+
+## 15.5 Quality Gate Before Visibility
+
+A project cannot be visible unless:
+
+```text
+audit:authoring passes
+audit:pedagogy passes
+difficulty is reasonable
+validation is honest
+hints are non-leaky
+scenario is coherent
+portfolio artifact is clear
+no H1/H2 overclaims
+no fake cloud claims
+no placeholder steps
+manual checklist passes
+```
+
+---
+
+# 16. Preventing Shallow AI-Generated Content
+
+Atlas prevents shallow content through:
+
+```text
+multi-agent review
+custom scoring rubrics
+hidden-first publishing
+manual approval gates
+validation-strength scoring
+portfolio artifact scoring
+hiring-manager scoring
+cloud feasibility scoring
+red-team review
+pedagogy audit
+copy-safety audit
+BC validation audits
+role-path coverage analysis
+duplicate detection
+```
+
+A shallow project is rejected if it:
+
+```text
+does not map to a real job task
+does not produce a portfolio artifact
+cannot be validated
+duplicates existing content
+has vague instructions
+has generic scenario
+has no realistic constraints
+has no failure handling
+has no recruiter value
+has fake cloud integration
+```
+
+---
+
+# 17. Final Answer
+
+The project scouting and selection should be performed by a specialized autonomous agent system, not by one generic agent.
+
+The lead agent is:
+
+```text
+Atlas Project Scout & Selection Agent
+```
+
+It uses:
+
+```text
+market research
+Atlas catalog analysis
+scoring rubrics
+validation feasibility
+hiring-manager evaluation
+portfolio artifact evaluation
+red-team review
+human approval gates
+```
+
+It is supported by specialized agents:
+
+```text
+Market Signal Agent
+Catalog Analyst Agent
+Project Scout Agent
+Feasibility Agent
+Validation Architect Agent
+Hiring Manager Reviewer Agent
+Portfolio Artifact Agent
+Project Author Agent
+Pedagogy Reviewer Agent
+Red-Team Reviewer Agent
+Publisher Agent
+Cloud Provider Specialist Agents
+```
+
+The Scout system can recommend what to build.
+
+It cannot publish directly.
+
+It must operate under Atlas’ quality gates:
+
+```text
+hidden first
+audited
+reviewed
+red-teamed
+manual checklist
+then visible
+```
+
+That is how Atlas can scale to **900–1000 premium projects** without becoming a pile of shallow AI-generated content.

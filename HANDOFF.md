@@ -1,66 +1,95 @@
-# HANDOFF
+# Session Handoff — Atlas (Claude Code continuation)
 
-**Latest shipped phase:** Phase 57A — `csv_set_equal` DARK Server-Side Comparator (runtime helper + canonical hash + dispatch case + authoring guard + BC proof). **No project opted in; legacy rows untouched.**
-**Working tree:** clean after Phase 57A commit (this commit). Visible catalog count: 60 (unchanged from Phase 56).
-**Parent commit chain:** Phase 57A ← Phase 56 ← Phase 55 (C2 visible) ← `0d89eb0` (C2 promote) ← `f12fe95` (C1 promote) ← `82e473d` (phase-54) ← `b0667ec` (phase-53) ← `efa4ddf` (phase-52 operator kit) ← `27e70c6` (phase-51) ← `5278fec` (phase-50).
-
-**Phase 52 status (unchanged):** operator flip kit prepared; the production flip has NOT been executed by the agent. Phase 57A is `csv_set_equal`-only runtime + authoring foundation, NOT the 10% ramp evaluation; touches none of the canary path's prerequisites.
+> Written 2026-06-05 for a context-compact. A fresh session with no memory of this conversation
+> can continue from this file alone. Read this, then `.agentic/progress.md`, then `.agentic/plan.md`.
+>
+> **Where the Phase 57A engineering record lives** (this file was repurposed from it by the
+> session-end hook — no data lost): `docs/phases/phase-57a-csv-set-equal-comparator.md` (full
+> close-out), `docs/phases/INDEX.md` (chronological index of all 57 phases), and `replit.md`
+> (latest-3 phases inline + active control-plane rules). Older HANDOFF.md versions are in git history.
 
 ---
 
-## Phase 57A summary
+## 1. Goal
 
-Phase 57A ships the **dark foundation** for real server-side row-set grading on `csv_set_equal` steps: a runtime comparator `gradeCsvSetEqual()` + a symmetric authoring guard `assertValidCsvSetEqualSpec()` + a one-shot BC audit `audit:csv-set-equal-bc`. The flag for entering real grading is `spec.serverGrade === true`, and **no live row sets it** — every one of the 15 visible `csv_set_equal` steps continues producing the legacy `{passed:true, feedback:"Step completed."}` byte-for-byte. The Atlas client's instant DuckDB-WASM Run feedback is untouched; only Submit semantics gain a path that today is unreachable from any project. Mirrors Phase 56's pattern exactly: extract → guard → audit BC → document → ship.
+**Finish and surpass the interrupted Replit build — take Atlas from ~35–55% to a shippable private beta.**
+Atlas is a project-based learning PWA (zero → job-ready across 9 courses: data-engineering, ai-engineer,
+mlops-engineer, data-scientist, analytics-engineer, applied-llm-engineer, cloud-data-engineer,
+python-libraries, sql). The full roadmap is `.agentic/plan.md` — **8 epics E0–E7**:
 
-See `docs/phases/phase-57a-csv-set-equal-comparator.md` for the full semantics matrix, hash design, submission contract, deferred-scope rationale, and the recommended 57B plan.
+- **E0 Foundation** (current, ~done) → **E1 Validation hardening** → **E2 Evidence/GitHub export** →
+  **E3 Adaptive skill model** → **E4 Curriculum factory** (the missing ~95% of projects; continuous) →
+  **E5 Cloud labs (sandbox-first)** → **E6 PWA + deploy + billing + beta** → **E7 public launch (deferred)**.
 
-### What landed — files
+Governing decisions (owner-approved, `discovery.md §4`): **D1** migrate off Replit · **D2** sandbox-cloud
+first · **D3** private-beta first · **D4** job-signal curriculum factory · **D5** keep monorepo layout
+(`artifacts/`+`lib/`+`scripts/`, no rename) · **D6** extend-not-restart (the 57-phase trust spine is the asset).
 
-| File | Change |
-|---|---|
-| `artifacts/api-server/src/lib/grading.ts` | NEW `gradeCsvSetEqual(spec, submission): GradingOutcome` + NEW `computeCsvSetEqualHash(columns, rows, opts): string`. Dispatch case added after `contains`, before `regex`, with the outer `&& step.validationConfig` guard preserved verbatim so null/undefined configs still hit generic `"Step completed."`. Full Phase-57A semantics matrix in block comment (8 normalization knobs + opt-in gate + scope exclusions). Uses `node:crypto` SHA-256 for the multiset fingerprint. Exports both helpers for the BC audit and any future hash-generation script. |
-| `artifacts/api-server/src/lib/grading.test.ts` | +24 Phase-57A cases (BC: null config / no flag / `serverGrade:false` / non-boolean flag / shape E / fixture-only; malformed: missing rows-or-hash, missing columns, empty columns, bad hex, invalid `dedupe`, non-boolean flag, hash+orderSensitive; submission shape: empty / non-JSON / wrong shape; happy paths: exact, out-of-order multiset, ordered correct, ordered wrong; headers: count / name / caseInsensitive; duplicates: multiset fail, dedupe='both' pass, dedupe='expected' pass; whitespace + trimStrings; null-vs-empty + nullEqualsEmpty; '42'-vs-42 + coerceNumericStrings; caseInsensitive cells; row width; extra row; hash-only PASS + FAIL + order-insensitive fingerprint; direct-helper-vs-dispatch symmetry). |
-| `lib/curriculum-quality/src/authoring.ts` | `validationConfig()` calls new `assertValidCsvSetEqualSpec(spec)` when `kind === "csv_set_equal"`. Exports `CsvSetEqualSpec`, `CsvSetEqualCell`, `CsvSetEqualRow`. Legacy fixture shapes A–E continue to pass through unchanged (no `serverGrade` → guard validates only types of any known new fields that are present). Forward-compat: unknown spec keys tolerated (Phase 56 pattern). Other kinds untouched. |
-| `lib/curriculum-quality/src/authoring.test.ts` | +24 Phase-57A cases (BC: shapes A–E + shape D; opt-in happy paths: minimum / hash / all flags; minimum-contract rejections: no columns / no rows-or-hash / orderSensitive+hash-only / row-width mismatch; type rejections: serverGrade / orderSensitive / trimStrings / nullEqualsEmpty / coerceNumericStrings / caseInsensitive / dedupe-invalid / columns non-string / columns empty-string / expectedRows non-cell / hash non-hex / hash uppercase). |
-| `scripts/src/audit-csv-set-equal-bc.ts` | NEW one-shot BC audit. 7 curated submissions × every visible `csv_set_equal` step (15 → 105 synthetic submissions). Inlines verbatim pre-57A reference (`{passed:true, feedback:"Step completed."}`). Defensive `WARN` log if any row has accidentally opted in (zero today). Exits non-zero on first BC divergence. |
-| `scripts/package.json` | NEW `audit:csv-set-equal-bc` script entry. |
-| `docs/validation-kind-matrix.md` | `csv_set_equal` row expanded with full Phase-57A spec (opt-in gate, submission contract, knobs, malformed-fail-closed behavior, link to close-out, 57B next-step hint). |
-| `docs/phases/phase-57a-csv-set-equal-comparator.md` | NEW close-out (this phase). |
-| `docs/phases/INDEX.md` | Latest-pointer rotated to Phase 57A. |
-| `HANDOFF.md` | This rewrite. |
-| `replit.md` | Phase History rotated (Phase 57A in, Phase 54 out). |
+## 2. Current state of the codebase
 
-Zero touches to: signed-envelope canary path, `/check`, `/submit`, `lib/execution-core`, other validation-kind graders (`json_equal`, `numeric_tolerance`, `sql_resultset`, `regex`, `exact`, `self_attest`, `contains`), schemas, migrations, OpenAPI / Orval codegen, env vars, deploys, cert / portfolio language, `RUBRIC_VERSION` (frozen `1.0.1`), Phase 52 operator flip kit, project rows, project step rows, `learner_visible` flags, frontend / Atlas UI, mockup-sandbox.
+- **Foundation (Phase 0) essentially complete.** Built this session: `.claude/` command/agent/skill spine,
+  `.agentic/` workspace, and 9 root docs (CLAUDE, README, PRD, BRD, ARD, TRD, DESIGN, DRD + this HANDOFF).
+  The build is now drivable by `/atlas-phase-plan`, `/atlas-validate`, `/atlas-phase-close`, the
+  `atlas-architect-reviewer` subagent, and the `atlas-conventions` skill.
+- **Product code UNCHANGED this session.** Zero behavior change. Still Phase 57A on the Replit-era spine.
+- **Does NOT build locally yet — and that is expected, not a defect:**
+  `node_modules` is absent (`pnpm install` never run here) and **Node is v22.17.1 but the project targets
+  Node 24**. The session-end hook's `typecheck: FAIL` / `build: FAIL` are caused by this, NOT by code or by
+  the markdown docs. pnpm 9.15.0 is present.
+- **Still coupled to Replit** (Stripe/Resend/Anthropic via Replit connectors) — this blocks local boot and is
+  exactly what Phase 0.2 removes.
+- **Git:** branch `main`. Recent commits are session-end WIP auto-commits (`769347d`, `cc0b2bf`). ~15
+  uncommitted changes (the new docs + `.agentic/` + `.gitignore`). Phase 0 is not yet committed as a clean unit.
 
-### Gates
+### New owner inputs dropped in repo root — UNREAD, read these first next session
+These arrived this session and were not yet read. They map directly to E4 (factory) and the "ship top of class"
+ask, so they are priority context:
+- `ATLAS AUTONOMOUS PROJECT SCOUTING, MEASUREMENT, SELECTION, AND QUALITY-CONTROL SYSTEM` → E4 factory design.
+- `ATLAS TOP-TIER COMPETITIVE SYSTEMS AND ENGINES` → the "ship top of class" engines.
+- `ATLAS_SYSTEMS_&_ENGINES_BUILD_GRADE_SPECIFICATIONS` → build-grade specs.
+- `Master_Atlas_Systems` and `Build_Phases` → likely a master systems/phasing doc. Reconcile against `.agentic/plan.md`.
 
-| Gate | Result | Delta vs Phase 56 |
-|---|---|---|
-| `pnpm run typecheck` (libs + 4 artifacts + `check:no-heuristic-runtime`) | OK | unchanged |
-| `pnpm --filter @workspace/api-server test` | **459 / 459** | +42 (27 `csv_set_equal` incl. 3 architect-fix + 15 incidental in same `gradeSubmission` describe) |
-| `pnpm --filter @workspace/curriculum-quality test` | **133 / 133** | +25 (architect-fix symmetry pass) |
-| `pnpm --filter @workspace/execution-core test` | 83 / 83 | unchanged |
-| `pnpm --filter @workspace/atlas test` | 150 / 150 | unchanged |
-| `pnpm --filter @workspace/scripts run audit:authoring` | **60 / 60 visible publish-ready** | unchanged (zero opt-ins → zero advisories) |
-| `pnpm --filter @workspace/scripts run audit:pedagogy` | unchanged | unchanged |
-| `pnpm --filter @workspace/scripts run audit:contains-bc` | 29 / 29 byte-identical across 203 submissions | unchanged |
-| `pnpm --filter @workspace/scripts run audit:csv-set-equal-bc` **(new)** | **15 / 15 byte-identical across 105 submissions** | NEW gate |
-| `pnpm --filter @workspace/scripts run check:no-heuristic-runtime` | OK | unchanged |
-| Phase 52 status | unchanged — operator flip kit prepared, flip NOT executed | unchanged |
+## 3. Files actively updated (this session)
 
-### Architect review history
+- **Created:** `CLAUDE.md`; `README.md`, `PRD.md`, `BRD.md`, `ARD.md`, `TRD.md`, `DESIGN.md`, `DRD.md`;
+  `.claude/settings.json`; `.claude/commands/{atlas-phase-plan,atlas-validate,atlas-phase-close}.md`;
+  `.claude/agents/atlas-architect-reviewer.md`; `.claude/skills/atlas-conventions/SKILL.md`;
+  `.agentic/{discovery,plan,progress}.md`.
+- **Edited:** `.gitignore` (Claude local-file ignores); `README.md` (2 reconciliation fixes, see §4); `HANDOFF.md` (this).
+- **Not mid-edit on any code file** — clean stopping point. No partial/uncompiled changes to product source.
 
-Round 1 (evaluate_task, full git diff): verdict FAIL on one P1 symmetry gap — authoring guard validated Phase-57A comparator fields even when `serverGrade !== true`, while runtime auto-passed in that branch. Architect's prescribed fix applied verbatim: `assertValidCsvSetEqualSpec` now early-returns when `serverGrade !== true`, mirroring runtime exactly. `serverGrade` type-check is preserved as a strictly additive author lint (rejecting `serverGrade:"true"` typos that would silently leave a row on the BC auto-pass path; does NOT diverge runtime since runtime treats `!== true` as opt-out regardless). Two architect-recommended runtime tests added: (1) submission `rows` containing nested object cells fail closed, (2) submission `rows` containing array cells fail closed, (3) opt-in `expectedRows` width mismatch with `columns` count → MALFORMED. Authoring tests rewritten: 8 type-check rejection cases now consolidated into a single "lax pass-through" test (matches runtime BC), and 11 type-check rejection cases moved behind explicit `serverGrade: true` opt-in.
+## 4. What was tried that failed / gotchas
 
-### Known caveats (user-accepted per R2 proposal)
+1. **`AskUserQuestion` (4 decision forks) — REJECTED by owner.** They want decide-for-me + proceed. Resolved
+   by taking blueprint-aligned defaults D1–D6. Do not re-litigate; build on those.
+2. **Stale fact in the doc fact-pack: Pyodide `0.28.4`** (carried from `replit.md`). Truth is `^0.29.3`
+   (`artifacts/atlas/package.json:69`). Fixed in README. **Lesson: verify versions against `package.json`, not `replit.md`.**
+3. **Parallel doc-agent hallucination:** README got `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (a Next.js-ism).
+   Atlas is **Vite** — corrected to `CLERK_PUBLISHABLE_KEY` (dev script maps it to `VITE_CLERK_PUBLISHABLE_KEY`).
+   **Lesson: always Opus-review parallel-agent output against code.**
+4. **`typecheck: FAIL` / `build: FAIL` at session end = environment, not code.** Root cause: no `node_modules`
+   + Node v22 instead of v24. **Do NOT "fix" code before running `pnpm install` on Node 24.**
+5. **No gates were run this session** (docs/scaffolding only). **Do not assume green** — run `/atlas-validate`
+   after a clean install to establish the true baseline.
 
-1. **No opt-ins this phase.** All 15 visible `csv_set_equal` steps remain client-provisional (DuckDB-WASM Run feedback) + server auto-pass at Submit. Phase 57A is foundation-only.
-2. **Shape E deferred.** The Phase-7-era multi-output rows (`cleanColumns` / `expectedClean` / `rejectColumns` / `expectedRejects`) pass the authoring guard via legacy fall-through and auto-pass at runtime. A 57C phase will either extend the spec or migrate them to opt-in pairs.
-3. **Hash is multiset-only.** `orderSensitive: true` requires inline `expectedRows` (positional source-of-truth). Both runtime and authoring guard enforce this; hash-only ordered comparison would need a separately authored ordered-hash field — out of scope.
-4. **Submission contract is `{columns, rows}` JSON.** When the first project opts in, the Atlas frontend must serialize the captured DuckDB-WASM run output as this shape on Submit. Chosen to match the future Phase-57B `RunCapture` envelope so the comparator survives the 57B refactor unchanged. **Decision required before 57B:** raw JSON vs. signed envelope (Phase 44 / Shape γ trust-boundary caveat applies verbatim).
-5. **`audit:csv-set-equal-bc` is content-specific.** Queries live DB rows; NOT in the `typecheck` chain. Re-run manually before any change to `gradeCsvSetEqual` or any change to a project's `csv_set_equal` step config.
-6. **Forward-compat keys tolerated.** Both runtime and authoring guard ignore unknown spec keys (`expectedCsv`, `validateQuery`, `query`, `cleanColumns`, etc. — all pass through).
+## 5. Next step
 
-### Next phase recommendation
+0. **Read the new owner blueprints** listed in §2 (scouting system, competitive engines, systems specs,
+   `Master_Atlas_Systems`, `Build_Phases`). Reconcile with `.agentic/plan.md`; they likely sharpen E4 + the
+   "top of class" engines.
+1. **Establish a true baseline:** switch to **Node 24** (nvm/fnm), run `pnpm install`, then `pnpm run typecheck`.
+   This tells you whether the Replit-era code is actually healthy outside Replit.
+2. **Phase 0.2 — cut the Replit cord** (first architect-gated code phase). Invoke before: `senior-devops`,
+   `env-secrets-manager`. Run `/atlas-phase-plan E0.2` (read-only decision brief) → swap Replit connectors for
+   direct Stripe/Resend/Anthropic SDKs behind an env adapter (keep Replit path as a fallback flag) →
+   `/atlas-validate` → `atlas-architect-reviewer` → `/atlas-phase-close`. Goal: `pnpm dev` boots on Windows.
+3. **Phase 0.3 — local green:** owner provides Neon `DATABASE_URL` → gitignored `.env` → `pnpm dev` + seed run clean.
+4. Then **Phase 1 = E1** (finish validation hardening: csv_set_equal opt-in, sql_resultset, /check-vs-/submit).
+5. **Optional now:** commit Phase 0 as a clean checkpoint (`feat: Claude Code operating system + foundation docs`).
 
-**Phase 57B — first opt-in / envelope pilot.** Pre-build decision brief should cover: (1) submission-shape decision (raw `{columns, rows}` JSON vs. signed `RunCapture` envelope) + threat-model addendum per Phase 44 / Shape γ caveat; (2) pilot project selection (likely C2 step 6 — `analytics-engineer-semantic-layer-with-dbt-and-duckdb`, which already authored inline `expectedRows`); (3) Atlas frontend wiring for the opt-in submission shape; (4) architect review before merge (1–3 rounds expected, operator-facing change). Defer to a separate phase — Phase 57A is locked at zero behavior change.
+---
+
+**Inherited invariants (never break — full list in `.claude/skills/atlas-conventions/SKILL.md`):**
+`RUBRIC_VERSION 1.0.1` frozen · archive=hide (no row deletes) · hidden slugs → 404 not 403 · bidirectional
+candidate↔project lineage · no runtime `mapToCourse` · H3 honest-claims (no "verified authorship/tamper-proof/
+cheat-proof/100% verified/job guaranteed") · graders ship dark with byte-for-byte BC audit · hidden-first publishing.
