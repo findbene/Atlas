@@ -18,6 +18,10 @@ import {
   classifySignError,
 } from "@/lib/envelopeClient";
 import {
+  decideCsvSetEqualSubmission,
+  type CsvSetEqualCapture,
+} from "@/lib/csvSetEqualSubmit";
+import {
   workspaceStepReducer,
   initialStepState,
   isProvisional,
@@ -80,6 +84,12 @@ function submissionTypeForStep(stepType: string | undefined): "code" | "text" {
   return "text";
 }
 
+// Phase 57B-prereq — shown when a server-graded `csv_set_equal` step has no
+// fresh captured result. Fail-safe: ask the learner to Run rather than
+// silently submitting stale or empty rows.
+const CSV_SET_EQUAL_NEEDS_RUN =
+  "Run your query first — Atlas grades this step from your query's result.";
+
 export default function ProjectWorkspace() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
@@ -141,6 +151,28 @@ export default function ProjectWorkspace() {
       return next;
     });
   }
+
+  // Phase 57B-prereq — last successful DuckDB-WASM result captured per step,
+  // for server-graded `csv_set_equal` opt-in. Distinct from the signed
+  // envelope (which is fire-and-forget and may be absent when signing is
+  // disabled/fails): the {columns,rows} capture must be available on the
+  // commit path even with no signing, so Option C stays soft-fail-safe. The
+  // capture shares the EXACT invalidation lifecycle as the envelope — cleared
+  // on Run start, edit, reset, history restore, and step navigation — and is
+  // run-gen guarded so a stale in-flight run can never re-stash old rows.
+  const [capturedSqlByStepId, setCapturedSqlByStepId] = useState<
+    Record<string, CsvSetEqualCapture>
+  >({});
+  function clearCapturedSqlForStep(stepId: string | undefined): void {
+    if (!stepId) return;
+    setCapturedSqlByStepId((prev) => {
+      if (!(stepId in prev)) return prev;
+      const next = { ...prev };
+      delete next[stepId];
+      return next;
+    });
+  }
+
   const { data: userProfile } = useGetUserProfile();
   const isPro = (userProfile as { tier?: string } | undefined)?.tier === "pro";
 
@@ -409,6 +441,7 @@ export default function ProjectWorkspace() {
     // run-gen so any in-flight sign is dropped on resolution.
     const leavingStepId = currentStep?.id;
     clearEnvelopeForStep(leavingStepId);
+    clearCapturedSqlForStep(leavingStepId);
     bumpRunGen(leavingStepId);
     setCurrentStepIdx(clamped);
     // Keep the URL in sync so reloads / shares land on the same step.
@@ -486,6 +519,7 @@ export default function ProjectWorkspace() {
     // still in flight from a prior Run will be ignored on resolution.
     const stepIdAtRun = currentStep?.id;
     clearEnvelopeForStep(stepIdAtRun);
+    clearCapturedSqlForStep(stepIdAtRun);
     const runGenAtStart = bumpRunGen(stepIdAtRun);
     let runStdout = "";
     let runStderr = "";
@@ -525,6 +559,24 @@ export default function ProjectWorkspace() {
           columns: result.columns,
           rows: result.rows,
         });
+        // Phase 57B-prereq — stash the fresh tabular result for server-graded
+        // csv_set_equal. Success + columns only. Run-gen guarded so a stale
+        // in-flight run can't resurrect old rows (this block is synchronous
+        // after the await, so no edit can interleave here — the guard mirrors
+        // the envelope stash for consistency and future-proofing).
+        if (
+          stepIdAtRun &&
+          result.ok &&
+          result.columns &&
+          result.columns.length > 0 &&
+          currentRunGen(stepIdAtRun) === runGenAtStart
+        ) {
+          const captured: CsvSetEqualCapture = {
+            columns: [...result.columns],
+            rows: (result.rows ?? []).map((r) => [...r]),
+          };
+          setCapturedSqlByStepId((prev) => ({ ...prev, [stepIdAtRun]: captured }));
+        }
         const parsedExpected = expectedOutputsSchema.safeParse(
           currentStep?.expectedOutputs,
         );
@@ -616,10 +668,27 @@ export default function ProjectWorkspace() {
   function checkStep() {
     if (!project?.id || !currentStep) return;
     if (!checkEnabled(stepState)) return;
-    const submission = isCodeStep ? code : textAnswer;
-    if (!submission.trim()) {
+    // Phase 57B-prereq — decide the submission shape. For every visible row
+    // today `serverGrade` is false, so this returns the raw editor contents
+    // verbatim and the path below is byte-identical to the pre-57B behavior.
+    const decision = decideCsvSetEqualSubmission({
+      serverGrade: currentStep.serverGrade === true,
+      rawSubmission: isCodeStep ? code : textAnswer,
+      capture: capturedSqlByStepId[currentStep.id] ?? null,
+    });
+    if (decision.kind === "needs-run") {
+      dispatchStep({ type: "CHECK_START" });
+      dispatchStep({
+        type: "CHECK_FAIL",
+        result: { status: "failed", feedback: CSV_SET_EQUAL_NEEDS_RUN },
+      });
+      return;
+    }
+    const submission = decision.submission;
+    if (decision.kind === "raw" && !submission.trim()) {
       // Local validation must still surface — emit CHECK_START first so
-      // the phase-guarded CHECK_FAIL transition is accepted.
+      // the phase-guarded CHECK_FAIL transition is accepted. (Raw path only;
+      // the csv_set_equal JSON contract is never empty.)
       dispatchStep({ type: "CHECK_START" });
       dispatchStep({
         type: "CHECK_FAIL",
@@ -667,10 +736,25 @@ export default function ProjectWorkspace() {
   function submitStep() {
     if (!project?.id || !currentStep) return;
     if (!submitEnabled(stepState)) return;
-    const submission = isCodeStep ? code : textAnswer;
-    if (!submission.trim()) {
+    // Phase 57B-prereq — same submission-shape decision as Check. Dark for all
+    // visible rows (serverGrade=false ⇒ raw editor contents, byte-identical).
+    const decision = decideCsvSetEqualSubmission({
+      serverGrade: currentStep.serverGrade === true,
+      rawSubmission: isCodeStep ? code : textAnswer,
+      capture: capturedSqlByStepId[currentStep.id] ?? null,
+    });
+    if (decision.kind === "needs-run") {
+      dispatchStep({ type: "SUBMIT_START" });
+      dispatchStep({
+        type: "SUBMIT_FAIL",
+        result: { status: "failed", feedback: CSV_SET_EQUAL_NEEDS_RUN },
+      });
+      return;
+    }
+    const submission = decision.submission;
+    if (decision.kind === "raw" && !submission.trim()) {
       // Local validation must still surface — emit SUBMIT_START first so
-      // the phase-guarded SUBMIT_FAIL transition is accepted.
+      // the phase-guarded SUBMIT_FAIL transition is accepted. (Raw path only.)
       dispatchStep({ type: "SUBMIT_START" });
       dispatchStep({
         type: "SUBMIT_FAIL",
@@ -836,6 +920,7 @@ export default function ProjectWorkspace() {
           // immediately-overwritten stash). Falls back to bare-string
           // submit until the learner Runs again.
           clearEnvelopeForStep(currentStep?.id);
+          clearCapturedSqlForStep(currentStep?.id);
           bumpRunGen(currentStep?.id);
           dispatchStep({ type: "EDIT" });
         }}
@@ -860,6 +945,7 @@ export default function ProjectWorkspace() {
           // Phase 49 — Reset is a code mutation; same envelope-invalidation
           // guarantees as EDIT.
           clearEnvelopeForStep(currentStep?.id);
+          clearCapturedSqlForStep(currentStep?.id);
           bumpRunGen(currentStep?.id);
           dispatchStep({ type: "EDIT" });
         }}
@@ -881,6 +967,7 @@ export default function ProjectWorkspace() {
           // Phase 49 — Restoring a historical code snapshot is a code
           // mutation; same envelope-invalidation guarantees as EDIT.
           clearEnvelopeForStep(currentStep?.id);
+          clearCapturedSqlForStep(currentStep?.id);
           bumpRunGen(currentStep?.id);
           dispatchStep({ type: "EDIT" });
           setHistoryOpen(false);

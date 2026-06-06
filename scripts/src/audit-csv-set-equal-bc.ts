@@ -23,6 +23,8 @@ import { db } from "@workspace/db";
 import { projects, projectSteps } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { gradeSubmission } from "../../artifacts/api-server/src/lib/grading.js";
+import { gradeEnvelopeCapture } from "../../artifacts/api-server/src/lib/envelopeGrade.js";
+import type { RunCapture } from "@workspace/execution-core/run-envelope";
 
 // ── Legacy reference implementation ────────────────────────────────────────
 // Verbatim copy of the pre-Phase-57A behavior: `csv_set_equal` had no case
@@ -46,6 +48,54 @@ function buildSubmissions(): string[] {
     "{}",
     JSON.stringify({ columns: ["a"], rows: [[1]] }),
     JSON.stringify({ columns: [], rows: [] }),
+  ];
+}
+
+// ── Synthetic verified captures for the envelope path (Phase 57B-prereq) ────
+// 57B-prereq added a DARK `csv_set_equal` branch to `gradeEnvelopeCapture`.
+// For every visible (non-opted) row it must return the SAME legacy auto-pass
+// tuple as before — whether the capture carries tabular columns/rows (the new
+// structured branch) or only stdout (the preserved pre-57B fall-through).
+function buildEnvelopeCaptures(): RunCapture[] {
+  return [
+    // Structured capture — exercises the new rows branch.
+    {
+      version: 1,
+      language: "sql",
+      code: "SELECT 1",
+      stdout: "1 row(s) in 1ms",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 1,
+      timedOut: false,
+      columns: ["a"],
+      rows: [[1]],
+    },
+    // Structured capture whose rows would FAIL a real comparison — proves the
+    // opt-in gate short-circuits BEFORE comparison for every visible row.
+    {
+      version: 1,
+      language: "sql",
+      code: "SELECT 1",
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 1,
+      timedOut: false,
+      columns: ["a"],
+      rows: [["unexpected"]],
+    },
+    // Stdout-only capture — exercises the preserved pre-57B fall-through.
+    {
+      version: 1,
+      language: "sql",
+      code: "SELECT 1",
+      stdout: "5 row(s) in 2ms",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 2,
+      timedOut: false,
+    },
   ];
 }
 
@@ -80,8 +130,10 @@ async function main() {
   );
 
   const mismatches: Mismatch[] = [];
+  const envelopeMismatches: Mismatch[] = [];
   let stepsChecked = 0;
   let submissionsChecked = 0;
+  let envelopeChecks = 0;
 
   for (const row of rows) {
     stepsChecked++;
@@ -123,15 +175,44 @@ async function main() {
         });
       }
     }
+
+    // Envelope-path BC: the dark csv_set_equal branch must also auto-pass.
+    for (const cap of buildEnvelopeCaptures()) {
+      envelopeChecks++;
+      const legacy = legacyGradeCsvSetEqual();
+      const current = gradeEnvelopeCapture(
+        {
+          validationType: row.validationType,
+          validationConfig: row.validationConfig,
+          expectedOutput: row.expectedOutput,
+        },
+        cap,
+      );
+      if (
+        legacy.passed !== current.passed ||
+        legacy.feedback !== current.feedback
+      ) {
+        envelopeMismatches.push({
+          slug: row.slug,
+          stepNumber: row.stepNumber,
+          submission: `envelope:${cap.columns ? "structured" : "stdout"}`,
+          legacy,
+          current,
+        });
+      }
+    }
   }
 
-  console.log(`Steps checked:        ${stepsChecked}`);
-  console.log(`Submissions checked:  ${submissionsChecked}`);
-  console.log(`BC mismatches:        ${mismatches.length}`);
+  console.log(`Steps checked:          ${stepsChecked}`);
+  console.log(`Submissions checked:    ${submissionsChecked}`);
+  console.log(`BC mismatches:          ${mismatches.length}`);
+  console.log(`Envelope checks:        ${envelopeChecks}`);
+  console.log(`Envelope BC mismatches: ${envelopeMismatches.length}`);
 
-  if (mismatches.length > 0) {
+  const allMismatches = [...mismatches, ...envelopeMismatches];
+  if (allMismatches.length > 0) {
     console.log("\nMISMATCHES:");
-    for (const m of mismatches) {
+    for (const m of allMismatches) {
       console.log(
         `  ${m.slug} step ${m.stepNumber} submission=${JSON.stringify(m.submission)}\n` +
           `    legacy:  ${JSON.stringify(m.legacy)}\n` +
@@ -139,13 +220,13 @@ async function main() {
       );
     }
     console.log(
-      `\nBC FAIL — ${mismatches.length} legacy-vs-Phase-57A mismatches. Do NOT merge until gradeCsvSetEqual returns byte-identical outcomes for all visible rows under the BC (no-opt-in) path.`,
+      `\nBC FAIL — ${mismatches.length} bare-string + ${envelopeMismatches.length} envelope legacy-vs-current mismatches. Do NOT merge until BOTH the gradeSubmission and gradeEnvelopeCapture csv_set_equal paths return byte-identical legacy outcomes for all visible (non-opted) rows.`,
     );
     process.exit(1);
   }
 
   console.log(
-    `\nBC PASS — ${stepsChecked} / ${stepsChecked} visible csv_set_equal steps produce byte-identical legacy outcomes across ${submissionsChecked} synthetic submissions.`,
+    `\nBC PASS — ${stepsChecked} / ${stepsChecked} visible csv_set_equal steps produce byte-identical legacy outcomes across ${submissionsChecked} bare-string + ${envelopeChecks} envelope captures (both the gradeSubmission and gradeEnvelopeCapture paths stay dark).`,
   );
   process.exit(0);
 }

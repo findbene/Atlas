@@ -180,6 +180,119 @@ describe("gradeEnvelopeCapture — non-pilot kinds delegate to legacy grader", (
   });
 });
 
+// ── Phase 57B-prereq — DARK csv_set_equal envelope branch ──────────────────
+function sqlCapture(
+  columns: string[],
+  rows: Array<Array<string | number | boolean | null>>,
+  stdout = "",
+) {
+  return {
+    version: 1 as const,
+    language: "sql" as const,
+    code: "SELECT 1",
+    stdout,
+    stderr: "",
+    exitCode: 0,
+    durationMs: 1,
+    timedOut: false,
+    columns,
+    rows,
+  };
+}
+
+describe("gradeEnvelopeCapture — csv_set_equal is DARK (no opt-in)", () => {
+  it("auto-passes a structured capture when spec omits serverGrade (legacy tuple)", () => {
+    const out = gradeEnvelopeCapture(
+      step({
+        validationType: "csv_set_equal",
+        expectedOutput: null,
+        validationConfig: { spec: { columns: ["id"], expectedRows: [[1]] } },
+      }),
+      sqlCapture(["id"], [[1]]),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+
+  it("auto-passes even when the captured rows do NOT match expected (proves darkness)", () => {
+    const out = gradeEnvelopeCapture(
+      step({
+        validationType: "csv_set_equal",
+        expectedOutput: null,
+        validationConfig: { spec: { columns: ["id"], expectedRows: [[1]] } },
+      }),
+      sqlCapture(["id"], [[999]]),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+
+  it("auto-passes a stdout-only capture (no columns/rows) — pre-57B fall-through preserved", () => {
+    const out = gradeEnvelopeCapture(
+      step({
+        validationType: "csv_set_equal",
+        expectedOutput: null,
+        validationConfig: { spec: { columns: ["id"], expectedRows: [[1]] } },
+      }),
+      capture("2 row(s) in 5ms"),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+
+  it("auto-passes when validationConfig is null (default-pass, matches grading.ts)", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "csv_set_equal", expectedOutput: null, validationConfig: null }),
+      sqlCapture(["id"], [[1]]),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+});
+
+describe("gradeEnvelopeCapture — csv_set_equal opted-in (future flip behavior)", () => {
+  const optedSpec = {
+    spec: {
+      serverGrade: true,
+      columns: ["id", "name"],
+      expectedRows: [
+        [1, "alice"],
+        [2, "bob"],
+      ],
+    },
+  };
+
+  it("passes when structured rows match (order-insensitive multiset)", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "csv_set_equal", expectedOutput: null, validationConfig: optedSpec }),
+      sqlCapture(
+        ["id", "name"],
+        [
+          [2, "bob"],
+          [1, "alice"],
+        ],
+      ),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Correct!" });
+  });
+
+  it("fails when structured rows do not match", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "csv_set_equal", expectedOutput: null, validationConfig: optedSpec }),
+      sqlCapture(["id", "name"], [[1, "alice"]]),
+    );
+    expect(out.passed).toBe(false);
+  });
+
+  it("fails closed on a stdout-only capture when opted-in — the reason the rows branch exists", () => {
+    // Pre-57B, every csv_set_equal envelope routed `capture.stdout` (the
+    // "N row(s) in Tms" summary) through the grader. With serverGrade on that
+    // summary cannot be JSON-parsed → fail closed. The structured branch added
+    // in 57B-prereq is what lets a real opt-in actually pass.
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "csv_set_equal", expectedOutput: null, validationConfig: optedSpec }),
+      capture("2 row(s) in 5ms"),
+    );
+    expect(out.passed).toBe(false);
+  });
+});
+
 describe("Honest-claim feedback audit (H3 ceiling)", () => {
   it("pass feedback contains no anti-cheat overclaim language", () => {
     const fb = gradeEnvelopeCapture(step({ expectedOutput: "1" }), capture("1")).feedback;

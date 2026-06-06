@@ -20,6 +20,28 @@ const COURSE_DISPLAY_NAME: Record<AtlasCourseSlug, string> = {
   "sql": "SQL Mastery",
 };
 
+/**
+ * Phase 57B-prereq — derive the narrow `serverGrade` boolean for the learner
+ * workspace. The client uses ONLY this flag to decide whether Check/Submit
+ * sends a canonical `{columns,rows}` JSON (server-graded) or the raw editor
+ * contents (legacy). We deliberately expose nothing else from
+ * `validationConfig`: expected rows, expected hashes, fixture paths and answer
+ * keys never cross to the client. Today this returns false for every visible
+ * row (no row carries `spec.serverGrade === true`), so the field is dark.
+ * Only `csv_set_equal` uses opt-in server grading; the type gate prevents an
+ * unrelated kind from ever surfacing a serverGrade signal.
+ */
+function deriveServerGrade(
+  validationType: string | null,
+  validationConfig: unknown,
+): boolean {
+  if (validationType !== "csv_set_equal") return false;
+  if (validationConfig === null || typeof validationConfig !== "object") return false;
+  const spec = (validationConfig as { spec?: unknown }).spec;
+  if (spec === null || typeof spec !== "object") return false;
+  return (spec as { serverGrade?: unknown }).serverGrade === true;
+}
+
 const router = Router();
 
 router.get("/projects", async (req, res) => {
@@ -276,6 +298,8 @@ router.get("/projects/:slug", async (req, res) => {
         learningObjective: s.learningObjective ?? undefined,
         requiredSkill: s.requiredSkill ?? undefined,
         hasPedagogy: !!s.pedagogyConfig,
+        // Phase 57B-prereq — narrow derived flag; never the raw spec/answer key.
+        serverGrade: deriveServerGrade(s.validationType, s.validationConfig),
       })),
     });
   } catch (err) {

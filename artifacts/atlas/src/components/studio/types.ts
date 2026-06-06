@@ -13,6 +13,11 @@ export type StepVM = {
   learningObjective?: string;
   requiredSkill?: string;
   hasPedagogy?: boolean;
+  // Phase 57B-prereq — narrow derived flag. True only for a `csv_set_equal`
+  // step whose validationConfig opted into server-side grading
+  // (`spec.serverGrade === true`). False/absent for every visible row today.
+  // No expected rows, hashes, or answer keys are ever exposed alongside it.
+  serverGrade?: boolean;
 };
 
 export type OutputVM = {

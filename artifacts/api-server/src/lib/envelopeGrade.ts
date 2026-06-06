@@ -102,6 +102,37 @@ export function gradeEnvelopeCapture(
     };
   }
 
+  // Phase 57B-prereq — DARK csv_set_equal envelope branch.
+  //
+  // When a verified capture carries tabular `columns`/`rows` (the DuckDB-WASM
+  // adapter output), serialize them into the canonical JSON contract and route
+  // through the SAME `gradeSubmission` → `gradeCsvSetEqual` path the
+  // bare-string submit uses. There is exactly one comparator implementation;
+  // the envelope path just feeds it structured rows instead of a raw string.
+  //
+  // This is DARK: `gradeCsvSetEqual` short-circuits to the legacy
+  // `{passed:true,"Step completed."}` auto-pass whenever the step's
+  // `spec.serverGrade !== true`. No visible row opts in today, so this branch
+  // returns byte-identical outcomes to the pre-57B fall-through below (which
+  // routed `capture.stdout` — the "N row(s) in Tms" summary — through the same
+  // auto-passing grader). The behavioral difference only appears once a row
+  // opts in: the structured rows are then graded for real instead of the
+  // summary string failing closed. `csv_set_equal` is deliberately NOT added
+  // to `PILOT_RUNTIME_KINDS` (that set is the stdout-based pilot surface);
+  // this is a separate rows-based branch.
+  if (kind === "csv_set_equal") {
+    if (capture.columns && capture.rows) {
+      const submission = JSON.stringify({
+        columns: capture.columns,
+        rows: capture.rows,
+      });
+      return gradeSubmission(step, submission);
+    }
+    // No tabular capture (e.g. a stdout-only run). Preserve the pre-57B
+    // fall-through exactly.
+    return gradeSubmission(step, capture.stdout);
+  }
+
   // Not a pilot kind — preserve Phase 47 behavior exactly: route the
   // verified stdout through the legacy grader.
   return gradeSubmission(step, capture.stdout);
