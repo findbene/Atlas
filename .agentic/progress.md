@@ -130,17 +130,45 @@ drift). **No mismatch → no expectedRows changed. Candidate still hidden, `serv
 - **57B-flip is now validation-safe in the real runtime.** Remaining = product/mechanics only (promote →
   `serverGrade:true` + re-seed → 2 deferred P2s → OpenAPI/Orval regen).
 
+## 2026-06-06 — Phase 57B-flip — SHIPPED (first LIVE csv_set_equal opt-in; 1 row)
+
+Close-out: `docs/phases/phase-57b-flip-csv-set-equal-opt-in.md`. **Exactly ONE row opted in** (C2 step 3);
+candidate promoted + rubric-approved; **envelope enforcement OFF**; Phase 52 untouched.
+- **Opt-in:** `serverGrade: true` on C2 step-3 csv_set_equal spec (only hit in `scripts/src/authored/`).
+- **Promotion:** `backfill:phase55-candidates` (created C2 candidate `c2dbc2db`) → `author:project promote`
+  (visible project, `learnerVisible` default true; 8 steps; atomic lineage stamp) → `audit --commit`
+  **85.3 → approved**. Learner routes gate on `learnerVisible` only (not qualityStatus).
+- **P2s:** P2b (needs-run) RESOLVED — neutral `toast` instead of red CHECK/SUBMIT_FAIL. P2a (popstate clear)
+  DEFERRED — nav is replaceState-only (popstate unreachable for step changes) + capture is per-stepId keyed,
+  so no stale/cross-step submission is possible; clearing would risk discarding a valid capture.
+- **OpenAPI/Orval:** added optional `ProjectStep.serverGrade` + regen (focused: serverGrade only).
+- **Audit extended:** `audit-csv-set-equal-bc` now partitions DARK (legacy auto-pass BC, preserved) vs
+  OPTED-IN (correct capture passes; raw SQL / malformed / wrong-rows / empty fail closed). Result:
+  **1 (dark:0, opted-in:1), 5/5 grading checks pass.**
+- **Gates:** typecheck + no-heuristic-runtime PASS · execution-core 83/83 · atlas 159/159 · api-server
+  466/466 · curriculum-quality 132 (1 env-only ENOENT) · audit:authoring exit 0 (48 visible, 100 steps) ·
+  audit:contains-bc PASS 3/3 · audit:csv-set-equal-bc PASS.
+- **Reviews:** architect + code-review subagents **529'd** (API overload) → Opus self-review performed
+  (grader fail-closed traced + live-verified). **Re-run `/code-review` + architect when API recovers.**
+- **Step-3 flip safety:** Phase-0.zz browser-WASM output == expectedRows → FE commit submission == audit's
+  passing capture. Verified end-to-end.
+- **Known:** (a) authoring-audit kind-classifier still labels csv_set_equal "client-provisional" (ignores
+  serverGrade) — informational; (b) orval 8.5.3 EOL churn on ~95 generated files (CRLF) — focused commit
+  stages serverGrade-only; needs a `.gitattributes` normalization pass.
+
 ## Next steps
 
 1. ✅ **DONE (0.zz):** C2 step-3 `expectedRows` byte-verified in real-browser DuckDB-WASM
    (`1.33.1-dev45.0`) — 5/5 match, flip contract holds. Engine-drift risk closed. (Broader Node-24
    `pnpm install` baseline + Phase 0.2 decouple still pending for running the whole app via `pnpm dev`.)
-2. **Phase 57B-flip** — DATA/VALIDATION blocker now RESOLVED (0.z). To execute: (a) **promote** the C2
-   candidate to a visible project; (b) set `serverGrade:true` on step 3 + re-seed; (c) resolve the 2
-   deferred P2s (popstate clear, `needs-run` UX); (d) add `serverGrade` to OpenAPI `ProjectStep` + Orval
-   regen. Heed 0.z R2 (enterprise-NRR filter dead branches) when authoring future fixtures.
+2. ✅ **DONE (57B-flip):** C2 promoted + 1 csv_set_equal row server-graded (envelope OFF). Gates green;
+   Opus self-review (subagents 529'd). **Follow-ups:** (a) re-run `/code-review` + architect-reviewer when
+   the API recovers; (b) observe the single opted-in row in a real env before opting in more rows;
+   (c) `.gitattributes` EOL normalization for `lib/*/src/generated/**` (orval CRLF churn); (d) optionally
+   teach the authoring-audit classifier that `serverGrade:true` csv_set_equal is server-enforced.
 3. **E1 continues** — 58 `sql_resultset`, 59 `/check`-vs-`/submit` evidence. Then E2 (60 portfolio/
-   GitHub), E4 (61 authoring factory v2, continuous), E5 (62 cloud-lab safety).
+   GitHub), E4 (61 authoring factory v2, continuous), E5 (62 cloud-lab safety). Do NOT start 58 until
+   57B-flip is independently reviewed + observed.
 
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.

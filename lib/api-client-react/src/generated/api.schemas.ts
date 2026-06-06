@@ -483,6 +483,13 @@ client-side by expectedOutputsSchema (rows, stdout, files, metrics).
   /** Sample dataset names to register before running this step (e.g. SQL/DuckDB). */
   datasetRefs?: string[] | null;
   executionOverride?: ExecutionProfile | null;
+  /** Phase 57B — when true the server commit-grader evaluates this step's
+submission for real (the csv_set_equal staged-hybrid opt-in). When
+false the step's server grading stays backward-compatible (auto-pass
+/ legacy). For an opted-in SQL step the client submits a canonical
+{columns, rows} JSON capture of the learner's run.
+ */
+  serverGrade?: boolean;
 }
 
 /**

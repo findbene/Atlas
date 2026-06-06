@@ -22,6 +22,7 @@ import {
   decideCsvSetEqualSubmission,
   type CsvSetEqualCapture,
 } from "@/lib/csvSetEqualSubmit";
+import { toast } from "@/hooks/use-toast";
 import {
   workspaceStepReducer,
   initialStepState,
@@ -684,11 +685,10 @@ export default function ProjectWorkspace() {
       capture: capturedSqlByStepId[currentStep.id] ?? null,
     });
     if (decision.kind === "needs-run") {
-      dispatchStep({ type: "CHECK_START" });
-      dispatchStep({
-        type: "CHECK_FAIL",
-        result: { status: "failed", feedback: CSV_SET_EQUAL_NEEDS_RUN },
-      });
+      // Phase 57B-flip — needs-run is a nudge, not a failure. Surface a neutral
+      // toast instead of red CHECK_FAIL styling and leave the step in `editing`
+      // so nothing is marked wrong (the learner simply hasn't Run yet / edited).
+      toast({ description: CSV_SET_EQUAL_NEEDS_RUN });
       return;
     }
     const submission = decision.submission;
@@ -755,11 +755,9 @@ export default function ProjectWorkspace() {
       capture: capturedSqlByStepId[currentStep.id] ?? null,
     });
     if (decision.kind === "needs-run") {
-      dispatchStep({ type: "SUBMIT_START" });
-      dispatchStep({
-        type: "SUBMIT_FAIL",
-        result: { status: "failed", feedback: CSV_SET_EQUAL_NEEDS_RUN },
-      });
+      // Phase 57B-flip — needs-run is a nudge, not a failure (see Check handler).
+      // Neutral toast; leave step state untouched rather than red SUBMIT_FAIL.
+      toast({ description: CSV_SET_EQUAL_NEEDS_RUN });
       return;
     }
     const submission = decision.submission;

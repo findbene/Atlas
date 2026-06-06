@@ -372,6 +372,11 @@ order by month_start;
         "csv_set_equal",
         "Customer C-100's 4 monthly rows (2025-04..2025-07) match exactly the new/expansion/contraction/churn fixture.",
         {
+          // Phase 57B-flip — the ONE opted-in csv_set_equal step. Server grades
+          // the FE-captured {columns,rows} against expectedRows. Verified
+          // byte-identical in real DuckDB-WASM (Phase 0.zz). Envelope enforcement
+          // stays OFF; only this commit-path comparator goes live.
+          serverGrade: true,
           query: SRC(`with subscriptions as (select * from "seeds/subscriptions"),
 customers as (select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"),
 months as (

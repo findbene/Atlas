@@ -107,6 +107,8 @@ type Mismatch = {
   current: { passed: boolean; feedback: string };
 };
 
+type CsvCell = string | number | boolean | null;
+
 async function main() {
   const rows = await db
     .select({
@@ -125,73 +127,48 @@ async function main() {
       ),
     );
 
+  // Phase 57B-flip — partition: DARK rows must stay byte-identical to the
+  // legacy auto-pass; OPTED-IN rows (spec.serverGrade===true) are intentionally
+  // NOT BC and instead get positive (correct capture passes) + negative
+  // (raw SQL / malformed / wrong-rows / empty all fail closed) verification.
+  const isOptedIn = (vc: unknown): boolean =>
+    (vc as { spec?: { serverGrade?: unknown } } | null)?.spec?.serverGrade === true;
+  const darkRows = rows.filter((r) => !isOptedIn(r.validationConfig));
+  const optedRows = rows.filter((r) => isOptedIn(r.validationConfig));
+
   console.log(
-    `\n=== Phase 57A — csv_set_equal BC audit ===\nVisible csv_set_equal steps: ${rows.length}\n`,
+    `\n=== csv_set_equal BC + opt-in audit ===\n` +
+      `Visible csv_set_equal steps: ${rows.length}  ` +
+      `(dark: ${darkRows.length}, opted-in: ${optedRows.length})\n`,
   );
 
+  // ── DARK rows: legacy auto-pass BC (bare-string + envelope) ────────────────
   const mismatches: Mismatch[] = [];
   const envelopeMismatches: Mismatch[] = [];
   let stepsChecked = 0;
   let submissionsChecked = 0;
   let envelopeChecks = 0;
 
-  for (const row of rows) {
+  for (const row of darkRows) {
     stepsChecked++;
-    // Defensive: detect any row that has accidentally opted into server
-    // grading. Phase 57A intentionally has zero opt-ins; flag loudly if
-    // an authored project lands one before the operator is ready.
-    const cfg = (row.validationConfig ?? {}) as { spec?: { serverGrade?: unknown } };
-    if (cfg?.spec?.serverGrade === true) {
-      console.log(
-        `  WARN — ${row.slug} step ${row.stepNumber} has spec.serverGrade=true. ` +
-          `Phase 57A expects ZERO opt-ins; this row will be graded for real. ` +
-          `Verify deliberate before merging.`,
-      );
-    }
-
-    const submissions = buildSubmissions();
-
-    for (const sub of submissions) {
+    const step = {
+      validationType: row.validationType,
+      validationConfig: row.validationConfig,
+      expectedOutput: row.expectedOutput,
+    };
+    for (const sub of buildSubmissions()) {
       submissionsChecked++;
       const legacy = legacyGradeCsvSetEqual();
-      const current = gradeSubmission(
-        {
-          validationType: row.validationType,
-          validationConfig: row.validationConfig,
-          expectedOutput: row.expectedOutput,
-        },
-        sub,
-      );
-      if (
-        legacy.passed !== current.passed ||
-        legacy.feedback !== current.feedback
-      ) {
-        mismatches.push({
-          slug: row.slug,
-          stepNumber: row.stepNumber,
-          submission: sub,
-          legacy,
-          current,
-        });
+      const current = gradeSubmission(step, sub);
+      if (legacy.passed !== current.passed || legacy.feedback !== current.feedback) {
+        mismatches.push({ slug: row.slug, stepNumber: row.stepNumber, submission: sub, legacy, current });
       }
     }
-
-    // Envelope-path BC: the dark csv_set_equal branch must also auto-pass.
     for (const cap of buildEnvelopeCaptures()) {
       envelopeChecks++;
       const legacy = legacyGradeCsvSetEqual();
-      const current = gradeEnvelopeCapture(
-        {
-          validationType: row.validationType,
-          validationConfig: row.validationConfig,
-          expectedOutput: row.expectedOutput,
-        },
-        cap,
-      );
-      if (
-        legacy.passed !== current.passed ||
-        legacy.feedback !== current.feedback
-      ) {
+      const current = gradeEnvelopeCapture(step, cap);
+      if (legacy.passed !== current.passed || legacy.feedback !== current.feedback) {
         envelopeMismatches.push({
           slug: row.slug,
           stepNumber: row.stepNumber,
@@ -203,30 +180,90 @@ async function main() {
     }
   }
 
-  console.log(`Steps checked:          ${stepsChecked}`);
-  console.log(`Submissions checked:    ${submissionsChecked}`);
-  console.log(`BC mismatches:          ${mismatches.length}`);
-  console.log(`Envelope checks:        ${envelopeChecks}`);
-  console.log(`Envelope BC mismatches: ${envelopeMismatches.length}`);
+  // ── OPTED-IN rows: real grading contract ───────────────────────────────────
+  const optInFailures: string[] = [];
+  let optInChecks = 0;
+
+  for (const row of optedRows) {
+    const spec = (row.validationConfig as { spec?: Record<string, unknown> } | null)?.spec ?? {};
+    const columns = spec.columns as string[] | undefined;
+    const expectedRows = spec.expectedRows as CsvCell[][] | undefined;
+    const tag = `${row.slug} step ${row.stepNumber}`;
+    const step = {
+      validationType: row.validationType,
+      validationConfig: row.validationConfig,
+      expectedOutput: row.expectedOutput,
+    };
+
+    if (!Array.isArray(columns) || columns.length === 0 || !Array.isArray(expectedRows)) {
+      optInFailures.push(`${tag}: opted-in but missing columns/expectedRows in spec`);
+      continue;
+    }
+
+    // POSITIVE — the exact committed capture must PASS.
+    optInChecks++;
+    const correct = JSON.stringify({ columns, rows: expectedRows });
+    const pos = gradeSubmission(step, correct);
+    if (!pos.passed) {
+      optInFailures.push(`${tag}: correct {columns,rows} capture did NOT pass — ${pos.feedback}`);
+    }
+
+    // NEGATIVE — each must fail closed (passed === false).
+    const mutated: CsvCell[][] = expectedRows.map((r) => [...r]);
+    if (mutated[0] && mutated[0].length > 1) {
+      const c = mutated[0][1];
+      mutated[0][1] = typeof c === "number" ? c + 1 : typeof c === "boolean" ? !c : "X";
+    } else if (mutated[0]) {
+      mutated[0][0] = "X";
+    }
+    const negatives: Array<[string, string]> = [
+      ["empty", ""],
+      ["raw-sql", "select * from mart_subscription_monthly where customer_id = 'C-100'"],
+      ["malformed-json", "not json {"],
+      ["wrong-rows", JSON.stringify({ columns, rows: mutated })],
+    ];
+    for (const [name, sub] of negatives) {
+      optInChecks++;
+      const r = gradeSubmission(step, sub);
+      if (r.passed) optInFailures.push(`${tag}: negative '${name}' unexpectedly PASSED`);
+    }
+  }
+
+  console.log(`Dark steps checked:     ${stepsChecked}`);
+  console.log(`  bare-string subs:     ${submissionsChecked}  (mismatches: ${mismatches.length})`);
+  console.log(`  envelope captures:    ${envelopeChecks}  (mismatches: ${envelopeMismatches.length})`);
+  console.log(`Opted-in steps checked: ${optedRows.length}`);
+  console.log(`  opt-in grading checks:${optInChecks}  (failures: ${optInFailures.length})`);
 
   const allMismatches = [...mismatches, ...envelopeMismatches];
-  if (allMismatches.length > 0) {
-    console.log("\nMISMATCHES:");
-    for (const m of allMismatches) {
-      console.log(
-        `  ${m.slug} step ${m.stepNumber} submission=${JSON.stringify(m.submission)}\n` +
-          `    legacy:  ${JSON.stringify(m.legacy)}\n` +
-          `    current: ${JSON.stringify(m.current)}`,
-      );
+  const failed = allMismatches.length > 0 || optInFailures.length > 0;
+  if (failed) {
+    if (allMismatches.length > 0) {
+      console.log("\nDARK BC MISMATCHES:");
+      for (const m of allMismatches) {
+        console.log(
+          `  ${m.slug} step ${m.stepNumber} submission=${JSON.stringify(m.submission)}\n` +
+            `    legacy:  ${JSON.stringify(m.legacy)}\n` +
+            `    current: ${JSON.stringify(m.current)}`,
+        );
+      }
+    }
+    if (optInFailures.length > 0) {
+      console.log("\nOPT-IN CONTRACT FAILURES:");
+      for (const f of optInFailures) console.log(`  - ${f}`);
     }
     console.log(
-      `\nBC FAIL — ${mismatches.length} bare-string + ${envelopeMismatches.length} envelope legacy-vs-current mismatches. Do NOT merge until BOTH the gradeSubmission and gradeEnvelopeCapture csv_set_equal paths return byte-identical legacy outcomes for all visible (non-opted) rows.`,
+      `\nFAIL — ${mismatches.length} dark bare-string + ${envelopeMismatches.length} dark envelope BC mismatches, ` +
+        `${optInFailures.length} opt-in contract failures.`,
     );
     process.exit(1);
   }
 
   console.log(
-    `\nBC PASS — ${stepsChecked} / ${stepsChecked} visible csv_set_equal steps produce byte-identical legacy outcomes across ${submissionsChecked} bare-string + ${envelopeChecks} envelope captures (both the gradeSubmission and gradeEnvelopeCapture paths stay dark).`,
+    `\nPASS — ${darkRows.length} dark row(s) byte-identical to legacy auto-pass across ` +
+      `${submissionsChecked} bare-string + ${envelopeChecks} envelope captures; ` +
+      `${optedRows.length} opted-in row(s) grade correctly (correct capture passes; ` +
+      `raw SQL / malformed / wrong-rows / empty fail closed).`,
   );
   process.exit(0);
 }

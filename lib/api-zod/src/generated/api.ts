@@ -545,6 +545,12 @@ export const GetProjectResponse = zod
               .describe(
                 "How a project's code is actually executed. Validated client-side by\nexecutionProfileSchema in @workspace\/execution-core.\n",
               ),
+            serverGrade: zod
+              .boolean()
+              .optional()
+              .describe(
+                "Phase 57B — when true the server commit-grader evaluates this step's\nsubmission for real (the csv_set_equal staged-hybrid opt-in). When\nfalse the step's server grading stays backward-compatible (auto-pass\n\/ legacy). For an opted-in SQL step the client submits a canonical\n{columns, rows} JSON capture of the learner's run.\n",
+              ),
           }),
         )
         .optional(),
@@ -872,6 +878,12 @@ export const GetUserProjectProgressResponse = zod
                     .nullish()
                     .describe(
                       "How a project's code is actually executed. Validated client-side by\nexecutionProfileSchema in @workspace\/execution-core.\n",
+                    ),
+                  serverGrade: zod
+                    .boolean()
+                    .optional()
+                    .describe(
+                      "Phase 57B — when true the server commit-grader evaluates this step's\nsubmission for real (the csv_set_equal staged-hybrid opt-in). When\nfalse the step's server grading stays backward-compatible (auto-pass\n\/ legacy). For an opted-in SQL step the client submits a canonical\n{columns, rows} JSON capture of the learner's run.\n",
                     ),
                 }),
               )
