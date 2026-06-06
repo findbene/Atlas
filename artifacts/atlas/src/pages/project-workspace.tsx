@@ -14,6 +14,7 @@ import {
 import {
   buildPythonCapture,
   buildSqlCapture,
+  normalizeSqlRows,
   preCheckCapture,
   classifySignError,
 } from "@/lib/envelopeClient";
@@ -573,7 +574,9 @@ export default function ProjectWorkspace() {
         ) {
           const captured: CsvSetEqualCapture = {
             columns: [...result.columns],
-            rows: (result.rows ?? []).map((r) => [...r]),
+            // Use the SAME normalizer as the signed-envelope path so the two
+            // submission routes feed byte-identical rows to the comparator.
+            rows: normalizeSqlRows(result.rows) ?? [],
           };
           setCapturedSqlByStepId((prev) => ({ ...prev, [stepIdAtRun]: captured }));
         }
@@ -672,7 +675,11 @@ export default function ProjectWorkspace() {
     // today `serverGrade` is false, so this returns the raw editor contents
     // verbatim and the path below is byte-identical to the pre-57B behavior.
     const decision = decideCsvSetEqualSubmission({
-      serverGrade: currentStep.serverGrade === true,
+      // Defensive: the JSON path may only engage for SQL steps. `serverGrade`
+      // is server-gated to csv_set_equal (a code_sql kind) today, but this
+      // guarantees a future authoring mistake can't route a Python/text step's
+      // editor contents into the {columns,rows} contract.
+      serverGrade: currentStep.serverGrade === true && isSqlStep,
       rawSubmission: isCodeStep ? code : textAnswer,
       capture: capturedSqlByStepId[currentStep.id] ?? null,
     });
@@ -739,7 +746,11 @@ export default function ProjectWorkspace() {
     // Phase 57B-prereq — same submission-shape decision as Check. Dark for all
     // visible rows (serverGrade=false ⇒ raw editor contents, byte-identical).
     const decision = decideCsvSetEqualSubmission({
-      serverGrade: currentStep.serverGrade === true,
+      // Defensive: the JSON path may only engage for SQL steps. `serverGrade`
+      // is server-gated to csv_set_equal (a code_sql kind) today, but this
+      // guarantees a future authoring mistake can't route a Python/text step's
+      // editor contents into the {columns,rows} contract.
+      serverGrade: currentStep.serverGrade === true && isSqlStep,
       rawSubmission: isCodeStep ? code : textAnswer,
       capture: capturedSqlByStepId[currentStep.id] ?? null,
     });

@@ -59,17 +59,23 @@ export function buildPythonCapture(code: string, result: ExecResult): RunCapture
  * along through the envelope so future kinds (`sql_resultset`, `csv_*`) can
  * grade against tabular fields without another wire change.
  */
-export function buildSqlCapture(code: string, result: RunResult): RunCapture {
-  // SQL `stdout` is the short "N row(s) in Tms" summary we already render
-  // in the output panel. For json_equal SQL steps (rare), the learner would
-  // need to print a JSON literal — which Atlas's pilot doesn't target.
-  const stdout = result.ok
-    ? `${result.rows?.length ?? 0} row(s) in ${result.durationMs}ms`
-    : "";
-  const stderr = result.ok ? "" : (result.error ?? "Query failed.");
-  // Normalize: undefined cells → null; non-finite numbers → null (the
-  // envelope schema rejects NaN/Infinity, and the server rejects them too).
-  const rows = result.rows?.map((row) =>
+/**
+ * Normalize DuckDB-WASM result cells to the envelope/grader contract
+ * (`string | number | boolean | null`): `undefined` → null, non-finite numbers
+ * (NaN/Infinity) → null, unexpected types → `String(cell)`.
+ *
+ * Shared by `buildSqlCapture` (the signed-envelope path) AND the Phase
+ * 57B-prereq `csv_set_equal` capture stash in `project-workspace.tsx`, so BOTH
+ * submission paths feed byte-identical rows to the server comparator
+ * (`gradeCsvSetEqual`). Without a single normalizer the two paths can drift:
+ * once a row opts in, the same DuckDB result would grade differently depending
+ * on whether a signed envelope happened to be present, and a raw `undefined`
+ * cell would fail `isCsvRow` server-side → a legitimate run fails closed.
+ */
+export function normalizeSqlRows(
+  rows: ReadonlyArray<ReadonlyArray<unknown>> | undefined,
+): Array<Array<string | number | boolean | null>> | undefined {
+  return rows?.map((row) =>
     row.map((cell): string | number | boolean | null => {
       if (cell === null || cell === undefined) return null;
       if (typeof cell === "number" && !Number.isFinite(cell)) return null;
@@ -81,10 +87,23 @@ export function buildSqlCapture(code: string, result: RunResult): RunCapture {
         return cell;
       }
       // Fallback for unexpected cell types — preserve via toString so the
-      // signed envelope is at least well-shaped. This is best-effort only.
+      // capture is at least well-shaped. This is best-effort only.
       return String(cell);
     }),
   );
+}
+
+export function buildSqlCapture(code: string, result: RunResult): RunCapture {
+  // SQL `stdout` is the short "N row(s) in Tms" summary we already render
+  // in the output panel. For json_equal SQL steps (rare), the learner would
+  // need to print a JSON literal — which Atlas's pilot doesn't target.
+  const stdout = result.ok
+    ? `${result.rows?.length ?? 0} row(s) in ${result.durationMs}ms`
+    : "";
+  const stderr = result.ok ? "" : (result.error ?? "Query failed.");
+  // Normalize: undefined cells → null; non-finite numbers → null (the
+  // envelope schema rejects NaN/Infinity, and the server rejects them too).
+  const rows = normalizeSqlRows(result.rows);
   return {
     version: 1,
     language: "sql",
