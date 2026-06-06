@@ -44,12 +44,40 @@ Phase-map: ChatGPT 57C→57B-flip→58→59 = my **E1**; 60 = **E2**; 61 = **E4*
 
 No code/DB/schema/env/canary/codegen change. Stopped for owner approval.
 
+## 2026-06-06 — Phase 57B-prereq SHIPPED (DARK; Option C approved + built)
+
+Owner approved Option C. Built the staged-hybrid foundation — **zero rows opted in, no envelope
+enforcement**. Close-out: `docs/phases/phase-57b-prereq-csv-set-equal-foundation.md`.
+- **8 source files** (route `serverGrade` boolean · FE `csvSetEqualSubmit.ts` helper + tests ·
+  `project-workspace.tsx` per-step DuckDB capture w/ run-gen guard + lifecycle clears + Check/Submit
+  routing · dark `csv_set_equal` branch in `envelopeGrade.ts` + tests · shared `normalizeSqlRows` ·
+  extended `audit:csv-set-equal-bc`). Commits `3e6dc8b` → `ff5f9d9` (lockfile restore) → `3cc3187`
+  (review P2 fixes). Pushed to `main`.
+- **Reviews: architect-reviewer PASS + code-reviewer SHIP-ready, no P0/P1.** Fixed 2 P2 now
+  (shared cell-normalizer so envelope vs JSON paths can't drift; `isSqlStep` gate on the JSON path).
+  Deferred 2 P2 to flip (popstate clear gap — shared w/ Phase-49 envelope, unreachable via
+  replaceState-only nav; `needs-run` red-state vs neutral-hint = owner UX call).
+- **Gates:** typecheck PASS · `check:no-heuristic-runtime` OK · atlas 159/159 · api-server 440
+  (envelopeGrade 28/28) · execution-core 83/83 · csvSetEqualSubmit 9/9. Ran on **Node 22**.
+  NOT RUN (env): DB-gated audits (`authoring`, `csv-set-equal-bc`, `contains-bc`) + `envelopeSubmit`
+  / `COURSE_TAXONOMY` suites (no `DATABASE_URL` / gitignored `.local` file).
+- **OpenAPI/Orval: not required** (matches route-only `hasPedagogy` precedent; FE reads via StepVM).
+- **DARK proof:** `serverGrade=false` for all rows ⇒ raw path byte-identical to `6c26cd2`; envelope
+  branch auto-passes; `csv_set_equal` NOT in `PILOT_RUNTIME_KINDS` nor `ATLAS_ENVELOPE_REQUIRED_KINDS`.
+
 ## Next steps
 
-1. **Await owner approval of Option C** (Phase 57C proposal). On approval → `/atlas-phase-plan 57B-prereq`.
-2. **Phase 57B-prereq (build, DARK, zero opt-in)** — no local boot needed: expose narrow `step.serverGrade` boolean on `GET /projects/:slug`; new `artifacts/atlas/src/lib/csvSetEqualSubmit.ts`; capture last DuckDB `{columns,rows}` in `project-workspace.tsx` (run-gen guarded); add `csv_set_equal` branch to `artifacts/api-server/src/lib/envelopeGrade.ts`; extend `audit:csv-set-equal-bc`. Likely OpenAPI+Orval regen for the new field. Architect PASS + `/code-review`.
-3. **Phase 0.x local-green baseline** (Node 24 + `pnpm install` + **Phase 0.2** decouple Replit platform connectors + Neon `DATABASE_URL` in gitignored `.env`) — REQUIRED before the flip: step-3 `expectedRows` must be byte-verified vs real DuckDB-WASM output (numeric-type fidelity + fixture row-set; 57C §7). Invoke before 0.2: `senior-devops`, `env-secrets-manager`, `/atlas-phase-plan E0.2`.
-4. **Phase 57B-flip** — `serverGrade:true` on the single candidate step + re-seed, ONLY after 2+3. Then E1 continues (58 `sql_resultset`, 59 `/check`-vs-`/submit`), E2 (60 export), E4 (61 factory, continuous), E5 (62 cloud).
+1. **Phase 0.x local-green baseline** (Node 24 + `pnpm install` + **Phase 0.2** decouple Replit
+   platform connectors + Neon `DATABASE_URL` in gitignored `.env`) — now the critical path. Unblocks:
+   (a) the DB-gated audits (`audit:csv-set-equal-bc` must run green); (b) byte-verifying C2 step-3
+   `expectedRows` vs real DuckDB-WASM output (57C §7). Invoke: `senior-devops`, `env-secrets-manager`,
+   `/atlas-phase-plan E0.2`.
+2. **Phase 57B-flip** — set `serverGrade:true` on the single candidate step
+   (`analytics-engineer__semantic-layer-with-dbt-and-duckdb` step 3) + re-seed, ONLY after (1).
+   At flip: resolve the 2 deferred P2s (popstate clear, `needs-run` UX) + add `serverGrade` to
+   OpenAPI ProjectStep + Orval regen for type-honesty.
+3. **E1 continues** — 58 `sql_resultset`, 59 `/check`-vs-`/submit` evidence. Then E2 (60 portfolio/
+   GitHub), E4 (61 authoring factory v2, continuous), E5 (62 cloud-lab safety).
 
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.

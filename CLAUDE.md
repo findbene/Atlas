@@ -8,11 +8,11 @@ python-libraries, sql). The 57-phase build was produced on Replit; **Claude Code
 
 ## Status & phase sequence
 
-- **Last shipped:** Phase 57A (`csv_set_equal` dark comparator). ~60 learner-visible projects.
-- **Local build not yet green** — Node 24 + `pnpm install` pending in this environment, and the app still couples to Replit platform connectors (Stripe/Resend/Anthropic). **Phase 0.2 decouples** so `pnpm dev` boots. Do NOT "fix" code before a clean install on Node 24.
+- **Last shipped:** Phase 57B-prereq (`csv_set_equal` staged-hybrid foundation, DARK — zero opt-in). 57A comparator + 57C trust decision (Option C) before it. ~60 learner-visible projects. Close-out: `docs/phases/phase-57b-prereq-csv-set-equal-foundation.md`.
+- **Local build not yet green** — Node 24 + `pnpm install` pending in this environment, and the app still couples to Replit platform connectors (Stripe/Resend/Anthropic). **Phase 0.2 decouples** so `pnpm dev` boots. (Gates have been run on Node 22 with a local `node_modules`; the **57B-flip** still needs a true Node-24 baseline.) Do NOT "fix" code before a clean install on Node 24.
 - **Phase 52 signed-envelope canary = OPERATOR-PENDING.** The agent NEVER executes the production flip — it only prepares kits. Leave untouched unless the owner brings operator evidence.
-- **NEXT = Phase 57C** — read-only `csv_set_equal` trust-model proposal (raw JSON vs signed RunEnvelope). **Build nothing for it.** The frontend submission-shape wiring (the old "57B-prereq") is NOT in the repo; it is downstream of 57C's decision, not a prerequisite for it.
-- **Hardening sequence:** 57C → 57B-prereq build → 57B-flip → 58 `sql_resultset` → 59 `/check`-vs-`/submit` evidence → 60 portfolio/GitHub artifact → 61 authoring factory v2 → 62 cloud-lab safety. Maps to `.agentic/plan.md` epics E1→E5.
+- **NEXT = Phase 0.x local-green** (Node 24 + install + Phase 0.2 decouple + Neon `DATABASE_URL`) — critical path: unblocks the DB-gated audits and byte-verifying the C2 step-3 `expectedRows` vs real DuckDB-WASM output, both **required before the 57B-flip**. Then **57B-flip** (single-row opt-in + resolve 2 deferred P2s + OpenAPI/Orval regen).
+- **Hardening sequence:** ✅57C → ✅57B-prereq build → 0.x local-green → 57B-flip → 58 `sql_resultset` → 59 `/check`-vs-`/submit` evidence → 60 portfolio/GitHub artifact → 61 authoring factory v2 → 62 cloud-lab safety. Maps to `.agentic/plan.md` epics E1→E5.
 - **HARD STOP — no high-speed project waves yet.** Finish grader hardening + factory v2 first. Catalog target is **900–1000 premium projects** (~120/discipline); today ~60. Waves are hidden-first, never direct-publish.
 
 ## Operating assumptions (Claude Code)
