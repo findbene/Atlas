@@ -46,9 +46,10 @@ No code/DB/schema/env/canary/codegen change. Stopped for owner approval.
 
 ## Next steps
 
-1. **Phase 0.2** — decouple from Replit connectors (direct Stripe/Resend/Anthropic SDKs behind an env adapter; keep Replit path as a fallback flag) so `pnpm dev` boots locally on Windows. First architect-gated code phase. Invoke before: `senior-devops`, `env-secrets-manager`, `/atlas-phase-plan E0.2`.
-2. **Phase 0.3** — local dev green (Neon/Postgres branch, `pnpm dev`, seed). Needs owner's `DATABASE_URL` in a gitignored `.env`.
-3. Then Phase 1 = E1 (finish validation hardening); Phase 5 = E4 factory runs continuously.
+1. **Await owner approval of Option C** (Phase 57C proposal). On approval → `/atlas-phase-plan 57B-prereq`.
+2. **Phase 57B-prereq (build, DARK, zero opt-in)** — no local boot needed: expose narrow `step.serverGrade` boolean on `GET /projects/:slug`; new `artifacts/atlas/src/lib/csvSetEqualSubmit.ts`; capture last DuckDB `{columns,rows}` in `project-workspace.tsx` (run-gen guarded); add `csv_set_equal` branch to `artifacts/api-server/src/lib/envelopeGrade.ts`; extend `audit:csv-set-equal-bc`. Likely OpenAPI+Orval regen for the new field. Architect PASS + `/code-review`.
+3. **Phase 0.x local-green baseline** (Node 24 + `pnpm install` + **Phase 0.2** decouple Replit platform connectors + Neon `DATABASE_URL` in gitignored `.env`) — REQUIRED before the flip: step-3 `expectedRows` must be byte-verified vs real DuckDB-WASM output (numeric-type fidelity + fixture row-set; 57C §7). Invoke before 0.2: `senior-devops`, `env-secrets-manager`, `/atlas-phase-plan E0.2`.
+4. **Phase 57B-flip** — `serverGrade:true` on the single candidate step + re-seed, ONLY after 2+3. Then E1 continues (58 `sql_resultset`, 59 `/check`-vs-`/submit`), E2 (60 export), E4 (61 factory, continuous), E5 (62 cloud).
 
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
