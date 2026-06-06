@@ -55,6 +55,9 @@ Thumbs.db
 .cache/
 .local/
 
+# Browser automation artifacts (playwright-cli writes here)
+.playwright-cli/
+
 # Claude Code — personal/local (never commit)
 CLAUDE.local.md
 .claude/settings.local.json

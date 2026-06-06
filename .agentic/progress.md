@@ -112,11 +112,29 @@ candidate. **No promotion, no `serverGrade`, no row opt-in, no schema/migration.
   → set `serverGrade:true` → resolve 2 deferred 57B P2s → OpenAPI/Orval regen → byte-verify in real browser
   WASM (engine `1.33.1-dev45.0` vs 1.5.3 used here).
 
+## 2026-06-06 — Phase 0.zz C2 real-browser DuckDB-WASM byte verification — PASS (hidden/dark)
+
+Close-out: `docs/phases/phase-0zz-c2-real-browser-wasm-byte-verification.md`. Resolved 0.z **R1** (engine
+drift). **No mismatch → no expectedRows changed. Candidate still hidden, `serverGrade` absent, no opt-in.**
+- **Real-runtime path:** booted atlas **Vite** (Node 24; `PORT=5199 BASE_PATH=/` via PowerShell — git-bash
+  MSYS mangled `/`), a dev-only harness page called the **real `duckdbAdapter`** (`@duckdb/duckdb-wasm`
+  **1.33.1-dev45.0**) over the seed CSVs, driven by **playwright-cli** in headless Chromium. Committed
+  queries extracted from the authored file (ran the exact shipped strings). **Zero new deps** (lockfile
+  frozen); all harness/extractor artifacts deleted after.
+- **Result: 5/5 byte-identical** to committed expected. Step 3 (csv_set_equal) flip contract verified:
+  columns exact · rows exact · `mrr_amount`=**number** (no bigint/Decimal drift) · `month_start`=**string**
+  `"2025-04-01"` · flags=**boolean** · `normalizeSqlRows(rows) === expectedRows`. Steps 1/2/5/8 also match
+  (`[[7,7]]`, `[[one_current,0],[overlap,0]]`, `[[2746]]`, `[[1.05]]`).
+- **Gates:** focused WASM verify PASS · typecheck PASS · `audit:csv-set-equal-bc` PASS (0 visible) ·
+  `audit:contains-bc` PASS 2/2 · `audit:authoring` exit 0. Only persistent change: `.gitignore` += `.playwright-cli/`.
+- **57B-flip is now validation-safe in the real runtime.** Remaining = product/mechanics only (promote →
+  `serverGrade:true` + re-seed → 2 deferred P2s → OpenAPI/Orval regen).
+
 ## Next steps
 
-1. **C2 step-3 `expectedRows` are now execution-derived** (0.z). Before the live flip, byte-verify the
-   FE capture in the **real browser** DuckDB-WASM (`1.33.1-dev45.0`) — the regeneration used local duckdb
-   1.5.3. Needs a true Node-24 `pnpm install` baseline (Phase 0.2 decouple still pending for `pnpm dev`).
+1. ✅ **DONE (0.zz):** C2 step-3 `expectedRows` byte-verified in real-browser DuckDB-WASM
+   (`1.33.1-dev45.0`) — 5/5 match, flip contract holds. Engine-drift risk closed. (Broader Node-24
+   `pnpm install` baseline + Phase 0.2 decouple still pending for running the whole app via `pnpm dev`.)
 2. **Phase 57B-flip** — DATA/VALIDATION blocker now RESOLVED (0.z). To execute: (a) **promote** the C2
    candidate to a visible project; (b) set `serverGrade:true` on step 3 + re-seed; (c) resolve the 2
    deferred P2s (popstate clear, `needs-run` UX); (d) add `serverGrade` to OpenAPI `ProjectStep` + Orval
