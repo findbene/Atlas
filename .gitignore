@@ -11,6 +11,13 @@ out-tsc
 # dependencies
 node_modules
 
+# Local environment — NEVER commit secrets (DATABASE_URL, CLERK_*, STRIPE_*, etc.)
+.env
+.env.local
+.env.*.local
+# ...but DO track the secret-free template (overrides a global `.env*` excludes rule).
+!.env.example
+
 # IDEs and editors
 /.idea
 .project
