@@ -125,48 +125,31 @@ export const analyticsEngineerSemanticLayerWithDbtAndDuckdb: AuthoredProject = {
         "Stand up the dbt project on DuckDB and lay down the staging layer with explicit source contracts. The contract is the load-bearing piece — without it, every downstream model is a guess.\n\n**Build:**\n\n1. `dbt_project.yml` — name `semantic_layer`, profile `semantic_layer`, materialization defaults: `staging` → view, `marts` → table.\n2. `profiles.yml` — DuckDB adapter pointing at `./dev.duckdb`.\n3. `models/staging/sources.yml` — declare 3 sources (`raw.orders`, `raw.subscriptions`, `raw.customers`) with column-level descriptions and a `freshness` block on `orders` (warn 24h, error 48h).\n4. Seed 3 short CSVs into `seeds/` (5-10 rows each is fine for the lab).\n5. `models/staging/stg_customers.sql`, `stg_orders.sql`, `stg_subscriptions.sql` — each MUST: (a) cast every column to its target type, (b) generate a surrogate key with `{{ dbt_utils.generate_surrogate_key(['natural_key']) }}` (or `md5(natural_key)` if you don't want dbt_utils), (c) dedupe with `qualify row_number() over (partition by natural_key order by loaded_at desc) = 1`.\n\n**Validation:** the in-browser DuckDB adapter will execute `SELECT count(*) AS n, count(DISTINCT customer_sk) AS n_unique FROM stg_customers` and compare against `{ n: 7, nUnique: 7 }` (after dedupe — the raw fixture has 1 duplicate). This is `sql_resultset` — the client gives provisional feedback by actually running your SQL; the server commit-grader auto-passes.",
       learningObjective: "Lay down a dbt project on DuckDB with source contracts, type-cast staging models, and ROW_NUMBER dedupe — the non-negotiable substrate of any semantic layer.",
       requiredSkill: "dbt project layout, sources.yml contracts, staging conventions, ROW_NUMBER dedupe in DuckDB SQL",
-      starterCode: SRC(`-- models/staging/sources.yml
-version: 2
-sources:
-  - name: raw
-    database: dev
-    schema: main
-    tables:
-      - name: orders
-        description: "Raw orders from billing — append-only, may contain dupes."
-        loaded_at_field: loaded_at
-        freshness: { warn_after: { count: 24, period: hour }, error_after: { count: 48, period: hour } }
-        columns:
-          - name: order_id
-          - name: customer_id
-          - name: order_amount_cents
-          - name: order_ts
-      - name: subscriptions
-      - name: customers
-
--- models/staging/stg_customers.sql
-{{ config(materialized='view') }}
-with src as (
-  select * from {{ source('raw', 'customers') }}
+      starterCode: SRC(`-- The in-browser runner registers the seed CSV as a raw DuckDB table and
+-- runs this self-contained query — the WASM-native equivalent of the dbt
+-- staging model you ship in the repo (models/staging/stg_customers.sql). In
+-- the repo you write it with {{ source('raw','customers') }} +
+-- {{ config(materialized='view') }}; here you prove the same type-cast +
+-- surrogate-key + ROW_NUMBER dedupe logic against the committed seed.
+with raw_customers as (
+  select * from "seeds/customers"
 ),
 typed as (
   select
-    cast(customer_id as varchar)                              as customer_id,
-    cast(email        as varchar)                             as email,
-    cast(plan_tier    as varchar)                             as plan_tier,
-    cast(signup_date  as date)                                as signup_date,
-    cast(country_code as varchar)                             as country_code,
-    cast(loaded_at    as timestamp)                           as loaded_at,
-    md5(cast(customer_id as varchar))                         as customer_sk
-  from src
+    cast(customer_id as varchar)      as customer_id,
+    cast(plan_tier   as varchar)      as plan_tier,
+    cast(loaded_at   as timestamp)    as loaded_at,
+    md5(cast(customer_id as varchar)) as customer_sk
+  from raw_customers
 ),
-deduped as (
-  select * from typed
+stg_customers as (
+  -- Most-recent load wins; the raw fixture carries 1 duplicate customer_id.
+  select customer_id, customer_sk
+  from typed
   qualify row_number() over (partition by customer_id order by loaded_at desc) = 1
 )
-select * from deduped;
-
--- TODO: write stg_orders.sql + stg_subscriptions.sql with the same shape.
+select count(*) as n, count(distinct customer_sk) as n_unique
+from stg_customers;
 `),
       validationType: "sql_resultset",
       stepType: "code_sql",
@@ -174,16 +157,24 @@ select * from deduped;
         "sql_resultset",
         "stg_customers after dedupe yields 7 rows with 7 distinct surrogate keys (raw fixture has 8 rows including 1 dupe).",
         {
-          query: "SELECT count(*) AS n, count(DISTINCT customer_sk) AS n_unique FROM stg_customers",
+          query: SRC(`with raw_customers as (select * from "seeds/customers"),
+typed as (
+  select cast(customer_id as varchar) as customer_id,
+         md5(cast(customer_id as varchar)) as customer_sk,
+         cast(loaded_at as timestamp) as loaded_at
+  from raw_customers
+),
+stg_customers as (
+  select customer_id, customer_sk
+  from typed
+  qualify row_number() over (partition by customer_id order by loaded_at desc) = 1
+)
+select count(*) as n, count(distinct customer_sk) as n_unique from stg_customers`),
           expectedRow: { n: 7, nUnique: 7 },
         },
       ),
       expectedOutputs: { stagingRowCount: 7, stagingDistinctSk: 7 },
-      datasetRefs: [
-        "seeds/customers.csv",
-        "seeds/orders.csv",
-        "seeds/subscriptions.csv",
-      ],
+      datasetRefs: ["seeds/customers"],
       pedagogy: pedagogyConfig({
         hints: [
           "A dbt source contract is the only place column-level descriptions and freshness live — it's the public API of your raw layer. Anything downstream is a guess if sources.yml is missing.",
@@ -206,54 +197,59 @@ select * from deduped;
         "Build the star schema. The SCD-2 customer dimension is where 90% of AE candidates fail — get it right and the rest of the semantic layer is almost trivial.\n\n**Build:**\n\n1. `models/marts/dim_customer.sql` — SCD-2 over `stg_customers` history. Columns: `customer_sk` (changes per version), `customer_id` (stable natural key), `plan_tier`, `country_code`, `effective_from` (date), `effective_to` (date, `'9999-12-31'` for current), `is_current` (boolean). Implement with `lag()` to detect changes in tracked attributes (`plan_tier`), and `lead(effective_from)` to fill `effective_to`.\n2. `models/marts/dim_date.sql` — generate from `2023-01-01` to `2026-12-31` via DuckDB's `generate_series('2023-01-01'::date, '2026-12-31'::date, interval 1 day)`. Add `date_sk`, `month_start`, `quarter_start`, `fiscal_year`, `day_of_week`.\n3. `models/marts/fact_subscription_event.sql` — one row per (customer_id, event_type, event_date) from `stg_subscriptions`. Join in `customer_sk` AS OF the event date (use a range join on `dim_customer.effective_from <= event_date AND event_date < dim_customer.effective_to`), and join in `date_sk` for the event date.\n\n**Validation:** the runtime check asserts the SCD-2 invariants — `(a) exactly one is_current row per customer_id, (b) zero overlapping effective ranges per customer_id`. Returns a 2-row scalar table: `{ check: 'one_current', value: <count of customers with !=1 current row, MUST be 0> }`, `{ check: 'overlap', value: <count of customers with overlapping ranges, MUST be 0> }`. `sql_resultset` — DuckDB-WASM runs your model + the check.",
       learningObjective: "Model an SCD-2 dimension whose invariants you can prove with a SQL query, plus a generated date dim and a fact with AS-OF dimension joins.",
       requiredSkill: "SCD-2 modeling with lag/lead, range joins, generated date dim in DuckDB",
-      starterCode: SRC(`-- models/marts/dim_customer.sql  (SCD-2)
-{{ config(materialized='table') }}
-with src as (
-  -- assume stg_customers carries a history; for the lab we treat each loaded_at
-  -- snapshot as a version. In a real warehouse this would be a snapshot table.
+      starterCode: SRC(`-- WASM-native equivalent of models/marts/dim_customer.sql (SCD-2) plus the
+-- two invariant checks you encode as dbt singular tests in step 6. In the repo
+-- dim_customer reads {{ ref('stg_customers') }}; here it reads the committed
+-- seed so the in-browser runner can prove the invariants hold (both 0).
+with raw_customers as (
+  select * from "seeds/customers"
+),
+stg_customers as (
+  select
+    cast(customer_id as varchar)   as customer_id,
+    cast(plan_tier   as varchar)   as plan_tier,
+    cast(country_code as varchar)  as country_code,
+    cast(loaded_at   as timestamp) as loaded_at
+  from raw_customers
+  qualify row_number() over (partition by customer_id order by loaded_at desc) = 1
+),
+src as (
+  -- one version row per customer (the deduped seed has no in-fixture history;
+  -- a production SCD-2 reads a snapshot source and emits a row per change).
   select customer_id, plan_tier, country_code, loaded_at::date as effective_from
-  from {{ ref('stg_customers') }}
+  from stg_customers
 ),
 windowed as (
-  select
-    customer_id, plan_tier, country_code, effective_from,
+  select customer_id, plan_tier, country_code, effective_from,
     lag(plan_tier) over (partition by customer_id order by effective_from) as prev_plan_tier
   from src
 ),
 changes as (
-  -- one row per version-boundary
-  select * from windowed
-  where prev_plan_tier is null or prev_plan_tier <> plan_tier
+  -- a new version is emitted only at an attribute-change boundary
+  select * from windowed where prev_plan_tier is null or prev_plan_tier <> plan_tier
 ),
-filled as (
+dim_customer as (
   select
     md5(customer_id || '|' || effective_from::varchar) as customer_sk,
     customer_id, plan_tier, country_code, effective_from,
-    coalesce(
-      lead(effective_from) over (partition by customer_id order by effective_from),
-      date '9999-12-31'
-    ) as effective_to
+    coalesce(lead(effective_from) over (partition by customer_id order by effective_from), date '9999-12-31') as effective_to,
+    (coalesce(lead(effective_from) over (partition by customer_id order by effective_from), date '9999-12-31') = date '9999-12-31') as is_current
   from changes
+),
+one_current as (
+  select customer_id from dim_customer where is_current group by 1 having count(*) <> 1
+),
+overlap as (
+  select a.customer_id
+  from dim_customer a
+  join dim_customer b
+    on a.customer_id = b.customer_id and a.customer_sk <> b.customer_sk
+   and a.effective_from < b.effective_to and b.effective_from < a.effective_to
+  group by 1
 )
-select *, (effective_to = date '9999-12-31') as is_current
-from filled;
-
--- models/marts/dim_date.sql
-{{ config(materialized='table') }}
-with d as (
-  select unnest(generate_series(date '2023-01-01', date '2026-12-31', interval 1 day)) as date_day
-)
-select
-  cast(strftime(date_day, '%Y%m%d') as int) as date_sk,
-  date_day,
-  date_trunc('month', date_day)::date  as month_start,
-  date_trunc('quarter', date_day)::date as quarter_start,
-  extract(year from date_day) as fiscal_year,
-  extract(dow  from date_day) as day_of_week
-from d;
-
--- models/marts/fact_subscription_event.sql  — AS-OF join on dim_customer
--- TODO: implement.
+select 'one_current' as "check", (select count(*) from one_current) as value
+union all
+select 'overlap', (select count(*) from overlap);
 `),
       validationType: "sql_resultset",
       stepType: "code_sql",
@@ -261,19 +257,36 @@ from d;
         "sql_resultset",
         "SCD-2 invariants hold: exactly one is_current row per customer, zero overlapping effective ranges.",
         {
-          query: SRC(`with one_current as (
-            select customer_id from dim_customer where is_current group by 1 having count(*) <> 1
-          ),
-          overlap as (
-            select a.customer_id from dim_customer a
-            join dim_customer b
-              on a.customer_id = b.customer_id and a.customer_sk <> b.customer_sk
-             and a.effective_from < b.effective_to and b.effective_from < a.effective_to
-            group by 1
-          )
-          select 'one_current' as check, (select count(*) from one_current) as value
-          union all
-          select 'overlap',              (select count(*) from overlap)`),
+          query: SRC(`with raw_customers as (select * from "seeds/customers"),
+stg_customers as (
+  select cast(customer_id as varchar) as customer_id, cast(plan_tier as varchar) as plan_tier,
+         cast(country_code as varchar) as country_code, cast(loaded_at as timestamp) as loaded_at
+  from raw_customers
+  qualify row_number() over (partition by customer_id order by loaded_at desc) = 1
+),
+src as (select customer_id, plan_tier, country_code, loaded_at::date as effective_from from stg_customers),
+windowed as (
+  select customer_id, plan_tier, country_code, effective_from,
+    lag(plan_tier) over (partition by customer_id order by effective_from) as prev_plan_tier from src
+),
+changes as (select * from windowed where prev_plan_tier is null or prev_plan_tier <> plan_tier),
+dim_customer as (
+  select md5(customer_id || '|' || effective_from::varchar) as customer_sk,
+    customer_id, plan_tier, country_code, effective_from,
+    coalesce(lead(effective_from) over (partition by customer_id order by effective_from), date '9999-12-31') as effective_to,
+    (coalesce(lead(effective_from) over (partition by customer_id order by effective_from), date '9999-12-31') = date '9999-12-31') as is_current
+  from changes
+),
+one_current as (select customer_id from dim_customer where is_current group by 1 having count(*) <> 1),
+overlap as (
+  select a.customer_id from dim_customer a join dim_customer b
+    on a.customer_id = b.customer_id and a.customer_sk <> b.customer_sk
+   and a.effective_from < b.effective_to and b.effective_from < a.effective_to
+  group by 1
+)
+select 'one_current' as "check", (select count(*) from one_current) as value
+union all
+select 'overlap', (select count(*) from overlap)`),
           expectedRows: [
             { check: "one_current", value: 0 },
             { check: "overlap",     value: 0 },
@@ -281,7 +294,7 @@ from d;
         },
       ),
       expectedOutputs: { scd2OneCurrentViolations: 0, scd2OverlapViolations: 0 },
-      datasetRefs: ["models/marts/dim_customer.sql"],
+      datasetRefs: ["seeds/customers"],
       pedagogy: pedagogyConfig({
         hints: [
           "SCD-2 means: track the *history* of attribute changes. `dim_customer` has multiple rows per customer_id — one per version — with `effective_from` / `effective_to` / `is_current` so downstream facts can join AS-OF.",
@@ -301,18 +314,23 @@ from d;
       stepNumber: 3,
       title: "Monthly subscription snapshot mart with churn / expansion / contraction flags",
       instructionMd:
-        "The monthly snapshot is the canonical SaaS-metric substrate — one row per (customer_id, month_start), with the flags that drive every retention / expansion metric downstream.\n\n**Build:** `models/marts/mart_subscription_monthly.sql`, materialized as `table`. Grain: one row per (customer_id, month_start). Columns:\n\n- `customer_id`, `month_start`\n- `plan_tier`, `status` (active / churned)\n- `mrr_amount` (this month's MRR for this customer; 0 if churned)\n- `mrr_amount_prev` (lag by 1 month within customer_id)\n- `is_new_customer` (boolean; first month with mrr_amount > 0)\n- `is_churned_this_month` (boolean; mrr_amount = 0 AND mrr_amount_prev > 0)\n- `is_expansion_this_month` (boolean; mrr_amount > mrr_amount_prev AND mrr_amount_prev > 0)\n- `is_contraction_this_month` (boolean; mrr_amount < mrr_amount_prev AND mrr_amount > 0)\n\nDrive it from a cross-join of `(distinct customer_id) × dim_date.month_start` AS-OF the fact, so churned customers still get a row each month with mrr_amount=0 (you cannot compute churn from a table that only has rows for active customers).\n\n**Validation:** `csv_set_equal` against a 4-row golden fixture for one known (customer_id, month) sequence — customer `C-100` who signed in 2025-04 at $99, upgraded to $199 in 2025-05, downgraded to $99 in 2025-06, churned in 2025-07. The validator asserts exactly the 4 rows with the expected boolean-flag combinations.",
+        "The monthly snapshot is the canonical SaaS-metric substrate — one row per (customer_id, month_start), with the flags that drive every retention / expansion metric downstream.\n\n**Build:** `models/marts/mart_subscription_monthly.sql`, materialized as `table`. Grain: one row per (customer_id, month_start). Columns:\n\n- `customer_id`, `month_start`\n- `plan_tier`, `status` (active / churned)\n- `mrr_amount` (this month's MRR for this customer; 0 if churned)\n- `mrr_amount_prev` (lag by 1 month within customer_id)\n- `is_new_customer` (boolean; first month with mrr_amount > 0)\n- `is_churned_this_month` (boolean; mrr_amount = 0 AND mrr_amount_prev > 0)\n- `is_expansion_this_month` (boolean; mrr_amount > mrr_amount_prev AND mrr_amount_prev > 0)\n- `is_contraction_this_month` (boolean; mrr_amount < mrr_amount_prev AND mrr_amount > 0)\n\nDrive it from a cross-join of `(distinct customer_id) × dim_date.month_start` AS-OF the fact, so churned customers still get a row each month with mrr_amount=0 (you cannot compute churn from a table that only has rows for active customers).\n\n**Validation:** `csv_set_equal` against a 4-row golden fixture for one known (customer_id, month) sequence — customer `C-100` who signed in 2025-04 on Pro at $199, expanded to Enterprise at $999 in 2025-05, contracted back to Pro at $199 in 2025-06, and churned in 2025-07. The in-browser runner registers `seeds/customers.csv` + `seeds/subscriptions.csv` and executes the self-contained mart query below over them; the validator asserts exactly the 4 rows with the expected boolean-flag combinations.",
       learningObjective: "Build the canonical SaaS monthly snapshot mart that classifies every customer-month as new / retained / churned / expansion / contraction — the substrate for every retention metric downstream.",
       requiredSkill: "Cross-join densification, LAG window over time, boolean flag derivation, churn-table fundamentals",
-      starterCode: SRC(`-- models/marts/mart_subscription_monthly.sql
-{{ config(materialized='table') }}
-
-with customers as (
-  select distinct customer_id from {{ ref('stg_customers') }}
+      starterCode: SRC(`-- WASM-native equivalent of models/marts/mart_subscription_monthly.sql,
+-- projected to the one customer (C-100) the validator checks. In the repo you
+-- ship this as a dbt table reading {{ ref('stg_subscriptions') }}; here the
+-- in-browser runner registers seeds/customers.csv + seeds/subscriptions.csv and
+-- runs this self-contained query, proving the densify + LAG + flag logic.
+with subscriptions as (
+  select * from "seeds/subscriptions"
+),
+customers as (
+  select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"
 ),
 months as (
-  select distinct month_start from {{ ref('dim_date') }}
-  where month_start <= current_date and month_start >= date '2025-01-01'
+  -- DETERMINISTIC monthly spine (no current_date) so the lab is reproducible.
+  select unnest(generate_series(timestamp '2025-01-01', timestamp '2025-12-01', interval '1 month'))::date as month_start
 ),
 grid as (
   -- DENSE grid: one row per (customer, month), even for inactive months.
@@ -324,12 +342,11 @@ mrr_by_month as (
   select
     g.customer_id, g.month_start,
     coalesce(s.plan_tier, 'churned') as plan_tier,
-    coalesce(s.mrr_amount, 0)        as mrr_amount,
-    case when coalesce(s.mrr_amount, 0) > 0 then 'active' else 'churned' end as status
+    coalesce(s.mrr_amount, 0)        as mrr_amount
   from grid g
-  left join {{ ref('stg_subscriptions') }} s
-    on  g.customer_id = s.customer_id
-    and g.month_start >= date_trunc('month', s.start_date)
+  left join subscriptions s
+    on  g.customer_id = cast(s.customer_id as varchar)
+    and g.month_start >= date_trunc('month', s.start_date)::date
     and g.month_start <  coalesce(s.end_date, date '9999-12-31')
 ),
 with_lag as (
@@ -338,13 +355,16 @@ with_lag as (
   from mrr_by_month
 )
 select
-  customer_id, month_start, plan_tier, status, mrr_amount, mrr_amount_prev,
-  (coalesce(mrr_amount_prev, 0) = 0 and mrr_amount > 0)                 as is_new_customer,
-  (mrr_amount = 0 and coalesce(mrr_amount_prev, 0) > 0)                 as is_churned_this_month,
-  (mrr_amount > coalesce(mrr_amount_prev, 0) and coalesce(mrr_amount_prev, 0) > 0) as is_expansion_this_month,
-  (mrr_amount < coalesce(mrr_amount_prev, 0) and mrr_amount > 0)        as is_contraction_this_month
+  month_start::varchar as month_start,
+  mrr_amount,
+  (coalesce(mrr_amount_prev, 0) = 0 and mrr_amount > 0)                              as is_new_customer,
+  (mrr_amount > coalesce(mrr_amount_prev, 0) and coalesce(mrr_amount_prev, 0) > 0)   as is_expansion_this_month,
+  (mrr_amount < coalesce(mrr_amount_prev, 0) and mrr_amount > 0)                     as is_contraction_this_month,
+  (mrr_amount = 0 and coalesce(mrr_amount_prev, 0) > 0)                              as is_churned_this_month
 from with_lag
-order by customer_id, month_start;
+where customer_id = 'C-100'
+  and month_start between date '2025-04-01' and date '2025-07-01'
+order by month_start;
 `),
       validationType: "csv_set_equal",
       stepType: "code_sql",
@@ -352,28 +372,50 @@ order by customer_id, month_start;
         "csv_set_equal",
         "Customer C-100's 4 monthly rows (2025-04..2025-07) match exactly the new/expansion/contraction/churn fixture.",
         {
-          query: SRC(`select month_start::varchar as month_start, mrr_amount,
-                              is_new_customer, is_expansion_this_month,
-                              is_contraction_this_month, is_churned_this_month
-                       from mart_subscription_monthly
-                       where customer_id = 'C-100'
-                         and month_start between date '2025-04-01' and date '2025-07-01'
-                       order by month_start`),
+          query: SRC(`with subscriptions as (select * from "seeds/subscriptions"),
+customers as (select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"),
+months as (
+  select unnest(generate_series(timestamp '2025-01-01', timestamp '2025-12-01', interval '1 month'))::date as month_start
+),
+grid as (select c.customer_id, m.month_start from customers c cross join months m),
+mrr_by_month as (
+  select g.customer_id, g.month_start,
+         coalesce(s.plan_tier, 'churned') as plan_tier,
+         coalesce(s.mrr_amount, 0) as mrr_amount
+  from grid g
+  left join subscriptions s
+    on g.customer_id = cast(s.customer_id as varchar)
+   and g.month_start >= date_trunc('month', s.start_date)::date
+   and g.month_start <  coalesce(s.end_date, date '9999-12-31')
+),
+with_lag as (
+  select *, lag(mrr_amount) over (partition by customer_id order by month_start) as mrr_amount_prev
+  from mrr_by_month
+)
+select month_start::varchar as month_start, mrr_amount,
+       (coalesce(mrr_amount_prev,0)=0 and mrr_amount>0)                              as is_new_customer,
+       (mrr_amount > coalesce(mrr_amount_prev,0) and coalesce(mrr_amount_prev,0)>0)  as is_expansion_this_month,
+       (mrr_amount < coalesce(mrr_amount_prev,0) and mrr_amount>0)                   as is_contraction_this_month,
+       (mrr_amount=0 and coalesce(mrr_amount_prev,0)>0)                             as is_churned_this_month
+from with_lag
+where customer_id = 'C-100'
+  and month_start between date '2025-04-01' and date '2025-07-01'
+order by month_start`),
           columns: [
             "month_start", "mrr_amount",
             "is_new_customer", "is_expansion_this_month",
             "is_contraction_this_month", "is_churned_this_month",
           ],
           expectedRows: [
-            ["2025-04-01",  99, true,  false, false, false],
-            ["2025-05-01", 199, false, true,  false, false],
-            ["2025-06-01",  99, false, false, true,  false],
+            ["2025-04-01", 199, true,  false, false, false],
+            ["2025-05-01", 999, false, true,  false, false],
+            ["2025-06-01", 199, false, false, true,  false],
             ["2025-07-01",   0, false, false, false, true ],
           ],
         },
       ),
       expectedOutputs: { snapshotRowCountForC100: 4 },
-      datasetRefs: ["seeds/subscriptions.csv"],
+      datasetRefs: ["seeds/customers", "seeds/subscriptions"],
       pedagogy: pedagogyConfig({
         hints: [
           "Churn cannot be computed from a table that only has rows for active customers. You MUST densify the grid first — cross-join (distinct customer_id) × month_start, then left-join the active subscription per cell.",
@@ -476,45 +518,66 @@ metrics:
       stepNumber: 5,
       title: "Materialize one parameterized view per metric",
       instructionMd:
-        "Each metric in `metrics.yml` gets a corresponding dbt view — that way every BI tool queries a single object per metric, not a different SQL fragment per dashboard.\n\n**Build:** in `models/metrics/`, create one view per metric: `_metric_active_customers.sql`, `_metric_mrr.sql`, `_metric_gross_revenue_retention.sql`, `_metric_net_revenue_retention.sql`, `_metric_monthly_churn_rate.sql`. Each is a `view` materialization that selects from `mart_subscription_monthly`, filters by `month_start = '{{ var(\"as_of_month\") }}'::date` (so the consumer can query it for any month), and outputs ONE row with two columns: `as_of_month` (date) and `value` (the metric's scalar value).\n\nFor the lab, set the default var in `dbt_project.yml`: `vars: { as_of_month: '2025-06-01' }`. The validator will query `_metric_mrr` for `as_of_month = 2025-06-01` and assert the value rounds to the expected MRR for the fixture data.\n\n**Validation:** `sql_resultset` — DuckDB-WASM runs `SELECT round(value::double, 0) AS value FROM _metric_mrr WHERE as_of_month = '2025-06-01'`. The fixture sums to exactly `$5,847` for that month (3 enterprise + 4 pro + 2 starter customers; the README breaks down the arithmetic).",
+        "Each metric in `metrics.yml` gets a corresponding dbt view — that way every BI tool queries a single object per metric, not a different SQL fragment per dashboard.\n\n**Build:** in `models/metrics/`, create one view per metric: `_metric_active_customers.sql`, `_metric_mrr.sql`, `_metric_gross_revenue_retention.sql`, `_metric_net_revenue_retention.sql`, `_metric_monthly_churn_rate.sql`. Each is a `view` materialization that selects from `mart_subscription_monthly`, filters by `month_start = '{{ var(\"as_of_month\") }}'::date` (so the consumer can query it for any month), and outputs ONE row with two columns: `as_of_month` (date) and `value` (the metric's scalar value).\n\nFor the lab, set the default var in `dbt_project.yml`: `vars: { as_of_month: '2025-06-01' }`. The validator will query `_metric_mrr` for `as_of_month = 2025-06-01` and assert the value rounds to the expected MRR for the fixture data.\n\n**Validation:** `sql_resultset` — the in-browser runner registers the seed CSVs and runs the self-contained metric query below (the WASM-native equivalent of `_metric_mrr`). The active subscriptions for 2025-06-01 sum to `$2,746`: C-100 Pro $199 + C-101 Pro $199 + C-102 Enterprise $1,000 + C-103 Starter $49 + C-104 Enterprise $1,100 + C-106 Pro $199 (C-105 has churned to $0). Enterprise contracts are per-customer amounts, not a fixed tier price — exactly the realistic shape a CFO reconciliation has to handle.",
       learningObjective: "Materialize one parameterized dbt view per metric so any BI tool queries a single object per metric, not a different SQL fragment per dashboard.",
       requiredSkill: "dbt vars, view materialization, dbt ref/jinja, metric-view scaffolding pattern",
-      starterCode: SRC(`-- dbt_project.yml fragment
-vars:
-  as_of_month: '2025-06-01'
-
--- models/metrics/_metric_mrr.sql
-{{ config(materialized='view') }}
-select
-  date '{{ var("as_of_month") }}'    as as_of_month,
-  sum(mrr_amount)                    as value
-from {{ ref('mart_subscription_monthly') }}
-where month_start = date '{{ var("as_of_month") }}';
-
--- models/metrics/_metric_active_customers.sql
-{{ config(materialized='view') }}
-select
-  date '{{ var("as_of_month") }}'                                                  as as_of_month,
-  count(distinct case when status = 'active' then customer_id end)                 as value
-from {{ ref('mart_subscription_monthly') }}
-where month_start = date '{{ var("as_of_month") }}';
-
--- TODO: _metric_gross_revenue_retention.sql
--- TODO: _metric_net_revenue_retention.sql
--- TODO: _metric_monthly_churn_rate.sql
+      starterCode: SRC(`-- WASM-native equivalent of models/metrics/_metric_mrr.sql. In the repo this
+-- is a parameterized dbt view ( date '{{ var("as_of_month") }}' ); here the
+-- runner inlines the month and aggregates the monthly mart over the seed data.
+with subscriptions as (
+  select * from "seeds/subscriptions"
+),
+customers as (
+  select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"
+),
+months as (
+  select unnest(generate_series(timestamp '2025-01-01', timestamp '2025-12-01', interval '1 month'))::date as month_start
+),
+grid as (
+  select c.customer_id, m.month_start from customers c cross join months m
+),
+mart_subscription_monthly as (
+  select
+    g.customer_id, g.month_start,
+    coalesce(s.mrr_amount, 0) as mrr_amount
+  from grid g
+  left join subscriptions s
+    on  g.customer_id = cast(s.customer_id as varchar)
+    and g.month_start >= date_trunc('month', s.start_date)::date
+    and g.month_start <  coalesce(s.end_date, date '9999-12-31')
+)
+select round(sum(mrr_amount)::double, 0) as value
+from mart_subscription_monthly
+where month_start = date '2025-06-01';
 `),
       validationType: "sql_resultset",
       stepType: "code_sql",
       validation: validationConfig(
         "sql_resultset",
-        "_metric_mrr returns $5,847 for as_of_month=2025-06-01 (3 enterprise×$999 + 4 pro×$199 + 2 starter×$49 = $5,847).",
+        "_metric_mrr returns $2,746 for as_of_month=2025-06-01 (sum of the 6 active subscriptions in the seed fixture).",
         {
-          query: "SELECT round(value::double, 0) AS value FROM _metric_mrr WHERE as_of_month = '2025-06-01'",
-          expectedRow: { value: 5847 },
+          query: SRC(`with subscriptions as (select * from "seeds/subscriptions"),
+customers as (select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"),
+months as (
+  select unnest(generate_series(timestamp '2025-01-01', timestamp '2025-12-01', interval '1 month'))::date as month_start
+),
+grid as (select c.customer_id, m.month_start from customers c cross join months m),
+mart_subscription_monthly as (
+  select g.customer_id, g.month_start, coalesce(s.mrr_amount, 0) as mrr_amount
+  from grid g
+  left join subscriptions s
+    on g.customer_id = cast(s.customer_id as varchar)
+   and g.month_start >= date_trunc('month', s.start_date)::date
+   and g.month_start <  coalesce(s.end_date, date '9999-12-31')
+)
+select round(sum(mrr_amount)::double, 0) as value
+from mart_subscription_monthly
+where month_start = date '2025-06-01'`),
+          expectedRow: { value: 2746 },
         },
       ),
-      expectedOutputs: { metricMrr202506: 5847 },
-      datasetRefs: ["models/metrics/_metric_mrr.sql"],
+      expectedOutputs: { metricMrr202506: 2746 },
+      datasetRefs: ["seeds/customers", "seeds/subscriptions"],
       pedagogy: pedagogyConfig({
         hints: [
           "A metric VIEW is preferable to an ad-hoc SELECT in the dashboard because: (1) every BI tool sees the same object, (2) dbt's lineage graph picks it up, (3) consumers can join the metric to dimensions instead of re-writing the aggregation.",
@@ -700,97 +763,103 @@ exposures:
       stepNumber: 8,
       title: "Semantic-layer query CLI — `python bin/metric.py`",
       instructionMd:
-        "The CLI proves the semantic layer is consumable from OUTSIDE the BI tool. It's also the most-portable artifact for the portfolio — a reviewer runs one command and sees a metric resolved end-to-end with provenance.\n\n**Build:** `bin/metric.py` (Python, stdlib + duckdb + pyyaml). The CLI:\n\n1. Parses args: `metric_name` (positional, required), `--as-of YYYY-MM`, optional `--filter-dim=plan_tier=enterprise` (repeatable).\n2. Reads `models/metrics/metrics.yml`, resolves the metric by name, errors with a clear message if the name isn't declared.\n3. Opens `dev.duckdb`, queries the corresponding `_metric_<name>` view (joined to `mart_subscription_monthly` if dimension filters are supplied — the view alone doesn't filter on plan_tier).\n4. Prints the result as JSON: `{ metric, as_of, filters, value, provenance: { metric_yaml_path, view_name, mart_models: [...] } }`.\n5. Exit code 0 on success, 1 on unknown metric, 2 on DB connection failure.\n\nFor the lab, the runtime check executes the CLI flow inline in DuckDB-WASM (Pyodide is not in scope for this step's validator): it queries `_metric_net_revenue_retention` with `plan_tier='enterprise'` filter and asserts the result.\n\n**Validation:** `sql_resultset` — DuckDB-WASM runs the dimension-filtered NRR query and asserts the value rounds to `1.05` (5% net expansion in the enterprise tier for 2025-06 in the fixture).",
+        "The CLI proves the semantic layer is consumable from OUTSIDE the BI tool. It's also the most-portable artifact for the portfolio — a reviewer runs one command and sees a metric resolved end-to-end with provenance.\n\n**Build:** `bin/metric.py` (Python, stdlib + duckdb + pyyaml). The CLI:\n\n1. Parses args: `metric_name` (positional, required), `--as-of YYYY-MM`, optional `--filter-dim=plan_tier=enterprise` (repeatable).\n2. Reads `models/metrics/metrics.yml`, resolves the metric by name, errors with a clear message if the name isn't declared.\n3. Opens `dev.duckdb`, queries the corresponding `_metric_<name>` view (joined to `mart_subscription_monthly` if dimension filters are supplied — the view alone doesn't filter on plan_tier).\n4. Prints the result as JSON: `{ metric, as_of, filters, value, provenance: { metric_yaml_path, view_name, mart_models: [...] } }`.\n5. Exit code 0 on success, 1 on unknown metric, 2 on DB connection failure.\n\nFor the lab, the in-browser editor holds the WASM-native NRR check the CLI resolves: the runner registers the seed CSVs and runs the dimension-filtered NRR query directly in DuckDB. Your `bin/metric.py` (the portfolio deliverable) is specified in the Build steps above and shipped in your repo; Pyodide is not in scope for this step's validator.\n\n**Validation:** `sql_resultset` — DuckDB-WASM runs the enterprise-tier NRR query over the seeds and asserts the value rounds to `1.05`. The enterprise cohort (C-102, C-104) starts June at $2,000 prior MRR and nets +$100 expansion → 1.05.",
       learningObjective: "Wire a Python CLI that reads metrics.yml, resolves a metric by name, queries DuckDB through the metric view with dimension filters, and returns scalar + provenance.",
       requiredSkill: "Python CLI design (argparse), PyYAML metric resolution, DuckDB connection + parameterized query, semantic-layer queryable surface",
-      starterCode: SRC(`#!/usr/bin/env python3
-"""bin/metric.py — semantic-layer query CLI.
-
-Usage:
-  python bin/metric.py mrr --as-of 2025-06
-  python bin/metric.py net_revenue_retention --as-of 2025-06 --filter-dim=plan_tier=enterprise
-"""
-from __future__ import annotations
-import argparse, json, sys
-from pathlib import Path
-import duckdb, yaml
-
-METRICS_PATH = Path("models/metrics/metrics.yml")
-DB_PATH      = Path("dev.duckdb")
-
-def load_metrics() -> dict[str, dict]:
-    with METRICS_PATH.open() as f:
-        spec = yaml.safe_load(f)
-    return { m["name"]: m for m in spec.get("metrics", []) }
-
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("metric_name")
-    ap.add_argument("--as-of", required=True, help="YYYY-MM or YYYY-MM-DD")
-    ap.add_argument("--filter-dim", action="append", default=[],
-                    help="dim=value, repeatable")
-    args = ap.parse_args(argv)
-
-    metrics = load_metrics()
-    if args.metric_name not in metrics:
-        print(f"unknown metric '{args.metric_name}'. known: {sorted(metrics)}", file=sys.stderr)
-        return 1
-    metric = metrics[args.metric_name]
-
-    # normalize as-of to first-of-month
-    as_of = args.as_of if len(args.as_of) == 10 else f"{args.as_of}-01"
-
-    # build dimension WHERE clause from --filter-dim
-    where_parts = [f"month_start = DATE '{as_of}'"]
-    for kv in args.filter_dim:
-        k, v = kv.split("=", 1)
-        where_parts.append(f"{k} = '{v}'")
-    where_sql = " AND ".join(where_parts)
-
-    # apply the metric's expression directly to the mart with dimension filters
-    sql = f"SELECT ({metric['expression']}) AS value " \
-          f"FROM mart_subscription_monthly WHERE {where_sql}"
-
-    con = duckdb.connect(str(DB_PATH), read_only=True)
-    try:
-        row = con.execute(sql).fetchone()
-    finally:
-        con.close()
-
-    out = {
-        "metric": args.metric_name,
-        "as_of":  as_of,
-        "filters": args.filter_dim,
-        "value":  float(row[0]) if row and row[0] is not None else None,
-        "provenance": {
-            "metric_yaml_path": str(METRICS_PATH),
-            "view_name": f"_metric_{args.metric_name}",
-            "mart_models": ["mart_subscription_monthly"],
-        },
-    }
-    print(json.dumps(out, indent=2))
-    return 0
-
-if __name__ == "__main__":
-    sys.exit(main())
+      starterCode: SRC(`-- WASM-native equivalent of the NRR resolution your bin/metric.py performs:
+-- it applies the canonical net_revenue_retention expression to the monthly
+-- mart, filtered to month_start = 2025-06-01 AND plan_tier = 'enterprise'. The
+-- runner registers seeds/customers.csv + seeds/subscriptions.csv and runs it.
+with subscriptions as (
+  select * from "seeds/subscriptions"
+),
+customers as (
+  select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"
+),
+months as (
+  select unnest(generate_series(timestamp '2025-01-01', timestamp '2025-12-01', interval '1 month'))::date as month_start
+),
+grid as (
+  select c.customer_id, m.month_start from customers c cross join months m
+),
+mrr_by_month as (
+  select
+    g.customer_id, g.month_start,
+    coalesce(s.plan_tier, 'churned') as plan_tier,
+    coalesce(s.mrr_amount, 0)        as mrr_amount
+  from grid g
+  left join subscriptions s
+    on  g.customer_id = cast(s.customer_id as varchar)
+    and g.month_start >= date_trunc('month', s.start_date)::date
+    and g.month_start <  coalesce(s.end_date, date '9999-12-31')
+),
+with_lag as (
+  select *,
+    lag(mrr_amount) over (partition by customer_id order by month_start) as mrr_amount_prev
+  from mrr_by_month
+),
+mart_subscription_monthly as (
+  select customer_id, month_start, plan_tier, mrr_amount, mrr_amount_prev,
+    (mrr_amount=0 and coalesce(mrr_amount_prev,0)>0)                            as is_churned_this_month,
+    (mrr_amount > coalesce(mrr_amount_prev,0) and coalesce(mrr_amount_prev,0)>0) as is_expansion_this_month,
+    (mrr_amount < coalesce(mrr_amount_prev,0) and mrr_amount>0)                  as is_contraction_this_month
+  from with_lag
+)
+select round(
+  (sum(mrr_amount_prev)
+   - sum(case when is_churned_this_month then mrr_amount_prev else 0 end)
+   - sum(case when is_contraction_this_month then (mrr_amount_prev - mrr_amount) else 0 end)
+   + sum(case when is_expansion_this_month then (mrr_amount - mrr_amount_prev) else 0 end)
+  ) / nullif(sum(mrr_amount_prev), 0), 2)::double as value
+from mart_subscription_monthly
+where month_start = date '2025-06-01' and plan_tier = 'enterprise';
 `),
       validationType: "sql_resultset",
       stepType: "code_sql",
       validation: validationConfig(
         "sql_resultset",
-        "Enterprise-tier NRR for 2025-06-01 rounds to 1.05 (5% net expansion in the fixture).",
+        "Enterprise-tier NRR for 2025-06-01 rounds to 1.05 (enterprise cohort: $2,000 prior MRR, +$100 net expansion).",
         {
-          query: SRC(`select round(
-            (sum(mrr_amount_prev) - sum(case when is_churned_this_month then mrr_amount_prev else 0 end) - sum(case when is_contraction_this_month then (mrr_amount_prev - mrr_amount) else 0 end) + sum(case when is_expansion_this_month then (mrr_amount - mrr_amount_prev) else 0 end)) / nullif(sum(mrr_amount_prev), 0),
-            2
-          )::double as value
-          from mart_subscription_monthly
-          where month_start = date '2025-06-01' and plan_tier = 'enterprise'`),
+          query: SRC(`with subscriptions as (select * from "seeds/subscriptions"),
+customers as (select distinct cast(customer_id as varchar) as customer_id from "seeds/customers"),
+months as (
+  select unnest(generate_series(timestamp '2025-01-01', timestamp '2025-12-01', interval '1 month'))::date as month_start
+),
+grid as (select c.customer_id, m.month_start from customers c cross join months m),
+mrr_by_month as (
+  select g.customer_id, g.month_start,
+         coalesce(s.plan_tier, 'churned') as plan_tier,
+         coalesce(s.mrr_amount, 0) as mrr_amount
+  from grid g
+  left join subscriptions s
+    on g.customer_id = cast(s.customer_id as varchar)
+   and g.month_start >= date_trunc('month', s.start_date)::date
+   and g.month_start <  coalesce(s.end_date, date '9999-12-31')
+),
+with_lag as (
+  select *, lag(mrr_amount) over (partition by customer_id order by month_start) as mrr_amount_prev
+  from mrr_by_month
+),
+mart_subscription_monthly as (
+  select customer_id, month_start, plan_tier, mrr_amount, mrr_amount_prev,
+    (mrr_amount=0 and coalesce(mrr_amount_prev,0)>0)                            as is_churned_this_month,
+    (mrr_amount > coalesce(mrr_amount_prev,0) and coalesce(mrr_amount_prev,0)>0) as is_expansion_this_month,
+    (mrr_amount < coalesce(mrr_amount_prev,0) and mrr_amount>0)                  as is_contraction_this_month
+  from with_lag
+)
+select round(
+  (sum(mrr_amount_prev)
+   - sum(case when is_churned_this_month then mrr_amount_prev else 0 end)
+   - sum(case when is_contraction_this_month then (mrr_amount_prev - mrr_amount) else 0 end)
+   + sum(case when is_expansion_this_month then (mrr_amount - mrr_amount_prev) else 0 end)
+  ) / nullif(sum(mrr_amount_prev), 0), 2)::double as value
+from mart_subscription_monthly
+where month_start = date '2025-06-01' and plan_tier = 'enterprise'`),
           expectedRow: { value: 1.05 },
         },
       ),
       expectedOutputs: { enterpriseNrr202506: 1.05 },
-      datasetRefs: ["bin/metric.py", "models/metrics/metrics.yml"],
+      datasetRefs: ["seeds/customers", "seeds/subscriptions"],
       pedagogy: pedagogyConfig({
         hints: [
           "The CLI is a THIN resolver — it reads metrics.yml, looks up the expression, applies it to the mart with the supplied dimension filters. The semantic value lives in metrics.yml, not in this script — that's why a one-day swap from Python CLI to a Cube.dev / dbt-MetricFlow server is realistic.",

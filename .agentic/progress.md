@@ -88,17 +88,39 @@ Owner approved start. Real work done; 3 hard blockers found (flip remains blocke
 - `docs/HANDOFF_Script.md` — placeholder handoff template, **auto-committed by the hook** (`3c2a68b`); not deleted (origin unconfirmed). Owner: `git rm` if unwanted.
 - **57B-flip: STILL BLOCKED** — 3 layers (candidate hidden · fixtures absent + path bug · queries target unbuilt dbt models + inconsistent expected values).
 
+## 2026-06-06 — Phase 0.z C2 WASM-native fixture + validation repair — SHIPPED (hidden/dark)
+
+Close-out: `docs/phases/phase-0z-c2-wasm-native-validation-repair.md`. Executed Repair A on the hidden C2
+candidate. **No promotion, no `serverGrade`, no row opt-in, no schema/migration.**
+- **3 fixtures authored** under `artifacts/atlas/public/datasets/seeds/` (`customers.csv` 8 rows incl 1 dup
+  → 7 distinct; `subscriptions.csv` 10 rows w/ C-100 arc + June cohort; `orders.csv` realism-only).
+- **5 `code_sql` steps (1,2,3,5,8) rewritten** in `analytics-engineer__semantic-layer-with-dbt-and-duckdb.ts`:
+  dbt-Jinja starterCode + `validation.query` → self-contained **WASM-native inline-CTE** SQL over the seed
+  tables; `datasetRefs` de-bugged (dropped double-`.csv` + bogus `.py`/`.yml`/`.sql` refs → `seeds/customers`,
+  `seeds/subscriptions`); **all expected values regenerated from real DuckDB-1.5.3 execution**; prose reconciled.
+- **B4 fixed**: step-5 June MRR `5847` → `2746` (real sum; per-customer enterprise contracts dissolve the
+  tier×price contradiction). Step-3 C-100 arc reconciled to canonical tiers `199/999/199/0`. Steps 1/2/8
+  values unchanged but now genuinely fixture-backed. `expectedOutputs.metricMrr202506` → 2746.
+- **Execution-verified**: the exact committed `validation.query` strings, run against the repo seeds, produce
+  the committed `expectedRows`/`expectedRow` byte-for-byte (step-3 starterCode output == expectedRows — the
+  flip contract). Both reviewers independently reproduced this.
+- **Gates GREEN** (Node 24 + Docker PG): typecheck + no-heuristic-runtime PASS · execution-core 83/83 · atlas
+  159/159 · api-server 466/466 · curriculum-quality 132 (1 env-only `COURSE_TAXONOMY` ENOENT, pre-existing) ·
+  `audit:authoring` exit 0 · `audit:csv-set-equal-bc` PASS **(0 visible — dark preserved)** · `audit:contains-bc`
+  PASS 2/2. Architect-reviewer **PASS** + code-reviewer **SHIP** (no P0/P1; 2 advisory P2s documented).
+- **57B-flip data/validation blocker RESOLVED.** Remaining for flip (NOT done — deliberate): promote candidate
+  → set `serverGrade:true` → resolve 2 deferred 57B P2s → OpenAPI/Orval regen → byte-verify in real browser
+  WASM (engine `1.33.1-dev45.0` vs 1.5.3 used here).
+
 ## Next steps
 
-1. **Phase 0.x local-green baseline** (Node 24 + `pnpm install` + **Phase 0.2** decouple Replit
-   platform connectors + Neon `DATABASE_URL` in gitignored `.env`) — now the critical path. Unblocks:
-   (a) the DB-gated audits (`audit:csv-set-equal-bc` must run green); (b) byte-verifying C2 step-3
-   `expectedRows` vs real DuckDB-WASM output (57C §7). Invoke: `senior-devops`, `env-secrets-manager`,
-   `/atlas-phase-plan E0.2`.
-2. **Phase 57B-flip** — set `serverGrade:true` on the single candidate step
-   (`analytics-engineer__semantic-layer-with-dbt-and-duckdb` step 3) + re-seed, ONLY after (1).
-   At flip: resolve the 2 deferred P2s (popstate clear, `needs-run` UX) + add `serverGrade` to
-   OpenAPI ProjectStep + Orval regen for type-honesty.
+1. **C2 step-3 `expectedRows` are now execution-derived** (0.z). Before the live flip, byte-verify the
+   FE capture in the **real browser** DuckDB-WASM (`1.33.1-dev45.0`) — the regeneration used local duckdb
+   1.5.3. Needs a true Node-24 `pnpm install` baseline (Phase 0.2 decouple still pending for `pnpm dev`).
+2. **Phase 57B-flip** — DATA/VALIDATION blocker now RESOLVED (0.z). To execute: (a) **promote** the C2
+   candidate to a visible project; (b) set `serverGrade:true` on step 3 + re-seed; (c) resolve the 2
+   deferred P2s (popstate clear, `needs-run` UX); (d) add `serverGrade` to OpenAPI `ProjectStep` + Orval
+   regen. Heed 0.z R2 (enterprise-NRR filter dead branches) when authoring future fixtures.
 3. **E1 continues** — 58 `sql_resultset`, 59 `/check`-vs-`/submit` evidence. Then E2 (60 portfolio/
    GitHub), E4 (61 authoring factory v2, continuous), E5 (62 cloud-lab safety).
 

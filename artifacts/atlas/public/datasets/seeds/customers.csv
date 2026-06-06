@@ -1,0 +1,9 @@
+customer_id,email,plan_tier,signup_date,country_code,loaded_at
+C-100,c100@example.com,pro,2025-04-02,US,2025-04-02T00:00:00
+C-101,c101@example.com,pro,2025-01-05,US,2025-01-05T00:00:00
+C-101,c101@example.com,pro,2025-01-05,US,2025-02-01T00:00:00
+C-102,c102@example.com,enterprise,2024-11-10,GB,2024-11-10T00:00:00
+C-103,c103@example.com,starter,2025-02-20,CA,2025-02-20T00:00:00
+C-104,c104@example.com,enterprise,2024-12-01,US,2024-12-01T00:00:00
+C-105,c105@example.com,starter,2025-01-15,DE,2025-01-15T00:00:00
+C-106,c106@example.com,pro,2025-06-01,US,2025-06-01T00:00:00
