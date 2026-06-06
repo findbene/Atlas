@@ -65,6 +65,16 @@ enforcement**. Close-out: `docs/phases/phase-57b-prereq-csv-set-equal-foundation
 - **DARK proof:** `serverGrade=false` for all rows ⇒ raw path byte-identical to `6c26cd2`; envelope
   branch auto-passes; `csv_set_equal` NOT in `PILOT_RUNTIME_KINDS` nor `ATLAS_ENVELOPE_REQUIRED_KINDS`.
 
+## 2026-06-06 — Phase 0.x local-green ATTEMPTED → PARTIAL / BLOCKED
+
+Owner approved start. Real work done; 3 hard blockers found (flip remains blocked, now with a sharper reason).
+- **Node 24.16.0 DOWNLOADED** via nvm-windows (`nvm install`), **NOT activated.** `C:\Program Files\nodejs` is a real dir (system Node 22), not an nvm symlink → `nvm use` needs admin + would clobber the working install. Owner must activate deliberately (or reinstall Node 24 cleanly). Gates so far ran on Node 22.
+- **Lockfile is NOT frozen-clean.** `pnpm install --frozen-lockfile` → `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` ("overrides" config ≠ lockfile). `pnpm-workspace.yaml` declares the esbuild-prune `overrides:` but the committed lockfile doesn't match it (shipped inconsistent from Replit; neither my earlier clobber nor the `ff5f9d9` restore matches). **Did NOT modify/commit the lockfile** (hard stop). Reconcile = `pnpm install --no-frozen-lockfile` on **Node 24**, owner-committed.
+- **`.gitignore` had NO `.env` entry** (secret-leak risk w/ auto-commit hooks). Fixed: added `.env`/`.env.local`/`.env.*.local` + `!.env.example` negation + committed secret-free `.env.example` (commit `f3256e1`).
+- **`DATABASE_URL` unset, no `.env`** → the 3 DB-gated audits (`authoring`, `csv-set-equal-bc`, `contains-bc`) **NOT RUN.** Owner provides Neon URL in gitignored `.env`, OR approve a local Docker Postgres + migrate + seed (Docker is available).
+- **CRITICAL — C2 step-3 expectedRows CANNOT be verified: the fixture is ABSENT.** DuckDB-WASM loads datasets from `artifacts/atlas/public/datasets/<ref>.csv` (`duckdbRunner.ts:47`). That dir contains **only `orders.csv`** — no `subscriptions.csv`/`customers.csv`. Step-3 datasetRef `seeds/subscriptions.csv` → 404. So the `csv_set_equal` check has **no backing data in the repo**; the C-100 `expectedRows` are hand-authored and unrunnable, and a `serverGrade:true` flip would **fail-closed for every learner**. This is a deeper blocker than 57C §7 anticipated (it assumed data existed and only numeric fidelity was at risk). Did NOT author a fixture or change expectedRows (hard stop).
+- Hook noise: more verbose-message auto-commits appeared (`5aad187`, `bddbe15`). A stray template `docs/HANDOFF_Script.md` (not mine) is untracked — left untouched.
+
 ## Next steps
 
 1. **Phase 0.x local-green baseline** (Node 24 + `pnpm install` + **Phase 0.2** decouple Replit
