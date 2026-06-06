@@ -1,3 +1,15 @@
+> **⚠️ LEGACY — Replit-era engineering context.** Superseded by root `CLAUDE.md` as the authoritative
+> Claude Code operating manual. **Preserved, not deleted** — it holds detailed, still-accurate engineering
+> notes: connector wiring (Stripe/Resend/Anthropic), the Pyodide runner, auth auto-provisioning, the
+> `stripe.subscription_status` enum gotcha, and inline close-outs for phases 55/56/57A.
+> **Caveat:** the Billing / AI Tutor / Email sections describe the *current Replit-coupled state that
+> Phase 0.2 will decouple* — treat them as current-state-to-migrate, NOT target-state. For live status,
+> phase sequence, and hard stops, read `CLAUDE.md` and `.agentic/progress.md`.
+>
+> _Filename kept as `replit.md` intentionally — no rename this phase._
+
+---
+
 # Workspace
 
 ## Overview

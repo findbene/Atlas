@@ -2,9 +2,24 @@
 
 Project-based learning PWA: zero → job-ready across 9 courses (data-engineering, ai-engineer,
 mlops-engineer, data-scientist, analytics-engineer, applied-llm-engineer, cloud-data-engineer,
-python-libraries, sql). Build continued from a 57-phase Replit build by Claude Code.
+python-libraries, sql). The 57-phase build was produced on Replit; **Claude Code is now the sole coding agent**, and this file is the authoritative Claude Code operating manual for Atlas.
 
-**Read first every session:** `.agentic/progress.md` (continuation state) and `HANDOFF.md` (Replit-era engineering state, currently Phase 57A).
+**Read first every session:** `.agentic/progress.md` (continuation state) and `HANDOFF.md` (live session bridge).
+
+## Status & phase sequence
+
+- **Last shipped:** Phase 57A (`csv_set_equal` dark comparator). ~60 learner-visible projects.
+- **Local build not yet green** — Node 24 + `pnpm install` pending in this environment, and the app still couples to Replit platform connectors (Stripe/Resend/Anthropic). **Phase 0.2 decouples** so `pnpm dev` boots. Do NOT "fix" code before a clean install on Node 24.
+- **Phase 52 signed-envelope canary = OPERATOR-PENDING.** The agent NEVER executes the production flip — it only prepares kits. Leave untouched unless the owner brings operator evidence.
+- **NEXT = Phase 57C** — read-only `csv_set_equal` trust-model proposal (raw JSON vs signed RunEnvelope). **Build nothing for it.** The frontend submission-shape wiring (the old "57B-prereq") is NOT in the repo; it is downstream of 57C's decision, not a prerequisite for it.
+- **Hardening sequence:** 57C → 57B-prereq build → 57B-flip → 58 `sql_resultset` → 59 `/check`-vs-`/submit` evidence → 60 portfolio/GitHub artifact → 61 authoring factory v2 → 62 cloud-lab safety. Maps to `.agentic/plan.md` epics E1→E5.
+- **HARD STOP — no high-speed project waves yet.** Finish grader hardening + factory v2 first. Catalog target is **900–1000 premium projects** (~120/discipline); today ~60. Waves are hidden-first, never direct-publish.
+
+## Operating assumptions (Claude Code)
+
+- Claude Code is the sole coding agent. ChatGPT directs on the owner's behalf; **in ChatGPT's prompts, "Replit" means Claude Code.**
+- Everywhere else, **"Replit" = the legacy build platform + its connectors** (Stripe/Resend/Anthropic). Migrating off it is D1 / Phase 0.2 — a real infra task, not a rename.
+- `replit.md` is **legacy Replit-era engineering context** (preserved, superseded by this file). Its connector wiring describes current-state to be decoupled, not target-state.
 
 ## Stack
 
@@ -45,3 +60,4 @@ python-libraries, sql). Build continued from a 57-phase Replit build by Claude C
 - Never commit secrets. Secrets come from env (`DATABASE_URL`, `CLERK_*`, `STRIPE_*`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`). Flag any hardcoded credential.
 - Never modify more files than the phase requires. No scope creep, no unrequested refactors.
 - Never declare done with failing typecheck/test/build/audit.
+- Strict TS; validate inputs at boundaries with Zod; match existing conventions. Every grader/behavior change ships with a regression test that fails on the old code (graders also ship dark + BC audit).
