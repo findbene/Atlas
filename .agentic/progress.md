@@ -75,6 +75,19 @@ Owner approved start. Real work done; 3 hard blockers found (flip remains blocke
 - **CRITICAL — C2 step-3 expectedRows CANNOT be verified: the fixture is ABSENT.** DuckDB-WASM loads datasets from `artifacts/atlas/public/datasets/<ref>.csv` (`duckdbRunner.ts:47`). That dir contains **only `orders.csv`** — no `subscriptions.csv`/`customers.csv`. Step-3 datasetRef `seeds/subscriptions.csv` → 404. So the `csv_set_equal` check has **no backing data in the repo**; the C-100 `expectedRows` are hand-authored and unrunnable, and a `serverGrade:true` flip would **fail-closed for every learner**. This is a deeper blocker than 57C §7 anticipated (it assumed data existed and only numeric fidelity was at risk). Did NOT author a fixture or change expectedRows (hard stop).
 - Hook noise: more verbose-message auto-commits appeared (`5aad187`, `bddbe15`). A stray template `docs/HANDOFF_Script.md` (not mine) is untracked — left untouched.
 
+## 2026-06-06 — Phase 0.y local-baseline unblock + C2 fixture proposal
+
+- **Node 24 activated SHELL-SCOPED** (non-destructive): prepend `C:\Users\findb\AppData\Local\nvm\v24.16.0` to `$env:PATH` per-command → `node v24.16.0`, pnpm `9.15.0`. System Node 22 untouched; no `nvm use`, no admin, no clobber.
+- **Lockfile mismatch UNDERSTOOD + fix identified, NOT committed.** `pnpm-lock.yaml` `overrides:` is a **stale subset** — missing entries `pnpm-workspace.yaml` added since (`@esbuild-kit/esm-loader`, `@expo/ngrok-bin>*`, `@tailwindcss/oxide>*`, `esbuild: 0.27.3` pin, esbuild `aix/android/*`). `pnpm install --lockfile-only` (Node 24) reconciles it (+1188/−94). **NOT committed** — the prune list keeps only `linux-x64` (Linux/CI-targeted); regenerating from Windows risks contaminating the deploy target. Working-tree change **reverted**. Owner should regen + commit on Linux/CI/WSL.
+- **DB-gated audits RAN GREEN** via local Docker Postgres (ephemeral container `atlas-pg`, `postgres:16`, port **5434**, throwaway `postgres:postgres` cred — not committed/not a prod secret). Sequence: `docker run` → migrate (OK 1.2s) → seed (OK; 5 Phase-37 SKIPs are pre-existing) → audits:
+  - `audit:csv-set-equal-bc` — **PASS**, but **0 visible csv_set_equal steps** (C2 is a hidden candidate).
+  - `audit:contains-bc` — **PASS**, 2/2 steps, 14 submissions, 0 mismatches.
+  - `audit:authoring` — **PASS** (exit 0); visible catalog = 92 steps, **90 self_attest + 2 contains**, zero sql_resultset/csv_set_equal.
+  - Teardown: `docker rm -f atlas-pg`. (Left running for reuse; DB lost on removal → re-seed needed.)
+- **C2 fixture repair PROPOSAL delivered** (read-only): `docs/phases/phase-0y-c2-fixture-repair-proposal.md`. Found it's **not a 1-file add**: (B1) datasetRef double-`.csv`; (B3) validation queries target dbt models (`mart_subscription_monthly`, `stg_*`) that the DuckDB-WASM sandbox never builds → checks can't run; (B4) hand-authored expected values internally inconsistent (step 5 says $5,847 but its breakdown = $3,891); (B5) existing `orders.csv` is the wrong shape. Repair = author 3 fixtures + fix refs + re-architect checks to be WASM-native + regenerate ALL expected values from real execution + promote candidate. No fixture created, no expectedRows changed (hard stop).
+- `docs/HANDOFF_Script.md` — placeholder handoff template, **auto-committed by the hook** (`3c2a68b`); not deleted (origin unconfirmed). Owner: `git rm` if unwanted.
+- **57B-flip: STILL BLOCKED** — 3 layers (candidate hidden · fixtures absent + path bug · queries target unbuilt dbt models + inconsistent expected values).
+
 ## Next steps
 
 1. **Phase 0.x local-green baseline** (Node 24 + `pnpm install` + **Phase 0.2** decouple Replit
