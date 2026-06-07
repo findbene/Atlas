@@ -156,19 +156,33 @@ candidate promoted + rubric-approved; **envelope enforcement OFF**; Phase 52 unt
   serverGrade) — informational; (b) orval 8.5.3 EOL churn on ~95 generated files (CRLF) — focused commit
   stages serverGrade-only; needs a `.gitattributes` normalization pass.
 
+## 2026-06-07 — Phase 57B-postflip-review — COMPLETED (governance gap closed)
+
+Close-out via archive report `Atlas_Each_Task_Mini_Reports_to_Chatgpt.html/src/08-…`. Re-ran the independent
+reviews that 529'd during the flip + did focused post-flip verification + end-to-end integration.
+- **Reviews clean:** `atlas-architect-reviewer` **PASS** (ran grading.test.ts 74/74 itself), `code-reviewer`
+  **SHIP**. No P0/P1. One shared P2 (audit opt-in negative mutated a cell in place → could false-green for a
+  future collision-prone multiset) → **FIXED** (commit `cb424f1`): collision-proof "extra-unmatched-row"
+  (appends a guaranteed-novel sentinel row). Audit-only; no grader/live change. Second P2 (authoring
+  classifier mislabels csv_set_equal "client-provisional", ignores serverGrade) → DEFERRED (known R1, exit 0).
+- **Post-flip DB verify:** C2 `visible=true, approved, 85.30`; global `serverGrade=true` count = **1** (C2
+  step 3); 0 other visible csv_set_equal rows; envelope off; Phase 52 untouched.
+- **End-to-end integration:** real `duckdbAdapter` (wasm 1.33.1-dev45.0) in headless Chromium produced the
+  step-3 `{columns,rows}`; that exact capture fed to the **live DB** server grader → `passed:true "Correct!"`;
+  tampered + raw SQL → fail closed. Browser→server accept proven (full app UI still blocked by Phase 0.2 →
+  used the verified adapter+live-grader harness). All temp harness files deleted.
+- **Gates:** typecheck + check:no-heuristic-runtime · audit:csv-set-equal-bc PASS (1 opted-in, 5/5) ·
+  audit:contains-bc 3/3 · audit:authoring exit 0. **Phase 57B fully CLOSED.**
+
 ## Next steps
 
-1. ✅ **DONE (0.zz):** C2 step-3 `expectedRows` byte-verified in real-browser DuckDB-WASM
-   (`1.33.1-dev45.0`) — 5/5 match, flip contract holds. Engine-drift risk closed. (Broader Node-24
-   `pnpm install` baseline + Phase 0.2 decouple still pending for running the whole app via `pnpm dev`.)
-2. ✅ **DONE (57B-flip):** C2 promoted + 1 csv_set_equal row server-graded (envelope OFF). Gates green;
-   Opus self-review (subagents 529'd). **Follow-ups:** (a) re-run `/code-review` + architect-reviewer when
-   the API recovers; (b) observe the single opted-in row in a real env before opting in more rows;
-   (c) `.gitattributes` EOL normalization for `lib/*/src/generated/**` (orval CRLF churn); (d) optionally
-   teach the authoring-audit classifier that `serverGrade:true` csv_set_equal is server-enforced.
-3. **E1 continues** — 58 `sql_resultset`, 59 `/check`-vs-`/submit` evidence. Then E2 (60 portfolio/
-   GitHub), E4 (61 authoring factory v2, continuous), E5 (62 cloud-lab safety). Do NOT start 58 until
-   57B-flip is independently reviewed + observed.
+1. ✅ **DONE (57B-flip + 57B-postflip-review):** C2 promoted + 1 csv_set_equal row server-graded (envelope
+   OFF); independently reviewed (architect PASS + code-review SHIP) + end-to-end verified; P2 audit fix landed.
+2. **Phase 58** (`sql_resultset` server grading) — E1 continues; same dark→verify→flip discipline. **Owner
+   approval required to start.** Heed: collision-proof audit negative already in place for the next opt-in.
+3. **Parallel low-risk cleanups (owner-approve):** `.gitattributes` `eol=lf` for `lib/*/src/generated/**`
+   (orval CRLF churn) · Linux/CI `pnpm-lock.yaml` regen · teach authoring-audit classifier serverGrade-awareness.
+4. Later E1→E5: 59 `/check`-vs-`/submit` evidence · 60 portfolio/GitHub · 61 authoring factory v2 · 62 cloud-lab.
 
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
