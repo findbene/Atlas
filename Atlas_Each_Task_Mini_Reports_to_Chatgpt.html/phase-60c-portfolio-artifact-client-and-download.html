@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 60C — Portfolio Artifact Client Contract + Frontend Manual Download UX</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 60C — Portfolio Artifact Client Contract + Frontend Manual Download UX</h1><p class="meta">2026-06-07 · COMPLETED · implementation (OpenAPI + orval codegen + FE download UX) · commit b748cc9</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 60C — make the Phase-60B authenticated portfolio-artifact route usable from the Atlas frontend: add the OpenAPI/client contract, regenerate the orval clients in a controlled way, and add a narrow manual-download UX for completed projects. Hard stops: no GitHub OAuth / direct push / publishing / public portfolio pages / cert-marketing; no new <code>serverGrade</code>/opt-ins/kind flips; no envelope enforcement; no Phase 52 / env / canary / cloud changes; no schema/migration (unless fixing a 60B defect — none needed); no force-push; no secrets; do not start Phase 60D.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> OpenAPI path + schema added; orval regen purely additive; scoped <code>.gitattributes</code>; on-demand JSON download button on the Certificates page; FE + contract tests; reviews architect <strong>PASS</strong> + code-reviewer <strong>SHIP</strong> (no P0/P1); all gates green. Phase 60D not started.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>lib/api-spec/openapi.yaml</code> — <strong>modified</strong>: new GET path + <code>PortfolioArtifactResponse</code> schema.</li>
+<li><code>lib/api-client-react/src/generated/{api.ts,api.schemas.ts}</code> — <strong>regen</strong> (additive).</li>
+<li><code>lib/api-zod/src/generated/{api.ts,types/index.ts,types/portfolioArtifactResponse.ts,types/portfolioArtifactResponseFiles.ts}</code> — <strong>regen/new</strong> (additive).</li>
+<li><code>.gitattributes</code> — <strong>new</strong> (scoped eol=lf: 2 generated dirs + openapi.yaml only).</li>
+<li><code>artifacts/atlas/src/components/DownloadPortfolioBundleButton.tsx</code> (+<code>.test.tsx</code>) — <strong>new</strong>.</li>
+<li><code>artifacts/atlas/src/pages/certificates.tsx</code> — <strong>modified</strong> (import + per-card button).</li>
+<li><code>artifacts/api-server/src/routes/user-portfolio-artifact.test.ts</code> — <strong>modified</strong> (+contract test).</li>
+<li><code>docs/phases/phase-60c-portfolio-artifact-client-and-download.md</code>, <code>.agentic/progress.md</code> — <strong>new/modified</strong>.</li>
+<li>Hook-managed (NOT in commit): <code>.agentic/self-review.log</code>.
+Commit <code>b748cc9</code> = 14 files, +779/−0.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>App code? <strong>yes</strong> (FE button + OpenAPI + generated client). DB schema/migration? <strong>no.</strong> Grading/behavior? <strong>no.</strong> Env/canary/cloud? <strong>no.</strong> Phase 52? <strong>no.</strong> New serverGrade/opt-in/kind? <strong>no.</strong> GitHub OAuth/publishing/public pages/cert-marketing? <strong>no.</strong> Force-push/secrets? <strong>no.</strong> Phase 60D started? <strong>no.</strong></p>
+<h2 id="5-openapi-client-changes">5. OpenAPI / Client Changes</h2>
+<p>NEW <code>GET /user/projects/{projectSlug}/portfolio-artifact</code> (operationId <code>getPortfolioArtifact</code>, <code>security: clerkAuth</code>, path param <code>projectSlug</code>; 200→<code>PortfolioArtifactResponse</code>, 401+404→<code>ErrorResponse</code>). NEW schema <code>PortfolioArtifactResponse</code> = <code>{projectSlug, generatedAt(date-time), files{README.md, VALIDATION_EVIDENCE.md, LIMITATIONS.md, LEARNER_REFLECTION_TEMPLATE.md required; DATASET_NOTES.md optional}}</code> (filename→markdown only). Codegen via <code>pnpm --filter @workspace/api-spec run codegen</code> (orval 8.5.3 → react-query client + zod, then <code>typecheck:libs</code>); no hand-edits. Generated: <code>getPortfolioArtifact</code> raw fn + <code>useGetPortfolioArtifact</code> hook + <code>GetPortfolioArtifactResponse</code> zod.</p>
+<h2 id="6-frontend-ux-implemented">6. Frontend UX Implemented</h2>
+<p><code>DownloadPortfolioBundleButton</code> on the existing <strong>Certificates</strong> page (already lists every completed project with its slug). On <strong>click</strong> (never on mount) → generated raw <code>getPortfolioArtifact(slug)</code> → <code>JSON.stringify(bundle, null, 2)</code> → Blob download <code>${slug}-portfolio.json</code> (object URL revoked in <code>finally</code>). States: idle / loading (<code>Preparing bundle…</code>, disabled) / error. Deliberately NOT the auto-firing <code>useGetPortfolioArtifact</code> query (that would build an artifact per completed card on render) — one build per click. Boring, narrow, no dashboard redesign.</p>
+<h2 id="7-download-format-decision">7. Download Format Decision</h2>
+<p><strong>JSON</strong> (preferred per brief). The route already returns a structured <code>{projectSlug, generatedAt, files}</code> object → a single JSON file is the dependency-free, test-verifiable representation. <strong>ZIP not implemented</strong> (not trivial + not tested → out of scope).</p>
+<h2 id="8-access-error-behavior">8. Access / Error Behavior</h2>
+<p>All failures collapse to one safe state via the component's <code>catch</code>: 401 (expired session), 404 (hidden/soft-deleted/unknown/not-enrolled — 60B's 404-not-403), 5xx, and network rejects all → generic <code>Couldn't prepare the bundle. Please try again.</code> The server error body is never read/surfaced; on failure no object URL/anchor-click fires (no file written). A completed project with <strong>no durable snapshot</strong> still returns 200 and downloads (artifact degrades honestly in LIMITATIONS.md).</p>
+<h2 id="9-no-leak-verification">9. No-Leak Verification</h2>
+<p>The client serialises ONLY the route output and reads no individual field; it renders <strong>none</strong> of the bundle into the DOM (asserted). The no-leak guarantee stays server-side (unchanged 60B assembly chokepoint + route); 60C adds no new channel — the OpenAPI <code>files</code> exposes only filename→markdown. FE test asserts the downloaded payload carries no <code>validationconfig</code>/<code>expectedrows</code>/<code>expectedrowshash</code>/<code>servergrade</code>/<code>answer key</code>/<code>select</code>/<code>"spec"</code> tokens; the load-bearing server leak test (<code>user-portfolio-artifact.test.ts</code>) remains the real guard.</p>
+<h2 id="10-evidence-honesty-verification">10. Evidence-Honesty Verification</h2>
+<p>Only static client copy (button/label/error). FE test asserts no forbidden authorship/job/certification claim renders. Backend runtime <code>findBannedClaims</code> fail-closed guard unchanged. No certificate/credential marketing added.</p>
+<h2 id="11-generated-file-churn-eol-notes">11. Generated-File Churn / EOL Notes</h2>
+<p><strong>The feared ~95-file orval CRLF churn did NOT occur</strong> — a prior session already normalised the generated files to LF in the git index, so orval's LF output diffs <strong>content-only</strong>: purely additive <strong>+316 lines, 0 deletions</strong> across the generated dirs. Added a scoped <code>.gitattributes</code> (<code>text eol=lf</code> for <code>lib/api-client-react/src/generated/**</code>, <code>lib/api-zod/src/generated/**</code>, <code>lib/api-spec/openapi.yaml</code>) to keep future regens content-only — does NOT renormalise the rest of the repo. Git emits expected "CRLF→LF on next touch" notices for those paths (intended).</p>
+<h2 id="12-independent-review-results">12. Independent Review Results</h2>
+<ul>
+<li><strong>atlas-architect-reviewer → PASS</strong> (no P0/P1): traced certificates → button → raw fn → 60B route → JSON download; confirmed additive diff (0 deletions), scoped <code>.gitattributes</code>, on-demand fetch, 404-not-403 preserved, exactly 2 serverGrade rows, envelope OFF, Phase 52 untouched. P2: contract zod not <code>.strict()</code> (generated, not editable — server leak test is the real guard) → noted; missing close-out → <strong>FIXED</strong>.</li>
+<li><strong>code-reviewer → SHIP</strong> (no P0/P1): verified object-URL revoke in <code>finally</code>, error privacy (server body never read), non-vacuous tests, conventions match. P2: global URL mocks not restored → <strong>FIXED</strong>; unmount-mid-fetch setState → <strong>DEFERRED</strong> (React 18 no-warn, no crash/leak, tiny manual button); <code>generatedAt</code> Date-vs-string + leak-test-is-server-side → noted (expected orval / by-design).</li>
+</ul>
+<h2 id="13-tests-and-gates-run-node-24160-docker-pg-5434">13. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<p>typecheck + check:no-heuristic-runtime <strong>PASS</strong> · api-server <strong>588/588</strong> (+1 contract test) · atlas <strong>165/165</strong> (+6 download-button tests) · orval codegen clean + <code>typecheck:libs</code> PASS · audit:csv-set-equal-bc PASS (1 opt-in) · audit:sql-resultset-bc PASS (3 dark + 1 opt-in) · audit:contains-bc 3/3 · audit:authoring exit 0.</p>
+<h2 id="14-failures-fixes-and-surprises">14. Failures, Fixes, and Surprises</h2>
+<ul>
+<li><strong>Surprise (good):</strong> expected the ~95-file CRLF storm; got a clean additive diff because the index was already LF — <code>.gitattributes</code> now locks that in.</li>
+<li><strong>Fix (code-reviewer P2):</strong> test reassigned <code>globalThis.URL.createObjectURL/revokeObjectURL</code> without restoring → added <code>afterEach</code> restore of the captured originals. Did NOT use <code>vi.restoreAllMocks()</code> (it would remove the module-level anchor-click spy and break the assertions); restored only the two globals. Re-ran the file: 6/6 green.</li>
+<li><strong>Fix (architect P2):</strong> added the missing <code>docs/phases/phase-60c-*.md</code> close-out.</li>
+</ul>
+<h2 id="15-current-git-state">15. Current Git State</h2>
+<p>Branch <code>main</code>. Feature commit <strong><code>b748cc9</code></strong> (14 files, +779/−0) on top of <code>f8c0aa4</code>. Archive commit follows. <code>git status --short</code> clean except hook-managed <code>.agentic/self-review.log</code>. Will push to <code>main</code> after the archive.</p>
+<h2 id="16-remaining-risks-blockers">16. Remaining Risks / Blockers</h2>
+<ul>
+<li>Contract test uses a non-<code>.strict()</code> generated zod (can't reject extra fields) — the server leak test is the real guard; noted, not a defect.</li>
+<li>Unmount-mid-fetch abort guard deferred (cosmetic) — revisit if the button moves to a higher-churn surface.</li>
+<li>Full app UI can't boot until Phase 0.2 (Replit-connector decouple); the button is unit-verified, not browser-booted end-to-end.</li>
+<li>Pre-60B completions still have no durable snapshot (honest degrade, no backfill).</li>
+</ul>
+<h2 id="17-recommended-next-step">17. Recommended Next Step</h2>
+<p><strong>Owner approval to start Phase 60D</strong> (likely: optional safe submission-excerpt preview behind a fresh no-leak review, then GitHub export/publishing — the deferred E2 tail). Do not begin unprompted. Optional parallel cleanups (owner-approve): Phase 0.2 connector decouple for a real <code>pnpm dev</code> to browser-verify the download end-to-end.</p>
+<h2 id="18-explicit-stop-statement">18. Explicit Stop Statement</h2>
+<p>Stopped. Phase 60C complete, reviewed (PASS/SHIP), committed <code>b748cc9</code>, gates green. Phase 60D NOT started. Awaiting next instruction.</p>
+</main>
+</body>
+</html>
