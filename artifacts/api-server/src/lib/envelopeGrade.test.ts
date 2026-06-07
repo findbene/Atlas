@@ -293,6 +293,96 @@ describe("gradeEnvelopeCapture — csv_set_equal opted-in (future flip behavior)
   });
 });
 
+// ── Phase 58A — DARK sql_resultset envelope branch ─────────────────────────
+describe("gradeEnvelopeCapture — sql_resultset is DARK (no opt-in)", () => {
+  it("auto-passes a structured capture when spec omits serverGrade (legacy tuple)", () => {
+    const out = gradeEnvelopeCapture(
+      step({
+        validationType: "sql_resultset",
+        expectedOutput: null,
+        validationConfig: { spec: { query: "q", expectedRow: { n: 7 } } },
+      }),
+      sqlCapture(["n"], [[7]]),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+
+  it("auto-passes even when captured rows do NOT match expected (proves darkness)", () => {
+    const out = gradeEnvelopeCapture(
+      step({
+        validationType: "sql_resultset",
+        expectedOutput: null,
+        validationConfig: { spec: { columns: ["n"], expectedRows: [[7]] } },
+      }),
+      sqlCapture(["n"], [[999]]),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+
+  it("auto-passes a stdout-only capture (no columns/rows) — pre-58A fall-through preserved", () => {
+    const out = gradeEnvelopeCapture(
+      step({
+        validationType: "sql_resultset",
+        expectedOutput: null,
+        validationConfig: { spec: { columns: ["n"], expectedRows: [[7]] } },
+      }),
+      capture("1 row(s) in 3ms"),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+
+  it("auto-passes when validationConfig is null (default-pass, matches grading.ts)", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "sql_resultset", expectedOutput: null, validationConfig: null }),
+      sqlCapture(["n"], [[7]]),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Step completed." });
+  });
+});
+
+describe("gradeEnvelopeCapture — sql_resultset opted-in (future flip behavior)", () => {
+  const optedSpec = {
+    spec: {
+      serverGrade: true,
+      columns: ["check", "value"],
+      expectedRows: [
+        ["one_current", 0],
+        ["overlap", 0],
+      ],
+    },
+  };
+
+  it("passes when structured rows match (order-insensitive multiset)", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "sql_resultset", expectedOutput: null, validationConfig: optedSpec }),
+      sqlCapture(
+        ["check", "value"],
+        [
+          ["overlap", 0],
+          ["one_current", 0],
+        ],
+      ),
+    );
+    expect(out).toEqual({ passed: true, feedback: "Correct!" });
+  });
+
+  it("fails when structured rows do not match", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "sql_resultset", expectedOutput: null, validationConfig: optedSpec }),
+      sqlCapture(["check", "value"], [["one_current", 1], ["overlap", 0]]),
+    );
+    expect(out.passed).toBe(false);
+  });
+
+  it("fails closed on a stdout-only capture when opted-in", () => {
+    const out = gradeEnvelopeCapture(
+      step({ validationType: "sql_resultset", expectedOutput: null, validationConfig: optedSpec }),
+      capture("2 row(s) in 5ms"),
+    );
+    expect(out.passed).toBe(false);
+  });
+});
+
 describe("Honest-claim feedback audit (H3 ceiling)", () => {
   it("pass feedback contains no anti-cheat overclaim language", () => {
     const fb = gradeEnvelopeCapture(step({ expectedOutput: "1" }), capture("1")).feedback;

@@ -44,6 +44,14 @@ export type GradingOutcome = {
  *  - `regex`              → `validationConfig.{pattern, flags}` test;
  *                           invalid regex fails with a config-error feedback
  *                           (NOT thrown) so the route can return cleanly.
+ *  - `csv_set_equal`      → DARK rowset comparator (Phase 57A). Opt-in via
+ *                           `spec.serverGrade === true`; otherwise auto-passes
+ *                           with "Step completed." (see `gradeCsvSetEqual`).
+ *  - `sql_resultset`      → DARK rowset comparator (Phase 58A). Same opt-in
+ *                           gate + shared comparator; pre-58A this kind had no
+ *                           case and fell through to the generic auto-pass, so
+ *                           the dark branch is byte-identical (see
+ *                           `gradeSqlResultset`).
  *  - anything else / null → passes with the generic "Step completed."
  *                           feedback (preserves legacy behavior).
  */
@@ -77,6 +85,19 @@ export function gradeSubmission(
     // fallthrough did. Audit `audit:csv-set-equal-bc` enforces byte-identity.
     const cfg = step.validationConfig as { spec?: unknown };
     return gradeCsvSetEqual(cfg.spec, submission);
+  }
+
+  if (step.validationType === "sql_resultset" && step.validationConfig) {
+    // Phase 58A — DARK foundation. The opt-in gate is inside
+    // `gradeSqlResultset` (`spec.serverGrade === true`); every visible row
+    // today omits the flag, so this branch returns the legacy
+    // `{passed:true, "Step completed."}` exactly as the pre-58A default
+    // fallthrough did (sql_resultset had NO case before — it fell through to
+    // the generic auto-pass below). Audit `audit:sql-resultset-bc` enforces
+    // byte-identity. When `validationConfig` is falsy, the branch is skipped
+    // and the same generic auto-pass is reached via the final return.
+    const cfg = step.validationConfig as { spec?: unknown };
+    return gradeSqlResultset(cfg.spec, submission);
   }
 
   if (step.validationType === "regex" && step.validationConfig) {
@@ -374,25 +395,32 @@ export function computeCsvSetEqualHash(
   return canonicalDatasetHash(columns, deduped);
 }
 
-export function gradeCsvSetEqual(
-  spec: unknown,
+/** The rowset spec shape — shared by `csv_set_equal` (Phase 57A) AND
+ *  `sql_resultset` (Phase 58A) server grading. Both kinds consume the same
+ *  canonical `{columns, rows}` submission and compare against the same inline
+ *  `expectedRows` / `expectedRowsHash`, so they share one comparator. The only
+ *  per-kind difference is the dispatch entry point + opt-in gate wrapper. */
+type RowsetSpec = CsvSetEqualSpec;
+
+/**
+ * Shared rowset comparator core (Phase 58A extraction).
+ *
+ * The caller — a per-kind wrapper (`gradeCsvSetEqual` / `gradeSqlResultset`) —
+ * has ALREADY confirmed `spec` is an object with `serverGrade === true` (the
+ * opt-in gate). From here on a malformed spec / submission FAILS CLOSED.
+ *
+ * This body is a verbatim lift of the original Phase-57A `gradeCsvSetEqual`
+ * comparison logic; both wrappers now delegate to it, so `csv_set_equal`
+ * behavior is byte-identical (pinned by grading.test.ts + audit:csv-set-equal-bc)
+ * and `sql_resultset` reuses one well-tested comparator instead of a
+ * drift-prone second copy (the anti-drift discipline the 57A architect asked
+ * for: one comparator implementation, many entry points).
+ */
+function gradeRowsetSubmission(
+  s: RowsetSpec,
   submission: string | null | undefined,
 ): GradingOutcome {
-  // ── Opt-in gate (BC preserved when off) ─────────────────────────────
-  if (spec === null || typeof spec !== "object") {
-    // Live rows always carry an object spec. If missing, behave like the
-    // pre-57A fallthrough — auto-pass. (Authoring guard rejects this.)
-    return BC_AUTO_PASS;
-  }
-  const s = spec as CsvSetEqualSpec;
-  if (s.serverGrade !== true) {
-    // The ONLY way to enter real grading is an explicit boolean true.
-    // Non-boolean ("yes", 1, etc.) is treated as opt-out for runtime
-    // safety; authoring guard rejects the same shape so it cannot ship.
-    return BC_AUTO_PASS;
-  }
-
-  // ── From here on, malformed spec / submission FAIL CLOSED ───────────
+  // ── Malformed spec / submission FAIL CLOSED ─────────────────────────
   if (
     !Array.isArray(s.columns) ||
     s.columns.length === 0 ||
@@ -553,6 +581,77 @@ export function gradeCsvSetEqual(
     };
   }
   return PASS_OK;
+}
+
+export function gradeCsvSetEqual(
+  spec: unknown,
+  submission: string | null | undefined,
+): GradingOutcome {
+  // ── Opt-in gate (BC preserved when off) ─────────────────────────────
+  if (spec === null || typeof spec !== "object") {
+    // Live rows always carry an object spec. If missing, behave like the
+    // pre-57A fallthrough — auto-pass. (Authoring guard rejects this.)
+    return BC_AUTO_PASS;
+  }
+  const s = spec as RowsetSpec;
+  if (s.serverGrade !== true) {
+    // The ONLY way to enter real grading is an explicit boolean true.
+    // Non-boolean ("yes", 1, etc.) is treated as opt-out for runtime
+    // safety; authoring guard rejects the same shape so it cannot ship.
+    return BC_AUTO_PASS;
+  }
+  return gradeRowsetSubmission(s, submission);
+}
+
+// ── Phase 58A — `sql_resultset` DARK server-side comparator ───────────────
+//
+// Goals (mirrors the Phase-57A csv_set_equal arc; see docs/phases/phase-58a-*):
+//   1. Provide a real server-side rowset comparator for `sql_resultset`
+//      without changing any learner-visible behavior today. Pre-58A,
+//      `sql_resultset` had NO case in `gradeSubmission` and fell through to
+//      the generic `{passed:true, feedback:"Step completed."}` default. With
+//      `serverGrade` absent (every visible row today), this wrapper returns
+//      that exact tuple, so the catalog is byte-identical to pre-58A.
+//   2. Opt-in via `spec.serverGrade === true`. When absent or non-true, this
+//      returns the legacy auto-pass tuple verbatim. No row opts in during 58A.
+//   3. Shares ONE comparator (`gradeRowsetSubmission`) with `csv_set_equal`:
+//      same canonical `{columns, rows}` submission contract, same inline
+//      `expectedRows` / `expectedRowsHash`, same normalization knobs
+//      (`orderSensitive`, `trimStrings`, `nullEqualsEmpty`,
+//      `coerceNumericStrings`, `caseInsensitive`, `dedupe`). Order-sensitive
+//      result-set checks (e.g. ORDER BY) set `orderSensitive: true`.
+//   4. Symmetric with the authoring guard `assertValidSqlResultsetSpec` in
+//      `@workspace/curriculum-quality/authoring`: anything the guard rejects
+//      at authoring time, this comparator rejects at runtime.
+//
+// Honest-claim ceiling (H3, docs/runtime-validation-threat-model.md §7): when a
+// row eventually opts in, the strongest claim is "Atlas verified that the
+// submitted result rows matched the enabled SQL result validation checks." It
+// MUST NOT claim independent authorship, no-outside-help, cheat-proof,
+// tamper-proof, or job-readiness. Envelope PROVENANCE stays separate from
+// envelope ENFORCEMENT (`sql_resultset` is NOT in `PILOT_RUNTIME_KINDS`).
+//
+// Submission contract (when opted in): JSON `{columns: string[], rows: (string|
+// number|boolean|null)[][]}` — the DuckDB-WASM adapter capture shape. Answer
+// keys (expectedRows / hashes) live only in `validation_config` server-side and
+// are NEVER sent to the client (see `deriveServerGrade` in routes/projects.ts,
+// which today surfaces serverGrade only for csv_set_equal).
+export function gradeSqlResultset(
+  spec: unknown,
+  submission: string | null | undefined,
+): GradingOutcome {
+  // ── Opt-in gate (BC preserved when off) ─────────────────────────────
+  if (spec === null || typeof spec !== "object") {
+    // No object spec → behave like the pre-58A default fallthrough.
+    return BC_AUTO_PASS;
+  }
+  const s = spec as RowsetSpec;
+  if (s.serverGrade !== true) {
+    // Only an explicit boolean true enters real grading. Anything else is
+    // opt-out (authoring guard rejects the same non-boolean shapes).
+    return BC_AUTO_PASS;
+  }
+  return gradeRowsetSubmission(s, submission);
 }
 
 /** Step types that do not benefit from a separate "Check" affordance

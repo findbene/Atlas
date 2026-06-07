@@ -174,12 +174,39 @@ reviews that 529'd during the flip + did focused post-flip verification + end-to
 - **Gates:** typecheck + check:no-heuristic-runtime · audit:csv-set-equal-bc PASS (1 opted-in, 5/5) ·
   audit:contains-bc 3/3 · audit:authoring exit 0. **Phase 57B fully CLOSED.**
 
+## 2026-06-07 — Phase 58A `sql_resultset` DARK comparator foundation — SHIPPED (dark)
+
+Close-out: `docs/phases/phase-58a-sql-resultset-dark-comparator.md`. Built the server-side `sql_resultset`
+rowset comparator + audit + tests, build-DARK. **Zero rows opt in; zero learner-visible change; envelope
+enforcement OFF; Phase 52 untouched.** Mirrors the 57A csv_set_equal arc.
+- **Architecture:** extracted the Phase-57A `gradeCsvSetEqual` comparison body **verbatim** into a shared
+  `gradeRowsetSubmission` core; `gradeCsvSetEqual` + new `gradeSqlResultset` are thin opt-in-gate wrappers
+  (one comparator, two entry points — the 57A architect's anti-drift ask). Added `sql_resultset` dispatch
+  case + a DARK `sql_resultset` envelope branch (NOT in `PILOT_RUNTIME_KINDS`). Authoring guard DRY'd into
+  shared `assertValidRowsetSpec`; new `assertValidSqlResultsetSpec` wired into `validationConfig`.
+- **Files:** `grading.ts`, `envelopeGrade.ts`, `authoring.ts` + 3 `*.test.ts` + NEW
+  `scripts/src/audit-sql-resultset-bc.ts` (`audit:sql-resultset-bc`) + `validation-kind-matrix.md`.
+  **routes/projects.ts `deriveServerGrade` left csv-only** (FE signal is a 58B concern). No schema/migration/
+  OpenAPI/codegen/env/Phase-52 change.
+- **Reviews:** `atlas-architect-reviewer` **PASS** + `code-reviewer` **SHIP**, no P0/P1 (both ran clean — no
+  529 this time). Byte-verified the 162-line extraction against HEAD. 2 accept-with-note P2s (DB audits need
+  PG, which I ran on Node 24; sentinel collision-proofing confirmed sound).
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck + check:no-heuristic-runtime · api-server **497/497**
+  (+31) · curriculum-quality 143/144 (1 env-only COURSE_TAXONOMY ENOENT) · `audit:sql-resultset-bc` PASS
+  (4 dark rows byte-identical across 40 checks; synthetic opt-in 7/7) · `audit:csv-set-equal-bc` PASS
+  (live opted-in csv row regression-safe through the refactored core) · `audit:contains-bc` 3/3 ·
+  `audit:authoring` exit 0.
+- **58B candidate (NOT flipped):** C2 semantic-layer **step 2** (SCD-2 invariants) — already has `expectedRows`,
+  deterministic 0/0 output, WASM-runnable over `seeds/customers`. Flip needs spec reshape to positional
+  `{columns, expectedRows}` + real-browser WASM byte-verify + extend `deriveServerGrade` to sql_resultset.
+
 ## Next steps
 
 1. ✅ **DONE (57B-flip + 57B-postflip-review):** C2 promoted + 1 csv_set_equal row server-graded (envelope
    OFF); independently reviewed (architect PASS + code-review SHIP) + end-to-end verified; P2 audit fix landed.
-2. **Phase 58** (`sql_resultset` server grading) — E1 continues; same dark→verify→flip discipline. **Owner
-   approval required to start.** Heed: collision-proof audit negative already in place for the next opt-in.
+2. ✅ **DONE (58A):** `sql_resultset` DARK comparator + audit + tests; reviewed (architect PASS + code SHIP);
+   gates green. **NEXT = Phase 58B** (reshape + byte-verify + flip exactly ONE sql_resultset row, e.g. C2
+   step 2). **Owner approval required to start 58B.**
 3. **Parallel low-risk cleanups (owner-approve):** `.gitattributes` `eol=lf` for `lib/*/src/generated/**`
    (orval CRLF churn) · Linux/CI `pnpm-lock.yaml` regen · teach authoring-audit classifier serverGrade-awareness.
 4. Later E1→E5: 59 `/check`-vs-`/submit` evidence · 60 portfolio/GitHub · 61 authoring factory v2 · 62 cloud-lab.

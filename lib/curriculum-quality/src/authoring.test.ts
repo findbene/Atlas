@@ -297,3 +297,42 @@ describe("validationConfig(csv_set_equal) — Phase 57A structured-spec validato
   it("rejects expectedRowsHash that is uppercase hex (opt-in)", () =>
     bad({ serverGrade: true, columns: ["a"], expectedRowsHash: "A".repeat(64) }, /64-character lowercase hex/));
 });
+
+// ── Phase 58A — `sql_resultset` structured-spec validator ─────────────────
+describe("validationConfig(sql_resultset) — Phase 58A structured-spec validator", () => {
+  const ok = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("sql_resultset", "desc", spec)).not.toThrow();
+  const bad = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("sql_resultset", "desc", spec)).toThrow(match);
+
+  // ── BC: the 25 live free-form sql_resultset specs pass through ─────────
+  it("accepts live shape {query, expectedRow} (scalar, no serverGrade)", () =>
+    ok({ query: "select count(*) as n from t", expectedRow: { n: 7, nUnique: 7 } }));
+  it("accepts live shape {query, expectedRows:[{...}]} (array-of-objects, no serverGrade)", () =>
+    ok({ query: "q", expectedRows: [{ check: "one_current", value: 0 }, { check: "overlap", value: 0 }] }));
+  it("accepts Snowflake scalar-assertion shape {expectedActionCounts}", () =>
+    ok({ expectedActionCounts: { INSERT: 3 } }));
+  it("accepts wrapped {expected:{...}} shape", () =>
+    ok({ expected: { inheritedRolesCount: 3, directPrivilegesCount: 0 } }));
+  it("lax: non-boolean flags pass through without opt-in (matches runtime BC)", () => {
+    ok({ orderSensitive: "yes" as unknown as boolean });
+    ok({ dedupe: "weird" as unknown as "both" });
+    ok({ columns: ["a", 5 as unknown as string] });
+  });
+
+  // ── opt-in: same rowset contract as csv_set_equal ─────────────────────
+  it("accepts opt-in with columns + expectedRows", () =>
+    ok({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }));
+  it("accepts opt-in with columns + expectedRowsHash (valid hex)", () =>
+    ok({ serverGrade: true, columns: ["n"], expectedRowsHash: "a".repeat(64) }));
+
+  // ── opt-in rejections carry the sql_resultset label ───────────────────
+  it("rejects serverGrade non-boolean (strict author lint, names the kind)", () =>
+    bad({ serverGrade: "yes" as unknown as boolean }, /sql_resultset spec: 'serverGrade' must be a boolean/));
+  it("rejects serverGrade=true without columns", () =>
+    bad({ serverGrade: true, expectedRows: [[7]] }, /'columns' \(non-empty\) is required/));
+  it("rejects serverGrade=true without expectedRows or hash", () =>
+    bad({ serverGrade: true, columns: ["n"] }, /must provide 'expectedRows' or 'expectedRowsHash'/));
+  it("rejects expectedRows widths that don't match columns count", () =>
+    bad({ serverGrade: true, columns: ["a", "b"], expectedRows: [[1]] }, /must have exactly 2 cells/));
+});

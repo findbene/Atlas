@@ -133,6 +133,31 @@ export function gradeEnvelopeCapture(
     return gradeSubmission(step, capture.stdout);
   }
 
+  // Phase 58A — DARK sql_resultset envelope branch (identical pattern to the
+  // csv_set_equal branch above). When a verified capture carries tabular
+  // `columns`/`rows`, serialize them into the canonical JSON contract and route
+  // through the SAME `gradeSubmission` → `gradeSqlResultset` comparator the
+  // bare-string submit uses — one comparator, structured input. This is DARK:
+  // `gradeSqlResultset` short-circuits to the legacy
+  // `{passed:true,"Step completed."}` auto-pass whenever the step's
+  // `spec.serverGrade !== true`. No visible row opts in today, so this branch
+  // is byte-identical to the pre-58A fall-through below (which routed
+  // `capture.stdout` through the same auto-passing grader). `sql_resultset` is
+  // deliberately NOT added to `PILOT_RUNTIME_KINDS` — provenance, not
+  // enforcement. The behavioral difference appears only once a row opts in (58B):
+  // structured rows are graded for real instead of the stdout summary failing
+  // closed.
+  if (kind === "sql_resultset") {
+    if (capture.columns && capture.rows) {
+      const submission = JSON.stringify({
+        columns: capture.columns,
+        rows: capture.rows,
+      });
+      return gradeSubmission(step, submission);
+    }
+    return gradeSubmission(step, capture.stdout);
+  }
+
   // Not a pilot kind — preserve Phase 47 behavior exactly: route the
   // verified stdout through the legacy grader.
   return gradeSubmission(step, capture.stdout);

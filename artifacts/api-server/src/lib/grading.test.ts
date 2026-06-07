@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   gradeSubmission,
   gradeCsvSetEqual,
+  gradeSqlResultset,
   computeCsvSetEqualHash,
   NO_CHECK_STEP_TYPES,
 } from "./grading";
@@ -592,6 +593,213 @@ describe("gradeSubmission", () => {
       const direct = gradeCsvSetEqual(spec, okSub(["a"], [[1]]));
       const viaDispatch = gradeSubmission(cstep(spec), okSub(["a"], [[1]]));
       expect(direct).toEqual(viaDispatch);
+    });
+  });
+
+  // ── Phase 58A — sql_resultset DARK comparator ────────────────────────
+  describe("sql_resultset (Phase 58A — dark server-side comparator)", () => {
+    const sstep = (spec: unknown) =>
+      step({
+        validationType: "sql_resultset",
+        validationConfig: { kind: "sql_resultset", spec, description: "t" } as Parameters<typeof gradeSubmission>[0]["validationConfig"],
+      });
+    const okSub = (columns: string[], rows: unknown[][]) =>
+      JSON.stringify({ columns, rows });
+
+    // ── DARK / BC: every live shape auto-passes byte-identically ───────
+    it("BC: validationConfig=null → generic 'Step completed.' (no sql_resultset case before 58A)", () => {
+      const r = gradeSubmission(
+        step({ validationType: "sql_resultset", validationConfig: null }),
+        "select * from t",
+      );
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: spec without serverGrade → auto-pass (no behavior change for the 25 live rows)", () => {
+      // Mirrors the live `{query, expectedRow}` shape used by the C2 semantic-layer steps.
+      const r = gradeSubmission(
+        sstep({ query: "select count(*) as n from t", expectedRow: { n: 7 } }),
+        "select count(*) as n from t",
+      );
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: free-form scalar-assertion spec (Snowflake shape) → auto-pass", () => {
+      const r = gradeSubmission(
+        sstep({ expectedActionCounts: { INSERT: 3 } }),
+        "create stream ...",
+      );
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: array-of-objects expectedRows without serverGrade → auto-pass", () => {
+      const r = gradeSubmission(
+        sstep({ query: "q", expectedRows: [{ check: "one_current", value: 0 }] }),
+        "garbage",
+      );
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: serverGrade=false → auto-pass", () => {
+      const r = gradeSubmission(sstep({ serverGrade: false, columns: ["a"], expectedRows: [[1]] }), "garbage");
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    it("BC: serverGrade non-boolean ('yes') → auto-pass (runtime treats !==true as opt-out)", () => {
+      const r = gradeSubmission(sstep({ serverGrade: "yes", columns: ["a"], expectedRows: [[1]] }), "garbage");
+      expect(r).toEqual({ passed: true, feedback: "Step completed." });
+    });
+
+    // ── opted-in: malformed specs fail closed ──────────────────────────
+    it("malformed: serverGrade=true but no expectedRows/hash → MALFORMED", () => {
+      const r = gradeSubmission(sstep({ serverGrade: true, columns: ["a"] }), okSub(["a"], [[1]]));
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: serverGrade=true but columns missing → MALFORMED", () => {
+      const r = gradeSubmission(sstep({ serverGrade: true, expectedRows: [[1]] }), okSub(["a"], [[1]]));
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    it("malformed: orderSensitive=true with hash-only → MALFORMED", () => {
+      const hash = computeCsvSetEqualHash(["a"], [[1]]);
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRowsHash: hash, orderSensitive: true }),
+        okSub(["a"], [[1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/malformed/i);
+    });
+
+    // ── opted-in: submission fails closed (raw SQL / empty / non-JSON) ─
+    it("submission: raw SQL (not JSON) fails closed", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }),
+        "select count(*) as n from stg_customers",
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/not valid JSON/i);
+    });
+
+    it("submission: empty string fails closed", () => {
+      const r = gradeSubmission(sstep({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }), "");
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/submission is empty/i);
+    });
+
+    it("submission: wrong shape (missing rows) fails closed", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }),
+        JSON.stringify({ columns: ["n"] }),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/columns.*rows/i);
+    });
+
+    // ── opted-in: happy path + result-set semantics ───────────────────
+    it("PASS: exact result-set match (default multiset)", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["check", "value"], expectedRows: [["one_current", 0], ["overlap", 0]] }),
+        okSub(["check", "value"], [["overlap", 0], ["one_current", 0]]),
+      );
+      expect(r).toEqual({ passed: true, feedback: "Correct!" });
+    });
+
+    it("FAIL: wrong columns", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }),
+        okSub(["count"], [[7]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("FAIL: wrong rows (missing expected row)", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }),
+        okSub(["n"], [[6]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("FAIL: extra unmatched row", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["n"], expectedRows: [[7]] }),
+        okSub(["n"], [[7], [99]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/unexpected/i);
+    });
+
+    // ── order-sensitive result-set (ORDER BY contracts) ───────────────
+    it("FAIL: rows out of order with orderSensitive=true", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [2]], orderSensitive: true }),
+        okSub(["a"], [[2], [1]]),
+      );
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toMatch(/ordered/i);
+    });
+
+    it("PASS: orderSensitive=true with correct order", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[1], [2]], orderSensitive: true }),
+        okSub(["a"], [[1], [2]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    // ── normalization edge cases (delegated to the shared comparator) ─
+    it("FAIL: null vs '' distinct by default", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[null]] }),
+        okSub(["a"], [[""]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("PASS: nullEqualsEmpty=true collapses null and ''", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[null]], nullEqualsEmpty: true }),
+        okSub(["a"], [[""]]),
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    it("FAIL: '42' vs 42 distinct by default; PASS with coerceNumericStrings", () => {
+      const strict = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[42]] }),
+        okSub(["a"], [["42"]]),
+      );
+      expect(strict.passed).toBe(false);
+      const coerced = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[42]], coerceNumericStrings: true }),
+        okSub(["a"], [["42"]]),
+      );
+      expect(coerced.passed).toBe(true);
+    });
+
+    it("boolean cells are distinct from string 'true'", () => {
+      const r = gradeSubmission(
+        sstep({ serverGrade: true, columns: ["a"], expectedRows: [[true]] }),
+        okSub(["a"], [["true"]]),
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    // ── direct helper symmetry with dispatch ──────────────────────────
+    it("gradeSqlResultset called directly returns same outcome as dispatch", () => {
+      const spec = { serverGrade: true, columns: ["n"], expectedRows: [[7]] };
+      const direct = gradeSqlResultset(spec, okSub(["n"], [[7]]));
+      const viaDispatch = gradeSubmission(sstep(spec), okSub(["n"], [[7]]));
+      expect(direct).toEqual(viaDispatch);
+    });
+
+    it("shares ONE comparator with csv_set_equal: identical opted-in outcomes", () => {
+      const spec = { serverGrade: true, columns: ["a", "b"], expectedRows: [[1, "x"], [2, "y"]] };
+      const sub = okSub(["a", "b"], [[2, "y"], [1, "x"]]);
+      expect(gradeSqlResultset(spec, sub)).toEqual(gradeCsvSetEqual(spec, sub));
     });
   });
 
