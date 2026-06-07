@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini-Report Protocol — wire 12-section report + HTML archive into memory + hooks</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Mini-Report Protocol — wire 12-section report + HTML archive into memory + hooks</h1><p class="meta">2026-06-06 · COMPLETED · config/docs-only</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Owner directive (config/docs-only): make two obligations permanent + reliably executed after EVERY Atlas task/mini-phase — (1) return the exact 12-section <code># Claude Code Mini-Report</code>; (2) save each report as HTML in <code>Atlas_Each_Task_Mini_Reports_to_Chatgpt.html</code> (single underscore). Wire into permanent/persistent memory; use hooks or other methods so it is delivered on time without prompting. Hard stops: don't break existing build/grader state; no production/schema/env/canary change.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Both obligations are now wired in four reinforcing places: project <code>CLAUDE.md</code> (loaded every turn), persistent memory, a canonical template file, and a SessionStart hook. The archive folder was reconciled to the owner's single-underscore name and this very report was filed into it via the documented flow.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>.claude/atlas-mini-report-template.md</code> — <strong>added</strong> — canonical 12-section format + archival steps (single source of truth). Intentional.</li>
+<li><code>CLAUDE.md</code> — <strong>modified</strong> — new MANDATORY "Mini-report protocol" section. Intentional.</li>
+<li><code>.claude/hooks/atlas-mini-report-reminder.sh</code> — <strong>added</strong> — SessionStart hook that injects the two-obligation reminder each session. Intentional.</li>
+<li><code>.claude/settings.json</code> — <strong>modified</strong> — wired the SessionStart hook. Intentional.</li>
+<li><code>Atlas_Each_Task_Mini_Reports_to_Chatgpt.html/**</code> — <strong>added</strong> (git rename from the old <code>Atlas__…</code> double-underscore folder, which is <strong>deleted</strong>) + <code>src/06-mini-report-protocol-wiring.md</code> (this report) + regenerated <code>index.html</code> and <code>phase-*.html</code>. Intentional.</li>
+<li><code>~/.claude/projects/.../memory/atlas-chatgpt-mini-report.md</code> — <strong>modified</strong> (outside repo) — single-underscore path + enforcement note.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<ul>
+<li>App code changed? <strong>no</strong></li>
+<li>DB schema/migration changed? <strong>no</strong></li>
+<li>Project content changed? <strong>no</strong></li>
+<li>Env/canary changed? <strong>no</strong></li>
+<li>OpenAPI/codegen changed? <strong>no</strong></li>
+<li>Production touched? <strong>no</strong></li>
+<li>Phase 52 touched? <strong>no</strong></li>
+<li>Any row opted in? <strong>no</strong></li>
+<li>Any unexpected file changed? <strong>no</strong> (folder rename is the owner-intended single-underscore path)</li>
+</ul>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>Four-layer enforcement: (a) <code>CLAUDE.md</code> mandatory section — loaded into context every turn, the primary safeguard; (b) <code>.claude/atlas-mini-report-template.md</code> — the exact format, referenced everywhere so it lives once; (c) memory <code>atlas-chatgpt-mini-report</code> — the why + the archival how, persistent across sessions; (d) SessionStart hook — injects a terse reminder each session (non-blocking, <code>exit 0</code>). <code>build.py</code> is path-agnostic (uses its own dir), so the folder rename needed no code change. No behavior of the app/grader touched.</p>
+<h2 id="6-tests-and-gates-run">6. Tests and Gates Run</h2>
+<ul>
+<li><code>python build.py</code> (archive regen) — <strong>PASS</strong> (rebuilt index.html + 7 standalone pages from 7 src reports).</li>
+<li>No code gates required (config/docs-only; no app/lib/scripts source touched). typecheck/test/audit — <strong>NOT RUN — reason:</strong> out of scope (no code change).</li>
+</ul>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<p>The archive folder had been renamed on disk by the owner from <code>Atlas__Each…</code> (double underscore) to <code>Atlas_Each…</code> (single) — git showed the old as deleted + the new as untracked. Reconciled by committing the rename and standardizing every reference to the single-underscore path. No other surprises.</p>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>; previous HEAD <code>43381bb</code> (mini-report archive). This change (template + hook + settings + CLAUDE.md + folder rename + this report) committed on top and pushed. Working tree clean except hook-managed <code>.agentic/self-review.log</code> + <code>HANDOFF.md</code>.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>The mini-report + archive protocol is now self-reinforcing across CLAUDE.md, memory, template, and a hook. Every future Atlas task will produce the 12-section report and archive it. No engineering state changed; Phase 57B-flip remains the last shipped phase (1 csv_set_equal row opted in, envelope off), pending independent review + observation.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li>The SessionStart hook surfaces a reminder but cannot <em>force</em> output; the real guarantee is the CLAUDE.md per-turn rule + discipline. Low risk.</li>
+<li>57B-flip's independent subagent reviews are still pending (API 529'd earlier) — unrelated to this task but still open.</li>
+</ul>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Recommended next step: re-run <code>/code-review</code> + <code>atlas-architect-reviewer</code> on Phase 57B-flip now that the API has recovered (owner approval / test-audit). This protocol task itself needs nothing further.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p>Stopped. Ready for next instruction.</p>
+</main>
+</body>
+</html>

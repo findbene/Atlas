@@ -51,6 +51,14 @@ python-libraries, sql). The 57-phase build was produced on Replit; **Claude Code
 
 `/atlas-phase-plan <id>` → build → `/atlas-validate` → `atlas-architect-reviewer` subagent → `/code-review` → fix all findings → `/atlas-phase-close`. One logical change per commit; conventional-commit messages. Update `.agentic/progress.md` after each phase.
 
+## Mini-report protocol — MANDATORY after EVERY task/mini-phase (owner directive)
+
+Two obligations on completing ANY Atlas task or mini-phase — never skip, never abbreviate to "done":
+1. **Return the exact 12-section `# Claude Code Mini-Report`** — format is `.claude/atlas-mini-report-template.md` (Task Received · Completion Status · Files Changed · Scope/Hard-Stops Check · Implementation Details · Tests & Gates · Failures/Fixes/Surprises · Git State · Project State · Remaining Risks · Recommended Next Step · Explicit Stop). Detailed enough for ChatGPT to issue the next safe instruction. Do NOT start the next phase unless explicitly approved.
+2. **Archive it to `Atlas_Each_Task_Mini_Reports_to_Chatgpt.html/`** (single underscore): add `src/NN-<slug>.md`, run `python build.py`, commit. `index.html` = entry point. Never hand-edit generated HTML.
+
+A SessionStart hook (`.claude/hooks/atlas-mini-report-reminder.sh`) reinforces this each session; memory `atlas-chatgpt-mini-report` holds the why. This is non-negotiable.
+
 ## Workspace docs
 
 `.agentic/discovery.md` (intent + locked decisions), `.agentic/plan.md` (epic/phase roadmap + invocation guide), `.agentic/progress.md` (live state). Per-phase close-outs: `docs/phases/`. Authoring spec: `docs/project-authoring-spec.md`.
