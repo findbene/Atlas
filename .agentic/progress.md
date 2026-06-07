@@ -224,15 +224,40 @@ dark→verify→flip discipline as the csv 57B-flip.
 - **Invariants:** sql_resultset opted-in = 1, csv_set_equal opted-in = 1, no others; C2 visible+approved;
   envelope OFF; Phase 52 untouched; no schema/env/canary/cloud/wave/cert change; RUBRIC_VERSION frozen.
 
+## 2026-06-07 — Phase 59A `/check`-vs-`/submit` evidence parity — SHIPPED (audit + tests)
+
+Close-out: `docs/phases/phase-59a-check-submit-evidence-parity.md`; contract matrix:
+`docs/check-submit-evidence-contract.md`. **Audit/hardening phase — no behavior change, no defect found.**
+- **Conclusion:** `/check` + `/submit` share ONE pure comparator (`gradeSubmission`→`gradeRowsetSubmission`).
+  Parity holds for the 2 live rows: `/submit`'s envelope branch is unreachable (enforcement OFF) → both grade
+  `gradeSubmission(step, submission)` on the same `{columns,rows}` JSON. `/check` = zero side effects;
+  `/submit` = durable completion+XP only on fresh pass. No answer-key leak on either route (PASS or FAIL).
+- **Shipped:** `docs/check-submit-evidence-contract.md` (per-kind evidence matrix) + NEW
+  `artifacts/api-server/src/routes/user-check-submit-parity.test.ts` (grading parity + fail-closed parity for
+  6 negatives × 2 kinds; `/check` no-write even on passing server-graded row; `/submit` durable on pass;
+  no-leak on PASS+FAIL incl. expected row-set absence; non-opted sql+csv BC). **No route/comparator/schema/env
+  change.**
+- **Reviews:** architect **PASS** + code **SHIP**, no P0/P1. P2s fixed this phase: strengthened no-leak test
+  (was OK-path-only) to cover the failing path + assert the expected row-set never leaks; added non-opted csv
+  BC case; wrote close-out + this progress entry. Deferred P2: `/submit` completed-transition path not
+  re-covered by the parity file (covered by `user-submit.test.ts` H2).
+- **Gates GREEN (Node 24 + Docker PG):** typecheck + check:no-heuristic-runtime · api-server **524/524** (+22) ·
+  audit:sql-resultset-bc PASS (3 dark + 1 opted-in) · audit:csv-set-equal-bc PASS · audit:contains-bc 3/3 ·
+  audit:authoring exit 0. atlas + curriculum-quality not run (untouched). serverGrade counts csv:1 / sql:1.
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips; C2 visible+approved; envelope
+  OFF; Phase 52 untouched; no schema/env/canary/cloud/wave/cert change; RUBRIC_VERSION frozen.
+
 ## Next steps
 
 1. ✅ **DONE (57B-flip + 57B-postflip-review):** C2 promoted + 1 csv_set_equal row server-graded (envelope
    OFF); independently reviewed (architect PASS + code-review SHIP) + end-to-end verified; P2 audit fix landed.
 2. ✅ **DONE (58A):** `sql_resultset` DARK comparator + audit + tests; reviewed (architect PASS + code SHIP).
 3. ✅ **DONE (58B):** first `sql_resultset` server-grade flip — C2 step 2 (1 row); browser-WASM + end-to-end
-   verified; reviewed (architect PASS + code SHIP); no-leak route test added. **NEXT = Phase 59**
-   (`/check`-vs-`/submit` evidence). **Owner approval required to start 59.** Before any 2nd opt-in: observe
-   the live opted-in row in a real env.
+   verified; reviewed (architect PASS + code SHIP); no-leak route test added.
+4. ✅ **DONE (59A):** `/check`-vs-`/submit` evidence-parity baseline — contract matrix + parity/no-leak/BC
+   tests; reviewed (architect PASS + code SHIP); no behavior change. **NEXT = Phase 60** (portfolio/GitHub
+   artifact, E2). **Owner approval required to start 60.** Before any 2nd opt-in: observe the live rows in a
+   real env.
 3. **Parallel low-risk cleanups (owner-approve):** `.gitattributes` `eol=lf` for `lib/*/src/generated/**`
    (orval CRLF churn) · Linux/CI `pnpm-lock.yaml` regen · teach authoring-audit classifier serverGrade-awareness.
 4. Later E1→E5: 59 `/check`-vs-`/submit` evidence · 60 portfolio/GitHub · 61 authoring factory v2 · 62 cloud-lab.
