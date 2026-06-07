@@ -200,13 +200,39 @@ enforcement OFF; Phase 52 untouched.** Mirrors the 57A csv_set_equal arc.
   deterministic 0/0 output, WASM-runnable over `seeds/customers`. Flip needs spec reshape to positional
   `{columns, expectedRows}` + real-browser WASM byte-verify + extend `deriveServerGrade` to sql_resultset.
 
+## 2026-06-07 — Phase 58B first `sql_resultset` server-grade flip — SHIPPED
+
+Close-out: `docs/phases/phase-58b-sql-resultset-flip.md`. First LIVE `sql_resultset` opt-in — **exactly ONE
+row** (C2 `analytics-engineer-semantic-layer-with-dbt-and-duckdb` step 2, SCD-2 invariants). Same
+dark→verify→flip discipline as the csv 57B-flip.
+- **Reshape:** step 2 spec → `serverGrade:true`, `columns:["check","value"]`, positional `expectedRows
+  [["one_current",0],["overlap",0]]` (was array-of-objects). starterCode/query/instructions/pedagogy
+  unchanged — learner task identical. Landed via `author:project promote` + `audit --commit` (87.30 approved).
+- **Server signal:** `deriveServerGrade` (routes/projects.ts) widened to `csv_set_equal | sql_resultset`
+  (narrow boolean only — never spec/answer keys). FE routing already kind-agnostic (`serverGrade && isSqlStep`);
+  2 comment-only FE edits. No OpenAPI/Orval change (serverGrade existed since 57B).
+- **Browser-WASM byte-verify (real engine 1.33.1-dev45.0, headless Chromium):** step 2 starterCode →
+  columns ["check","value"], rows [["one_current",0],["overlap",0]], types [string,number] = expectedRows.
+- **End-to-end (live DB grader):** real capture → "Correct!"; 7 negatives (raw SQL/malformed/wrong-cols/
+  missing/extra/wrong-value/empty) fail closed; step-1 BC auto-pass; csv step-3 regression pass. Harness deleted.
+- **Reviews:** architect **PASS** + code **SHIP**, no P0/P1. Architect P2-1 (no route test for the no-leak
+  property) **FIXED** → new `artifacts/api-server/src/routes/projects-server-grade.test.ts`. Code P2 (stale
+  grading.ts comment) FIXED. Deferred: OpenAPI description polish (avoid codegen churn); authoring classifier R1.
+- **Gates GREEN (Node 24 + Docker PG):** typecheck + check:no-heuristic-runtime · api-server **502/502** (+5) ·
+  atlas 159/159 · curriculum-quality 143/144 (env-only COURSE_TAXONOMY) · audit:sql-resultset-bc PASS
+  (3 dark + 1 opted-in) · audit:csv-set-equal-bc PASS · audit:contains-bc 3/3 · audit:authoring exit 0.
+- **Invariants:** sql_resultset opted-in = 1, csv_set_equal opted-in = 1, no others; C2 visible+approved;
+  envelope OFF; Phase 52 untouched; no schema/env/canary/cloud/wave/cert change; RUBRIC_VERSION frozen.
+
 ## Next steps
 
 1. ✅ **DONE (57B-flip + 57B-postflip-review):** C2 promoted + 1 csv_set_equal row server-graded (envelope
    OFF); independently reviewed (architect PASS + code-review SHIP) + end-to-end verified; P2 audit fix landed.
-2. ✅ **DONE (58A):** `sql_resultset` DARK comparator + audit + tests; reviewed (architect PASS + code SHIP);
-   gates green. **NEXT = Phase 58B** (reshape + byte-verify + flip exactly ONE sql_resultset row, e.g. C2
-   step 2). **Owner approval required to start 58B.**
+2. ✅ **DONE (58A):** `sql_resultset` DARK comparator + audit + tests; reviewed (architect PASS + code SHIP).
+3. ✅ **DONE (58B):** first `sql_resultset` server-grade flip — C2 step 2 (1 row); browser-WASM + end-to-end
+   verified; reviewed (architect PASS + code SHIP); no-leak route test added. **NEXT = Phase 59**
+   (`/check`-vs-`/submit` evidence). **Owner approval required to start 59.** Before any 2nd opt-in: observe
+   the live opted-in row in a real env.
 3. **Parallel low-risk cleanups (owner-approve):** `.gitattributes` `eol=lf` for `lib/*/src/generated/**`
    (orval CRLF churn) · Linux/CI `pnpm-lock.yaml` regen · teach authoring-audit classifier serverGrade-awareness.
 4. Later E1→E5: 59 `/check`-vs-`/submit` evidence · 60 portfolio/GitHub · 61 authoring factory v2 · 62 cloud-lab.

@@ -635,7 +635,8 @@ export function gradeCsvSetEqual(
 // number|boolean|null)[][]}` — the DuckDB-WASM adapter capture shape. Answer
 // keys (expectedRows / hashes) live only in `validation_config` server-side and
 // are NEVER sent to the client (see `deriveServerGrade` in routes/projects.ts,
-// which today surfaces serverGrade only for csv_set_equal).
+// which surfaces only the serverGrade boolean — never the spec/answer keys — for
+// csv_set_equal and sql_resultset).
 export function gradeSqlResultset(
   spec: unknown,
   submission: string | null | undefined,

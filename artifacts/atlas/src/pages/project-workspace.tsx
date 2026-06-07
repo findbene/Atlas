@@ -677,9 +677,9 @@ export default function ProjectWorkspace() {
     // verbatim and the path below is byte-identical to the pre-57B behavior.
     const decision = decideCsvSetEqualSubmission({
       // Defensive: the JSON path may only engage for SQL steps. `serverGrade`
-      // is server-gated to csv_set_equal (a code_sql kind) today, but this
-      // guarantees a future authoring mistake can't route a Python/text step's
-      // editor contents into the {columns,rows} contract.
+      // is server-gated to csv_set_equal / sql_resultset (both code_sql kinds),
+      // but this guarantees a future authoring mistake can't route a Python/text
+      // step's editor contents into the {columns,rows} contract.
       serverGrade: currentStep.serverGrade === true && isSqlStep,
       rawSubmission: isCodeStep ? code : textAnswer,
       capture: capturedSqlByStepId[currentStep.id] ?? null,
@@ -747,9 +747,9 @@ export default function ProjectWorkspace() {
     // visible rows (serverGrade=false ⇒ raw editor contents, byte-identical).
     const decision = decideCsvSetEqualSubmission({
       // Defensive: the JSON path may only engage for SQL steps. `serverGrade`
-      // is server-gated to csv_set_equal (a code_sql kind) today, but this
-      // guarantees a future authoring mistake can't route a Python/text step's
-      // editor contents into the {columns,rows} contract.
+      // is server-gated to csv_set_equal / sql_resultset (both code_sql kinds),
+      // but this guarantees a future authoring mistake can't route a Python/text
+      // step's editor contents into the {columns,rows} contract.
       serverGrade: currentStep.serverGrade === true && isSqlStep,
       rawSubmission: isCodeStep ? code : textAnswer,
       capture: capturedSqlByStepId[currentStep.id] ?? null,

@@ -26,16 +26,16 @@ const COURSE_DISPLAY_NAME: Record<AtlasCourseSlug, string> = {
  * sends a canonical `{columns,rows}` JSON (server-graded) or the raw editor
  * contents (legacy). We deliberately expose nothing else from
  * `validationConfig`: expected rows, expected hashes, fixture paths and answer
- * keys never cross to the client. Today this returns false for every visible
- * row (no row carries `spec.serverGrade === true`), so the field is dark.
- * Only `csv_set_equal` uses opt-in server grading; the type gate prevents an
- * unrelated kind from ever surfacing a serverGrade signal.
+ * keys never cross to the client. Only `csv_set_equal` (Phase 57B) and
+ * `sql_resultset` (Phase 58B) use opt-in server grading — the type gate below
+ * prevents any unrelated kind from ever surfacing a serverGrade signal. Exactly
+ * one row of each kind is opted in today; every other row returns false (dark).
  */
 function deriveServerGrade(
   validationType: string | null,
   validationConfig: unknown,
 ): boolean {
-  if (validationType !== "csv_set_equal") return false;
+  if (validationType !== "csv_set_equal" && validationType !== "sql_resultset") return false;
   if (validationConfig === null || typeof validationConfig !== "object") return false;
   const spec = (validationConfig as { spec?: unknown }).spec;
   if (spec === null || typeof spec !== "object") return false;

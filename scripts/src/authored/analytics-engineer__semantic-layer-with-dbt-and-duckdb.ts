@@ -257,6 +257,13 @@ select 'overlap', (select count(*) from overlap);
         "sql_resultset",
         "SCD-2 invariants hold: exactly one is_current row per customer, zero overlapping effective ranges.",
         {
+          // Phase 58B — the ONE opted-in sql_resultset step. Server grades the
+          // FE-captured {columns,rows} against expectedRows via gradeSqlResultset
+          // (shared rowset comparator). Real-browser DuckDB-WASM output byte-verified
+          // (columns [check,value]; rows [[one_current,0],[overlap,0]];
+          // types [string,number]) in Phase 0.zz and re-verified end-to-end in 58B.
+          // Envelope enforcement stays OFF — only the commit-path comparator goes live.
+          serverGrade: true,
           query: SRC(`with raw_customers as (select * from "seeds/customers"),
 stg_customers as (
   select cast(customer_id as varchar) as customer_id, cast(plan_tier as varchar) as plan_tier,
@@ -287,9 +294,10 @@ overlap as (
 select 'one_current' as "check", (select count(*) from one_current) as value
 union all
 select 'overlap', (select count(*) from overlap)`),
+          columns: ["check", "value"],
           expectedRows: [
-            { check: "one_current", value: 0 },
-            { check: "overlap",     value: 0 },
+            ["one_current", 0],
+            ["overlap", 0],
           ],
         },
       ),
