@@ -60,7 +60,15 @@ const dbMock: any = {
     userXp: { findFirst: (...a: unknown[]) => userXpFindFirst(...a) },
   },
   insert: vi.fn((table: unknown) => ({
-    values: (values: unknown) => { insertCalls.push({ table, values }); return Promise.resolve(); },
+    values: (values: unknown) => {
+      insertCalls.push({ table, values });
+      // Some inserts (Phase 60B portfolio snapshot) chain .onConflictDoNothing();
+      // others await the result directly. Return a Promise carrying the method.
+      const result: Promise<void> & { onConflictDoNothing?: () => Promise<void> } =
+        Promise.resolve();
+      result.onConflictDoNothing = () => Promise.resolve();
+      return result;
+    },
   })),
   update: vi.fn((table: unknown) => ({
     set: (values: unknown) => ({
@@ -85,6 +93,7 @@ vi.mock("@workspace/db", () => ({
   projects: { _t: "projects", id: "id" },
   projectSteps: { _t: "projectSteps", id: "id", projectId: "projectId" },
   userStepCompletions: { _t: "userStepCompletions", userId: "u", projectId: "p", stepNumber: "n", id: "id", passed: "passed" },
+  portfolioSubmissionSnapshots: { _t: "portfolioSubmissionSnapshots" },
 }));
 
 vi.mock("drizzle-orm", () => ({

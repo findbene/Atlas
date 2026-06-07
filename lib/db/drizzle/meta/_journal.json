@@ -15,6 +15,13 @@
       "when": 1748390400000,
       "tag": "0001_phase46_run_envelope_nonces",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1749254400000,
+      "tag": "0002_phase60b_portfolio_submission_snapshots",
+      "breakpoints": true
     }
   ]
 }

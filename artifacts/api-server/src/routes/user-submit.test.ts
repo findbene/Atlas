@@ -84,7 +84,12 @@ const dbMock: any = {
   insert: vi.fn((table: unknown) => ({
     values: (values: unknown) => {
       insertCalls.push({ table, values });
-      return Promise.resolve();
+      // Phase 60B: the portfolio-snapshot insert chains .onConflictDoNothing();
+      // attach it to the returned Promise so both await styles work.
+      const result: Promise<void> & { onConflictDoNothing?: () => Promise<void> } =
+        Promise.resolve();
+      result.onConflictDoNothing = () => Promise.resolve();
+      return result;
     },
   })),
   update: vi.fn((table: unknown) => ({
@@ -144,6 +149,7 @@ vi.mock("@workspace/db", () => ({
     id: "id",
     passed: "passed",
   },
+  portfolioSubmissionSnapshots: { _t: "portfolioSubmissionSnapshots" },
 }));
 
 vi.mock("drizzle-orm", () => ({

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { projects, projectSteps, projectHints, domains, projectSolutions } from "@workspace/db";
 import { eq, and, desc, asc, sql, or, ilike } from "drizzle-orm";
 import { requireAuth, getCurrentUser } from "../lib/auth";
+import { isServerGradeOptedIn } from "../lib/grading";
 import { userProgress, userStepCompletions } from "@workspace/db";
 import type { AtlasCourseSlug } from "@workspace/curriculum-quality";
 
@@ -40,11 +41,10 @@ function deriveServerGrade(
   validationType: string | null,
   validationConfig: unknown,
 ): boolean {
-  if (validationType !== "csv_set_equal" && validationType !== "sql_resultset") return false;
-  if (validationConfig === null || typeof validationConfig !== "object") return false;
-  const spec = (validationConfig as { spec?: unknown }).spec;
-  if (spec === null || typeof spec !== "object") return false;
-  return (spec as { serverGrade?: unknown }).serverGrade === true;
+  // Phase 60B — delegate to the single canonical predicate in `../lib/grading`
+  // so the FE signal, the grader gate, the /submit snapshot stamp, and the
+  // portfolio assembly cannot drift apart.
+  return isServerGradeOptedIn(validationType, validationConfig);
 }
 
 const router = Router();

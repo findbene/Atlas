@@ -93,9 +93,13 @@ const dbMock: any = {
             }),
           };
         }
-        // Generic insert path used by /submit body (completions, xp, etc.)
+        // Generic insert path used by /submit body (completions, xp, and the
+        // Phase 60B portfolio snapshot which chains .onConflictDoNothing()).
         insertCalls.push({ table, values });
-        return Promise.resolve();
+        const result: Promise<void> & { onConflictDoNothing?: () => Promise<void> } =
+          Promise.resolve();
+        result.onConflictDoNothing = () => Promise.resolve();
+        return result;
       },
     };
   }),
@@ -132,6 +136,7 @@ vi.mock("@workspace/db", () => ({
     userId: "u", projectId: "p", stepNumber: "n", id: "id", passed: "passed",
   },
   runEnvelopeNonces: { _t: "run_envelope_nonces", nonce: "nonce" },
+  portfolioSubmissionSnapshots: { _t: "portfolioSubmissionSnapshots" },
 }));
 
 vi.mock("drizzle-orm", () => ({

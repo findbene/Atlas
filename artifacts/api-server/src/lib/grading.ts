@@ -28,6 +28,34 @@ export type GradingOutcome = {
   feedback: string;
 };
 
+/** The rowset validation kinds that can be opted into server grading. */
+const SERVER_GRADABLE_KINDS = new Set(["csv_set_equal", "sql_resultset"]);
+
+/**
+ * Narrow opt-in predicate: is THIS step a rowset kind that has been opted into
+ * server grading (`validationConfig.spec.serverGrade === true`)?
+ *
+ * This is the SINGLE source of truth for the serverGrade signal across the
+ * api-server. `gradeCsvSetEqual`/`gradeSqlResultset` gate on the same field;
+ * `deriveServerGrade` (routes/projects.ts) surfaces it to the FE; /submit
+ * stamps portfolio snapshots with it; the portfolio assembly classifies
+ * evidence strength with it — all via this one function so they cannot drift.
+ * It returns a narrow boolean and NEVER exposes the spec or answer keys.
+ * (curriculum-quality keeps its own zero-dep copy `isServerGradedRowset` for
+ * audit reporting, intentionally decoupled — keep both in sync if the contract
+ * ever changes.)
+ */
+export function isServerGradeOptedIn(
+  validationType: string | null | undefined,
+  validationConfig: unknown,
+): boolean {
+  if (!validationType || !SERVER_GRADABLE_KINDS.has(validationType)) return false;
+  if (validationConfig === null || typeof validationConfig !== "object") return false;
+  const spec = (validationConfig as { spec?: unknown }).spec;
+  if (spec === null || typeof spec !== "object") return false;
+  return (spec as { serverGrade?: unknown }).serverGrade === true;
+}
+
 /** Grade a submission against a step's validation rule.
  *
  *  Rules (preserved verbatim from the legacy /submit switch):

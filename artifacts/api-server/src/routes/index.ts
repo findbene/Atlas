@@ -20,6 +20,7 @@ import enrollmentRouter from "./enrollment";
 import dashboardRouter from "./dashboard";
 import onboardingRouter from "./onboarding";
 import userPortfolioRouter from "./user-portfolio";
+import userPortfolioArtifactRouter from "./user-portfolio-artifact";
 import learnerModeRouter from "./learner-mode";
 
 const router: IRouter = Router();
@@ -45,6 +46,7 @@ router.use(enrollmentRouter);
 router.use(dashboardRouter);
 router.use(onboardingRouter);
 router.use(userPortfolioRouter);
+router.use(userPortfolioArtifactRouter);
 router.use(learnerModeRouter);
 
 export default router;

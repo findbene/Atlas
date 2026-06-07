@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { createHash } from "node:crypto";
 import { db } from "@workspace/db";
-import { users, userProgress, userXp, userStreaks, xpTransactions, projects, projectSteps, userStepCompletions } from "@workspace/db";
+import { users, userProgress, userXp, userStreaks, xpTransactions, projects, projectSteps, userStepCompletions, portfolioSubmissionSnapshots } from "@workspace/db";
 import { eq, and, desc, asc, isNull, ne, sql } from "drizzle-orm";
 import { requireAuth, getCurrentUser, getOrCreateUser } from "../lib/auth";
 import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
-import { gradeSubmission } from "../lib/grading";
+import { gradeSubmission, isServerGradeOptedIn } from "../lib/grading";
 import { verifyEnvelopeForSubmit, parseEnvelopeAllowList, isEnvelopeEnforcedFor } from "../lib/envelopeSubmit";
 import { gradeEnvelopeCapture } from "../lib/envelopeGrade";
 import { recordVerifyOk, recordVerifyFailed, recordFallback } from "../lib/envelopeMetrics";
@@ -643,6 +643,38 @@ router.post("/user/projects/:projectId/steps/:stepId/submit", requireAuth, async
           submissionExcerpt: evidence.excerpt,
           submissionSha256: evidence.sha256,
         });
+      }
+
+      // Phase 60B — append-only portfolio submission snapshot. Written ONLY on
+      // a FRESH passing attempt (never by /check — which has no DB writes at
+      // all — and never on a failing attempt, since isFreshPass requires
+      // `passed`). Stores learner EVIDENCE (clamped excerpt + sha256 of the
+      // full content), never answer keys / specs / expected rows. The unique
+      // (user, project, step) index + `onConflictDoNothing` make it
+      // append-only-once: a re-submit has isFreshPass=false so it never reaches
+      // here, and even a hypothetical double-fresh-pass cannot duplicate.
+      if (isFreshPass) {
+        const runtimeEvidence = envelopeCapture
+          ? captureSubmissionEvidence(envelopeCapture.stdout)
+          : { excerpt: null, sha256: null };
+        await tx
+          .insert(portfolioSubmissionSnapshots)
+          .values({
+            userId: user.id,
+            projectId,
+            stepId: step.id,
+            stepNumber: step.stepNumber,
+            validationKind: step.validationType ?? "self_attest",
+            isServerGraded: isServerGradeOptedIn(step.validationType, step.validationConfig),
+            passed: true,
+            submittedAt: new Date(),
+            submissionSha256: evidence.sha256,
+            submissionExcerpt: evidence.excerpt,
+            runtimeOutputSha256: runtimeEvidence.sha256,
+            runtimeOutputExcerpt: runtimeEvidence.excerpt,
+            source: envelopeCapture ? "submit_envelope" : "submit_legacy",
+          })
+          .onConflictDoNothing();
       }
 
       // Update progress

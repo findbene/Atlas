@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./adapters": "./src/adapters/index.ts",
-    "./run-envelope": "./src/runEnvelope.ts"
+    "./run-envelope": "./src/runEnvelope.ts",
+    "./honest-claims": "./src/honestClaims.ts"
   },
   "scripts": {
     "test": "vitest run",

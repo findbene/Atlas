@@ -325,6 +325,40 @@ to 60B.
   Phase 52 untouched; C2 visible+approved; no schema/env/canary/cloud/GitHub-OAuth/cert-marketing change;
   RUBRIC_VERSION frozen. **Phase 60B NOT started.**
 
+## 2026-06-07 — Phase 60B portfolio-artifact route + durable submission snapshots — SHIPPED
+
+Close-out: `docs/phases/phase-60b-portfolio-artifact-route-and-snapshots.md`. Turns the 60A dark
+generator into a real authenticated backend capability + adds the minimum durable storage for future
+artifacts. **No GitHub OAuth/publishing, no new serverGrade/opt-ins, envelope OFF, Phase 52 untouched.**
+- **Schema (additive):** NEW append-only `portfolio_submission_snapshots` (`lib/db/src/schema/progress.ts`)
+  + migration `lib/db/drizzle/0002_phase60b_…sql` + journal idx 2. Unique `(user,project,step)` index →
+  append-only-once. Stores learner evidence (4KB-clamped excerpt + sha256), NEVER specs/answer keys.
+  Applied + verified on Docker PG.
+- **/submit:** writes ONE snapshot inside the existing tx, gated on `isFreshPass` (never /check, never
+  fail, never re-submit; `.onConflictDoNothing()`). No grading/XP/completion/idempotency change.
+- **Route:** NEW `GET /user/projects/:slug/portfolio-artifact` (authenticated, read-only) → assembly →
+  60A generator → `{projectSlug, generatedAt, files}`. 404-not-403 for hidden/unknown/not-enrolled;
+  session-only userId; runtime `findBannedClaims` fail-closed guard on the bundle (defense-in-depth).
+- **Assembly:** NEW `portfolioArtifactAssembly.ts` — DB → safe `PortfolioArtifactInput`; reads
+  validationConfig ONLY for the serverGrade boolean (never returned); snapshot rows read presence-only;
+  cert-verify clamps; 4 independent reads via Promise.all.
+- **Canonical predicate:** `isServerGradeOptedIn` added to `grading.ts`; `deriveServerGrade` delegates →
+  one source of truth (FE signal + grader gate + snapshot stamp + assembly).
+- **H3 guard relocated (canonical):** patterns+normalize → `lib/execution-core/src/honestClaims.ts`
+  (+ subpath export); atlas `banned-h1h2-phrases.ts` = thin re-export (atlas 28/28 preserved); new
+  `findBannedClaims`. Route output checked against it in tests AND at runtime.
+- **Reviews:** architect **PASS** + code **SHIP**, no P0/P1. Fixed in-phase: runtime honesty guard,
+  query parallelization, evidence-source clarity comment. Deferred to 60C: OpenAPI/orval regen (CRLF),
+  optional excerpt preview, GitHub export.
+- **OpenAPI:** route NOT in openapi.yaml — deferred to 60C (supertest-tested; FE can't boot pre-0.2;
+  avoids ~95-file orval CRLF churn).
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck + check:no-heuristic-runtime · api-server
+  **587/587** · atlas H3 guard 28/28 · execution-core 83/83 · audit:sql-resultset-bc PASS (3 dark + 1) ·
+  audit:csv-set-equal-bc PASS (1) · audit:contains-bc 3/3 · audit:authoring exit 0. serverGrade csv 1 / sql 1.
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips/kinds; envelope OFF; Phase 52
+  untouched; additive schema only; no env/canary/cloud/GitHub-OAuth/cert change; RUBRIC_VERSION frozen.
+  **Phase 60C NOT started.**
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 

@@ -9,6 +9,7 @@ import {
   gradeCsvSetEqual,
   gradeSqlResultset,
   computeCsvSetEqualHash,
+  isServerGradeOptedIn,
   NO_CHECK_STEP_TYPES,
 } from "./grading";
 
@@ -17,6 +18,30 @@ const step = (over: Partial<Parameters<typeof gradeSubmission>[0]> = {}) => ({
   validationConfig: null,
   expectedOutput: null,
   ...over,
+});
+
+describe("isServerGradeOptedIn — canonical serverGrade predicate", () => {
+  it("true ONLY for an opted-in rowset kind (spec.serverGrade === true)", () => {
+    const cfg = { spec: { serverGrade: true, columns: ["a"], expectedRows: [[1]] } };
+    expect(isServerGradeOptedIn("csv_set_equal", cfg)).toBe(true);
+    expect(isServerGradeOptedIn("sql_resultset", cfg)).toBe(true);
+  });
+  it("false for a rowset kind that is not opted in", () => {
+    expect(isServerGradeOptedIn("csv_set_equal", { spec: { columns: ["a"] } })).toBe(false);
+    expect(isServerGradeOptedIn("sql_resultset", { spec: { serverGrade: false } })).toBe(false);
+    expect(isServerGradeOptedIn("csv_set_equal", {})).toBe(false);
+    expect(isServerGradeOptedIn("csv_set_equal", null)).toBe(false);
+  });
+  it("never upgrades a non-rowset kind even with a stray flag", () => {
+    const cfg = { spec: { serverGrade: true } };
+    expect(isServerGradeOptedIn("contains", cfg)).toBe(false);
+    expect(isServerGradeOptedIn("json_equal", cfg)).toBe(false);
+    expect(isServerGradeOptedIn("self_attest", cfg)).toBe(false);
+    expect(isServerGradeOptedIn(null, cfg)).toBe(false);
+  });
+  it("treats a non-true serverGrade (e.g. string) as not opted in (no coercion)", () => {
+    expect(isServerGradeOptedIn("csv_set_equal", { spec: { serverGrade: "true" } })).toBe(false);
+  });
 });
 
 describe("gradeSubmission", () => {

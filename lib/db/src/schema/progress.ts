@@ -166,7 +166,47 @@ export const runEnvelopeNonces = pgTable("run_envelope_nonces", {
   index('run_envelope_nonces_expires_at_idx').on(t.expiresAt),
 ]);
 
+// Phase 60B — Append-only durable submission snapshot store for portfolio
+// artifacts. Written ONLY by /submit on a FRESH passing attempt (never by
+// /check, never on a failing attempt). Stores learner submission/runtime
+// EVIDENCE (a byte-clamped excerpt + a one-way sha256 of the full content),
+// and NEVER answer keys, validation specs, expectedRows/hashes, reference
+// solutions, hidden specs, or comparator internals. The unique index makes it
+// append-only-once per (user, project, step): the /submit fresh-pass gate
+// already writes at most once, and `onConflictDoNothing` + this index make a
+// duplicate impossible even if that gate ever regressed. Historical
+// completions that predate this table simply have no snapshot — the portfolio
+// artifact degrades honestly to metadata/validation evidence for them.
+export const portfolioSubmissionSnapshots = pgTable("portfolio_submission_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  stepId: uuid("step_id").references(() => projectSteps.id, { onDelete: 'cascade' }).notNull(),
+  stepNumber: integer("step_number").notNull(),
+  validationKind: text("validation_kind").notNull(),
+  isServerGraded: boolean("is_server_graded").default(false).notNull(),
+  passed: boolean("passed").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  // Clamped excerpt (server-side byte cap) + sha256 of the FULL submission.
+  submissionSha256: text("submission_sha256"),
+  submissionExcerpt: text("submission_excerpt"),
+  // Runtime output evidence — populated only when a verified run capture is
+  // available (envelope path); null on the legacy bare-string path.
+  runtimeOutputSha256: text("runtime_output_sha256"),
+  runtimeOutputExcerpt: text("runtime_output_excerpt"),
+  // Where the snapshot came from, e.g. "submit_legacy" | "submit_envelope".
+  source: text("source").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex('portfolio_snapshot_user_project_step_idx').on(t.userId, t.projectId, t.stepId),
+  index('portfolio_snapshot_user_project_idx').on(t.userId, t.projectId),
+]);
+
 export const insertUserProgressSchema = createInsertSchema(userProgress).omit({ id: true });
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type UserProgress = typeof userProgress.$inferSelect;
 export type UserProjectStepHints = typeof userProjectStepHints.$inferSelect;
+
+export const insertPortfolioSubmissionSnapshotSchema = createInsertSchema(portfolioSubmissionSnapshots).omit({ id: true });
+export type InsertPortfolioSubmissionSnapshot = z.infer<typeof insertPortfolioSubmissionSnapshotSchema>;
+export type PortfolioSubmissionSnapshot = typeof portfolioSubmissionSnapshots.$inferSelect;
