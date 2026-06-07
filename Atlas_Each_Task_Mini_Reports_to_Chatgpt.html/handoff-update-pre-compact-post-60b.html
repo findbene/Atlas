@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HANDOFF.md update — pre-compact rich handoff (post Phase 60B)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>HANDOFF.md update — pre-compact rich handoff (post Phase 60B)</h1><p class="meta">2026-06-07 · COMPLETED · docs-only</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Owner request (docs-only): refresh <code>HANDOFF.md</code> before a compact, capturing (1) the goal, (2) current code state, (3) files actively editing, (4) everything tried that failed, (5) next step — so the post-compact session resumes with full context.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Overwrote the hook-clobbered thin <code>HANDOFF.md</code> with a rich 5-section handoff reflecting state after Phase 60B (+ workflow header, standing mini-report protocol, inherited invariants). Compact ≠ session end → it survives.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>HANDOFF.md</code> — modified (rich 5-section pre-compact handoff). Gitignored + hook-clobbered at session end; durable record stays in <code>.agentic/progress.md</code> + <code>docs/phases/</code> + git.</li>
+<li><code>Atlas_Each_Task_Mini_Reports_to_Chatgpt.html/src/17-…md</code> (this) + regenerated HTML — added/generated, committed.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>App code? <strong>no</strong> · DB/schema? <strong>no</strong> · serverGrade/opt-ins? <strong>no</strong> · env/canary/Phase 52? <strong>no</strong> · Phase 60C? <strong>not started</strong> · docs-only · any unexpected file? <strong>no</strong>.</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>Documentation only. No code/DB/grader state touched. The 2 live opted-in C2 rows + envelope-off posture unchanged. The handoff records: E2 in progress (60A generator → 60B route + snapshots shipped); HEAD <code>5616a4e</code>; gates green under Node 24 + Docker PG; OpenAPI route entry deferred to 60C; the snapshot/append-only + no-leak design; the gotchas (vitest strict mocks, snapshot-vs-answer-key, Unicode regex retype hazard, hand-authored migrations).</p>
+<h2 id="6-tests-and-gates-run">6. Tests and Gates Run</h2>
+<ul>
+<li><code>python build.py</code> (archive regen) — <strong>PASS</strong>.</li>
+<li>Code gates — <strong>NOT RUN</strong> (docs-only; no app/lib/scripts source touched).</li>
+</ul>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<p>None.</p>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, HEAD <code>5616a4e</code> before this archive commit (which follows). HANDOFF.md gitignored. Working tree otherwise clean except hook-managed <code>.agentic/self-review.log</code>.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>Unchanged engineering state: Phases 58A/58B/59A/59B/60A/60B closed; exactly 1 csv + 1 sql server-graded row (both C2); envelope OFF; Phase 52 untouched; durable submission-snapshot store live (migration applied on Docker PG); authenticated artifact route shipped (un-spec'd, deferred to 60C). Rich HANDOFF in place for the post-compact session.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li>OpenAPI/orval route entry deferred to 60C (must land before client wiring).</li>
+<li>Pre-60B completions have no snapshot → artifacts degrade honestly (no backfill).</li>
+<li>Observe the 2 live opted-in rows in a real env before any new opt-in.</li>
+<li>Full app UI boot blocked by Phase 0.2.</li>
+</ul>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>After the compact, await owner approval to start <strong>Phase 60C</strong> (OpenAPI/orval regen for the route + frontend download affordance + optional safe excerpt preview, then GitHub export/publishing). Do not begin unprompted.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p>Stopped. HANDOFF refreshed; ready for the compact + next instruction.</p>
+</main>
+</body>
+</html>
