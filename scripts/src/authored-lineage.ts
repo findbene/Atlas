@@ -108,8 +108,9 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   // metrics-definition gap (zero coverage anywhere prior to C2). Built
   // on dbt-core + DuckDB end-to-end on a laptop (no cloud, no API keys),
   // 8 steps, validation-kind distribution biased toward strong runtime
-  // feedback (4×sql_resultset + 1×csv_set_equal client-provisional, 2×
-  // exact + 1×contains enforced; 0 contract-shaped).
+  // feedback (4×sql_resultset + 1×csv_set_equal; of these, step 2 sql +
+  // step 3 csv are server-graded since Phase 58B/57B, the rest
+  // client-provisional; 2× exact + 1×contains enforced; 0 contract-shaped).
   "analytics-engineer-semantic-layer-with-dbt-and-duckdb":                 "analytics-engineer",
 };
 

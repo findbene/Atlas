@@ -297,3 +297,38 @@ describe("BC — non-opted rows auto-pass on both routes", () => {
     expect(s.body.feedback).toBe("Step completed.");
   });
 });
+
+// Phase 59B — close the 59A-deferred gap: the parity file now also pins the
+// /submit durable-completion + idempotency behavior FOR a server-graded row
+// (csv/sql), not just the generic `exact` path covered by user-submit.test.ts.
+describe("/submit durable evidence on a server-graded row (sql_resultset)", () => {
+  it("completed-transition: passing the FINAL server-graded step completes the project + emails once", async () => {
+    const app = await buildApp();
+    mockStep({ ...sqlStep, stepNumber: 8 }); // last of totalSteps=8
+    nextPassedCount = 8; // all 8 steps passed after this fresh pass
+    const s = await viaSubmit(app, SQL_OK);
+    expect(s.body.status).toBe("passed");
+    expect(s.body.isFirstPass).toBe(true);
+    expect(s.body.projectComplete).toBe(true);
+    expect(sendEmailSpy).toHaveBeenCalledTimes(1);
+    expect(insertCalls.some((c) => (c.table as { _t?: string })?._t === "xpTransactions")).toBe(true);
+  });
+
+  it("idempotent re-submit: an already-passed server-graded step awards no XP + writes no new ledger row", async () => {
+    const app = await buildApp();
+    mockStep(sqlStep);
+    userStepCompletionsFindFirst.mockResolvedValue({ id: "uc-1", passed: true, attemptCount: 1 });
+    nextPassedCount = 1;
+    const s = await viaSubmit(app, SQL_OK);
+    expect(s.body.status).toBe("passed");
+    expect(s.body.xpEarned).toBe(0);
+    expect(s.body.isFirstPass).toBe(false);
+    expect(sendEmailSpy).not.toHaveBeenCalled();
+    expect(insertCalls.some((c) => (c.table as { _t?: string })?._t === "xpTransactions")).toBe(false);
+    // Monotonic: the completion UPDATE preserves passed=true and does NOT
+    // overwrite first-pass evidence.
+    const completionUpdate = updateCalls.find((c) => (c.table as { _t?: string })?._t === "userStepCompletions");
+    expect((completionUpdate?.values as { passed?: boolean })?.passed).toBe(true);
+    expect(completionUpdate?.values).not.toHaveProperty("submissionExcerpt");
+  });
+});

@@ -178,6 +178,72 @@ export function tallyValidationKinds(
   return tally;
 }
 
+// ── Phase 59B — serverGrade-aware classification ──────────────────────────
+//
+// Phases 57B / 58B opted exactly one `csv_set_equal` row and one
+// `sql_resultset` row into REAL server commit-grading (`spec.serverGrade:true`,
+// graded by `gradeRowsetSubmission`). The static `classifyValidationKind`
+// keys only off the kind STRING, so it labels those live rows
+// "client-provisional" — accurate before any opt-in, now stale for the opted-in
+// rows. These spec-aware helpers let the audit report an opted-in rowset row as
+// `enforced` while every non-opted (dark) row of the same kind stays
+// client-provisional. Runtime grading is unaffected — this is reporting only.
+
+/** True iff this is a `csv_set_equal` / `sql_resultset` step whose persisted
+ *  `validation_config.spec.serverGrade === true` (the live server-grade opt-in).
+ *  Tolerant of any shape; returns false for every non-rowset kind and every
+ *  non-opted row. */
+export function isServerGradedRowset(
+  kind: string | null | undefined,
+  validationConfig: unknown,
+): boolean {
+  if (kind !== "csv_set_equal" && kind !== "sql_resultset") return false;
+  if (!validationConfig || typeof validationConfig !== "object") return false;
+  const spec = (validationConfig as { spec?: unknown }).spec;
+  if (!spec || typeof spec !== "object") return false;
+  return (spec as { serverGrade?: unknown }).serverGrade === true;
+}
+
+/** Like `classifyValidationKind`, but upgrades an opted-in rowset row
+ *  (`isServerGradedRowset`) to `enforced`. Every other input is identical to
+ *  the kind-only classifier. */
+export function classifyValidationKindWithSpec(
+  kind: string | null | undefined,
+  validationConfig: unknown,
+): EnforcementStatus {
+  if (isServerGradedRowset(kind, validationConfig)) return "enforced";
+  return classifyValidationKind(kind);
+}
+
+/** A (kind, validation_config) pair for the spec-aware tally. */
+export type ValidationKindSpec = {
+  kind: string | null | undefined;
+  validationConfig: unknown;
+};
+
+/**
+ * serverGrade-aware tally. Opted-in rowset rows are bucketed under a distinct
+ * `"<kind> (server-graded)"` key with status `enforced`, so a kind that has
+ * BOTH opted-in and dark rows (e.g. `sql_resultset`: 1 live + 3 dark) shows two
+ * accurate histogram lines instead of one misleading "client-provisional"
+ * line. Non-rowset / non-opted rows behave exactly like `tallyValidationKinds`.
+ */
+export function tallyValidationKindsWithSpec(
+  entries: ValidationKindSpec[],
+): Map<string, KindTallyEntry> {
+  const tally = new Map<string, KindTallyEntry>();
+  for (const { kind, validationConfig } of entries) {
+    const enforced = isServerGradedRowset(kind, validationConfig);
+    const baseKey = kind ?? "(null)";
+    const key = enforced ? `${baseKey} (server-graded)` : baseKey;
+    const status: EnforcementStatus = enforced ? "enforced" : classifyValidationKind(kind);
+    const prev = tally.get(key);
+    if (prev) prev.count++;
+    else tally.set(key, { count: 1, status });
+  }
+  return tally;
+}
+
 // ── Phase 43B-prime — Submission-shape advisories ─────────────────────────
 //
 // Background (see `docs/phases/phase-43b-prime-json-equal-audit-warning.md`):

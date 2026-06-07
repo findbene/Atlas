@@ -255,9 +255,34 @@ Close-out: `docs/phases/phase-59a-check-submit-evidence-parity.md`; contract mat
 3. ✅ **DONE (58B):** first `sql_resultset` server-grade flip — C2 step 2 (1 row); browser-WASM + end-to-end
    verified; reviewed (architect PASS + code SHIP); no-leak route test added.
 4. ✅ **DONE (59A):** `/check`-vs-`/submit` evidence-parity baseline — contract matrix + parity/no-leak/BC
-   tests; reviewed (architect PASS + code SHIP); no behavior change. **NEXT = Phase 60** (portfolio/GitHub
-   artifact, E2). **Owner approval required to start 60.** Before any 2nd opt-in: observe the live rows in a
-   real env.
+   tests; reviewed (architect PASS + code SHIP); no behavior change.
+5. ✅ **DONE (59B):** evidence-parity cleanup — serverGrade-aware `audit:authoring` (opted-in rows now
+   `enforced`), `/submit` completed-transition + idempotency tests, stale-comment fixes; reviewed (architect
+   PASS + code SHIP); no grading/route/schema change. **NEXT = Phase 60** (portfolio/GitHub artifact, E2).
+   **Owner approval required to start 60.** Before any 2nd opt-in: observe the live rows in a real env.
+
+## 2026-06-07 — Phase 59B evidence-parity cleanup + deferred-P2 closure — SHIPPED
+
+Close-out: `docs/phases/phase-59b-evidence-parity-cleanup.md`. Cleanup phase; **no grading/route/schema
+behavior change** (reporting + tests + comments only).
+- **Closed P2s:** (a) `audit:authoring` serverGrade-awareness — NEW pure helpers in
+  `validationEnforcement.ts` (`isServerGradedRowset`, `classifyValidationKindWithSpec`,
+  `tallyValidationKindsWithSpec`); audit now reports the 2 opted-in rows as `enforced` (97% enforced / 3%
+  client-provisional; histogram splits `<kind> (server-graded) [enforced]`). (b) `/submit`
+  completed-transition + idempotency tests for a server-graded row added to the 59A parity file. (c)
+  stale-comment fixes (csv/sql BC audits, authored-lineage) + a `deriveServerGrade`→`isServerGradedRowset`
+  cross-reference comment (drift-prevention for the 4-copy opt-in predicate).
+- **Deferred (rationale):** OpenAPI `serverGrade` description polish (embedded in yaml + 3 generated files →
+  orval regen = ~95-file CRLF churn; current text accurate) — ride next regen. `.gitattributes` EOL for
+  test/script files — separate tracked follow-up.
+- **Reviews:** architect **PASS** + code **SHIP**, no P0/P1. Both confirmed `isServerGradedRowset` is
+  logically identical to the runtime `deriveServerGrade` (no false-enforced) and the new tests are
+  non-vacuous. Applied code P2-a (cross-ref comment); deferred P2-b.
+- **Gates GREEN (Node 24 + Docker PG):** typecheck + check:no-heuristic-runtime · api-server **526/526** (+2) ·
+  curriculum-quality **152/153** (+9; env-only COURSE_TAXONOMY) · audit:authoring exit 0 (97% enforced) ·
+  audit:sql-resultset-bc PASS (3 dark + 1 opted-in) · audit:csv-set-equal-bc PASS · audit:contains-bc 3/3.
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips; envelope OFF; Phase 52
+  untouched; C2 visible+approved; no schema/env/canary/cloud/portfolio/cert change; RUBRIC_VERSION frozen.
 3. **Parallel low-risk cleanups (owner-approve):** `.gitattributes` `eol=lf` for `lib/*/src/generated/**`
    (orval CRLF churn) · Linux/CI `pnpm-lock.yaml` regen · teach authoring-audit classifier serverGrade-awareness.
 4. Later E1→E5: 59 `/check`-vs-`/submit` evidence · 60 portfolio/GitHub · 61 authoring factory v2 · 62 cloud-lab.

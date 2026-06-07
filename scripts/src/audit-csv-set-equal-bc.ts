@@ -35,10 +35,11 @@ function legacyGradeCsvSetEqual(): { passed: boolean; feedback: string } {
   return { passed: true, feedback: "Step completed." };
 }
 
-// ── Curated synthetic submissions per row ──────────────────────────────────
-// Even though no row opts in to server grading today, we exercise each row
-// with a variety of submission shapes (empty, garbage, valid-shape, etc.)
-// to prove the BC auto-pass branch is reached BEFORE any parsing happens.
+// ── Curated synthetic submissions per DARK row ─────────────────────────────
+// The DARK (non-opted) visible csv_set_equal rows are exercised with a variety
+// of submission shapes (empty, garbage, valid-shape, etc.) to prove the BC
+// auto-pass branch is reached BEFORE any parsing happens. (Phase 57B opted in
+// exactly 1 row; it is verified separately in the opt-in section below.)
 function buildSubmissions(): string[] {
   return [
     "",
@@ -72,7 +73,7 @@ function buildEnvelopeCaptures(): RunCapture[] {
       rows: [[1]],
     },
     // Structured capture whose rows would FAIL a real comparison — proves the
-    // opt-in gate short-circuits BEFORE comparison for every visible row.
+    // opt-in gate short-circuits BEFORE comparison for every dark row.
     {
       version: 1,
       language: "sql",

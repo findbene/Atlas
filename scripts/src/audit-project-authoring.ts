@@ -37,9 +37,10 @@ import { asc, eq } from "drizzle-orm";
 import type { PedagogyConfig } from "@workspace/execution-core";
 import {
   hintLeakSuspected,
-  classifyValidationKind,
+  classifyValidationKindWithSpec,
   describeEnforcement,
-  tallyValidationKinds,
+  tallyValidationKindsWithSpec,
+  type ValidationKindSpec,
   jsonEqualHasSubmissionShapeMismatch,
   detectLegacyJsonEqualSpecKeys,
   type EnforcementStatus,
@@ -160,6 +161,10 @@ type ProjectReport = {
    * enforcement-breakdown section of the audit summary. NOT used in any
    * publish-ready finding; reported as informational metadata only. */
   validationTypes: Array<string | null>;
+  /** Phase 59B — (kind, validationConfig) per step for the serverGrade-aware
+   * enforcement breakdown (opted-in rowset rows count as `enforced`).
+   * Informational only; never affects publishReady. */
+  validationKindSpecs: ValidationKindSpec[];
   /** Phase 43B-prime — informational only; never affects publishReady. */
   jsonEqualSubmissionShapeAdvisories: JsonEqualSubmissionShapeAdvisory[];
   /** Phase 43B-prime — informational only; never affects publishReady. */
@@ -214,6 +219,7 @@ async function auditProject(
       findings,
       publishReady: false,
       validationTypes: [],
+      validationKindSpecs: [],
       jsonEqualSubmissionShapeAdvisories: [],
       validationSpecShapeAdvisories: [],
       containsAdvisories: [],
@@ -301,6 +307,10 @@ async function auditProject(
     findings: dedupedFindings,
     publishReady: dedupedFindings.length === 0,
     validationTypes: steps.map((s) => s.validationType ?? null),
+    validationKindSpecs: steps.map((s) => ({
+      kind: s.validationType ?? null,
+      validationConfig: s.validationConfig,
+    })),
     jsonEqualSubmissionShapeAdvisories,
     validationSpecShapeAdvisories,
     containsAdvisories,
@@ -373,22 +383,28 @@ async function main() {
   // --- Phase 42 — Validation enforcement breakdown (informational only) ---
   //
   // Aggregates validation_type values across every step of every visible
-  // project and groups them by `classifyValidationKind`. NOT a finding; this
+  // project and groups them by `classifyValidationKindWithSpec` (serverGrade-
+  // aware: opted-in rowset rows count as enforced). NOT a finding; this
   // section never affects publish-ready counts. It exists so the operator
   // can see, at a glance, how much of the catalog the server commit-grader
   // actually evaluates vs. how much is contract-shaped metadata.
   //
   // See `docs/validation-kind-matrix.md` for the full enforcement contract.
-  const allVisibleStepKinds: Array<string | null> = [];
-  for (const r of visible) allVisibleStepKinds.push(...r.validationTypes);
-  const kindTally = tallyValidationKinds(allVisibleStepKinds);
+  // Phase 59B — serverGrade-aware: an opted-in rowset row (spec.serverGrade)
+  // counts as `enforced`, not `client-provisional`.
+  const allVisibleStepSpecs: ValidationKindSpec[] = [];
+  for (const r of visible) allVisibleStepSpecs.push(...r.validationKindSpecs);
+  const allVisibleStepKinds = allVisibleStepSpecs.map((s) => s.kind);
+  const kindTally = tallyValidationKindsWithSpec(allVisibleStepSpecs);
   const byStatus = new Map<EnforcementStatus, number>();
   for (const { count, status } of kindTally.values()) {
     byStatus.set(status, (byStatus.get(status) ?? 0) + count);
   }
   const totalSteps = allVisibleStepKinds.length;
   const projectsWithAnyEnforced = visible.filter((r) =>
-    r.validationTypes.some((k) => classifyValidationKind(k) === "enforced"),
+    r.validationKindSpecs.some(
+      (s) => classifyValidationKindWithSpec(s.kind, s.validationConfig) === "enforced",
+    ),
   ).length;
 
   console.log("\n  Validation enforcement breakdown (visible projects, all steps):");

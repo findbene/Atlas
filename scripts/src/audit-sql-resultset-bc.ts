@@ -68,7 +68,7 @@ function buildEnvelopeCaptures(): RunCapture[] {
       columns: ["a"], rows: [[1]],
     },
     // Structured capture whose rows would FAIL a real comparison — proves the
-    // opt-in gate short-circuits BEFORE comparison for every visible row.
+    // opt-in gate short-circuits BEFORE comparison for every dark row.
     {
       version: 1, language: "sql", code: "SELECT 1",
       stdout: "", stderr: "", exitCode: 0, durationMs: 1, timedOut: false,

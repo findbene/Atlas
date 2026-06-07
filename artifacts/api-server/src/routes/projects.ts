@@ -30,6 +30,11 @@ const COURSE_DISPLAY_NAME: Record<AtlasCourseSlug, string> = {
  * `sql_resultset` (Phase 58B) use opt-in server grading — the type gate below
  * prevents any unrelated kind from ever surfacing a serverGrade signal. Exactly
  * one row of each kind is opted in today; every other row returns false (dark).
+ *
+ * Parallel reporting-side detector: `isServerGradedRowset` in
+ * `@workspace/curriculum-quality/validationEnforcement` (audit-only, Phase 59B).
+ * The two are intentionally decoupled (curriculum-quality stays zero-dep on
+ * api-server); they apply the SAME opt-in contract — if it changes, update both.
  */
 function deriveServerGrade(
   validationType: string | null,

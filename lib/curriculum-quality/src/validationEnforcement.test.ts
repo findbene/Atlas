@@ -4,10 +4,13 @@ import {
   LEGACY_JSON_EQUAL_SPEC_KEYS,
   NON_TEXT_SUBMISSION_STEP_TYPES,
   classifyValidationKind,
+  classifyValidationKindWithSpec,
+  isServerGradedRowset,
   describeEnforcement,
   detectLegacyJsonEqualSpecKeys,
   jsonEqualHasSubmissionShapeMismatch,
   tallyValidationKinds,
+  tallyValidationKindsWithSpec,
 } from "./validationEnforcement";
 
 describe("classifyValidationKind", () => {
@@ -201,5 +204,67 @@ describe("detectLegacyJsonEqualSpecKeys", () => {
       spec: { stdoutMustEqualJson: {} },
     });
     expect(LEGACY_JSON_EQUAL_SPEC_KEYS).toContain(out[0]!);
+  });
+});
+
+// ── Phase 59B — serverGrade-aware classification ─────────────────────────
+
+describe("isServerGradedRowset", () => {
+  const opted = (kind: string) => ({ kind, description: "d", spec: { serverGrade: true, columns: ["a"], expectedRows: [[1]] } });
+  it("true for opted-in csv_set_equal / sql_resultset", () => {
+    expect(isServerGradedRowset("csv_set_equal", opted("csv_set_equal"))).toBe(true);
+    expect(isServerGradedRowset("sql_resultset", opted("sql_resultset"))).toBe(true);
+  });
+  it("false for a rowset kind WITHOUT serverGrade (dark) — including the live free-form sql shape", () => {
+    expect(isServerGradedRowset("sql_resultset", { spec: { query: "q", expectedRow: { n: 7 } } })).toBe(false);
+    expect(isServerGradedRowset("csv_set_equal", { spec: { columns: ["a"], expectedCsv: "f.csv" } })).toBe(false);
+    expect(isServerGradedRowset("csv_set_equal", { spec: { serverGrade: false } })).toBe(false);
+    expect(isServerGradedRowset("csv_set_equal", { spec: { serverGrade: "yes" } })).toBe(false); // non-boolean
+  });
+  it("false for non-rowset kinds even if serverGrade somehow set", () => {
+    expect(isServerGradedRowset("exact", { spec: { serverGrade: true } })).toBe(false);
+    expect(isServerGradedRowset("json_equal", { spec: { serverGrade: true } })).toBe(false);
+  });
+  it("false for nullish / malformed config (defensive)", () => {
+    expect(isServerGradedRowset("csv_set_equal", null)).toBe(false);
+    expect(isServerGradedRowset("csv_set_equal", undefined)).toBe(false);
+    expect(isServerGradedRowset("csv_set_equal", { spec: null })).toBe(false);
+    expect(isServerGradedRowset(null, { spec: { serverGrade: true } })).toBe(false);
+  });
+});
+
+describe("classifyValidationKindWithSpec", () => {
+  it("upgrades an opted-in rowset row to enforced", () => {
+    expect(classifyValidationKindWithSpec("sql_resultset", { spec: { serverGrade: true } })).toBe("enforced");
+    expect(classifyValidationKindWithSpec("csv_set_equal", { spec: { serverGrade: true } })).toBe("enforced");
+  });
+  it("leaves dark rowset rows client-provisional (matches kind-only classifier)", () => {
+    expect(classifyValidationKindWithSpec("sql_resultset", { spec: { query: "q" } })).toBe("client-provisional");
+    expect(classifyValidationKindWithSpec("csv_set_equal", null)).toBe("client-provisional");
+  });
+  it("is identical to classifyValidationKind for every non-rowset kind", () => {
+    for (const k of ["self_attest", "exact", "contains", "regex", "json_equal", "numeric_tolerance", "csv_ordered", "nope", null]) {
+      expect(classifyValidationKindWithSpec(k, { spec: { serverGrade: true } })).toBe(classifyValidationKind(k));
+    }
+  });
+});
+
+describe("tallyValidationKindsWithSpec", () => {
+  it("buckets an opted-in rowset row under '<kind> (server-graded)' with enforced status", () => {
+    const tally = tallyValidationKindsWithSpec([
+      { kind: "sql_resultset", validationConfig: { spec: { serverGrade: true } } }, // opted-in
+      { kind: "sql_resultset", validationConfig: { spec: { query: "q" } } },        // dark
+      { kind: "sql_resultset", validationConfig: { spec: { query: "q2" } } },       // dark
+      { kind: "csv_set_equal", validationConfig: { spec: { serverGrade: true } } }, // opted-in
+      { kind: "exact", validationConfig: null },
+    ]);
+    expect(tally.get("sql_resultset (server-graded)")).toEqual({ count: 1, status: "enforced" });
+    expect(tally.get("sql_resultset")).toEqual({ count: 2, status: "client-provisional" });
+    expect(tally.get("csv_set_equal (server-graded)")).toEqual({ count: 1, status: "enforced" });
+    expect(tally.get("csv_set_equal")).toBeUndefined(); // the only csv row is opted-in
+    expect(tally.get("exact")).toEqual({ count: 1, status: "enforced" });
+  });
+  it("returns an empty map for empty input", () => {
+    expect(tallyValidationKindsWithSpec([]).size).toBe(0);
   });
 });
