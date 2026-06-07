@@ -287,6 +287,44 @@ behavior change** (reporting + tests + comments only).
    (orval CRLF churn) · Linux/CI `pnpm-lock.yaml` regen · teach authoring-audit classifier serverGrade-awareness.
 4. Later E1→E5: 59 `/check`-vs-`/submit` evidence · 60 portfolio/GitHub · 61 authoring factory v2 · 62 cloud-lab.
 
+## 2026-06-07 — Phase 60A evidence-safe portfolio artifact MVP foundation — SHIPPED (dark)
+
+Close-out: `docs/phases/phase-60a-portfolio-artifact-mvp.md`. First Epic-E2 phase. A PURE,
+deterministic portfolio-artifact **generator** + 45 tests + close-out. **No route, no schema/migration,
+no GitHub OAuth, no publishing, no new serverGrade/opt-ins, envelope OFF, Phase 52 untouched.** The
+dark-foundation half of E2 (same dark→expose discipline as the graders); the exposing route is deferred
+to 60B.
+- **New files (3):** `artifacts/api-server/src/lib/portfolioArtifact.ts` (pure `generatePortfolioArtifact`
+  + `classifyEvidenceStatus` + safe input types — NO db/net/env), `…/portfolioArtifact.test.ts` (45 tests),
+  `docs/phases/phase-60a-portfolio-artifact-mvp.md`. **Zero edits to existing routes/graders/audits/schema/
+  OpenAPI** — the module is an unreferenced leaf (zero behavior change).
+- **Safety by construction:** input model has NO channel for validationConfig/expectedRows/expectedRowsHash/
+  query/comparator/raw-submission/secret → no-leak-by-construction (tested incl. a structural "extra
+  spec-like props never surface" case). Copy makes ONLY the allowed claim ("Atlas verified that submitted
+  runtime output or artifacts matched enabled validation checks") and avoids every forbidden H3 phrasing
+  even in negation. `classifyEvidenceStatus` mirrors runtime `deriveServerGrade` (only csv_set_equal|
+  sql_resultset + `spec.serverGrade===true` → server-graded; never false-upgrades).
+- **Generated files:** README.md, VALIDATION_EVIDENCE.md, LIMITATIONS.md, LEARNER_REFLECTION_TEMPLATE.md
+  (always) + DATASET_NOTES.md (conditional). Non-passed steps render `unavailable`. `requiredSkill`
+  rendered. Author fields md-escaped (`mdCell`/`mdHeading`) so a `|`/`#` can't corrupt the table.
+- **Data inventory:** safe to generate today from existing records (completion evidence via the Phase-29
+  portfolio assembly + project/step metadata: title/summary/skills(`learning_objectives`)/tools(`tech_stack`)/
+  role/course/difficulty/validation_type/required_skill/pass+completedAt/evidence-hash count). **Cannot
+  generate yet (→ 60B):** the learner's submitted CODE + runtime OUTPUT are NOT durably stored
+  (`submission_excerpt` truncated+forbidden, `submission_sha256` = hash, `user_code_sessions` overwritten,
+  `user_code_runs` pruned) → needs a durable append-only submission store (schema = out of 60A scope).
+- **Reviews:** `atlas-architect-reviewer` **PASS** + `code-reviewer` **SHIP**, no P0/P1. Fixed in-phase:
+  close-out spec-path bug (`->>'serverGrade'` → `->'spec'->>'serverGrade'`); dead fields removed (generator
+  now derives status incl. `unavailable`); markdown-injection escaping + test; structural no-leak test;
+  §10 review outcomes filled. Deferred to 60B: canonical `BANNED_H1H2_PATTERNS` guard wiring (cross-package;
+  guard passes today — architect ran it, 0 hits), durable submission store, the authenticated route.
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck + check:no-heuristic-runtime · api-server
+  **571/571** (+45) · audit:sql-resultset-bc PASS (3 dark + 1 opted-in) · audit:csv-set-equal-bc PASS
+  (1 opted-in) · audit:contains-bc 3/3 · audit:authoring exit 0. serverGrade counts csv:1 / sql:1.
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips/kinds; envelope OFF;
+  Phase 52 untouched; C2 visible+approved; no schema/env/canary/cloud/GitHub-OAuth/cert-marketing change;
+  RUBRIC_VERSION frozen. **Phase 60B NOT started.**
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 
