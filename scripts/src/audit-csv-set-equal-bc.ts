@@ -209,18 +209,19 @@ async function main() {
     }
 
     // NEGATIVE — each must fail closed (passed === false).
-    const mutated: CsvCell[][] = expectedRows.map((r) => [...r]);
-    if (mutated[0] && mutated[0].length > 1) {
-      const c = mutated[0][1];
-      mutated[0][1] = typeof c === "number" ? c + 1 : typeof c === "boolean" ? !c : "X";
-    } else if (mutated[0]) {
-      mutated[0][0] = "X";
-    }
+    // Collision-proof "wrong rows": append a guaranteed-novel sentinel row (right
+    // width, all-string cells that cannot appear in any real expected row) so the
+    // multiset gains an UNEXPECTED row regardless of dataset shape. (In-place cell
+    // mutation could, for a collision-prone/duplicate-heavy multiset, accidentally
+    // reproduce an already-expected row and silently PASS the negative — a
+    // false-green in the governance gate. Append-sentinel is collision-proof.)
+    const sentinelRow: CsvCell[] = columns.map((_, j) => `__atlas_neg_sentinel_${j}__`);
+    const extraRow: CsvCell[][] = [...expectedRows.map((r) => [...r]), sentinelRow];
     const negatives: Array<[string, string]> = [
       ["empty", ""],
       ["raw-sql", "select * from mart_subscription_monthly where customer_id = 'C-100'"],
       ["malformed-json", "not json {"],
-      ["wrong-rows", JSON.stringify({ columns, rows: mutated })],
+      ["extra-unmatched-row", JSON.stringify({ columns, rows: extraRow })],
     ];
     for (const [name, sub] of negatives) {
       optInChecks++;
@@ -263,7 +264,7 @@ async function main() {
     `\nPASS — ${darkRows.length} dark row(s) byte-identical to legacy auto-pass across ` +
       `${submissionsChecked} bare-string + ${envelopeChecks} envelope captures; ` +
       `${optedRows.length} opted-in row(s) grade correctly (correct capture passes; ` +
-      `raw SQL / malformed / wrong-rows / empty fail closed).`,
+      `raw SQL / malformed / extra-unmatched-row / empty fail closed).`,
   );
   process.exit(0);
 }
