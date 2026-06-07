@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 57B-flip — promote C2 + opt in one csv_set_equal step</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 57B-flip — promote C2 + opt in one csv_set_equal step</h1><p class="meta">2026-06-06 · SHIPPED — first LIVE opt-in (1 row), envelope off · commit 055049b</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Promote the repaired C2 candidate to visible/publish-ready and enable <code>serverGrade:true</code> on exactly one verified <code>csv_set_equal</code> step (C2 step 3). Re-seed, resolve the 2 deferred P2s if low-risk, add OpenAPI/Orval <code>serverGrade</code> honesty, run gates + reviews, validate the opt-in path. Envelope enforcement stays off; Phase 52 untouched.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>DONE</strong> (one caveat). Committed <code>055049b</code>, pushed. All mechanical gates green. <strong>Caveat:</strong> the independent <code>atlas-architect-reviewer</code> + <code>code-reviewer</code> subagents returned <code>API Error: 529 Overloaded</code> on 2 attempts each (Anthropic outage) and produced no findings; a rigorous Opus self-review was performed instead — re-run the subagent reviews when the API recovers.</p>
+<h2 id="3-files-changed-10-files-31183">3. Files Changed (10 files, +311/−83)</h2>
+<p>Source: authored C2 (serverGrade), <code>project-workspace.tsx</code> (toast P2), <code>audit-csv-set-equal-bc.ts</code> (audit extension). Spec/codegen: <code>openapi.yaml</code> + <code>api-client-react/.../api.schemas.ts</code> + <code>api-zod/.../api.ts</code> + <code>api-zod/.../types/projectStep.ts</code>. Docs: close-out + <code>.agentic/progress.md</code> + <code>CLAUDE.md</code>. DB ops (not in git): backfill + promote + audit --commit.</p>
+<h2 id="4-scope-control-hard-stops">4. Scope Control / Hard Stops</h2>
+<p><strong>Exactly one row opted in</strong> (grep <code>serverGrade</code> in <code>scripts/src/authored/</code> → single hit). No envelope enforcement (<code>csv_set_equal</code> not in <code>PILOT_RUNTIME_KINDS</code>; <code>ATLAS_ENVELOPE_REQUIRED_KINDS</code> empty; envelopeGrade.ts/envelopeSubmit.ts/user.ts <strong>zero diff</strong>). Phase 52 untouched · no schema/migration · no cloud/waves · no cert/marketing copy · no secrets · no force-push. Generated diff kept focused (autocrlf normalized away ~95 EOL-only churn files).</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<ul>
+<li><strong>Promotion:</strong> <code>backfill:phase55-candidates</code> (created C2 candidate <code>c2dbc2db</code>) → <code>author:project promote</code> (inserts visible <code>projects</code> row — <code>learnerVisible</code> default TRUE; learner routes gate on <code>learnerVisible</code> only, not <code>qualityStatus</code> — + 8 steps + atomic inverse-lineage stamp) → <code>audit --commit</code> → <strong>rubric 85.3 → qualityStatus=approved</strong>.</li>
+<li><strong>serverGrade:</strong> <code>...semantic-layer...ts:379</code> — <code>serverGrade: true</code> as first key of the step-3 csv_set_equal spec; authoring guard accepts it.</li>
+<li><strong>OpenAPI/Orval:</strong> optional <code>ProjectStep.serverGrade: boolean</code> → regen added <code>serverGrade?: boolean</code> to schemas + zod. Optional → backward-compatible. <code>typecheck:libs</code> passed.</li>
+<li><strong>P2s:</strong> P2b (needs-run) <strong>resolved</strong> — neutral <code>toast</code> + early return, no red CHECK/SUBMIT_FAIL, step stays <code>editing</code>. P2a (popstate clear) <strong>deferred with rationale</strong> — nav is replaceState-only (popstate never fires for step changes) + capture is per-stepId keyed, so no stale/cross-step submission is possible; clearing would risk discarding a valid capture.</li>
+</ul>
+<h2 id="6-tests-and-gates-run">6. Tests and Gates Run</h2>
+<p>typecheck + check:no-heuristic-runtime <strong>PASS</strong> · execution-core <strong>83/83</strong> · atlas <strong>159/159</strong> · api-server <strong>466/466</strong> · curriculum-quality <strong>132 pass</strong> (1 env-only <code>COURSE_TAXONOMY</code> ENOENT) · <code>audit:authoring</code> <strong>exit 0</strong> (48 visible projects, 100 steps) · <code>audit:contains-bc</code> <strong>PASS 3/3</strong> · <code>audit:csv-set-equal-bc</code> <strong>PASS</strong>. Architect + code review — <strong>subagents 529'd</strong>; Opus self-review performed.</p>
+<h2 id="7-auditcsv-set-equal-bc-expected-visible-count">7. audit:csv-set-equal-bc — expected visible count</h2>
+<p><code>Visible csv_set_equal steps: 1 (dark: 0, opted-in: 1)</code> · dark BC mismatches 0 · opt-in grading checks <strong>5/5 pass</strong> · <strong>PASS</strong>.</p>
+<h2 id="8-step-3-passfail-validation-evidence">8. Step 3 pass/fail validation evidence</h2>
+<p>Extended audit exercised the live row through the real <code>gradeSubmission</code>→<code>gradeCsvSetEqual</code> commit path: correct <code>{columns, rows:expectedRows}</code> → <strong>pass</strong>; <code>""</code> / raw SQL / malformed JSON / wrong-rows (mrr 199→200) → <strong>all fail closed</strong>. End-to-end chain: Phase-0.zz browser-WASM output == <code>expectedRows</code> (byte-verified) → FE submits exactly that capture on commit → server passes.</p>
+<h2 id="9-phase-52-envelope-enforcement">9. Phase 52 + envelope enforcement</h2>
+<p>Untouched. <code>envelopeGrade.ts</code>/<code>envelopeSubmit.ts</code>/<code>user.ts</code> zero diff; <code>PILOT_RUNTIME_KINDS={json_equal}</code> (csv_set_equal excluded); <code>ATLAS_ENVELOPE_REQUIRED_KINDS</code> empty. The opted-in row is graded by the commit path only; envelope rides along as provenance, not enforced. No env/canary change.</p>
+<h2 id="10-current-git-state-project-state">10. Current Git State + Project State</h2>
+<p>HEAD <code>055049b</code> on <code>main</code>, pushed. Working tree clean except hook-managed files. C2 is now a <strong>visible, approved project with 1 server-graded csv_set_equal step</strong>; catalog 48 visible projects / 100 steps; envelope dark.</p>
+<h2 id="11-remaining-risks-blockers">11. Remaining Risks / Blockers</h2>
+<ul>
+<li><strong>Independent review pending</strong> — architect + <code>/code-review</code> 529'd; re-run when API recovers (the one gate not completed by a subagent). Self-review found no issues.</li>
+<li><strong>R1:</strong> <code>audit:authoring</code> static classifier still labels csv_set_equal "client-provisional" (ignores serverGrade) — informational only.</li>
+<li><strong>R2:</strong> generated-file CRLF churn (orval 8.5.3 vs repo CRLF) — handled via autocrlf; durable fix = <code>.gitattributes eol=lf</code> for <code>lib/*/src/generated/**</code>.</li>
+<li><strong>R3:</strong> enterprise-NRR filter dead-branches (carried 0.z) — future fixture-author caution.</li>
+<li>Envelope enforcement for csv_set_equal = separate future operator decision (independent of this opt-in and of the parked Phase-52 canary).</li>
+</ul>
+<h2 id="12-recommended-next-step">12. Recommended Next Step</h2>
+<p>Re-run <code>/code-review</code> + <code>atlas-architect-reviewer</code> when the API recovers, then <strong>observe the single opted-in row</strong> in a real env (staging/private beta) before opting in more rows or considering envelope enforcement. Next hardening = Phase 58 (<code>sql_resultset</code>) — do not start until the flip is reviewed + observed.</p>
+<h2 id="explicit-stop">Explicit Stop</h2>
+<p>Stopped after Phase 57B-flip. Exactly one row opted in (C2 step 3); envelope enforcement off; Phase 52 untouched; Phase 58 not started.</p>
+</main>
+</body>
+</html>

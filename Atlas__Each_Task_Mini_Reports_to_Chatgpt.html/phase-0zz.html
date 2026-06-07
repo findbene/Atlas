@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 0.zz — C2 real-browser DuckDB-WASM byte verification</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 0.zz — C2 real-browser DuckDB-WASM byte verification</h1><p class="meta">2026-06-06 · PASS — 5/5 byte-identical (hidden/dark) · commit 05e5e36</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Verify the repaired hidden C2 candidate produces the exact committed expected values in the <strong>actual browser DuckDB-WASM runtime</strong> (not just local duckdb) before any promotion or <code>serverGrade:true</code>. Capture real <code>{columns,rows}</code> for steps 1/2/3/5/8, byte-compare, verify the step-3 flip contract, change nothing unless a mismatch is proven.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>DONE — PASS.</strong> All 5 steps byte-identical in real-browser wasm. No mismatch → nothing changed in the candidate. Committed <code>05e5e36</code>, pushed.</p>
+<h2 id="3-files-changed-4-files-1346">3. Files Changed (4 files, +134/−6)</h2>
+<ul>
+<li><strong>NEW</strong> <code>docs/phases/phase-0zz-c2-real-browser-wasm-byte-verification.md</code> (10-point close-out)</li>
+<li><strong>EDIT</strong> <code>.agentic/progress.md</code>, <code>CLAUDE.md</code>, <code>.gitignore</code> (+<code>.playwright-cli/</code>)</li>
+<li><strong>Temp, created then deleted:</strong> <code>wasm-verify.html</code>, <code>wasm-verify-main.ts</code>, <code>public/wasm-verify-cases.json</code>, <code>scripts/src/_wasm_verify_extract.ts</code>, <code>.playwright-cli/</code> — none persisted.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>All honored. No candidate promotion · no <code>serverGrade:true</code> (extraction confirmed <code>serverGrade=null</code> all steps) · no row opt-in · no env/canary · no production · Phase 52 untouched · no schema/migration · no OpenAPI/codegen · no cloud/waves · <strong>no <code>expectedRows</code> changed</strong> (no mismatch) · no force-push · no secrets · no lockfile mutation (zero new deps).</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p><strong>How browser wasm ran:</strong> booted atlas <strong>Vite</strong> dev (Node 24; <code>PORT=5199 BASE_PATH=/</code> via PowerShell — git-bash MSYS mangled <code>/</code>). A dev-only harness page imported the <strong>real <code>duckdbAdapter</code></strong> (<code>@duckdb/duckdb-wasm@1.33.1-dev45.0</code>) and called <code>.run(...)</code> per step — the same path <code>project-workspace.tsx</code> uses on Run. Committed queries/expected were <strong>extracted from the authored file</strong> (tsx → cases JSON), so the harness ran the exact shipped strings. Drove headless <strong>Chromium</strong> via <code>playwright-cli</code>. <strong>Zero new deps.</strong>
+<strong>Harness needed?</strong> Yes — candidate is hidden (404) and the full app can't boot (Replit coupling); calling the adapter directly was the smallest safe path, no promotion.</p>
+<h2 id="6-tests-and-gates-run">6. Tests and Gates Run</h2>
+<p>Focused browser/DuckDB-WASM verification <strong>PASS (5/5)</strong> · typecheck <strong>PASS</strong> · <code>audit:csv-set-equal-bc</code> <strong>PASS (0 visible)</strong> · <code>audit:contains-bc</code> <strong>PASS 2/2</strong> · <code>audit:authoring</code> <strong>exit 0</strong>.</p>
+<h2 id="7-actual-browser-wasm-output-byte-compare">7. Actual browser-WASM output + byte-compare</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Browser-WASM rows</th>
+<th>types</th>
+<th>Committed expected</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>[[7,7]]</code></td>
+<td>number,number</td>
+<td><code>{n:7,nUnique:7}</code></td>
+<td>MATCH</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>[[one_current,0],[overlap,0]]</code></td>
+<td>string,number</td>
+<td><code>[{check,value}×2 =0]</code></td>
+<td>MATCH</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>[["2025-04-01",199,T,F,F,F]…["2025-07-01",0,F,F,F,T]]</code></td>
+<td>string,number,bool×4</td>
+<td><code>expectedRows</code></td>
+<td>MATCH</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>[[2746]]</code></td>
+<td>number</td>
+<td><code>{value:2746}</code></td>
+<td>MATCH</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>[[1.05]]</code></td>
+<td>number</td>
+<td><code>{value:1.05}</code></td>
+<td>MATCH</td>
+</tr>
+</tbody>
+</table>
+<p>Mismatch/type drift/path issue: <strong>none</strong>. Only console noise = benign <code>favicon.ico</code> 404.</p>
+<h2 id="8-step-3-flip-safety">8. Step-3 flip safety</h2>
+<p><strong>SAFE.</strong> columns exact · rows exact · <code>mrr_amount</code>=<strong>number</strong> (not bigint/string) · <code>month_start</code>=<strong>string</strong> <code>"2025-04-01"</code> · flags=<strong>boolean</strong> · <code>normalizeSqlRows(rows) === expectedRows</code>. Verified in the real engine.</p>
+<h2 id="9-current-git-state-project-state">9. Current Git State + Project State</h2>
+<p>HEAD <code>05e5e36</code> on <code>main</code>, pushed. Working tree clean except hook-managed files. Candidate still hidden; <code>serverGrade</code> absent; grader DARK. Engine-drift risk R1 CLOSED.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li>R1 engine-drift — CLOSED by this phase.</li>
+<li>R2 (advisory): enterprise-NRR filter dead-branches — future fixture-author caution.</li>
+<li>Broader app boot still needs Node-24 <code>pnpm install</code> + Phase 0.2 decouple.</li>
+<li>Lockfile still needs off-Windows regeneration.</li>
+</ul>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p><strong>57B-flip can begin</strong> — validation now real-runtime-proven. Sequence: promote C2 → <code>serverGrade:true</code> + re-seed → resolve 2 deferred P2s → OpenAPI/Orval regen.</p>
+<h2 id="12-explicit-stop">12. Explicit Stop</h2>
+<p>Stopped after verification. Candidate NOT promoted, <code>serverGrade</code> NOT set, 57B-flip not started.</p>
+</main>
+</body>
+</html>

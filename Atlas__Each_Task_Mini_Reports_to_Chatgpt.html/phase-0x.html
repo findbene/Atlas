@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 0.x — local-green baseline (ATTEMPTED → PARTIAL / BLOCKED)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 0.x — local-green baseline (ATTEMPTED → PARTIAL / BLOCKED)</h1><p class="meta">2026-06-06 · PARTIAL / BLOCKED · 3 hard blockers found</p></header><blockquote>
+<p>Compiled from the <code>.agentic/progress.md</code> Phase-0.x log + the findings commit <code>b5e2c62</code>. Original return predates verbatim archival; rendered as a faithful mini-report.</p>
+</blockquote>
+<p>Goal: establish a trustworthy local execution + audit baseline before any <code>csv_set_equal</code> row opts in. Real work done; three hard blockers surfaced (flip stayed blocked, with a sharper reason).</p>
+<h2 id="completion-status">Completion status</h2>
+<p>PARTIAL. Node 24 obtained but not safely activatable this run; lockfile mismatch diagnosed (not committed); DB-gated audits not yet run; the C2 fixture turned out ABSENT (deeper blocker than anticipated).</p>
+<h2 id="what-was-found-done">What was found / done</h2>
+<ul>
+<li><strong>Node 24.16.0 downloaded</strong> via nvm-windows but <strong>not activated</strong> — <code>C:\Program Files\nodejs</code> is a real dir (system Node 22), so <code>nvm use</code> needs admin + would clobber. Gates ran on Node 22.</li>
+<li><strong>Lockfile NOT frozen-clean</strong> — <code>pnpm install --frozen-lockfile</code> → <code>ERR_PNPM_LOCKFILE_CONFIG_MISMATCH</code> (<code>pnpm-workspace.yaml</code> overrides ≠ committed lockfile, shipped inconsistent from Replit). <strong>Did NOT modify/commit the lockfile</strong> (hard stop). Reconcile on Node 24, Linux/CI.</li>
+<li><strong><code>.gitignore</code> had no <code>.env</code> entry</strong> (secret-leak risk under auto-commit hooks) → added <code>.env</code>/<code>.env.local</code>/<code>.env.*.local</code> + <code>!.env.example</code> negation + committed a secret-free <code>.env.example</code> (commit <code>f3256e1</code>).</li>
+<li><strong><code>DATABASE_URL</code> unset</strong> → the 3 DB-gated audits NOT RUN.</li>
+<li><strong>CRITICAL — C2 step-3 expectedRows UNVERIFIABLE: the fixture is ABSENT.</strong> <code>public/datasets/</code> had only <code>orders.csv</code>; step-3 <code>seeds/subscriptions.csv</code> 404s. The C-100 <code>expectedRows</code> were hand-authored + unrunnable; a naive flip would fail-closed for every learner. Did NOT author a fixture or change expectedRows (hard stop).</li>
+</ul>
+<h2 id="scope-hard-stops">Scope / hard stops</h2>
+<p>No <code>serverGrade:true</code>, no content change, no schema/migration, no production, no env/canary, Phase 52 untouched, no force-push. All honored.</p>
+<h2 id="remaining-blockers">Remaining blockers</h2>
+<ol>
+<li>Node-24 activation + clean <code>pnpm install</code>.</li>
+<li>Lockfile reconciliation (Linux/CI).</li>
+<li>C2 fixture absence + path bug + dbt-model-referencing validation queries (→ became the Phase 0.y proposal).</li>
+</ol>
+<h2 id="recommended-next-step">Recommended next step</h2>
+<p>A read-only C2 fixture-repair proposal (no fixtures authored yet) + a DB-audit path via local Docker Postgres. → became Phase 0.y.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 0.z — C2 WASM-native fixture and validation repair</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 0.z — C2 WASM-native fixture and validation repair</h1><p class="meta">2026-06-06 · SHIPPED (hidden/dark) · architect PASS + code-review SHIP · commit dd7784b</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Approved C2 validation repair (hidden/dark only): make the hidden C2 candidate's <code>csv_set_equal</code> validation runnable, fixture-backed, and regenerated from real DuckDB output — without promoting it or enabling server grading. Author seed fixtures, fix dataset-path bug, re-architect C2 SQL to be WASM-native, regenerate expected values from execution, reconcile the step-3/step-5 mismatch, keep dark, run gates, report.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>DONE.</strong> Shipped dark, committed (<code>dd7784b</code>), pushed to main. Architect-reviewer <strong>PASS</strong> + code-reviewer <strong>SHIP</strong> (no P0/P1).</p>
+<h2 id="3-files-changed-7-files-488241">3. Files Changed (7 files, +488/−241)</h2>
+<ul>
+<li><strong>NEW</strong> <code>artifacts/atlas/public/datasets/seeds/{customers,subscriptions,orders}.csv</code></li>
+<li><strong>EDIT</strong> <code>scripts/src/authored/analytics-engineer__semantic-layer-with-dbt-and-duckdb.ts</code> (5 code_sql steps)</li>
+<li><strong>NEW</strong> <code>docs/phases/phase-0z-c2-wasm-native-validation-repair.md</code> (10-point close-out)</li>
+<li><strong>EDIT</strong> <code>.agentic/progress.md</code>, <code>CLAUDE.md</code></li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>All honored. No <code>serverGrade</code> (grader stays <code>BC_AUTO_PASS</code>). No row opted in. Candidate NOT promoted (still <code>candidateId</code>; <code>audit:csv-set-equal-bc</code> = "Visible csv_set_equal steps: 0"). No schema/migration, no envelope enforcement, no <code>PILOT_RUNTIME_KINDS</code> change, Phase 52 untouched, no codegen, no cloud/waves, no secrets, no force-push. Steps 4/6/7 (non-code_sql) untouched.</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p><strong>Fixtures:</strong> <code>customers.csv</code> 8 rows incl 1 dup → 7 distinct (step-1 dedupe + step-2 SCD-2); <code>subscriptions.csv</code> 10 rows half-open <code>[start,end)</code> encoding the C-100 arc + June cohort; <code>orders.csv</code> realism-only.
+<strong>Dataset-path bug (B1):</strong> dropped the double-<code>.csv</code> + bogus <code>.py</code>/<code>.yml</code>/<code>.sql</code> refs → <code>seeds/customers</code>, <code>seeds/subscriptions</code>.
+<strong>Re-architecture:</strong> all 5 code_sql steps' starterCode + validation.query converted from dbt-Jinja (un-runnable in WASM) to self-contained inline-CTE DuckDB SQL over the seed tables; deterministic month spine (no <code>current_date</code>).
+<strong>Actual DuckDB output → before/after:</strong> step 3 csv_set_equal C-100 arc <code>99/199/99/0</code> → <code>199/999/199/0</code>; step 5 June MRR <code>5847</code> → <code>2746</code> (<strong>B4 fixed</strong> — per-customer enterprise contracts dissolve the tier×price contradiction); steps 1 (7/7), 2 (0/0), 8 (NRR 1.05) unchanged but now fixture-backed.</p>
+<h2 id="6-tests-and-gates-run-node-24160-docker-pg-5434">6. Tests and Gates Run (Node 24.16.0; Docker PG :5434)</h2>
+<p>typecheck + check:no-heuristic-runtime <strong>PASS</strong> · execution-core <strong>83/83</strong> · atlas <strong>159/159</strong> · api-server <strong>466/466</strong> · curriculum-quality <strong>132 pass</strong> (1 env-only <code>COURSE_TAXONOMY</code> ENOENT) · <code>audit:authoring</code> <strong>exit 0</strong> · <code>audit:csv-set-equal-bc</code> <strong>PASS (0 visible)</strong> · <code>audit:contains-bc</code> <strong>PASS 2/2</strong>. <strong>Execution verification:</strong> all 5 committed validation.query strings reproduce the committed expected values byte-for-byte against the repo seeds (Python duckdb 1.5.3; re-confirmed by both reviewers).</p>
+<h2 id="7-failures-fixes-surprises">7. Failures, Fixes, Surprises</h2>
+<ul>
+<li><strong>Surprise (load-bearing):</strong> the FE runtime never executes <code>validation.query</code>/<code>expectedRows</code> — it runs the learner's editor buffer and compares against <code>expectedOutputs</code> (custom keys → no-op). So <code>validation.*</code> was dead metadata; its only consumer is the server grader at a future flip.</li>
+<li><strong>B4 root fix:</strong> modeled <code>mrr_amount</code> as per-customer contract value, not rigid tier×price.</li>
+<li><strong>Step 8</strong> was Python-CLI typed code_sql (un-runnable in any in-browser runtime) → converted its editor to the WASM-native NRR SQL it resolves; CLI spec kept in prose + portfolio.</li>
+<li>Installed Python <code>duckdb</code> (local dev tool; did not touch the JS lockfile).</li>
+</ul>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, HEAD <code>dd7784b</code>, pushed. Clean except hook-managed <code>.agentic/self-review.log</code>.</p>
+<h2 id="9-current-project-state">9. Current Project State</h2>
+<p>C2 candidate is runnable, fixture-backed, execution-derived, and <strong>still hidden/dark</strong>. Visible catalog unchanged (~60 projects; 0 visible csv_set_equal).</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li><strong>R1 engine drift (low):</strong> regenerated on duckdb 1.5.3; sandbox runs wasm 1.33.1-dev45.0. Mitigated by explicit casts; byte-verify in real browser before flip.</li>
+<li><strong>R2 (advisory):</strong> enterprise-NRR <code>plan_tier</code> filter excludes churned/downgraded-out months — correct for this fixture; noted for future fixture authors.</li>
+<li><strong>R3:</strong> step-8 lost its executable Python surface (accepted).</li>
+<li><strong>R4:</strong> provisional client check is a no-op for these steps (pre-existing).</li>
+<li><strong>R5:</strong> lockfile needs off-Windows regeneration.</li>
+</ul>
+<h2 id="is-the-57b-flip-now-possible">Is the 57B-flip now possible?</h2>
+<p>The data/validation blocker is RESOLVED; flip is mechanically unblocked but NOT executed. Remaining (deliberate, separate): promote candidate → <code>serverGrade:true</code> + re-seed → resolve 2 deferred P2s → OpenAPI/Orval regen → byte-verify in real-browser WASM.</p>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Real-browser WASM byte-verify + promotion decision before any live opt-in. → became Phase 0.zz.</p>
+<h2 id="12-explicit-stop">12. Explicit Stop</h2>
+<p>Stopped after the repair. Candidate NOT promoted, <code>serverGrade</code> NOT set, 57B-flip not started.</p>
+</main>
+</body>
+</html>

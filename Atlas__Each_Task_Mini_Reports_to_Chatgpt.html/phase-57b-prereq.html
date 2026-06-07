@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 57B-prereq — csv_set_equal staged-hybrid foundation (DARK)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 57B-prereq — csv_set_equal staged-hybrid foundation (DARK)</h1><p class="meta">2026-06-06 · SHIPPED (dark) · architect PASS + code-review SHIP-ready</p></header><blockquote>
+<p>Compiled from the phase close-out (<code>docs/phases/phase-57b-prereq-csv-set-equal-foundation.md</code>). This task predates the 12-section mini-report standard, so it is rendered in its original 8-item close-out shape.</p>
+</blockquote>
+<p>Built the FE submission-shape + server envelope plumbing for server-graded <code>csv_set_equal</code>, <strong>without opting in any row and without enabling envelope enforcement</strong>. Implements Option C (staged hybrid, provenance-biased) from the 57C trust decision. Commits <code>3e6dc8b</code> → <code>ff5f9d9</code> (lockfile restore) → <code>3cc3187</code> (review P2 fixes), pushed to <code>main</code>.</p>
+<h2 id="1-files-changed-8-source-files">1. Files changed (8 source files)</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>artifacts/api-server/src/routes/projects.ts</code></td>
+<td><code>deriveServerGrade()</code> helper + <code>serverGrade</code> boolean on GET <code>/projects/:slug</code> step serialization. Narrow boolean only.</td>
+</tr>
+<tr>
+<td><code>artifacts/api-server/src/lib/envelopeGrade.ts</code></td>
+<td>DARK <code>csv_set_equal</code> branch: verified <code>{columns,rows}</code> → same <code>gradeSubmission</code>→<code>gradeCsvSetEqual</code> comparator; stdout-only captures fall through. NOT in <code>PILOT_RUNTIME_KINDS</code>.</td>
+</tr>
+<tr>
+<td><code>artifacts/api-server/src/lib/envelopeGrade.test.ts</code></td>
+<td>+6 tests (28 total).</td>
+</tr>
+<tr>
+<td><code>artifacts/atlas/src/lib/csvSetEqualSubmit.ts</code></td>
+<td>NEW pure helper: <code>raw</code> | <code>csv_set_equal</code> | <code>needs-run</code>.</td>
+</tr>
+<tr>
+<td><code>artifacts/atlas/src/lib/csvSetEqualSubmit.test.ts</code></td>
+<td>NEW 9 unit tests.</td>
+</tr>
+<tr>
+<td><code>artifacts/atlas/src/components/studio/types.ts</code></td>
+<td><code>StepVM.serverGrade?: boolean</code>.</td>
+</tr>
+<tr>
+<td><code>artifacts/atlas/src/lib/envelopeClient.ts</code></td>
+<td>Extracted shared <code>normalizeSqlRows</code>.</td>
+</tr>
+<tr>
+<td><code>artifacts/atlas/src/pages/project-workspace.tsx</code></td>
+<td>Per-step <code>capturedSqlByStepId</code> (run-gen guarded, normalized); cleared at all 5 envelope-clear sites; Check+Submit routed through helper with <code>needs-run</code> + <code>isSqlStep</code> gate.</td>
+</tr>
+<tr>
+<td><code>scripts/src/audit-csv-set-equal-bc.ts</code></td>
+<td>Extended to prove BC on BOTH <code>gradeSubmission</code> and <code>gradeEnvelopeCapture</code> paths.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-zero-rows-opted-in">2. Zero rows opted in</h2>
+<p>No authored project sets <code>spec.serverGrade: true</code>. No DB row mutated; no seed run.</p>
+<h2 id="3-visible-csv_set_equal-behavior-byte-identical">3. Visible csv_set_equal behavior byte-identical</h2>
+<p><code>serverGrade</code> false for every visible row → FE returns <code>{kind:"raw"}</code> verbatim; envelope branch returns the legacy <code>{passed:true,"Step completed."}</code> auto-pass for non-opted rows. Architect verified byte-identity vs <code>6c26cd2</code>.</p>
+<h2 id="4-servergrade-exposes-only-a-boolean">4. serverGrade exposes only a boolean</h2>
+<p><code>deriveServerGrade()</code> returns a <code>boolean</code>, type-gated to <code>csv_set_equal</code>. No spec / expectedRows / fixture paths / answer keys cross to the client.</p>
+<h2 id="5-stale-captures-cannot-be-reused">5. Stale captures cannot be reused</h2>
+<p><code>clearCapturedSqlForStep</code> at all 5 sites (run-start, edit, reset, history-restore, <code>goToStep</code>) + per-step run-generation guard + per-step keying.</p>
+<h2 id="6-openapi-orval-not-required-deferred-to-flip">6. OpenAPI / Orval — NOT required (deferred to flip)</h2>
+<p>Follows the route-only precedent (<code>hasPedagogy</code> etc. are returned but absent from the spec; FE reads via <code>StepVM</code>). Adding to the spec deferred to 57B-flip for type-honesty.</p>
+<h2 id="7-gate-results">7. Gate results</h2>
+<p>typecheck <strong>PASS</strong> · check:no-heuristic-runtime <strong>OK</strong> · atlas <strong>159/159</strong> · api-server <strong>440</strong> (envelopeGrade 28/28) · execution-core <strong>83/83</strong> · csvSetEqualSubmit <strong>9/9</strong>. Ran on Node 22. DB-gated audits NOT RUN (no <code>DATABASE_URL</code>).</p>
+<h2 id="8-remaining-blocker-before-57b-flip">8. Remaining blocker before 57B-flip</h2>
+<p>Local DuckDB-WASM execution verification of the C2 step-3 expectedRows — requires Node 24 + <code>pnpm install</code> + DB. Flip correctly gated on Phase 0.x local-green.</p>
+<p><strong>Deferred P2s (to flip):</strong> popstate lifecycle gap (shared w/ Phase-49 envelope; safe via per-step keying + replaceState-only nav); <code>needs-run</code> uses red <code>*_FAIL</code> styling (owner UX call).</p>
+</main>
+</body>
+</html>

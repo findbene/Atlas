@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 0.y — local-baseline unblock + C2 fixture repair PROPOSAL</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 0.y — local-baseline unblock + C2 fixture repair PROPOSAL</h1><p class="meta">2026-06-06 · DB audits GREEN (Docker PG) · proposal only (no fixtures authored)</p></header><blockquote>
+<p>Compiled from the <code>.agentic/progress.md</code> Phase-0.y log + <code>docs/phases/phase-0y-c2-fixture-repair-proposal.md</code>.</p>
+</blockquote>
+<p>Goal: get a real local DB-audit baseline + produce a READ-ONLY C2 fixture-repair proposal (do not author fixtures or change expectedRows yet).</p>
+<h2 id="completion-status">Completion status</h2>
+<p>DONE (proposal-only, as scoped). DB-gated audits run green on a local ephemeral Docker Postgres; C2 repair proposal delivered; no fixtures authored.</p>
+<h2 id="what-was-done">What was done</h2>
+<ul>
+<li><strong>Node 24 activated SHELL-SCOPED</strong> (non-destructive PATH prepend; no <code>nvm use</code>, no admin, no clobber) → <code>node v24.16.0</code>, pnpm <code>9.15.0</code>.</li>
+<li><strong>Lockfile mismatch understood + fix identified, NOT committed</strong> — <code>pnpm-lock.yaml</code> <code>overrides:</code> is a stale subset; <code>pnpm install --lockfile-only</code> reconciles (+1188/−94) but is Linux/CI-targeted (prune keeps only <code>linux-x64</code>) → regenerate on Linux/CI/WSL, not Windows. Working-tree change reverted.</li>
+<li><strong>DB-gated audits RAN GREEN</strong> via local Docker Postgres (<code>atlas-pg</code>, postgres:16, port 5434, throwaway cred — not committed): migrate OK → seed OK → <code>audit:csv-set-equal-bc</code> PASS (0 visible — C2 hidden) · <code>audit:contains-bc</code> PASS 2/2, 14 subs · <code>audit:authoring</code> exit 0 (92 visible steps = 90 self_attest + 2 contains).</li>
+</ul>
+<h2 id="c2-fixture-repair-proposal-read-only-nothing-authored">C2 fixture repair proposal (read-only — nothing authored)</h2>
+<p>Found it is NOT a 1-file add. Bugs:
+- <strong>B1</strong> datasetRef double-<code>.csv</code> (<code>seeds/subscriptions.csv</code> → fetched <code>…/subscriptions.csv.csv</code>).
+- <strong>B3</strong> validation queries target dbt models (<code>mart_subscription_monthly</code>, <code>stg_*</code>) the DuckDB-WASM sandbox never builds → checks can't run.
+- <strong>B4</strong> hand-authored expected values internally inconsistent (step 5 says $5,847 but its own breakdown = $3,891).
+- <strong>B5</strong> existing <code>orders.csv</code> is the wrong shape.
+- <strong>Repair A (recommended):</strong> author 3 seed fixtures + fix datasetRefs + re-architect checks to be WASM-native (inline CTEs over seeds) + regenerate ALL expected values from real execution + promote candidate.</p>
+<h2 id="scope-hard-stops">Scope / hard stops</h2>
+<p>No <code>serverGrade:true</code>, no opt-in, no fixtures authored, no expectedRows changed, no schema/migration, no production, no env/canary, Phase 52 untouched, no secrets, no force-push. All honored.</p>
+<h2 id="flip-verdict">Flip verdict</h2>
+<p>57B-flip STILL BLOCKED — 3 layers (candidate hidden · fixtures absent + path bug · queries target unbuilt dbt models + inconsistent expected values).</p>
+<h2 id="recommended-next-step">Recommended next step</h2>
+<p>Approve a C2 repair phase (Repair A). → became Phase 0.z.</p>
+</main>
+</body>
+</html>
