@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 60A — Evidence-Safe Portfolio Artifact MVP Foundation</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 60A — Evidence-Safe Portfolio Artifact MVP Foundation</h1><p class="meta">2026-06-07 · COMPLETED · implementation (pure generator + tests + close-out) · commit d08bb25</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 60A — build the first recruiter-usable, <strong>evidence-safe portfolio artifact foundation</strong>: a deterministic generator that produces local/manual artifact files (README.md, VALIDATION_EVIDENCE.md, LIMITATIONS.md; optional DATASET_NOTES.md + LEARNER_REFLECTION_TEMPLATE.md) from <strong>safe existing Atlas data</strong>, with NO GitHub OAuth, NO public publishing, NO schema churn unless proven necessary, and without overstating what Atlas verified. Implementation phase. Hard stops: no GitHub OAuth / direct push / publishing flow / certificate-marketing claims; no new <code>serverGrade:true</code> / opt-ins / kind flips; no envelope enforcement; no Phase 52 / env / canary / production / cloud changes; no high-speed waves; no force-push; no secrets; <strong>do not start 60B</strong>. Schema rule: avoid schema/migration; if durable records are insufficient for code/output export, document the gap for 60B rather than faking data. Route: start generator-only; add an authenticated read-only route only if low-risk + fully testable without schema churn, else skip.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Built the pure generator + 45 tests + close-out. Reviews: architect <strong>PASS</strong> + code <strong>SHIP</strong> (no P0/P1); all flagged P2s either fixed in-phase or deferred-with-rationale to 60B. All gates green. The optional route was <strong>deliberately deferred</strong> to 60B (rationale §9). Phase 60B not started.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>artifacts/api-server/src/lib/portfolioArtifact.ts</code> — <strong>added</strong> (intentional). Pure generator <code>generatePortfolioArtifact(input)</code> + <code>classifyEvidenceStatus(kind, flag)</code> + safe input types. No db/network/env access.</li>
+<li><code>artifacts/api-server/src/lib/portfolioArtifact.test.ts</code> — <strong>added</strong> (intentional). 45 tests: no-leak (token + structural), evidence-honesty, determinism, classifier table, unavailable, md-escaping, edge cases.</li>
+<li><code>docs/phases/phase-60a-portfolio-artifact-mvp.md</code> — <strong>added</strong> (intentional). Close-out: inventory, design, allowed/forbidden claims, OAuth-deferral rationale, 60B plan.</li>
+<li><code>.agentic/progress.md</code> — <strong>modified</strong> (intentional). Phase 60A entry.</li>
+<li><code>.agentic/self-review.log</code> — modified (hook-managed; excluded from commit).</li>
+<li>Archive: <code>Atlas_Each_Task_Mini_Reports_to_Chatgpt.html/src/15-…md</code> + regenerated HTML (this).</li>
+<li><strong>NOT changed:</strong> any route/grader/audit, <code>lib/db</code> schema/migrations, <code>lib/api-spec</code>/openapi.yaml, generated codegen, authored project files, envelope, Phase 52.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>App code changed? <strong>yes</strong> — one NEW unreferenced leaf module + its test in api-server (zero callers → zero behavior change). DB schema/migration? <strong>no.</strong> Project content changed? <strong>no.</strong> Env/canary? <strong>no.</strong> OpenAPI/codegen? <strong>no.</strong> Production touched? <strong>no.</strong> Phase 52 touched? <strong>no.</strong> Any row opted in? <strong>no</strong> (serverGrade count still csv 1 / sql 1). GitHub OAuth / publishing / cert-marketing? <strong>no.</strong> Schema for code/output export? <strong>no</strong> — documented as a 60B gap instead. Force-push / secrets? <strong>no.</strong> Any unexpected file? <strong>no.</strong> Phase 60B started? <strong>no.</strong></p>
+<h2 id="5-existing-data-inventory">5. Existing Data Inventory</h2>
+<p><strong>Safe to generate today</strong> (from existing records): completion evidence already assembled by the Phase-29 <code>/user/portfolio</code> route + the Phase-28 <code>/verify/:certId</code> view (completedAt, stepsCompleted/totalSteps, evidenceHashCount, durationSeconds, totalXpEarned, certId, verifyUrl, topRole), plus project/step metadata — <code>projects.title</code>/<code>short_description</code> (summary), <code>learning_objectives[]</code> (skills), <code>tech_stack[]</code> (tools), <code>job_outcomes.roles[0]</code> (role), <code>course</code>, <code>difficulty_level</code>, <code>total_steps</code>; <code>project_steps.validation_type</code> (the kind — a safe enum, not a spec), <code>required_skill</code>; per-step <code>passed</code>/<code>completed_at</code>; durable evidence-hash count (<code>submission_sha256 IS NOT NULL</code>). Per-step <strong>server-graded</strong> status is derivable as a narrow boolean (kind ∈ rowset AND <code>validation_config.spec.serverGrade === true</code>) without ever exposing the config.
+<strong>Cannot generate yet (→ 60B):</strong> the learner's <strong>submitted code</strong> and <strong>runtime output</strong> are NOT durably stored canonically — <code>submission_excerpt</code> is a truncated, exposure-forbidden excerpt; <code>submission_sha256</code> is a one-way hash; <code>user_code_sessions.files</code> is the latest editor snapshot (one row per user+project, overwritten); <code>user_code_runs.code/stdout/stderr</code> is pruned run history. Exporting real code/output needs a new durable, append-only submission store written at passing <code>/submit</code> — a schema change, hence out of 60A scope.</p>
+<h2 id="6-artifact-generator-design">6. Artifact Generator Design</h2>
+<p>A pure leaf module. <code>PortfolioArtifactInput</code> distinguishes project metadata · role/path · per-step completion evidence · server-graded vs client-provisional vs self-attested vs <strong>unavailable</strong> · limitations/disclosures — and <strong>excludes by type</strong> any <code>validationConfig</code>/<code>expectedRows</code>/<code>expectedRowsHash</code>/answer key/hidden spec/comparator diagnostic/secret. <code>classifyEvidenceStatus(kind, serverGradeFlag)</code> is the single source of truth for evidence strength, logically identical to runtime <code>deriveServerGrade</code>; the generator derives the displayed status per step (<code>unavailable</code> when not passed) rather than trusting a caller-set value. <code>generatedAtIso</code> is passed in (not computed) → determinism. Author-supplied fields are markdown-escaped (<code>mdCell</code>/<code>mdHeading</code>) so a <code>|</code>/<code>#</code> cannot corrupt the evidence table or inject a heading.</p>
+<h2 id="7-implementation-details">7. Implementation Details</h2>
+<ul>
+<li><code>generatePortfolioArtifact(input): PortfolioArtifactBundle</code> — renders the bundle; <code>DATASET_NOTES.md</code> only when datasets are supplied; reflection template always (pure boilerplate, no learner data).</li>
+<li><code>classifyEvidenceStatus</code> — rowset kind + flag → server-graded; <code>self_attest</code> → self-attested; else client-provisional. A stray flag on a non-rowset kind never upgrades (asserted).</li>
+<li>The single allowed claim is centralized in one constant and reused verbatim in README + VALIDATION_EVIDENCE.</li>
+<li>LIMITATIONS states every non-claim, worded to avoid the forbidden phrasings <strong>even in negation</strong> ("produced the solution without assistance", "who wrote the code or SQL", "certify the learner's competence") so the honesty audit stays a simple substring check.</li>
+<li>Behavior intentionally unchanged: the module is imported only by its test; no route/grader references it.</li>
+</ul>
+<h2 id="8-generated-artifact-files">8. Generated Artifact Files</h2>
+<p><code>README.md</code> (title, role/path, course, level, summary, skills, tools, completion summary, the allowed Atlas-verified statement) · <code>VALIDATION_EVIDENCE.md</code> (per-step table: step · title · kind · skill · evidence strength · completed; legend; evidence-integrity rollup; durable <code>/submit</code> vs provisional <code>/check</code> distinction) · <code>LIMITATIONS.md</code> (non-claims, what it does reflect, data scope/freshness incl. submitted-code-unavailable) · <code>LEARNER_REFLECTION_TEMPLATE.md</code> (static) · <code>DATASET_NOTES.md</code> (conditional).</p>
+<h2 id="9-optional-route-decision">9. Optional Route Decision</h2>
+<p><strong>Deferred to 60B.</strong> <code>/user/portfolio</code> is already in <code>openapi.yaml</code>, so a new <code>GET /user/portfolio/:slug/artifact</code> would either drift from the spec or force the known deferred ~95-file orval CRLF regen. Building the generator <strong>dark and provable first</strong>, then exposing it behind an authenticated read-only route, mirrors the project's dark→flip discipline (57A→57B, 58A→58B) and keeps 60A's leak surface minimal. The close-out specifies the exact 60B route (auth, session-only userId, completed+visible gate, 404-not-403, safe-columns-only SELECT, <code>validation_config-&gt;'spec'-&gt;&gt;'serverGrade'</code>, reuse of the <code>user-portfolio.ts</code> clamps, supertest-testable, OpenAPI on next regen).</p>
+<h2 id="10-no-leak-verification">10. No-Leak Verification</h2>
+<p><strong>No-leak by construction</strong> — the input model has no field that can carry a spec/answer key/raw submission/secret; the only validation fact per step is the <code>validation_type</code> enum + a derived narrow status. Tests assert (on a realistic C2-shaped input carrying BOTH opted-in rowset steps) that none of validationConfig/expectedRows(/Hash)/serverGrade-key/C2 query+expected fragments (one_current, overlap, 9999-12-31, generate_series, lag(, md5(, seeds/<em>, mart_subscription_monthly, C-100, …)/submission-excerpt/secret-like strings appear. A </em><em>structural</em>* test attaches extra spec-like props (<code>validationConfig</code>, <code>expectedRows</code>, <code>answerKey</code>) to the input via casting and asserts none surface — proving the implementation reads only declared fields. Architect independently confirmed no leak channel.</p>
+<h2 id="11-evidence-honesty-verification">11. Evidence-Honesty Verification</h2>
+<p>Tests assert the allowed claim is PRESENT and the forbidden over-claims are ABSENT (cheat-proof/tamper-proof incl. en-dash variants, job readiness/guarantee, independent authorship, "authorship" entirely, outside help, professional competence, verified honest …). Architect ran the generated bundle through the <strong>canonical</strong> <code>BANNED_H1H2_PATTERNS</code> + <code>normalize()</code> (NFKC/Cf-strip/dash-fold) guard → <strong>0 hits</strong>. Required limitation language verified present.</p>
+<h2 id="12-independent-review-results">12. Independent Review Results</h2>
+<ul>
+<li><strong>atlas-architect-reviewer: PASS</strong> (no P0/P1). Verified empirically: 42→45/45 suite, canonical-guard 0 hits, unreferenced leaf, predicate parity, inventory accuracy. P2s: P2-1 close-out wrong spec path → <strong>FIXED</strong>; P2-3 dead fields → <strong>FIXED</strong>; P2-4 §10 placeholder → <strong>FIXED</strong>; P2-2 canonical-guard wiring → <strong>DEFERRED to 60B</strong> (cross-package; passes today); P2-5 clamp reuse → documented as 60B route requirement.</li>
+<li><strong>code-reviewer: SHIP</strong> (no P0/P1). Verified classifier exhaustively, determinism, non-vacuous tests. P2s: markdown-injection → <strong>FIXED</strong> (<code>mdCell</code>/<code>mdHeading</code> + test); no-leak structural gap → <strong>FIXED</strong> (extra-props test); dead <code>unavailable</code>/unrendered fields → <strong>FIXED</strong>; durable store + guard wiring → <strong>DEFERRED to 60B</strong>.</li>
+</ul>
+<h2 id="13-tests-and-gates-run-node-24160-docker-pg-5434">13. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<ul>
+<li>typecheck (<code>tsc --build</code> + per-project) — <strong>PASS</strong> (after fixing one test-helper signature).</li>
+<li>check:no-heuristic-runtime — <strong>OK</strong>.</li>
+<li>api-server vitest — <strong>571/571 PASS</strong> (37 files; +45 new portfolioArtifact tests; was 526 in 59B).</li>
+<li>audit:sql-resultset-bc — <strong>PASS</strong> (3 dark + 1 opted-in; 7 checks 0 failures).</li>
+<li>audit:csv-set-equal-bc — <strong>PASS</strong> (1 opted-in; 5 checks 0 failures).</li>
+<li>audit:contains-bc — <strong>PASS</strong> (3/3, 21 submissions, 0 mismatches).</li>
+<li>audit:authoring — <strong>exit 0</strong> (0 advisories).</li>
+<li>Frontend (atlas) / curriculum-quality — NOT RUN (untouched by this phase).</li>
+</ul>
+<h2 id="14-failures-fixes-and-surprises">14. Failures, Fixes, and Surprises</h2>
+<ul>
+<li>Test-helper <code>concatBundle</code> typed as <code>Record&lt;string,string|undefined&gt;</code> rejected <code>PortfolioArtifactBundle</code> (no index signature) → typed it as the bundle. (Caught by typecheck, not the focused vitest run — gate chain did its job.)</li>
+<li>One honesty assertion used <code>"not certify"</code> but the source has <code>**not** certify</code> (markdown bold) → matched on <code>"certify the learner's competence"</code> instead.</li>
+<li>Reviews surfaced a real correctness bug in the 60B <strong>doc</strong> guidance (serverGrade nested under <code>.spec</code>, not top-level) → fixed before it could mislead 60B. No code defects.</li>
+</ul>
+<h2 id="15-current-git-state">15. Current Git State</h2>
+<p>Branch <code>main</code>. Feature commit <strong><code>d08bb25</code></strong> (<code>feat(portfolio): evidence-safe portfolio artifact generator (Phase 60A)</code>, 4 files +1038). Archive commit follows. <code>git status --short</code>: clean except hook-managed <code>.agentic/self-review.log</code> (+ <code>HANDOFF.md</code>). Will push to <code>main</code> after archive.</p>
+<h2 id="16-current-project-state-after-this-task">16. Current Project State After This Task</h2>
+<p>A pure, reviewed, leak-safe, honest portfolio-artifact generator exists as a dark foundation (Epic E2 begun). Still NOT true: no route serves it; no GitHub export/publishing; learner code/output not durably stored. Still dark/off: envelope enforcement; Phase 52 canary. Exactly 1 csv + 1 sql server-graded row, both C2 (unchanged). Phase 60B (route + durable submission store + canonical-guard wiring) can safely begin <strong>on owner approval</strong>.</p>
+<h2 id="17-remaining-risks-blockers">17. Remaining Risks / Blockers</h2>
+<ul>
+<li>60B must use <code>validation_config-&gt;'spec'-&gt;&gt;'serverGrade'</code> and reuse the <code>user-portfolio.ts</code> clamps (documented) or it would mis-grade/leak — guard rails written into the close-out.</li>
+<li>Canonical H3-guard wiring is deferred (guard passes today; risk = a future copy edit regressing without the canonical net) — 60B gate.</li>
+<li>Real code/output export blocked until a durable submission store (60B schema).</li>
+<li>Full app UI boot still blocked by Phase 0.2; end-to-end route proof awaits 60B supertest.</li>
+<li>Observe the 2 live opted-in C2 rows in a real env before any new opt-in (unchanged standing item).</li>
+</ul>
+<h2 id="18-recommended-next-step">18. Recommended Next Step</h2>
+<p>Recommended next step: <strong>owner approval to start Phase 60B</strong> (authenticated read-only artifact route + durable submission store + canonical-guard wiring), per the close-out §9 design. Classification: owner approval (then implementation). Do not begin unprompted.</p>
+<h2 id="explicit-stop-statement">Explicit Stop Statement</h2>
+<p>Stopped. Ready for next instruction. Phase 60B NOT started.</p>
+</main>
+</body>
+</html>
