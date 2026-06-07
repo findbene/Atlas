@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 59B — evidence-parity cleanup, deferred-P2 closure, live-row observation readiness</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 59B — evidence-parity cleanup, deferred-P2 closure, live-row observation readiness</h1><p class="meta">2026-06-07 · COMPLETED · audit serverGrade-awareness + tests + comments (no behavior change) · commit a00feb7</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 59B: close the remaining Phase 59 evidence/parity risks before Phase 60 — resolve or document deferred 59A/58A/58B evidence P2s, strengthen route/evidence tests, confirm the 2 live server-graded rows remain stable. Do not expand validation coverage or start portfolio work. Hard stops: no new serverGrade/opt-ins/flips, no envelope enforcement, no Phase 52/env/canary/schema/cloud/portfolio/cert change, no force-push, do not start Phase 60.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Closed the deferred P2s (1 deferred-again with rationale), added tests, re-verified both live rows. Reviews architect <strong>PASS</strong> + code <strong>SHIP</strong> (no P0/P1). All gates green. Phase 60 not started.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>lib/curriculum-quality/src/validationEnforcement.ts</code> — NEW pure helpers (isServerGradedRowset, classifyValidationKindWithSpec, tallyValidationKindsWithSpec); static classifier unchanged.</li>
+<li><code>scripts/src/audit-project-authoring.ts</code> — wired spec-aware tally + <code>validationKindSpecs</code> report field; dropped unused import.</li>
+<li><code>lib/curriculum-quality/src/validationEnforcement.test.ts</code> — tests for the 3 helpers.</li>
+<li><code>artifacts/api-server/src/routes/user-check-submit-parity.test.ts</code> — /submit completed-transition + idempotency for a server-graded row.</li>
+<li><code>artifacts/api-server/src/routes/projects.ts</code> — comment-only cross-reference (deriveServerGrade → isServerGradedRowset).</li>
+<li><code>scripts/src/audit-csv-set-equal-bc.ts</code>, <code>audit-sql-resultset-bc.ts</code>, <code>authored-lineage.ts</code> — comment-only stale-wording fixes.</li>
+<li><code>docs/phases/phase-59b-evidence-parity-cleanup.md</code>, <code>.agentic/progress.md</code>. Excluded (hook-managed): self-review.log, HANDOFF.md.</li>
+<li><strong>NOT in diff:</strong> grading.ts, envelopeGrade.ts, user.ts, lib/db, lib/api-spec, generated codegen, schema/migrations.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>new serverGrade/opt-ins/flips? <strong>no</strong> · envelope enforcement? <strong>no</strong> · Phase 52? <strong>no</strong> · env/canary? <strong>no</strong> · schema/migration? <strong>no</strong> · OpenAPI/codegen? <strong>no</strong> (deferred) · production/cloud/portfolio/GitHub/cert? <strong>no</strong> · grading/route behavior changed? <strong>no</strong> (reporting + tests + comments only) · force-push? <strong>no</strong> · secrets? <strong>no</strong> · Phase 60 started? <strong>no</strong>.</p>
+<h2 id="5-deferred-p2-review-result">5. Deferred P2 Review Result</h2>
+<ul>
+<li><code>/submit</code> completed-transition not in 59A parity file → <strong>FIXED</strong> (added test).</li>
+<li><code>audit:authoring</code> mislabels server-graded rowset kinds client-provisional (R1) → <strong>FIXED</strong> (serverGrade-aware classifier).</li>
+<li>OpenAPI <code>serverGrade</code> description polish → <strong>DEFERRED</strong> (embedded in yaml + 3 generated files; regen = ~95-file CRLF churn; current text accurate/not-misleading; ride next orval regen).</li>
+<li>Stale evidence-contract wording (57B–59A) → <strong>FIXED</strong> (comment-only).</li>
+<li><code>.gitattributes</code> EOL for test/script files (code P2-b) → <strong>DEFERRED</strong> (separate tracked follow-up).</li>
+</ul>
+<h2 id="6-implementation-details">6. Implementation Details</h2>
+<p>The classifier change is the substance and is reporting-only. <code>isServerGradedRowset</code> is logically identical to the runtime <code>deriveServerGrade</code> (same <code>csv_set_equal | sql_resultset</code> gate, same null/object guards, same strict <code>serverGrade === true</code>), so the audit's <code>enforced</code> label corresponds exactly to the rows the server actually commit-grades — no drift, no false-enforced upgrade. The histogram splits a mixed kind into <code>&lt;kind&gt;</code> (dark) + <code>&lt;kind&gt; (server-graded)</code> (enforced); totals still sum to the step count. No runtime grading path touched.</p>
+<h2 id="7-live-row-re-verification-result">7. Live-Row Re-Verification Result</h2>
+<p><code>audit:sql-resultset-bc</code> (C2 step 2) + <code>audit:csv-set-equal-bc</code> (C2 step 3) re-run <strong>PASS</strong>: correct <code>{columns,rows}</code> passes; raw SQL / malformed JSON / wrong columns / missing row / extra unmatched row / wrong row value all fail closed; non-opted rows BC. Route-level parity additionally pinned by the expanded parity test.</p>
+<h2 id="8-evidenceparity-test-result">8. Evidence/Parity Test Result</h2>
+<ul>
+<li><code>validationEnforcement.test.ts</code>: +3 describe blocks (isServerGradedRowset, classifyValidationKindWithSpec, tallyValidationKindsWithSpec) — green (incl. non-boolean serverGrade, non-rowset, malformed config, split-bucket tally).</li>
+<li><code>user-check-submit-parity.test.ts</code>: +2 — <code>/submit</code> completed-transition (projectComplete + email once) + idempotent re-submit (no double XP/ledger; monotonic passed; evidence not overwritten). Reviewer mutation-confirmed non-vacuous.</li>
+</ul>
+<h2 id="9-no-leak-verification-result">9. No-Leak Verification Result</h2>
+<p>Unchanged from 59A and re-confirmed: neither <code>/check</code> nor <code>/submit</code> exposes validationConfig/spec/expectedRows/expectedRowsHash/the reference query, on PASS or FAIL. No response shaping changed this phase.</p>
+<h2 id="10-integration-limitation-statement">10. Integration Limitation Statement</h2>
+<p>Full app UI boot remains <strong>blocked by Phase 0.2</strong> (Replit connector coupling). Best verified paths: (a) browser DuckDB-WASM adapter capture → live route grader (58B); (b) route-level supertest parity tests against the real <code>/check</code> + <code>/submit</code> handlers (59A/59B). No full-app E2E.</p>
+<h2 id="11-independent-review-results">11. Independent Review Results</h2>
+<ul>
+<li><strong>architect-reviewer: PASS</strong> — classifier no-false-enforced, no behavior change, audit totals conserved, tests non-vacuous, invariants intact. P2s: DB-gate reproducibility (env — I ran green on Docker PG); OpenAPI deferral concurred.</li>
+<li><strong>code-reviewer: SHIP</strong> — isServerGradedRowset logically byte-identical to deriveServerGrade; both new /submit tests traced through real route code; totals conserved; scope clean. P2-a (4-copy predicate drift) → <strong>FIXED</strong> (cross-ref comment); P2-b (.gitattributes) → <strong>DEFERRED</strong>.</li>
+</ul>
+<h2 id="12-tests-and-gates-run-node-24160-docker-pg-5434">12. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<p>typecheck + check:no-heuristic-runtime <strong>PASS</strong> · api-server <strong>526/526</strong> (+2) · curriculum-quality <strong>152/153</strong> (+9; only failure = env-only COURSE_TAXONOMY ENOENT) · audit:authoring exit 0 (<strong>97% enforced / 3% client-provisional</strong>; <code>sql_resultset (server-graded) [enforced]</code> + <code>csv_set_equal (server-graded) [enforced]</code>) · audit:sql-resultset-bc PASS (3 dark + 1 opted-in) · audit:csv-set-equal-bc PASS · audit:contains-bc 3/3. serverGrade counts csv:1 / sql:1.</p>
+<h2 id="13-failures-fixes-and-surprises">13. Failures, Fixes, and Surprises</h2>
+<p>No code failures. Pleasant: the serverGrade-aware audit landed cleanly — the histogram now self-documents which rowset rows are live server-enforced. Reviewers flagged the 4-copy opt-in predicate as a drift surface (deliberate, zero-dep boundary) → added a cross-reference comment. Both BC-audit + authoring gates need Docker PG (DATABASE_URL); reviewers ran on Node-22/no-DB so they could not re-run those three — I ran them green on Docker PG and the audit-file diffs are comment-only, so behavior is unchanged.</p>
+<h2 id="14-current-git-state">14. Current Git State</h2>
+<p>Branch <code>main</code>, HEAD <code>a00feb7</code> (this archive commit follows). Pushed after archive. Working tree clean except hook-managed <code>.agentic/self-review.log</code> + <code>HANDOFF.md</code>.</p>
+<h2 id="15-remaining-risks-blockers">15. Remaining Risks / Blockers</h2>
+<ul>
+<li>Deferred: OpenAPI <code>serverGrade</code> description (ride next orval regen); <code>.gitattributes</code> EOL normalization for generated + test + script files.</li>
+<li>Observe the live opted-in rows in a real env before any new opt-in.</li>
+<li>Full app UI boot blocked by Phase 0.2.</li>
+</ul>
+<h2 id="16-recommended-next-step">16. Recommended Next Step</h2>
+<p><strong>Phase 60</strong> (portfolio / GitHub artifact, E2). Owner approval required to start.</p>
+<h2 id="17-explicit-stop-statement">17. Explicit Stop Statement</h2>
+<p>Stopped after Phase 59B. Phase 60 / broader expansion NOT started. Ready for next instruction.</p>
+</main>
+</body>
+</html>
