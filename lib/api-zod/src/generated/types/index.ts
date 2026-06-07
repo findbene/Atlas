@@ -70,6 +70,8 @@ export * from "./onboardingState";
 export * from "./onboardingStateLastSeenStep";
 export * from "./paginatedProjects";
 export * from "./portalResponse";
+export * from "./portfolioArtifactResponse";
+export * from "./portfolioArtifactResponseFiles";
 export * from "./portfolioEvidence";
 export * from "./portfolioEvidenceDifficulty";
 export * from "./projectDetail";

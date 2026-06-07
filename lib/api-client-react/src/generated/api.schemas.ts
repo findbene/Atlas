@@ -116,6 +116,32 @@ export interface UserPortfolioResponse {
   items: PortfolioEvidence[];
 }
 
+/**
+ * Map of artifact filename → markdown contents.
+ */
+export type PortfolioArtifactResponseFiles = {
+  "README.md": string;
+  "VALIDATION_EVIDENCE.md": string;
+  "LIMITATIONS.md": string;
+  "LEARNER_REFLECTION_TEMPLATE.md": string;
+  "DATASET_NOTES.md"?: string;
+};
+
+/**
+ * Phase 60C — deterministic, leak-safe portfolio artifact bundle for a
+single completed/enrolled project of the authenticated user. `files`
+maps each artifact filename to its markdown contents. Contains only the
+Phase-60A generator output — never validationConfig, expectedRows,
+answer keys, reference queries, raw submissions, or secrets.
+
+ */
+export interface PortfolioArtifactResponse {
+  projectSlug: string;
+  generatedAt: string;
+  /** Map of artifact filename → markdown contents. */
+  files: PortfolioArtifactResponseFiles;
+}
+
 export interface ErrorResponse {
   error: string;
   message?: string;

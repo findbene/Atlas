@@ -1983,6 +1983,51 @@ export const GetUserPortfolioResponse = zod
   );
 
 /**
+ * Phase 60A/60B/60C — Authenticated, read-only. Returns a deterministic,
+recruiter-readable artifact bundle (README.md, VALIDATION_EVIDENCE.md,
+LIMITATIONS.md, LEARNER_REFLECTION_TEMPLATE.md, and optionally
+DATASET_NOTES.md) generated from THIS user's safe completion and
+evidence records for the given project.
+
+Privacy contract: `userId` is sourced EXCLUSIVELY from the
+authenticated session — no path/query/body parameter accepts a userId
+or ownership claim. The response NEVER contains validationConfig,
+expectedRows, expectedRowsHash, reference solution queries, comparator
+internals, raw submissions, secrets, or over-claiming
+authorship/job-guarantee/certification copy (guaranteed by the
+assembly chokepoint, the leak-free-by-construction generator input
+model, and a runtime honest-claim guard).
+
+Returns 404 — never 403 — when the project is hidden, soft-deleted,
+unknown, or the user is not enrolled (no hidden-project existence leak).
+
+ * @summary Authenticated portfolio artifact bundle (Phase 60C)
+ */
+export const GetPortfolioArtifactParams = zod.object({
+  projectSlug: zod.coerce
+    .string()
+    .describe("Slug of a project the authenticated user is enrolled in"),
+});
+
+export const GetPortfolioArtifactResponse = zod
+  .object({
+    projectSlug: zod.string(),
+    generatedAt: zod.coerce.date(),
+    files: zod
+      .object({
+        "README.md": zod.string(),
+        "VALIDATION_EVIDENCE.md": zod.string(),
+        "LIMITATIONS.md": zod.string(),
+        "LEARNER_REFLECTION_TEMPLATE.md": zod.string(),
+        "DATASET_NOTES.md": zod.string().optional(),
+      })
+      .describe("Map of artifact filename → markdown contents."),
+  })
+  .describe(
+    "Phase 60C — deterministic, leak-safe portfolio artifact bundle for a\nsingle completed\/enrolled project of the authenticated user. `files`\nmaps each artifact filename to its markdown contents. Contains only the\nPhase-60A generator output — never validationConfig, expectedRows,\nanswer keys, reference queries, raw submissions, or secrets.\n",
+  );
+
+/**
  * Idempotent — flips `users.onboarding_completed=true` on first call;
 subsequent calls are no-ops and return the same payload.
 

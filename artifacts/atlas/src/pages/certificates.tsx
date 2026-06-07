@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DownloadPortfolioBundleButton } from "@/components/DownloadPortfolioBundleButton";
 import { Link } from "wouter";
 
 function formatDate(iso?: string | null) {
@@ -253,6 +254,8 @@ export default function Certificates() {
                         </a>
                       </Button>
                     </div>
+
+                    <DownloadPortfolioBundleButton projectSlug={it.projectSlug} />
                   </div>
                 </div>
               );

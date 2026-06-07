@@ -359,6 +359,32 @@ artifacts. **No GitHub OAuth/publishing, no new serverGrade/opt-ins, envelope OF
   untouched; additive schema only; no env/canary/cloud/GitHub-OAuth/cert change; RUBRIC_VERSION frozen.
   **Phase 60C NOT started.**
 
+## 2026-06-07 — Phase 60C portfolio-artifact client contract + frontend manual download UX — SHIPPED
+- **What:** made the 60B authenticated artifact route consumable from the FE. (1) Added
+  `GET /user/projects/{projectSlug}/portfolio-artifact` + `PortfolioArtifactResponse` schema to
+  `lib/api-spec/openapi.yaml`; (2) ran orval codegen (`pnpm --filter @workspace/api-spec run codegen`) →
+  purely ADDITIVE (+316 lines, 0 deletions; the feared ~95-file CRLF churn did not occur — index already
+  LF); (3) NEW scoped `.gitattributes` (eol=lf for the two generated dirs + openapi.yaml only) to contain
+  future churn; (4) NEW `DownloadPortfolioBundleButton.tsx` on the Certificates page — on-click (never on
+  mount) calls the generated raw `getPortfolioArtifact(slug)`, serialises the response verbatim → JSON
+  download `${slug}-portfolio.json`; idle/loading/error; all failures collapse to one safe message.
+- **No-leak/honesty:** client serialises only route output, reads no field, renders none of the bundle;
+  no new leak channel (server assembly chokepoint unchanged). Only static labels — no over-claiming copy.
+- **Download format:** JSON (no ZIP — not trivial/tested, out of scope).
+- **Tests:** +6 FE (client-called-on-click; download===verbatim route output via captured Blob; no
+  spec/answer-key tokens; bundle not rendered; no forbidden claims; safe error + no file written) · +1
+  api-server contract test (live 200 validated against generated zod `GetPortfolioArtifactResponse` +
+  non-vacuous negative control).
+- **Reviews:** architect **PASS** + code-reviewer **SHIP**, no P0/P1. Fixed P2s: missing close-out
+  (added `docs/phases/phase-60c-portfolio-artifact-client-and-download.md`); test-hygiene global URL
+  restore. Deferred P2: unmount-mid-fetch abort guard (React 18 no-warn, cosmetic).
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck + check:no-heuristic-runtime · api-server
+  **588/588** · atlas **165/165** · orval codegen clean + typecheck:libs · audit:csv-set-equal-bc PASS (1) ·
+  audit:sql-resultset-bc PASS (3 dark + 1) · audit:contains-bc 3/3 · audit:authoring exit 0.
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips/kinds; envelope OFF;
+  Phase 52 untouched; **no schema/migration**; route still authenticated/read-only; `/check` writes no
+  snapshots; `/submit` snapshot behavior unchanged; RUBRIC_VERSION frozen. **Phase 60D NOT started.**
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 

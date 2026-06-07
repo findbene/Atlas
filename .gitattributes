@@ -1,0 +1,7 @@
+# Phase 60C — keep orval/codegen output and the OpenAPI source LF-normalised so
+# regeneration produces content-only diffs (no CRLF churn). Scoped intentionally
+# to the generated + spec paths only; this does NOT renormalise the rest of the
+# repository.
+lib/api-client-react/src/generated/** text eol=lf
+lib/api-zod/src/generated/**         text eol=lf
+lib/api-spec/openapi.yaml            text eol=lf

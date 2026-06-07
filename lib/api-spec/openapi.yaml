@@ -956,6 +956,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /user/projects/{projectSlug}/portfolio-artifact:
+    get:
+      operationId: getPortfolioArtifact
+      tags: [user-projects]
+      summary: Authenticated portfolio artifact bundle (Phase 60C)
+      description: |
+        Phase 60A/60B/60C — Authenticated, read-only. Returns a deterministic,
+        recruiter-readable artifact bundle (README.md, VALIDATION_EVIDENCE.md,
+        LIMITATIONS.md, LEARNER_REFLECTION_TEMPLATE.md, and optionally
+        DATASET_NOTES.md) generated from THIS user's safe completion and
+        evidence records for the given project.
+
+        Privacy contract: `userId` is sourced EXCLUSIVELY from the
+        authenticated session — no path/query/body parameter accepts a userId
+        or ownership claim. The response NEVER contains validationConfig,
+        expectedRows, expectedRowsHash, reference solution queries, comparator
+        internals, raw submissions, secrets, or over-claiming
+        authorship/job-guarantee/certification copy (guaranteed by the
+        assembly chokepoint, the leak-free-by-construction generator input
+        model, and a runtime honest-claim guard).
+
+        Returns 404 — never 403 — when the project is hidden, soft-deleted,
+        unknown, or the user is not enrolled (no hidden-project existence leak).
+      security:
+        - clerkAuth: []
+      parameters:
+        - in: path
+          name: projectSlug
+          required: true
+          schema:
+            type: string
+          description: Slug of a project the authenticated user is enrolled in
+      responses:
+        "200":
+          description: Portfolio artifact bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioArtifactResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /onboarding/complete:
     post:
       operationId: completeOnboarding
@@ -1164,6 +1216,44 @@ components:
         - totalProjectXp
         - evidenceBackedCount
         - items
+
+    PortfolioArtifactResponse:
+      type: object
+      description: |
+        Phase 60C — deterministic, leak-safe portfolio artifact bundle for a
+        single completed/enrolled project of the authenticated user. `files`
+        maps each artifact filename to its markdown contents. Contains only the
+        Phase-60A generator output — never validationConfig, expectedRows,
+        answer keys, reference queries, raw submissions, or secrets.
+      properties:
+        projectSlug:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        files:
+          type: object
+          description: Map of artifact filename → markdown contents.
+          properties:
+            "README.md":
+              type: string
+            "VALIDATION_EVIDENCE.md":
+              type: string
+            "LIMITATIONS.md":
+              type: string
+            "LEARNER_REFLECTION_TEMPLATE.md":
+              type: string
+            "DATASET_NOTES.md":
+              type: string
+          required:
+            - README.md
+            - VALIDATION_EVIDENCE.md
+            - LIMITATIONS.md
+            - LEARNER_REFLECTION_TEMPLATE.md
+      required:
+        - projectSlug
+        - generatedAt
+        - files
 
     ErrorResponse:
       type: object

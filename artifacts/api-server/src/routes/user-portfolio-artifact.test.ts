@@ -15,6 +15,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import express from "express";
 import request from "supertest";
 import { findBannedClaims } from "@workspace/execution-core/honest-claims";
+import { GetPortfolioArtifactResponse } from "@workspace/api-zod";
 
 const TEST_USER = { id: "00000000-0000-0000-0000-000000000001", email: "u@example.com", name: "U" };
 
@@ -195,5 +196,22 @@ describe("GET /user/projects/:slug/portfolio-artifact — bundle", () => {
     mockCompletedProject({ snapshots: [] });
     const r = await get(await buildApp());
     expect(r.body.files["LIMITATIONS.md"]).toContain("not included");
+  });
+
+  it("conforms to the generated OpenAPI response contract (Phase 60C zod)", async () => {
+    mockCompletedProject();
+    const r = await get(await buildApp());
+    // The live route output must validate against the schema generated from
+    // openapi.yaml — this is the contract the frontend client consumes.
+    const parsed = GetPortfolioArtifactResponse.safeParse(r.body);
+    expect(parsed.success).toBe(true);
+    // Negative control: a body missing `files` must be rejected, proving the
+    // assertion above is non-vacuous.
+    expect(
+      GetPortfolioArtifactResponse.safeParse({
+        projectSlug: SLUG,
+        generatedAt: r.body.generatedAt,
+      }).success,
+    ).toBe(false);
   });
 });

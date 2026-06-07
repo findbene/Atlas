@@ -50,6 +50,7 @@ import type {
   OnboardingState,
   PaginatedProjects,
   PortalResponse,
+  PortfolioArtifactResponse,
   ProjectDetail,
   SignRunBody,
   SignRunResponse,
@@ -3129,6 +3130,119 @@ export function useGetUserPortfolio<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetUserPortfolioQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Phase 60A/60B/60C — Authenticated, read-only. Returns a deterministic,
+recruiter-readable artifact bundle (README.md, VALIDATION_EVIDENCE.md,
+LIMITATIONS.md, LEARNER_REFLECTION_TEMPLATE.md, and optionally
+DATASET_NOTES.md) generated from THIS user's safe completion and
+evidence records for the given project.
+
+Privacy contract: `userId` is sourced EXCLUSIVELY from the
+authenticated session — no path/query/body parameter accepts a userId
+or ownership claim. The response NEVER contains validationConfig,
+expectedRows, expectedRowsHash, reference solution queries, comparator
+internals, raw submissions, secrets, or over-claiming
+authorship/job-guarantee/certification copy (guaranteed by the
+assembly chokepoint, the leak-free-by-construction generator input
+model, and a runtime honest-claim guard).
+
+Returns 404 — never 403 — when the project is hidden, soft-deleted,
+unknown, or the user is not enrolled (no hidden-project existence leak).
+
+ * @summary Authenticated portfolio artifact bundle (Phase 60C)
+ */
+export const getGetPortfolioArtifactUrl = (projectSlug: string) => {
+  return `/api/user/projects/${projectSlug}/portfolio-artifact`;
+};
+
+export const getPortfolioArtifact = async (
+  projectSlug: string,
+  options?: RequestInit,
+): Promise<PortfolioArtifactResponse> => {
+  return customFetch<PortfolioArtifactResponse>(
+    getGetPortfolioArtifactUrl(projectSlug),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPortfolioArtifactQueryKey = (projectSlug: string) => {
+  return [`/api/user/projects/${projectSlug}/portfolio-artifact`] as const;
+};
+
+export const getGetPortfolioArtifactQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPortfolioArtifact>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectSlug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPortfolioArtifact>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPortfolioArtifactQueryKey(projectSlug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPortfolioArtifact>>
+  > = ({ signal }) =>
+    getPortfolioArtifact(projectSlug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectSlug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPortfolioArtifact>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPortfolioArtifactQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPortfolioArtifact>>
+>;
+export type GetPortfolioArtifactQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Authenticated portfolio artifact bundle (Phase 60C)
+ */
+
+export function useGetPortfolioArtifact<
+  TData = Awaited<ReturnType<typeof getPortfolioArtifact>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectSlug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPortfolioArtifact>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPortfolioArtifactQueryOptions(
+    projectSlug,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
