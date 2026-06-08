@@ -614,3 +614,14 @@ Ran 4 parallel web-grounded research agents (Sonnet): DE/AE/Cloud · AI/LLM/MLOp
 - **Reviews:** architect **PASS** + code-reviewer **SHIP** (no P0/P1). Converging P2 (missing PORT regression test) + doc-nit fixed in-phase; P2-2 (App.tsx component test) deferred with rationale.
 - **Invariants:** no schema/migration, no grader/serverGrade change, envelope OFF, Phase 52 untouched, no secret committed, H3 preserved. DATABASE_URL kept a legitimate hard dep (point at Docker PG locally).
 - **Next:** Item 4 — Phase 61B (author 1 WASM-native rowset project, all serverGrade:false).
+
+## 2026-06-08 — Phase 61B SHIPPED (Item 4 — author next WASM-native rowset evidence project)
+
+Authored ONE net-new intermediate Data-Engineering project `data-engineering-saas-usage-revenue-quality-mart` ("SaaS Product Usage & Revenue Quality Mart") creating **6 fresh DARK rowset candidates** (5 sql_resultset + 1 csv_set_equal, ALL serverGrade:false) for a future controlled flip — addressing the candidate-supply gap from 61A. Close-out: `docs/phases/phase-61b-author-wasm-rowset-evidence-project.md`.
+- **7 steps**, DuckDB-WASM-native over 3 committed CSV fixtures (`artifacts/atlas/public/datasets/saas-mart/`): dedupe→clean→usage-by-type→active-MRR→health-mart→DQ-audit→runbook. Every validated output is an integer/distinct-count/exact-label (type-stable, no floats) — the safest future-flip class.
+- **All 6 candidate queries DuckDB-verified** (python duckdb 1.5.3) against the seeds: [[7,7]],[[13,7]],usage-by-type,[[6,4950]],health-dist,DQ-audit — byte-exact. (Engine 1.5.3 not WASM 1.33.1; acceptable because dark — future flip re-verifies in-browser.)
+- **Wiring:** authored .ts + `NET_NEW_FOR_SLUG_PHASE61B` + COURSE map + index export + `backfill-phase61b-candidates.ts` (minted candidate 7e9c1a2b, source=phase61b_net_new) + `check-authored-saas-mart.ts` focused authoring check. DB lives in throwaway Docker PG; committed source = truth.
+- **Visible + approved** (rubric 81.4; pedagogy 100, uniqueness 95, productionRealism 90). serverGrade-true count **UNCHANGED = 4** (DB-confirmed).
+- **Gates green (Node 24 + Docker PG):** typecheck+no-heuristic, check:authored-saas-mart, audit:authoring publish-ready, audit:quality 81.4 approved, audit:sql-resultset-bc PASS (6 dark + 3 opted-in), audit:csv-set-equal-bc PASS, audit:contains-bc PASS, audit:pedagogy fully-enriched, api-server 648/648, atlas 170/170.
+- **Reviews:** architect **PASS** + code-reviewer **SHIP** (no P0/P1). P2 (step-6 starterCode handed the answer) fixed in-phase → stubbed to scaffold convention; re-promoted, status preserved approved.
+- **Invariants:** no new serverGrade, no comparator/envelope/schema/Phase-52 change, RUBRIC frozen, additive-only registry edits, H3 honest. **All 4 items of the owner run complete.**

@@ -64,6 +64,7 @@ import { aiEngineerLlmOutputQualityScoring } from "./ai-engineer__llm-output-qua
 // Phase 55 — Net-New Project Production Pilot (C1 — applied-LLM guardrails).
 import { appliedLlmEngineerGuardrailsAndStructuredOutputSafety } from "./applied-llm-engineer__guardrails-and-structured-output-safety";
 import { analyticsEngineerSemanticLayerWithDbtAndDuckdb } from "./analytics-engineer__semantic-layer-with-dbt-and-duckdb";
+import { dataEngineeringSaasUsageRevenueQualityMart } from "./data-engineering__saas-usage-revenue-quality-mart";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -167,6 +168,7 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   // shaped).
   appliedLlmEngineerGuardrailsAndStructuredOutputSafety,
   analyticsEngineerSemanticLayerWithDbtAndDuckdb,
+  dataEngineeringSaasUsageRevenueQualityMart,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {

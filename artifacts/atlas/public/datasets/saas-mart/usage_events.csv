@@ -1,0 +1,16 @@
+event_id,account_id,event_date,event_type,duration_seconds
+E-1,A-001,2025-06-02,query_run,120
+E-2,A-001,2025-06-05,dashboard_view,45
+E-3,A-002,2025-06-01,query_run,300
+E-4,A-002,2025-06-15,export,90
+E-5,A-002,2025-06-20,query_run,210
+E-6,A-003,2025-06-10,dashboard_view,30
+E-7,A-004,2025-06-03,query_run,500
+E-8,A-004,2025-06-08,export,150
+E-9,A-004,2025-06-22,query_run,400
+E-10,A-005,2025-06-12,dashboard_view,60
+E-11,A-006,2025-06-04,query_run,250
+E-12,A-006,2025-06-18,export,110
+E-13,A-007,2025-06-09,query_run,80
+E-14,A-003,2025-06-25,,-5
+E-15,A-001,2025-06-28,query_run,-10

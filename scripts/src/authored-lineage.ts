@@ -112,6 +112,8 @@ export const COURSE_FOR_AUTHORED_SLUG: Record<string, AtlasCourseSlug> = {
   // step 3 csv are server-graded since Phase 58B/57B, the rest
   // client-provisional; 2× exact + 1×contains enforced; 0 contract-shaped).
   "analytics-engineer-semantic-layer-with-dbt-and-duckdb":                 "analytics-engineer",
+  // Phase 61B — net-new WASM-native Data-Engineering rowset evidence project.
+  "data-engineering-saas-usage-revenue-quality-mart":                      "data-engineering",
 };
 
 /**
@@ -326,6 +328,19 @@ export const SEED_FACTORY_FOR_SLUG_PHASE41: Record<string, string> = {
 export const NET_NEW_FOR_SLUG_PHASE55: Record<string, string> = {
   "applied-llm-engineer-guardrails-and-structured-output-safety": "f550c1a1-b2c3-4d4e-9f50-1a2b3c4d5e6f",
   "analytics-engineer-semantic-layer-with-dbt-and-duckdb":        "c2dbc2db-d4e5-4f6a-9051-2b3c4d5e6f70",
+};
+
+/**
+ * Phase 61B — Author next WASM-native rowset evidence project. One net-new
+ * intermediate Data-Engineering project (SaaS usage + revenue quality mart) that
+ * creates fresh deterministic rowset candidates for a FUTURE controlled
+ * server-grade flip — addressing the candidate-supply gap Phase 61A surfaced.
+ * Synthetic candidate marked `source='phase61b_net_new'`. Same shape as Phase 55:
+ * net-new slug, no legacy twin, candidate row preserves the candidateId lineage
+ * contract. The authored rowset steps ship DARK (serverGrade:false).
+ */
+export const NET_NEW_FOR_SLUG_PHASE61B: Record<string, string> = {
+  "data-engineering-saas-usage-revenue-quality-mart": "7e9c1a2b-3d4e-4f5a-9b6c-7d8e9f0a1b2c",
 };
 
 export const UPGRADE_CANDIDATE_FOR_SLUG: Record<string, string> = {

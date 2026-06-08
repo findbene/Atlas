@@ -1,0 +1,9 @@
+account_id,company_name,plan_tier,region,signup_date,loaded_at
+A-001,Acme Corp,pro,us,2024-01-15,2025-01-01T00:00:00
+A-002,Globex,enterprise,emea,2024-03-20,2025-01-01T00:00:00
+A-003,Initech,starter,us,2024-06-01,2025-01-01T00:00:00
+A-004,Umbrella,enterprise,apac,2024-02-10,2025-01-01T00:00:00
+A-005,Hooli,pro,us,2024-08-05,2025-01-01T00:00:00
+A-006,Stark Industries,enterprise,emea,2024-04-12,2025-01-01T00:00:00
+A-007,Wayne Enterprises,pro,apac,2024-09-30,2025-01-01T00:00:00
+A-002,Globex,enterprise,emea,2024-03-20,2025-02-01T00:00:00
