@@ -35,10 +35,12 @@ check("7 steps, sequential 1..7",
 const rowset = P.steps.filter((s) => ROWSET_KINDS.has(s.validationType));
 const sql = P.steps.filter((s) => s.validationType === "sql_resultset");
 const csv = P.steps.filter((s) => s.validationType === "csv_set_equal");
+const selfAttest = P.steps.filter((s) => s.validationType === "self_attest");
 const contains = P.steps.filter((s) => s.validationType === "contains");
 check("6 rowset candidate steps", rowset.length === 6);
 check("5 sql_resultset + 1 csv_set_equal", sql.length === 5 && csv.length === 1);
-check("1 contains step", contains.length === 1);
+check("1 self_attest writeup step (runbook)", selfAttest.length === 1);
+check("0 contains steps (contains runtime can't read authored specs — 61F note)", contains.length === 0);
 check(">= 5 dark rowset candidates (task floor)", rowset.length >= 5);
 
 // 61F flips NOTHING live — every rowset candidate must be DARK.
@@ -70,10 +72,12 @@ check("all 6 rowset steps stay dark", darkCount === 6);
 // No expectedRows numeric values leaked into learner-facing instructions/hints.
 // (The exact expected counts must not appear as the literal answer in the copy.)
 const learnerText = P.steps.flatMap((s) => [
-  s.instructionMd, ...[
-    s.pedagogy.hintLevel1, s.pedagogy.hintLevel2, s.pedagogy.hintLevel3,
-    s.pedagogy.hintLevel4, s.pedagogy.hintLevel5,
-  ],
+  s.instructionMd,
+  s.pedagogy.hintLevel1, s.pedagogy.hintLevel2, s.pedagogy.hintLevel3,
+  s.pedagogy.hintLevel4, s.pedagogy.hintLevel5,
+  s.pedagogy.successFeedback, s.pedagogy.failureFeedback,
+  s.pedagogy.finalExplanation, s.pedagogy.portfolioRelevance,
+  s.pedagogy.misconceptionToWatchFor,
 ]).join("\n");
 // Collect every expectedRows numeric value across rowset steps, then ensure none
 // of the distinctive (>= 1000) cent totals appears verbatim in the learner copy.
@@ -99,6 +103,17 @@ const text = [
 ].join("\n").toLowerCase();
 const hits = BANNED.filter((b) => text.includes(b));
 check(`no H3 banned claims in learner-facing copy (${hits.join(", ") || "none"})`, hits.length === 0);
+
+// H3 false-verification guard (broader than the 5 banned phrases — the defect the
+// 61F architect review caught). Every finops rowset is DARK and the runbook is
+// self_attest, so NO step is server-graded; none may claim the server
+// verifies/enforces/re-grades it.
+const FALSE_ENFORCEMENT = [
+  "server-enforced", "server enforced", "commit-grader evaluates",
+  "server verifies", "server re-grades", "server re-grade", "the server re-grades",
+];
+const feHits = FALSE_ENFORCEMENT.filter((p) => text.includes(p));
+check(`no false server-enforcement claims (${feHits.join(", ") || "none"})`, feHits.length === 0);
 
 if (failures > 0) {
   console.error(`\n[check:authored-finops-mart] ${failures} failure(s).`);

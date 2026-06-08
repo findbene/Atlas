@@ -21,7 +21,9 @@
  * exact env / exact team — the most type-stable shape.
  *
  * Validation discipline: SIX rowset candidates (5 `sql_resultset` + 1
- * `csv_set_equal`) and 1 `contains` runbook. ALL rowset steps ship DARK
+ * `csv_set_equal`) and 1 `self_attest` runbook writeup (NOT `contains` — the
+ * contains runtime cannot read authored specs today; see the step-7 note). ALL
+ * rowset steps ship DARK
  * (`serverGrade:false`) with `columns` + `expectedRows` pre-populated AND
  * real-browser DuckDB-WASM byte-verified (@duckdb/duckdb-wasm 1.33.1-dev45.0) so
  * a FUTURE phase can flip after re-verification. No grader/comparator change, no
@@ -534,7 +536,7 @@ select check_name, flagged_count from (
       stepNumber: 7,
       title: "FinOps runbook",
       instructionMd:
-        "Document the runbook an on-call engineer reads when the cost-quality audit fails. Plain Markdown, no SQL required — it explains what each check means and the first triage step.\n\n**Build:** `docs/finops_runbook.md` covering all four checks. For each, state what a non-zero count means and the first action. It MUST name each of the four checks and describe the dedupe rule and the data-quality intent in words.\n\n**Validation:** `contains` — the document must include the required phrases (the four check names plus the words 'latest load wins' and 'cost quality'). This is server-enforced (the commit-grader evaluates your submission body).",
+        "Document the runbook an on-call engineer reads when the cost-quality audit fails. Plain Markdown, no SQL required — it explains what each check means and the first triage step.\n\n**Build:** `docs/finops_runbook.md` covering all four checks. For each, state what a non-zero count means and the first action. It MUST name each of the four checks and describe the dedupe rule and the data-quality intent in words.\n\n**Validation:** `self_attest` — this is a written deliverable. Mark the step complete once your runbook names all four checks and states the 'latest load wins' dedupe rule and the cost-quality intent. Atlas records your submission; it does not auto-grade prose.",
       learningObjective:
         "Document the FinOps runbook so an on-call engineer can triage a failed cost-quality gate without reading the SQL.",
       requiredSkill: "Operational documentation, runbook structure, translating SQL checks into plain English",
@@ -559,19 +561,29 @@ TODO: what an untagged row is and why unowned spend must be driven to zero.
 ### unknown_account_rows
 TODO: what an unknown account is (not in the owners reference) and the first action.
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "writeup",
+      // Phase 61F — authored as `self_attest` (honest non-enforcing writeup), NOT
+      // `contains`. The contains runtime branch (grading.ts:104-105) passes the
+      // WRAPPED validationConfig (not `cfg.spec`) to matchContains, which reads
+      // top-level `needle`/`needles` — so an authored `contains` spec is never read
+      // and the step auto-passes ANY submission (a dead gate). Claiming server
+      // enforcement on such a step would be a false H3 verification claim. Until a
+      // dedicated dark/BC grader-fix phase repairs the contains/regex runtime
+      // (which would also fix the identical pre-existing C2 + SaaS-mart contains
+      // steps), a runbook writeup is honestly a self-attestation. See the Phase
+      // 61F close-out "platform defect" note.
       validation: validationConfig(
-        "contains",
-        "The runbook names all four cost-quality checks and describes the dedupe ('latest load wins') and the cost-quality intent.",
+        "self_attest",
+        "Self-attested written deliverable: the runbook names all four cost-quality checks and states the 'latest load wins' dedupe rule and the cost-quality intent. Atlas records the submission but does not auto-grade prose.",
         {
-          mustContainAll: [
-            "dup_resource_day_loads",
-            "invalid_cost_rows",
-            "untagged_rows",
-            "unknown_account_rows",
-            "latest load wins",
-            "cost quality",
+          // Authoring-metadata checklist only — `self_attest` is auto-pass at
+          // runtime (the spec is not read). Satisfies the non-empty-spec authoring
+          // contract and documents what the learner self-attests.
+          attestationChecklist: [
+            "names all four cost-quality checks",
+            "states the 'latest load wins' dedupe rule",
+            "states the cost-quality intent",
           ],
         },
       ),
