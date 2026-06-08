@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 61C — First controlled serverGrade flip in the SaaS mart</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 61C — First controlled serverGrade flip in the SaaS mart</h1><p class="meta">2026-06-08 · COMPLETED · feat(curriculum) · live flip (+4 rows) · commit 1c3c709</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 61C — flip the SAFEST subset (min 2 / prefer 3-4 / max 4) of the 6 Phase-61B dark rowset candidates in <code>data-engineering-saas-usage-revenue-quality-mart</code> to <code>serverGrade:true</code>, <strong>only</strong> rows whose real-browser DuckDB-WASM output byte-matches the committed <code>columns</code>+<code>expectedRows</code>. Hard stops: only sql_resultset/csv_set_equal; no comparator/float-tolerance/envelope/schema/Phase-52 change; no leak; don't force the count; don't start 61D.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Browser-WASM-verified all 6; flipped <strong>4</strong> (steps 1,2,5,6); deferred 3 (max-4 cap) + 4 (HUGEINT→string mismatch). serverGrade <strong>4 → 8</strong>. Reviews architect <strong>PASS</strong> + code-reviewer <strong>SHIP</strong> (no P0/P1). All gates green. Committed <code>1c3c709</code>. 61D not started.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<p>2 source: <code>scripts/src/authored/data-engineering__saas-usage-revenue-quality-mart.ts</code> (4 <code>serverGrade:false→true</code> + honest server-graded instruction copy on flipped steps + step-4 deferral comment + docblock) · <code>scripts/src/check-authored-saas-mart.ts</code> (pins the exact flip set). + <code>docs/phases/phase-61c-…md</code>, <code>.agentic/progress.md</code>. DB flip propagated via <code>author:project promote</code> (throwaway Docker PG — not committed). Dev-only browser harness created + deleted (not committed).</p>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>Only sql/csv kinds flipped? <strong>yes</strong> (3 sql + 1 csv). Other kind? <strong>no.</strong> Comparator change? <strong>no</strong> (grading.ts byte-unchanged). Float/tolerance comparator? <strong>no</strong> (step 4 deferred BECAUSE it's type-unstable). Envelope enforcement? <strong>no</strong> (OFF). Schema/migration? <strong>no.</strong> Phase 52? <strong>untouched.</strong> Leak? <strong>no</strong> (verified). Forced count? <strong>no</strong> (4 of 5 passing, capped at max). GitHub/publishing? <strong>no.</strong> 61D started? <strong>no.</strong></p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>Each flipped step's spec <code>serverGrade:false → true</code> with <code>columns</code>/<code>expectedRows</code>/<code>query</code> byte-identical to the 61B-verified values. The runtime comparator <code>gradeRowsetSubmission</code> is unchanged — the flip only changes which path the row takes (dark auto-pass → live re-grade of the FE-captured <code>{columns,rows}</code>). Propagated to DB via <code>author:project promote</code> (delete+reinsert steps, preserves visibility/approval). The <code>check</code> now asserts the exact flip set so it can't drift.</p>
+<h2 id="6-tests-and-gates-run-node-24160-docker-pg-5434">6. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<p>typecheck (4) + no-heuristic <strong>OK</strong> · <code>check:authored-saas-mart</code> <strong>OK</strong> · <code>audit:sql-resultset-bc</code> PASS (6 opted-in, 38 checks, 0 failures; 3 dark byte-identical to legacy) · <code>audit:csv-set-equal-bc</code> PASS (2 opted-in, 10 checks, 0 failures) · <code>audit:authoring</code> publish-ready · <code>audit:contains-bc</code> PASS · <code>audit:pedagogy</code> fully-enriched · api-server <strong>648/648</strong> · atlas <strong>170/170</strong> · <strong>integration 4/4</strong>.</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<ul>
+<li><strong>Browser byte-verify caught step 4</strong> (<code>sum(INTEGER)</code>→HUGEINT→adapter <code>String()</code> fallback → <code>"4950"</code> string ≠ committed number <code>4950</code>; CLI DuckDB 1.5.3 gave Number). Exactly the WASM-vs-CLI divergence the gate exists for — deferred step 4.</li>
+<li>First Vite boot failed (<code>node node_modules/vite/bin/vite.js</code> — wrong path in a pnpm workspace) → re-booted via <code>pnpm exec vite</code>.</li>
+<li>The <code>.vite-61c.log</code> file handle stayed locked briefly after killing Vite → deleted after release.</li>
+</ul>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, commit <strong><code>1c3c709</code></strong> (2 source + close-out + progress). Archive commit (this) follows. Tree clean except hook-managed <code>.agentic/self-review.log</code> + <code>HANDOFF.md</code>. All browser-harness artifacts deleted.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>serverGrade live count = <strong>8</strong> (csv 2 + sql 6). The new project's steps 1,2,5,6 are live server-graded; 3,4 dark; 7 contains. A completed learner's portfolio now classifies 4 steps in this project as server-graded. All invariants intact; C2 unchanged; comparator + routes + Phase 52 + envelope unchanged.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<p>Steps 3 (clean) + 4 (needs <code>cast(sum as bigint)</code> + re-verify) remain dark future candidates. The flipped rows' correctness rests on the browser byte-verify holding at engine 1.33.1-dev45.0 (current) — re-verify if the WASM engine version ever changes.</p>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Observe the 4 newly-live rows in a real env. <strong>Phase 61D (owner-gated):</strong> fix + flip step 4 (cast to bigint) and/or flip step 3, and/or author the next WASM rowset project for more candidate supply.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p><strong>Stopped.</strong> 4 browser-verified rows flipped to server-graded; steps 3+4 deferred with rationale; serverGrade 4→8; no-leak + honesty preserved; C2 unchanged. Reviews PASS/SHIP, gates + audits green, committed <code>1c3c709</code>. <strong>Phase 61D NOT started.</strong> Awaiting next instruction.</p>
+<hr />
+<h2 id="13-candidate-inventory-table">13. Candidate Inventory Table</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Kind</th>
+<th>Before</th>
+<th>Browser byte-match</th>
+<th>Type stability</th>
+<th>Ordering</th>
+<th>Leak risk</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>sql_resultset</td>
+<td>dark</td>
+<td>✅ <code>[[7,7]]</code> num,num</td>
+<td>BIGINT→Number (lossless)</td>
+<td>n/a (1 row)</td>
+<td>none</td>
+<td><strong>FLIP</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>sql_resultset</td>
+<td>dark</td>
+<td>✅ <code>[[13,7]]</code> num,num</td>
+<td>BIGINT→Number</td>
+<td>n/a</td>
+<td>none</td>
+<td><strong>FLIP</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>sql_resultset</td>
+<td>dark</td>
+<td>✅ usage-by-type</td>
+<td>str,num stable</td>
+<td>ORDER BY event_type</td>
+<td>none</td>
+<td>defer (max-4 cap)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>sql_resultset</td>
+<td>dark</td>
+<td>❌ <code>[[6,"4950"]]</code></td>
+<td><strong>HUGEINT→string</strong></td>
+<td>n/a</td>
+<td>none</td>
+<td><strong>defer</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>csv_set_equal</td>
+<td>dark</td>
+<td>✅ health-dist</td>
+<td>str,num stable</td>
+<td>ORDER BY health_label</td>
+<td>none</td>
+<td><strong>FLIP</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>sql_resultset</td>
+<td>dark</td>
+<td>✅ DQ-audit</td>
+<td>str,num stable</td>
+<td>ORDER BY check_name</td>
+<td>none</td>
+<td><strong>FLIP</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="14-browser-wasm-verification-results">14. Browser-WASM Verification Results</h2>
+<p>Real Chromium (playwright-cli), real atlas Vite, real <code>@/lib/duckdb/duckdbRunner</code> <code>duckdbAdapter</code>, <code>@duckdb/duckdb-wasm@1.33.1-dev45.0</code> (the learner runtime), over the committed seed CSVs, queries extracted from the authored file (no drift), csv step through the real <code>normalizeSqlRows</code>. Captures:</p>
+<pre><code>step1 columns=[n,n_unique]            rows=[[7,7]]                       types=[number,number]      MATCH
+step2 columns=[valid_events,active_accounts] rows=[[13,7]]              types=[number,number]      MATCH
+step3 columns=[event_type,event_count] rows=[[dashboard_view,3],[export,3],[query_run,7]] types=[string,number]×3  MATCH
+step4 columns=[active_accounts,total_mrr] rows=[[6,&quot;4950&quot;]]             types=[number,string]      MISMATCH (committed [[6,4950]])
+step5 columns=[health_label,account_count] rows=[[at_risk,2],[churned,1],[healthy,4]] types=[string,number]×3 MATCH
+step6 columns=[check_name,flagged_count] rows=[[dup_account_ids,1],[invalid_usage_events,2],[orphan_usage_accounts,0]] types=[string,number]×3 MATCH
+</code></pre>
+<p>All <code>ok:true</code>. Harness deleted after capture.</p>
+<h2 id="15-selected-flip-rationale">15. Selected Flip Rationale</h2>
+<p>Flipped the 4 most type-stable AND strongest-evidence rows: step 1 (dedupe correctness), step 2 (explicit cleaning), step 5 (the final health-labelled mart — the deliverable + the only csv), step 6 (CI-ready data-quality audit — the trust signal). All integer/distinct-count/exact-label → the comparator's exact <code>JSON.stringify</code> cell match is robust. 3 sql + 1 csv → diverse evidence.</p>
+<h2 id="16-deferred-candidate-rationale">16. Deferred Candidate Rationale</h2>
+<ul>
+<li><strong>Step 3</strong> byte-matched clean; deferred only to respect the max-4 budget — a ready future candidate, no rework.</li>
+<li><strong>Step 4</strong> DEFERRED: <code>sum(INTEGER)</code> → HUGEINT → adapter <code>String(v)</code> fallback → <code>"4950"</code> (string) ≠ committed number <code>4950</code>; a flip would fail a correct learner CLOSED. Stays dark (comparator short-circuits on <code>serverGrade !== true</code>). Future fix: <code>cast(sum(mrr_amount) as bigint)</code> (→ BIGINT → Number) + re-verify in-browser. Documented in a step-4 spec comment.</li>
+</ul>
+<h2 id="17-servergrade-count-beforeafter">17. ServerGrade Count Before/After</h2>
+<p>Before: <strong>4</strong> (csv_set_equal 1 = C2 s3; sql_resultset 3 = C2 s1,2,5). After: <strong>8</strong> (csv_set_equal <strong>2</strong> = C2 s3 + mart s5; sql_resultset <strong>6</strong> = C2 s1,2,5 + mart s1,2,6). Δ = +3 sql + 1 csv. DB-confirmed.</p>
+<h2 id="18-exact-flipped-step-numbers">18. Exact Flipped Step Numbers</h2>
+<p><code>data-engineering-saas-usage-revenue-quality-mart</code> steps <strong>1, 2, 5, 6</strong> → <code>serverGrade:true</code>. Steps 3, 4 → <code>serverGrade:false</code> (dark). Step 7 → <code>contains</code> (untouched). DB per-step verified: 1=true,2=true,3=false,4=false,5=true,6=true,7=null. The <code>check</code> pins this set (<code>FLIPPED={1,2,5,6}</code>, flippedCount===4, darkCount===2).</p>
+<h2 id="19-no-leak-verification-across-check-submit-artifact-json-and-zip">19. No-Leak Verification Across /check, /submit, Artifact, JSON, and ZIP</h2>
+<p>The flip changes only the <code>serverGrade</code> boolean — no new leak channel. <code>routes/projects.ts</code> projection returns only <code>serverGrade: boolean</code> (never validationConfig/spec/expectedRows/query); the inert <code>expectedRow</code> is read nowhere (both reviewers confirmed). <strong>/submit:</strong> the BC audit proves a correct capture passes and raw-SQL/malformed/empty/wrong-columns/missing-row/extra-row FAIL CLOSED. <strong>/check:</strong> writes no snapshot (unchanged). <strong>Artifact / repository JSON / ZIP:</strong> assembly byte-unchanged (no export-code edit); a step is classified server-graded via the same <code>isServerGradeOptedIn</code> predicate, so a completed learner's evidence reflects steps 1,2,5,6 leak-free. Export unit 91/91 + integration 4/4 green over the unchanged shared path.</p>
+<h2 id="20-portfolio-zip-evidence-result">20. Portfolio ZIP Evidence Result</h2>
+<p>The export stack is byte-unchanged, so the ZIP path is unaffected by the flip; a completed learner's ZIP would classify steps 1,2,5,6 of this project as <code>server-graded</code> in VALIDATION_EVIDENCE (via the unchanged classifier), remain leak-free, and stay a valid archive (<code>portfolioZip.test.ts</code> covers <code>zipfile.testzip()=None</code>-equivalent validity; the 91 export unit + 4 integration tests pass). No new learner completion was seeded this phase (no snapshot created).</p>
+<h2 id="21-existing-c2-regression-result">21. Existing C2 Regression Result</h2>
+<p>C2 (<code>analytics-engineer-semantic-layer-with-dbt-and-duckdb</code>) server-graded steps DB-confirmed <strong>unchanged</strong>: steps 1, 2, 5 (<code>sql_resultset</code>) + step 3 (<code>csv_set_equal</code>) all still <code>serverGrade:true</code>; step 8 still dark. C2 not touched by this phase.</p>
+<h2 id="22-independent-review-results">22. Independent Review Results</h2>
+<ul>
+<li><strong>atlas-architect-reviewer → PASS</strong> (no P0/P1): traced authored-spec → promote → DB → /submit → comparator AND the FE capture path; flip type-stability sound (BIGINT→Number vs HUGEINT→string); step-4 deferral + prescribed fix correct; no comparator drift (same <code>normalizeSqlRows</code> in harness + live FE); no leak; /check &amp; /submit safe; invariants intact; C2 unchanged; 4→8.</li>
+<li><strong>code-reviewer → SHIP</strong> (no P0/P1): diff is exactly 4 boolean flips + honest copy + comments; <code>columns</code>/<code>expectedRows</code>/<code>query</code> byte-identical to 61B (<code>94830a3</code>); check pins {1,2,5,6}; step-4 deferral verified against the comparator's <code>JSON.stringify</code> quoting; scope = 2 files.</li>
+<li>P2s (non-blocking): BC audits re-run green here on Node 24 + Docker PG (reviewer sandboxes lack DATABASE_URL); inert <code>expectedRow</code> = pre-existing optional cleanup; CRLF EOL = standing <code>.gitattributes</code> follow-up.</li>
+</ul>
+</main>
+</body>
+</html>
