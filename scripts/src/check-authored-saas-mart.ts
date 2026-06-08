@@ -1,8 +1,8 @@
 /**
  * Phase 61B/61C — focused authoring check for the net-new
  * `data-engineering-saas-usage-revenue-quality-mart` project. Asserts the
- * task-contract: shape, the 6 rowset candidates, the EXACT Phase 61C flip set
- * (steps 1/2/5/6 serverGrade:true; steps 3/4 dark) with no accidental flips,
+ * task-contract: shape, the 6 rowset candidates, the EXACT Phase 61D flip set
+ * (all six rowset steps 1-6 serverGrade:true; zero dark) with no accidental flips,
  * pre-populated columns/expectedRows, H3 honest-claims, and deterministic
  * ordering for multi-row results. Runs in the scripts package's tsx-check idiom.
  *
@@ -44,9 +44,10 @@ check("5 sql_resultset + 1 csv_set_equal", sql.length === 5 && csv.length === 1)
 check("1 contains step", contains.length === 1);
 check(">= 4 future rowset candidates (task floor)", rowset.length >= 4);
 
-// Phase 61C — exactly these 4 rowset steps are live server-graded; 3 + 4 stay dark
-// (3 = clean future candidate capped by the max-4 budget; 4 = HUGEINT-string deferral).
-const FLIPPED = new Set([1, 2, 5, 6]);
+// Phase 61D — ALL SIX rowset steps are now live server-graded. 61C flipped 1/2/5/6;
+// 61D closed the two 61C deferrals: step 3 (clean, capped by the 61C max-4 budget)
+// and step 4 (HUGEINT deferral fixed by casting the SUM to BIGINT, re-verified).
+const FLIPPED = new Set([1, 2, 3, 4, 5, 6]);
 let flippedCount = 0;
 let darkCount = 0;
 for (const s of rowset) {
@@ -57,7 +58,7 @@ for (const s of rowset) {
   const isServerGrade = spec["serverGrade"] === true;
   if (isServerGrade) flippedCount++; else darkCount++;
   if (FLIPPED.has(s.stepNumber)) {
-    check(`step ${s.stepNumber}: serverGrade:true (Phase 61C live flip)`, isServerGrade);
+    check(`step ${s.stepNumber}: serverGrade:true (live server-grade flip)`, isServerGrade);
   } else {
     check(`step ${s.stepNumber}: serverGrade dark (deferred)`, !isServerGrade);
   }
@@ -70,8 +71,8 @@ for (const s of rowset) {
     check(`step ${s.stepNumber}: multi-row query has ORDER BY`, q.includes("order by"));
   }
 }
-check("exactly 4 rowset steps flipped to serverGrade:true", flippedCount === 4);
-check("exactly 2 rowset steps stay dark", darkCount === 2);
+check("all 6 rowset steps flipped to serverGrade:true", flippedCount === 6);
+check("zero rowset steps remain dark", darkCount === 0);
 
 // H3 honest-claims across all learner-facing text.
 const text = [

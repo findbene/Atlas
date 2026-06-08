@@ -23,21 +23,21 @@
  * step is a clean future server-grade candidate.
  *
  * Validation discipline: SIX rowset steps (5 `sql_resultset` + 1 `csv_set_equal`)
- * and 1 `contains`. Authored DARK in Phase 61B; **Phase 61C flipped FOUR to
- * `serverGrade:true`** — steps 1 (dedup count), 2 (clean count), 5 (csv health
- * distribution), 6 (DQ audit) — each after a real-browser DuckDB-WASM
+ * and 1 `contains`. Authored DARK in Phase 61B; Phase 61C flipped FOUR (steps 1,
+ * 2, 5, 6); **Phase 61D flips the remaining TWO (steps 3 + 4) → all SIX rowset
+ * steps are now `serverGrade:true`.** Each flip followed a real-browser DuckDB-WASM
  * (@duckdb/duckdb-wasm 1.33.1-dev45.0) byte-verification of the captured
- * `{columns, rows}` against the committed `expectedRows`. On Submit the server
- * re-grades the FE capture via the shared rowset comparator; envelope enforcement
- * stays OFF (commit-path only). Steps 3 and 4 stay DARK: step 3 is a clean future
- * candidate (capped at the max-4 flip budget); step 4 is DEFERRED because its
- * `sum(INTEGER)` returns HUGEINT, which DuckDB-WASM renders as the STRING "4950"
- * (not the Number the CLI yields) — a flip would fail a correct learner CLOSED
- * until the query casts the sum to BIGINT and is re-verified. Dark rows stay
- * `audit:*-bc`-clean because the comparator short-circuits on `serverGrade !==
- * true`. No comparator change, no envelope enforcement, no schema/migration, no
- * float/tolerance grading. Learner-facing copy on flipped steps honestly states
- * the server re-grades on Submit; never authorship/verification guarantees (H3).
+ * `{columns, rows}` against the committed `expectedRows`. Step 3 was a clean
+ * candidate deferred in 61C only by that phase's max-4 budget. Step 4 was the 61C
+ * HUGEINT deferral: `sum(INTEGER)` returns HUGEINT, which DuckDB-WASM renders as
+ * the STRING "4950" (not the Number the CLI yields); 61D casts the SUM to BIGINT in
+ * both the starterCode SELECT (which the learner does not edit) and the reference
+ * query so the capture is BIGINT → lossless Number, re-verified in-browser as
+ * `[[6,4950]]`. On Submit the server re-grades the FE capture via the shared rowset
+ * comparator; envelope enforcement stays OFF (commit-path only). No comparator
+ * change, no envelope enforcement, no schema/migration, no float/tolerance grading.
+ * Learner-facing copy on flipped steps honestly states the server re-grades on
+ * Submit; never authorship/verification guarantees (H3).
  */
 import {
   pedagogyConfig, validationConfig, portfolioArtifact, projectMeta,
@@ -253,7 +253,7 @@ select count(*) as valid_events, count(distinct account_id) as active_accounts f
       stepNumber: 3,
       title: "Intermediate model: usage by event type",
       instructionMd:
-        "Build the intermediate usage-by-type model the mart and the dashboards both consume — a deterministic aggregation over the cleaned event stream.\n\n**Build:** over the cleaned events from Step 2, return `event_type, count(*) AS event_count` grouped by `event_type` and ordered by `event_type`. Apply the same validity predicate so the intermediate model never sees a bad row.\n\n**Validation:** `sql_resultset` — three ordered rows (one per event type).",
+        "Build the intermediate usage-by-type model the mart and the dashboards both consume — a deterministic aggregation over the cleaned event stream.\n\n**Build:** over the cleaned events from Step 2, return `event_type, count(*) AS event_count` grouped by `event_type` and ordered by `event_type`. Apply the same validity predicate so the intermediate model never sees a bad row.\n\n**Validation:** `sql_resultset` — three ordered rows (one per event type); the in-browser adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured result rows against the expected output.",
       learningObjective:
         "Build an intermediate usage-by-type model with a deterministic, ordered GROUP BY aggregation.",
       requiredSkill: "GROUP BY aggregation, deterministic ORDER BY, reusing a cleaning predicate",
@@ -279,7 +279,14 @@ from valid_events
         "sql_resultset",
         "Cleaned usage by type, ordered by type: dashboard_view 3, export 3, query_run 7.",
         {
-          serverGrade: false,
+          // Phase 61D — LIVE server-grade flip. Step 3 byte-matched cleanly in 61C
+          // and was deferred only by that phase's max-4 flip budget. Real-browser
+          // DuckDB-WASM (@duckdb/duckdb-wasm 1.33.1-dev45.0) re-verified the capture
+          // columns=[event_type,event_count] rows=[[dashboard_view,3],[export,3],
+          // [query_run,7]] (types string,number; count(*) → BIGINT → lossless Number)
+          // byte-matches the committed expectedRows. Ordered by event_type → stable.
+          // Envelope enforcement stays OFF — only the commit-path comparator.
+          serverGrade: true,
           query: SRC(`with raw_events as (select * from "saas-mart/usage_events"),
 valid_events as (
   select cast(event_type as varchar) as event_type
@@ -321,7 +328,7 @@ select event_type, count(*) as event_count from valid_events group by event_type
       stepNumber: 4,
       title: "Revenue model: active MRR as of a fixed month",
       instructionMd:
-        "Model recurring revenue: how much MRR is active as of a fixed month. A subscription is active for a month if it started on/before the month and has not ended before it.\n\n**Build:** over the `subscriptions` feed, keep subscriptions active as of `2025-06-01` — `start_date <= '2025-06-01' AND (end_date IS NULL OR end_date >= '2025-06-01')` — and return `count(*) AS active_accounts, sum(mrr_amount) AS total_mrr`. One account in the fixture churned before June.\n\n**Validation:** `sql_resultset`.",
+        "Model recurring revenue: how much MRR is active as of a fixed month. A subscription is active for a month if it started on/before the month and has not ended before it.\n\n**Build:** over the `subscriptions` feed, keep subscriptions active as of `2025-06-01` — `start_date <= '2025-06-01' AND (end_date IS NULL OR end_date >= '2025-06-01')` — and return `count(*) AS active_accounts, cast(sum(mrr_amount) AS bigint) AS total_mrr` (cast the integer SUM to BIGINT so the captured revenue value is a stable integer, not an engine-widened type). One account in the fixture churned before June.\n\n**Validation:** `sql_resultset` — the in-browser adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured result rows against the expected output.",
       learningObjective:
         "Model active MRR as of a fixed month with a half-open subscription-validity window.",
       requiredSkill: "Half-open date windows, NULL end-date handling, SUM aggregation",
@@ -338,7 +345,7 @@ active as (
   -- TODO: keep rows active as of date '2025-06-01'
   --   start_date <= the month AND (end_date is null OR end_date >= the month)
 )
-select count(*) as active_accounts, sum(mrr_amount) as total_mrr
+select count(*) as active_accounts, cast(sum(mrr_amount) as bigint) as total_mrr
 from active;
 `),
       validationType: "sql_resultset",
@@ -347,13 +354,17 @@ from active;
         "sql_resultset",
         "Active MRR as of 2025-06-01: 6 active accounts summing to 4950 (one account churned in May is excluded).",
         {
-          // Phase 61C — DEFERRED (stays dark). Browser DuckDB-WASM byte-verify
-          // surfaced a type divergence: SUM over an INTEGER column returns HUGEINT,
-          // which the adapter renders as the STRING "4950" (not the Number 4950 the
-          // CLI yields) — so a flip would fail a correct learner CLOSED. A future
-          // flip needs `cast(sum(mrr_amount) as bigint)` (+ instruction guidance) so
-          // the capture is BIGINT → lossless Number, then re-verify in-browser.
-          serverGrade: false,
+          // Phase 61D — LIVE server-grade flip (closes the 61C HUGEINT deferral).
+          // 61C found `sum(mrr_amount)` over an INTEGER column returns HUGEINT, which
+          // the adapter renders as the STRING "4950" (not the Number the CLI yields)
+          // → a flip would have failed a correct learner CLOSED. The fix casts the
+          // SUM to BIGINT in BOTH the starterCode SELECT (the learner does not edit
+          // it) and this reference query, so the capture is BIGINT → lossless Number.
+          // Real-browser DuckDB-WASM (@duckdb/duckdb-wasm 1.33.1-dev45.0) re-verified
+          // the capture columns=[active_accounts,total_mrr] rows=[[6,4950]]
+          // (types number,number) byte-matches the committed expectedRows.
+          // Envelope enforcement stays OFF — only the commit-path comparator.
+          serverGrade: true,
           query: SRC(`with subs as (select * from "saas-mart/subscriptions"),
 active as (
   select cast(account_id as varchar) as account_id, cast(mrr_amount as integer) as mrr_amount
@@ -361,7 +372,7 @@ active as (
   where cast(start_date as date) <= date '2025-06-01'
     and (end_date is null or cast(end_date as date) >= date '2025-06-01')
 )
-select count(*) as active_accounts, sum(mrr_amount) as total_mrr from active`),
+select count(*) as active_accounts, cast(sum(mrr_amount) as bigint) as total_mrr from active`),
           columns: ["active_accounts", "total_mrr"],
           expectedRows: [[6, 4950]],
           expectedRow: { activeAccounts: 6, totalMrr: 4950 },
