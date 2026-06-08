@@ -51,6 +51,7 @@ import type {
   PaginatedProjects,
   PortalResponse,
   PortfolioArtifactResponse,
+  PortfolioRepositoryResponse,
   ProjectDetail,
   SignRunBody,
   SignRunResponse,
@@ -3240,6 +3241,117 @@ export function useGetPortfolioArtifact<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetPortfolioArtifactQueryOptions(
+    projectSlug,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Phase 60G — Authenticated, read-only. Returns a deterministic,
+GitHub-ready local repository bundle for THIS user's project: the
+Phase-60A Markdown evidence files plus a machine-readable
+`atlas-portfolio.json` and an optional learner-evidence
+`evidence/submission-summary.md`. The learner downloads the JSON and
+MANUALLY reconstructs/uploads the repository to GitHub.
+
+No OAuth, no token, no direct push, no publishing. The privacy +
+no-leak contract is identical to the portfolio-artifact route: `userId`
+comes EXCLUSIVELY from the authenticated session; the response NEVER
+contains validationConfig, expectedRows, expectedRowsHash, reference
+queries, comparator internals, raw submissions, secrets, or
+over-claiming copy (assembly chokepoint + leak-free generator input +
+export path guard + runtime honest-claim guard). Returns 404 — never
+403 — for a hidden/deleted/unknown project or a non-enrolled user.
+
+ * @summary Authenticated GitHub-ready portfolio repository export (Phase 60G)
+ */
+export const getGetPortfolioRepositoryUrl = (projectSlug: string) => {
+  return `/api/user/projects/${projectSlug}/portfolio-repository`;
+};
+
+export const getPortfolioRepository = async (
+  projectSlug: string,
+  options?: RequestInit,
+): Promise<PortfolioRepositoryResponse> => {
+  return customFetch<PortfolioRepositoryResponse>(
+    getGetPortfolioRepositoryUrl(projectSlug),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPortfolioRepositoryQueryKey = (projectSlug: string) => {
+  return [`/api/user/projects/${projectSlug}/portfolio-repository`] as const;
+};
+
+export const getGetPortfolioRepositoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPortfolioRepository>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectSlug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPortfolioRepository>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPortfolioRepositoryQueryKey(projectSlug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPortfolioRepository>>
+  > = ({ signal }) =>
+    getPortfolioRepository(projectSlug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectSlug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPortfolioRepository>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPortfolioRepositoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPortfolioRepository>>
+>;
+export type GetPortfolioRepositoryQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Authenticated GitHub-ready portfolio repository export (Phase 60G)
+ */
+
+export function useGetPortfolioRepository<
+  TData = Awaited<ReturnType<typeof getPortfolioRepository>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectSlug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPortfolioRepository>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPortfolioRepositoryQueryOptions(
     projectSlug,
     options,
   );

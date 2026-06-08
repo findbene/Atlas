@@ -142,6 +142,37 @@ export interface PortfolioArtifactResponse {
   files: PortfolioArtifactResponseFiles;
 }
 
+export type PortfolioRepositoryResponseFormat =
+  (typeof PortfolioRepositoryResponseFormat)[keyof typeof PortfolioRepositoryResponseFormat];
+
+export const PortfolioRepositoryResponseFormat = {
+  "github-ready-repository": "github-ready-repository",
+} as const;
+
+/**
+ * Map of repo-relative file path → file contents.
+ */
+export type PortfolioRepositoryResponseFiles = { [key: string]: string };
+
+/**
+ * Phase 60G — deterministic, leak-safe GitHub-ready repository bundle for a
+single completed/enrolled project of the authenticated user. `files`
+maps each repo-relative path (e.g. `README.md`, `atlas-portfolio.json`,
+`evidence/submission-summary.md`) to its contents. Contains only the
+Phase-60A generator output + safe derived metadata — never
+validationConfig, expectedRows, answer keys, reference queries, raw
+submissions, or secrets. The learner reconstructs a folder named
+`projectSlug` from `files` and uploads it to GitHub manually.
+
+ */
+export interface PortfolioRepositoryResponse {
+  projectSlug: string;
+  generatedAt: string;
+  format: PortfolioRepositoryResponseFormat;
+  /** Map of repo-relative file path → file contents. */
+  files: PortfolioRepositoryResponseFiles;
+}
+
 export interface ErrorResponse {
   error: string;
   message?: string;

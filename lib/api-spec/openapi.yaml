@@ -1008,6 +1008,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /user/projects/{projectSlug}/portfolio-repository:
+    get:
+      operationId: getPortfolioRepository
+      tags: [user-projects]
+      summary: Authenticated GitHub-ready portfolio repository export (Phase 60G)
+      description: |
+        Phase 60G — Authenticated, read-only. Returns a deterministic,
+        GitHub-ready local repository bundle for THIS user's project: the
+        Phase-60A Markdown evidence files plus a machine-readable
+        `atlas-portfolio.json` and an optional learner-evidence
+        `evidence/submission-summary.md`. The learner downloads the JSON and
+        MANUALLY reconstructs/uploads the repository to GitHub.
+
+        No OAuth, no token, no direct push, no publishing. The privacy +
+        no-leak contract is identical to the portfolio-artifact route: `userId`
+        comes EXCLUSIVELY from the authenticated session; the response NEVER
+        contains validationConfig, expectedRows, expectedRowsHash, reference
+        queries, comparator internals, raw submissions, secrets, or
+        over-claiming copy (assembly chokepoint + leak-free generator input +
+        export path guard + runtime honest-claim guard). Returns 404 — never
+        403 — for a hidden/deleted/unknown project or a non-enrolled user.
+      security:
+        - clerkAuth: []
+      parameters:
+        - in: path
+          name: projectSlug
+          required: true
+          schema:
+            type: string
+          description: Slug of a project the authenticated user is enrolled in
+      responses:
+        "200":
+          description: GitHub-ready repository bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioRepositoryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /onboarding/complete:
     post:
       operationId: completeOnboarding
@@ -1253,6 +1303,37 @@ components:
       required:
         - projectSlug
         - generatedAt
+        - files
+
+    PortfolioRepositoryResponse:
+      type: object
+      description: |
+        Phase 60G — deterministic, leak-safe GitHub-ready repository bundle for a
+        single completed/enrolled project of the authenticated user. `files`
+        maps each repo-relative path (e.g. `README.md`, `atlas-portfolio.json`,
+        `evidence/submission-summary.md`) to its contents. Contains only the
+        Phase-60A generator output + safe derived metadata — never
+        validationConfig, expectedRows, answer keys, reference queries, raw
+        submissions, or secrets. The learner reconstructs a folder named
+        `projectSlug` from `files` and uploads it to GitHub manually.
+      properties:
+        projectSlug:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        format:
+          type: string
+          enum: ["github-ready-repository"]
+        files:
+          type: object
+          description: Map of repo-relative file path → file contents.
+          additionalProperties:
+            type: string
+      required:
+        - projectSlug
+        - generatedAt
+        - format
         - files
 
     ErrorResponse:

@@ -2028,6 +2028,44 @@ export const GetPortfolioArtifactResponse = zod
   );
 
 /**
+ * Phase 60G — Authenticated, read-only. Returns a deterministic,
+GitHub-ready local repository bundle for THIS user's project: the
+Phase-60A Markdown evidence files plus a machine-readable
+`atlas-portfolio.json` and an optional learner-evidence
+`evidence/submission-summary.md`. The learner downloads the JSON and
+MANUALLY reconstructs/uploads the repository to GitHub.
+
+No OAuth, no token, no direct push, no publishing. The privacy +
+no-leak contract is identical to the portfolio-artifact route: `userId`
+comes EXCLUSIVELY from the authenticated session; the response NEVER
+contains validationConfig, expectedRows, expectedRowsHash, reference
+queries, comparator internals, raw submissions, secrets, or
+over-claiming copy (assembly chokepoint + leak-free generator input +
+export path guard + runtime honest-claim guard). Returns 404 — never
+403 — for a hidden/deleted/unknown project or a non-enrolled user.
+
+ * @summary Authenticated GitHub-ready portfolio repository export (Phase 60G)
+ */
+export const GetPortfolioRepositoryParams = zod.object({
+  projectSlug: zod.coerce
+    .string()
+    .describe("Slug of a project the authenticated user is enrolled in"),
+});
+
+export const GetPortfolioRepositoryResponse = zod
+  .object({
+    projectSlug: zod.string(),
+    generatedAt: zod.coerce.date(),
+    format: zod.enum(["github-ready-repository"]),
+    files: zod
+      .record(zod.string(), zod.string())
+      .describe("Map of repo-relative file path → file contents."),
+  })
+  .describe(
+    "Phase 60G — deterministic, leak-safe GitHub-ready repository bundle for a\nsingle completed\/enrolled project of the authenticated user. `files`\nmaps each repo-relative path (e.g. `README.md`, `atlas-portfolio.json`,\n`evidence\/submission-summary.md`) to its contents. Contains only the\nPhase-60A generator output + safe derived metadata — never\nvalidationConfig, expectedRows, answer keys, reference queries, raw\nsubmissions, or secrets. The learner reconstructs a folder named\n`projectSlug` from `files` and uploads it to GitHub manually.\n",
+  );
+
+/**
  * Idempotent — flips `users.onboarding_completed=true` on first call;
 subsequent calls are no-ops and return the same payload.
 

@@ -475,6 +475,38 @@ Close-out: `docs/phases/phase-60f-fresh-submit-snapshot-e2e-and-auth-cors-harden
   untouched; no schema/migration; route authenticated/read-only; `/check` no snapshots; `/submit` unchanged.
   **Phase 60G NOT started** (owner-gated: safe excerpt preview → GitHub export; + set ATLAS_ALLOWED_ORIGINS in deploy).
 
+## 2026-06-08 — Phase 60G SHIPPED (GitHub-ready local portfolio repository export)
+
+Close-out: `docs/phases/phase-60g-github-ready-repository-export.md`. Reviews **architect PASS +
+code-reviewer SHIP** (no P0/P1). Additive export feature; NO GitHub OAuth/token/push/publishing.
+- **Thin export layer** `lib/portfolioRepository.ts` over the 60A generator: reuses the MD files verbatim,
+  adds `atlas-portfolio.json` (safe metadata — counts incl. `serverGradedSteps`, NOT the spec flag) +
+  optional `evidence/submission-summary.md` (only when a snapshot exists; labelled learner-submitted
+  evidence, NOT an answer key; no raw excerpt/hash/spec). `assertSafeRepoPaths` traversal guard (exported +
+  negative-tested). Pure/deterministic.
+- **Route** `GET /api/user/projects/:slug/portfolio-repository` (sibling of the 60B artifact route): same
+  auth + 404-not-403 + fail-closed `findBannedClaims`. Returns `{projectSlug, generatedAt,
+  format:"github-ready-repository", files}`.
+- **OpenAPI + orval**: added path + `PortfolioRepositoryResponse`; regenerated (additive +184, 0 deletions);
+  `getPortfolioRepository` + `GetPortfolioRepositoryResponse` generated.
+- **Frontend**: `DownloadGithubRepoButton` ("Download GitHub-Ready Repo") next to the existing button →
+  saves `<slug>-github-ready-repo.json` verbatim; on-click only; renders nothing; generic error.
+- **CORS deploy manifest**: commented (documentation-only) `ATLAS_ALLOWED_ORIGINS` note in api-server
+  `artifact.toml` — prod origin unknown, no domain invented, no runtime change.
+- **No-leak/honesty**: layer + route (answer-key-bearing fixture, incl. snapshot-present path) + frontend +
+  real-data live route scan (booted API + real C2 + 60F e2e learner): 401/404 correct, all 6 files,
+  serverGradedSteps=2, no spec tokens, `one_current` absent, no banned claims, summary learner-labelled.
+- **Files (12 +gen):** `lib/portfolioArtifact.ts` (export claim const), `lib/portfolioRepository.ts`(new)+test,
+  `routes/user-portfolio-repository.ts`(new)+test, `routes/index.ts`, `lib/api-spec/openapi.yaml`+generated,
+  `components/DownloadGithubRepoButton.tsx`(new)+test, `pages/certificates.tsx`, `.replit-artifact/artifact.toml`.
+  3 P2s (snapshot-path route test, path-guard negative test, metadata-files assertion) fixed in-phase.
+- **Gates GREEN (Node 24 + Docker PG):** typecheck(4)+no-heuristic · check:boot OK · api-server **621/621** ·
+  atlas **170/170** · integration **4/4** · audit:authoring exit 0 · sql-resultset-bc PASS (3 dark + **1**) ·
+  csv-set-equal-bc PASS (**1**) · contains-bc 3/3.
+- **Invariants:** 1 csv + 1 sql opt-in (unchanged, total serverGrade=2); no new opt-ins/kinds; envelope OFF;
+  Phase 52 untouched; no schema/migration; routes auth/read-only; `/check`+`/submit` unchanged; no
+  OAuth/token/push/publishing. **Phase 60H NOT started** (owner-gated: ZIP; guarded GitHub publishing).
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 

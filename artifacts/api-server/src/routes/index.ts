@@ -21,6 +21,7 @@ import dashboardRouter from "./dashboard";
 import onboardingRouter from "./onboarding";
 import userPortfolioRouter from "./user-portfolio";
 import userPortfolioArtifactRouter from "./user-portfolio-artifact";
+import userPortfolioRepositoryRouter from "./user-portfolio-repository";
 import learnerModeRouter from "./learner-mode";
 
 const router: IRouter = Router();
@@ -47,6 +48,7 @@ router.use(dashboardRouter);
 router.use(onboardingRouter);
 router.use(userPortfolioRouter);
 router.use(userPortfolioArtifactRouter);
+router.use(userPortfolioRepositoryRouter);
 router.use(learnerModeRouter);
 
 export default router;

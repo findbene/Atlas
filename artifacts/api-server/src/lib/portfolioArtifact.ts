@@ -158,7 +158,7 @@ export interface PortfolioArtifactBundle {
  * The single verification claim Atlas is entitled to make. Centralised so the
  * exact wording is reused (and asserted) everywhere it appears.
  */
-const ATLAS_VERIFIED_CLAIM =
+export const ATLAS_VERIFIED_CLAIM =
   "Atlas verified that submitted runtime output or artifacts matched the enabled " +
   "validation checks for the steps marked **server-graded** below.";
 

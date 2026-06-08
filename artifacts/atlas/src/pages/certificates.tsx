@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DownloadPortfolioBundleButton } from "@/components/DownloadPortfolioBundleButton";
+import { DownloadGithubRepoButton } from "@/components/DownloadGithubRepoButton";
 import { Link } from "wouter";
 
 function formatDate(iso?: string | null) {
@@ -256,6 +257,7 @@ export default function Certificates() {
                     </div>
 
                     <DownloadPortfolioBundleButton projectSlug={it.projectSlug} />
+                    <DownloadGithubRepoButton projectSlug={it.projectSlug} />
                   </div>
                 </div>
               );

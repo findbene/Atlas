@@ -27,6 +27,14 @@ args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+# Phase 60F/60G — CORS allowlist (see artifacts/api-server/src/lib/cors.ts).
+# Production is CORS-inert until this is set: with ATLAS_ALLOWED_ORIGINS unset,
+# the API falls back to the legacy reflective origin policy. To harden, set it
+# to a comma-separated list of the deployed frontend origin(s), e.g.
+#   ATLAS_ALLOWED_ORIGINS = "https://app.example.com,https://www.example.com"
+# Left commented (documentation only) because the production frontend origin is
+# not known in this repo — no domain is invented and no production behavior is
+# changed. Uncomment with the real origin(s) at deploy time. Non-secret.
 
 [services.production.health.startup]
 path = "/api/healthz"
