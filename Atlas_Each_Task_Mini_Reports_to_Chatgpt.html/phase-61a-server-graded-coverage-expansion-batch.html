@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 61A — Server-Graded Evidence Coverage Expansion Batch</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 61A — Server-Graded Evidence Coverage Expansion Batch</h1><p class="meta">2026-06-08 · COMPLETED · live server-grade flip (+2 rows) · commit 11e60c6</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 61A — controlled expansion of live server-graded evidence coverage beyond the current 2 rows (1 csv + 1 sql, both in C2). Inventory the <code>sql_resultset</code>/<code>csv_set_equal</code> candidates, verify thoroughly (fixtures, runtime, determinism, no-leak, honesty), and flip ONLY rows that pass every evidence-safety gate (target 2–5, prefer 3–5, don't force; flip none + report if none safe). Hard stops: no GitHub OAuth/publishing; no envelope enforcement; no Phase 52; no schema/migration unless a proven defect; no answer-key/validationConfig/expectedRows/comparator-diagnostic leaks; no broad/"flip everything"; no other validation kind; do not start Phase 61B.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Flipped <strong>2</strong> byte-verified rows (C2 steps 1 + 5, <code>sql_resultset</code>); deferred step 8 (float). serverGrade 2 → 4. Reviews architect <strong>PASS</strong> + code-reviewer <strong>SHIP</strong> (no P0/P1); 1 P2 fixed in-phase. All audits + gates green; live export stack verified. Committed <code>11e60c6</code>, pushed <code>main</code>. Phase 61B not started.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<p>Commit <code>11e60c6</code> (2 source + docs): <code>scripts/src/authored/analytics-engineer__semantic-layer-with-dbt-and-duckdb.ts</code> (steps 1+5 flip + step-1 instruction honesty + header docblock), <code>artifacts/api-server/src/lib/grading-c2-flip.test.ts</code>(new), <code>docs/phases/phase-61a-…md</code>(new), <code>.agentic/progress.md</code>. DB flip propagated via <code>author:project promote</code> (not committed — throwaway PG; source of truth is the authored .ts).</p>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>Other validation kind? <strong>no</strong> (only sql_resultset). Broad/flip-everything? <strong>no</strong> (2 of 3 candidates, surgical). Envelope enforcement? <strong>no</strong> (OFF). Phase 52? <strong>untouched.</strong> Schema/migration? <strong>no.</strong> Comparator change? <strong>no</strong> (grading.ts byte-unchanged). GitHub/publishing? <strong>no.</strong> Answer-key/spec/diagnostic leak? <strong>no</strong> (verified). Phase 61B started? <strong>no.</strong></p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>Converted steps 1 + 5 validation specs from the legacy scalar <code>expectedRow</code> shape to the server-grade rowset shape: added <code>serverGrade:true</code> + <code>columns</code> + <code>expectedRows</code> (the browser-verified capture), kept <code>query</code> + <code>expectedRow</code> (tolerated by the guard, ignored by the comparator). The runtime comparator (<code>gradeRowsetSubmission</code>) is unchanged. The flip reaches the DB through the existing authoring pipeline (<code>author:project promote</code> — delete+reinsert steps from the authored source, preserving <code>qualityStatus</code>/visibility). New focused test pins the flip contract.</p>
+<h2 id="6-tests-and-gates-run-node-24160-docker-pg-5434">6. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<p>typecheck (4) + <code>check:no-heuristic-runtime</code> <strong>OK</strong> · <strong>check:boot OK</strong> · api-server unit <strong>639/639</strong> (+9 flip-contract) · atlas <strong>170/170</strong> · <strong>integration 4/4</strong> · <code>audit:sql-resultset-bc</code> PASS (dark 1 / opted-in 3, 19 checks 0 failures) · <code>audit:csv-set-equal-bc</code> PASS (1) · <code>audit:contains-bc</code> 3/3 · <code>audit:authoring</code> exit 0 · live export-stack server-graded reflection + no-leak + valid ZIP.</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<ul>
+<li><strong>Seed doesn't propagate flips</strong> — the idempotent <code>seed</code> left steps 1/5 dark (it doesn't overwrite existing validation_config). The production flip path is <code>author:project promote</code> (delete+reinsert), which propagated it + preserved visibility/approval.</li>
+<li><strong>Re-author clears snapshots</strong> — promote cascade-deletes <code>portfolio_submission_snapshots</code> (stepId FK) but <code>user_step_completions</code> (keyed by stepNumber) survive, so the e2e learner stayed completed for the export verification.</li>
+<li>Reviewers' P2 (stale header docblock) fixed in-phase.</li>
+</ul>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>. Feature <strong><code>11e60c6</code></strong> (2 source + docs) on top of <code>24fdbb8</code>, pushed. Archive commit follows. Working tree clean except hook-managed files. Dev-only WASM harness created + deleted (not committed).</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>serverGrade count = <strong>4</strong> (csv 1 + sql 3). C2 visible+approved; a completed learner's portfolio now shows 4 server-graded steps. All invariants intact; comparator + routes + Phase 52 + envelope unchanged.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<p>Coverage still concentrated in C2 (only WASM-native rowset project). Comparator is type-strict (number≠string) — correctness rests on the browser byte-verify holding at engine 1.33.1-dev45.0 (current); re-verify if the WASM engine version ever changes. Step 8 (float) needs a tolerance-aware comparator before flipping.</p>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Observe the 2 newly-live rows in a real env. <strong>Phase 61B (owner-gated):</strong> (a) author the next WASM-native fixture-backed rowset project to create fresh flip candidates (authoring-factory track), and/or (b) add a dark, BC-audited numeric-tolerance/round-aware rowset comparator option to unlock float-valued steps like C2 step 8.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p><strong>Stopped.</strong> 2 byte-verified rows flipped to server-graded; step 8 deferred with rationale; serverGrade 2→4; no-leak + honesty preserved across <code>/check</code>, <code>/submit</code>, artifact, repository JSON + ZIP. Reviews PASS/SHIP, gates + audits green, committed <code>11e60c6</code>. <strong>Phase 61B NOT started.</strong> Awaiting next instruction.</p>
+<hr />
+<h2 id="13-candidate-inventory-summary">13. Candidate Inventory Summary</h2>
+<p>Entire <code>sql_resultset</code>/<code>csv_set_equal</code> universe = ONE visible+approved project (C2). Candidates (dark rowset steps): <strong>step 1</strong> sql (counts), <strong>step 5</strong> sql (MRR sum), <strong>step 8</strong> sql (NRR float). Steps 2 (sql) + 3 (csv) already live (58B/57B-flip). All candidates: visible, approved, fixture-backed (seeds/customers.csv + subscriptions.csv), WASM-native self-contained inline-CTE SQL (no dbt/Jinja), deterministic, execution-derived expected values, zero cloud/credential/network/timing/randomness deps, no leak risk, honest learner prompts.</p>
+<h2 id="14-selected-batch-rationale">14. Selected Batch Rationale</h2>
+<p><strong>Flipped steps 1 + 5</strong> — the two <strong>integer-valued</strong> outputs, where the comparator's exact <code>JSON.stringify</code> cell match is robust to any DuckDB-WASM numeric representation: step 1 counts (BIGINT→Number 7,7), step 5 <code>round(sum::double,0)</code>→2746 (<code>JSON.stringify(2746.0)==="2746"</code>). Both are canonical single-answer outputs the step instructs, and meaningful portfolio evidence (staging dedupe; the MRR metric).</p>
+<h2 id="15-rejected-candidates-and-reasons">15. Rejected Candidates and Reasons</h2>
+<p><strong>Step 8 (enterprise NRR = <code>1.05</code>) — DEFERRED.</strong> Byte-verified clean (<code>[[1.05]]</code> number) but a <strong>float ratio</strong>: the comparator has no numeric tolerance, so a correct learner whose query returns the unrounded ratio / a DECIMAL / a differently-rounded value would fail closed with no escape hatch. A tolerance/round-aware contract is a comparator change (out of 61A scope). Conservatively deferred (brief: "reject … too ambiguous to grade safely"). No other project has a rowset step → batch necessarily ≤ 3.</p>
+<h2 id="16-runtime-verification-results">16. Runtime Verification Results</h2>
+<p>Re-executed the EXACT shipped step 1/5/8 queries over the committed seed CSVs through the real <code>duckdbAdapter</code> + <code>normalizeSqlRows</code>. All <code>ok:true</code>. The committed <code>expectedRows</code> for steps 1/5 (<code>[[7,7]]</code>, <code>[[2746]]</code>) equal the real capture; <code>audit:sql-resultset-bc</code> then independently confirmed the correct <code>{columns,rows}</code> capture PASSES each opted-in row and 6 negative classes FAIL CLOSED (19 checks, 0 failures).</p>
+<h2 id="17-browser-wasm-verification-results">17. Browser-WASM Verification Results</h2>
+<p>Real Chromium, real <code>duckdbAdapter</code>, <code>@duckdb/duckdb-wasm@1.33.1-dev45.0</code> (the learner runtime; engine unchanged since 0.zz), dev-only harness deleted after:</p>
+<pre><code>step 1  columns=[n,n_unique]  rows=[[7,7]]   types=[number,number]
+step 5  columns=[value]       rows=[[2746]]  types=[number]
+step 8  columns=[value]       rows=[[1.05]]  types=[number]
+</code></pre>
+<p>Byte-identical to Phase 0.zz; clean number types (no bigint/Decimal/float drift). Confirms the flipped <code>expectedRows</code> == the FE capture in the actual runtime.</p>
+<h2 id="18-servergrade-count-beforeafter">18. ServerGrade Count Before/After</h2>
+<p>Before: <strong>2</strong> (csv_set_equal 1 = step 3; sql_resultset 1 = step 2). After: <strong>4</strong> (csv_set_equal 1 = step 3; sql_resultset <strong>3</strong> = steps 1, 2, 5). Δ = +2 sql rows. Step 8 + all non-C2 steps unchanged.</p>
+<h2 id="19-no-leak-verification-across-export-stack">19. No-Leak Verification Across Export Stack</h2>
+<p>The flip changes only the narrow <code>serverGrade</code> boolean; it adds NO leak channel (the assembly chokepoint never returns validationConfig/expectedRows/scalar expectedRow). Verified LIVE (real API + re-authored DB) across <code>/portfolio-artifact</code>, <code>/portfolio-repository</code> (JSON), and <code>/portfolio-repository.zip</code>: no <code>validationConfig</code>/<code>expectedRows</code>/<code>expectedRowsHash</code>/<code>serverGradeFlag</code>/<code>spec</code>; the answer values <code>7,7</code> / <code>2746</code> / <code>one_current</code> ALL absent; no banned claims; ZIP valid (Python <code>zipfile.testzip()</code>=None). <code>/check</code>+<code>/submit</code> route code unchanged.</p>
+<h2 id="20-portfolio-zip-evidence-result-after-new-flips">20. Portfolio ZIP Evidence Result After New Flips</h2>
+<p>A completed learner's artifact + ZIP now classify <strong>steps 1, 2, 3, 5 as <code>server-graded</code></strong> in VALIDATION_EVIDENCE (was steps 2, 3) — the evidence-density goal — while remaining leak-free, carrying only the allowed Atlas-verified claim + honest limitations, and producing a valid archive.</p>
+<h2 id="21-independent-review-results">21. Independent Review Results</h2>
+<ul>
+<li><strong>atlas-architect-reviewer → PASS</strong> (no P0/P1): type-stability sound (integer outputs cannot drift through the BIGINT→Number / DOUBLE→number capture); spec valid; no-leak intact; invariants hold (csv 1 / sql 3); step-8 deferral judgment sound; <code>needs-run</code> fail-safe correct.</li>
+<li><strong>code-reviewer → SHIP</strong> (no P0/P1): traced the capture→comparator chain byte-by-byte (reproduced in a standalone harness); spec validity + non-vacuous tests confirmed; scope = 2 files.</li>
+<li><strong>P2 fixed in-phase (both):</strong> the stale project-header docblock ("client-provisional / commit-grader auto-passes") updated to the actual server-graded posture + the step-8 deferral note.</li>
+</ul>
+</main>
+</body>
+</html>
