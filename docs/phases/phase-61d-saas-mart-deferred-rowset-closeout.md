@@ -155,9 +155,33 @@ banned list → none.
 
 ## 9. Reviews
 
-- **atlas-architect-reviewer → PASS** — _(filled at close; see mini-report
-  archive entry for the verbatim verdict)._
-- **code-reviewer → SHIP** — _(filled at close; see mini-report archive entry.)_
+- **atlas-architect-reviewer → PASS** (no P0/P1). Independently traced authored-spec
+  → promote → DB → /submit → comparator AND the FE capture path; **hand-traced the
+  expected values against the committed fixtures** (step 4: 6 active accounts,
+  A-007 churned 2025-05-31 excluded, sum 200+1500+50+1800+200+1200 = 4950 ✓; step
+  3: dashboard_view 3 / export 3 / query_run 7, E-14 empty-type + E-15 negative
+  excluded ✓). Confirmed the step-4 cast makes the NATURAL capture type-stable
+  (`duckdbRunner.ts:106-116` bigint→Number vs `:118` String() fallback), no leak
+  (`projects.ts:40-48` boolean-only projection), comparator byte-unchanged
+  (`grading.ts` `gradeRowsetSubmission`, multiset path), C2 authored source
+  byte-unchanged, RUBRIC frozen, no H3 overclaim.
+  - **P2 (note, not blocking):** a learner who DELETES the pre-filled cast and
+    types bare `sum(mrr_amount)` would capture HUGEINT→string `"4950"` → fail
+    closed. NOT a regression — the instruction + starterCode both carry the cast,
+    it is strictly better than the pre-61D state (where the natural path failed),
+    and it is the same inherent property of every server-graded rowset step (any
+    learner can rename a column and fail). No fix required.
+  - **P2 (environmental, disclosed):** DB-gated api-server test files
+    (`envelopeSubmit`, the two `*.integration`) are infra-gated in a sandbox
+    without `DATABASE_URL` / `INTEGRATION_TEST_DB_ALLOW`; none touch the comparator
+    / rowset grading / FE path. Same env caveat as §6.
+- **code-reviewer → SHIP** (no P0/P1). Confirmed the diff is exactly the 2 source
+  files; step 3 `query`/`columns`/`expectedRows` byte-identical; step 4's only
+  query change is the BIGINT cast (3 places: instruction, starterCode SELECT
+  outside the learner TODO, reference query), `expectedRows [[6,4950]]` unchanged;
+  the check pins `{1..6}` and fails on any silent un-flip; no H3 phrase; no leak.
+  P2s: env-blocked integration coverage + CRLF normalization (both
+  pre-existing/tracked).
 
 ## 10. Invariants (confirmed)
 
