@@ -51,6 +51,7 @@
     "archive:phase12b-replaced": "tsx ./src/archive-phase12b-replaced.ts",
     "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "check:authored-saas-mart": "tsx ./src/check-authored-saas-mart.ts",
+    "check:db-baseline": "tsx ./src/check-db-baseline.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
