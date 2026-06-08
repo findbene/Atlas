@@ -1795,3 +1795,44 @@ operable program or batch file.
 
 ════ self-review @ 2026-06-08 16:19:21 ════
 ── typecheck: npm run typecheck --silent
+
+> workspace@0.0.0 typecheck:libs C:\Projects\Atlas
+> tsc --build
+
+
+> workspace@0.0.0 check:no-heuristic-runtime C:\Projects\Atlas
+> pnpm --filter @workspace/scripts run check:no-heuristic-runtime
+
+
+> @workspace/scripts@0.0.0 check:no-heuristic-runtime C:\Projects\Atlas\scripts
+> tsx ./src/check-no-runtime-mapToCourse.ts
+
+'rg' is not recognized as an internal or external command,
+operable program or batch file.
+[check] OK — no runtime mapToCourse callers outside the 4-entry allowlist.
+── typecheck: PASS
+
+── build: npm run build --silent
+
+> workspace@0.0.0 typecheck C:\Projects\Atlas
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck && pnpm run check:no-heuristic-runtime
+
+
+> workspace@0.0.0 typecheck:libs C:\Projects\Atlas
+> tsc --build
+
+
+> workspace@0.0.0 check:no-heuristic-runtime C:\Projects\Atlas
+> pnpm --filter @workspace/scripts run check:no-heuristic-runtime
+
+
+> @workspace/scripts@0.0.0 check:no-heuristic-runtime C:\Projects\Atlas\scripts
+> tsx ./src/check-no-runtime-mapToCourse.ts
+
+'rg' is not recognized as an internal or external command,
+operable program or batch file.
+[check] OK — no runtime mapToCourse callers outside the 4-entry allowlist.
+── build: FAIL
+
+
+════ self-review @ 2026-06-08 16:25:43 ════
