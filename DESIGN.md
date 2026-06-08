@@ -5,6 +5,7 @@
 **Scope:** Design lens — brand, visual language, component system, UX patterns, motion, accessibility.
 Product scope → PRD.md. Architecture rationale → ARD.md. Technical implementation → TRD.md.
 Testable design requirements and acceptance criteria → DRD.md (references this doc for rationale).
+Strategic finish-to-beta plan → docs/ATLAS-MASTER-PLAN.md.
 **Last updated:** 2026-06-05
 
 ---

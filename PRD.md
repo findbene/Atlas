@@ -2,7 +2,7 @@
 
 **Version:** 1.0-draft  
 **Status:** Pre-beta (Phase 0 foundation)  
-**Scope:** Product lens — the WHAT and WHY for users. Business model → BRD.md. Architecture decisions → ARD.md. Technical specifications → TRD.md. Visual design → DESIGN.md.  
+**Scope:** Product lens — the WHAT and WHY for users. Business model → BRD.md. Architecture decisions → ARD.md. Technical specifications → TRD.md. Visual design → DESIGN.md. Strategic finish-to-beta plan → docs/ATLAS-MASTER-PLAN.md.  
 **Last updated:** 2026-06-05  
 
 ---

@@ -584,3 +584,15 @@ Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-p
 ## Deviations from plan
 
 - None yet.
+
+---
+
+## 2026-06-08 — Strategic master plan persisted (Item 1 of a 4-item owner run)
+
+Owner directed a 4-item continuous run: **1) persist plan → 2) live-research pass → 3) Phase 0.2 (unblock) ∥ 4) Phase 61B (authoring)**. Item 1 (this entry) done.
+
+- Re-collected 4 locked decisions via owner Q&A: **(1) tiered cloud = local sandbox + BYO-credentials; (2) freemium B2C; (3) private beta ~6–8 wk, all 9 courses, 100–150 projects; (4) authoring factory + researched 2026 taxonomy.** All consistent with prior D1–D6.
+- **Corrected a planning error:** initial plan claimed README/DESIGN/PRD/BRD were missing. They EXIST (Phase 0.1b). Verified BRD already aligned with all 4 decisions; README/PRD/DESIGN saturated with the decision vocabulary (no contradictions). So Item 1 = write the net-new canonical plan + light additive cross-refs, NOT recreate the docs.
+- Wrote `docs/ATLAS-MASTER-PLAN.md` (canonical finish-to-beta plan: honest current-state map, monorepo extend-not-rebuild w/ 3 new packages tutor-core/labs-core/scout-core, phase-scoped `.claude/` skill model, 6–8 wk roadmap E0.2→E9, runtime-tier taxonomy A/B/C, tutor hint-ladder + 4 modes, ship-top-of-class differentiators).
+- Added a one-line strategic-plan cross-ref to README/PRD/BRD/DESIGN (additive, no rewrite).
+- **Next:** Item 2 live-research (parallel research agents → `docs/research/2026-project-taxonomy.md`), then Items 3∥4 under the full phase ritual. Combined mini-report for Items 1+2; separate full mini-reports for Phase 0.2 and Phase 61B.

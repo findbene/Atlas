@@ -2,7 +2,7 @@
 
 **Version:** 1.0-draft
 **Status:** Pre-beta (Phase 0 foundation)
-**Scope:** Business lens — market, model, money, competition, risk. Product features → PRD.md. Architecture decisions → ARD.md. Technical specifications → TRD.md.
+**Scope:** Business lens — market, model, money, competition, risk. Product features → PRD.md. Architecture decisions → ARD.md. Technical specifications → TRD.md. Strategic finish-to-beta plan → docs/ATLAS-MASTER-PLAN.md.
 **Last updated:** 2026-06-05
 
 ---

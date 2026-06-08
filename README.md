@@ -4,6 +4,8 @@
 
 Learners become credible by completing realistic, portfolio-grade projects with guided support, progressive hints, honest validation, and evidence-backed completion records that produce recruiter-readable artifacts.
 
+> **Strategic plan:** [`docs/ATLAS-MASTER-PLAN.md`](docs/ATLAS-MASTER-PLAN.md) — the finish-to-beta roadmap and the locked owner decisions (tiered cloud labs, freemium B2C, ~6–8 wk private beta with 100–150 projects, authoring factory + researched 2026 taxonomy).
+
 ---
 
 ## Status
