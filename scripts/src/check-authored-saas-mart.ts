@@ -1,10 +1,10 @@
 /**
- * Phase 61B — focused authoring check for the net-new
+ * Phase 61B/61C — focused authoring check for the net-new
  * `data-engineering-saas-usage-revenue-quality-mart` project. Asserts the
- * task-contract: shape, the 6 DARK rowset candidates, NO accidental
- * serverGrade:true, pre-populated columns/expectedRows, H3 honest-claims, and
- * deterministic ordering for multi-row results. Runs in the scripts package's
- * tsx-check idiom (no vitest in this package).
+ * task-contract: shape, the 6 rowset candidates, the EXACT Phase 61C flip set
+ * (steps 1/2/5/6 serverGrade:true; steps 3/4 dark) with no accidental flips,
+ * pre-populated columns/expectedRows, H3 honest-claims, and deterministic
+ * ordering for multi-row results. Runs in the scripts package's tsx-check idiom.
  *
  *   pnpm --filter @workspace/scripts run check:authored-saas-mart
  */
@@ -44,12 +44,23 @@ check("5 sql_resultset + 1 csv_set_equal", sql.length === 5 && csv.length === 1)
 check("1 contains step", contains.length === 1);
 check(">= 4 future rowset candidates (task floor)", rowset.length >= 4);
 
+// Phase 61C — exactly these 4 rowset steps are live server-graded; 3 + 4 stay dark
+// (3 = clean future candidate capped by the max-4 budget; 4 = HUGEINT-string deferral).
+const FLIPPED = new Set([1, 2, 5, 6]);
+let flippedCount = 0;
+let darkCount = 0;
 for (const s of rowset) {
   const spec = (s.validation as { spec?: Record<string, unknown> }).spec ?? {};
   const cols = spec["columns"] as unknown[] | undefined;
   const rows = spec["expectedRows"] as unknown[][] | undefined;
   const q = String(spec["query"] ?? "").toLowerCase();
-  check(`step ${s.stepNumber}: serverGrade is NOT true (dark)`, spec["serverGrade"] !== true);
+  const isServerGrade = spec["serverGrade"] === true;
+  if (isServerGrade) flippedCount++; else darkCount++;
+  if (FLIPPED.has(s.stepNumber)) {
+    check(`step ${s.stepNumber}: serverGrade:true (Phase 61C live flip)`, isServerGrade);
+  } else {
+    check(`step ${s.stepNumber}: serverGrade dark (deferred)`, !isServerGrade);
+  }
   check(`step ${s.stepNumber}: columns non-empty`, Array.isArray(cols) && cols.length > 0);
   check(`step ${s.stepNumber}: expectedRows non-empty + width matches columns`,
     Array.isArray(rows) && rows.length > 0 &&
@@ -59,6 +70,8 @@ for (const s of rowset) {
     check(`step ${s.stepNumber}: multi-row query has ORDER BY`, q.includes("order by"));
   }
 }
+check("exactly 4 rowset steps flipped to serverGrade:true", flippedCount === 4);
+check("exactly 2 rowset steps stay dark", darkCount === 2);
 
 // H3 honest-claims across all learner-facing text.
 const text = [

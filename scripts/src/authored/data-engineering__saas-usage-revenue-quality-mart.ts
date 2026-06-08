@@ -22,21 +22,22 @@
  * the most type-stable shape (no floats, no tolerance needed), so each rowset
  * step is a clean future server-grade candidate.
  *
- * Validation discipline (Phase 61B): SIX rowset steps (5 `sql_resultset` + 1
- * `csv_set_equal`) and 1 `contains`. ALL rowset steps ship `serverGrade:false`
- * (DARK) — the in-browser DuckDB-WASM adapter runs the learner's SQL for
- * immediate feedback and the server commit-grader auto-passes, byte-identical
- * to the pre-58A legacy behavior. The specs pre-populate `columns` +
- * `expectedRows` (verified against real DuckDB over the committed seeds) so a
- * FUTURE phase can flip any of them to `serverGrade:true` as a one-line change
- * AFTER a real-browser DuckDB-WASM byte-verification — exactly the dark-ship →
- * verify → flip discipline used for C2. No row is opted in here; the
- * `audit:sql-resultset-bc` / `audit:csv-set-equal-bc` guards stay clean because
- * the comparator short-circuits on `serverGrade !== true`. No comparator change,
- * no envelope enforcement, no schema/migration, no float/tolerance grading.
- * Learner-facing copy describes only what the in-browser adapter does and the
- * structural invariants the project must hold — never authorship/verification
- * guarantees (H3).
+ * Validation discipline: SIX rowset steps (5 `sql_resultset` + 1 `csv_set_equal`)
+ * and 1 `contains`. Authored DARK in Phase 61B; **Phase 61C flipped FOUR to
+ * `serverGrade:true`** — steps 1 (dedup count), 2 (clean count), 5 (csv health
+ * distribution), 6 (DQ audit) — each after a real-browser DuckDB-WASM
+ * (@duckdb/duckdb-wasm 1.33.1-dev45.0) byte-verification of the captured
+ * `{columns, rows}` against the committed `expectedRows`. On Submit the server
+ * re-grades the FE capture via the shared rowset comparator; envelope enforcement
+ * stays OFF (commit-path only). Steps 3 and 4 stay DARK: step 3 is a clean future
+ * candidate (capped at the max-4 flip budget); step 4 is DEFERRED because its
+ * `sum(INTEGER)` returns HUGEINT, which DuckDB-WASM renders as the STRING "4950"
+ * (not the Number the CLI yields) — a flip would fail a correct learner CLOSED
+ * until the query casts the sum to BIGINT and is re-verified. Dark rows stay
+ * `audit:*-bc`-clean because the comparator short-circuits on `serverGrade !==
+ * true`. No comparator change, no envelope enforcement, no schema/migration, no
+ * float/tolerance grading. Learner-facing copy on flipped steps honestly states
+ * the server re-grades on Submit; never authorship/verification guarantees (H3).
  */
 import {
   pedagogyConfig, validationConfig, portfolioArtifact, projectMeta,
@@ -109,7 +110,7 @@ export const dataEngineeringSaasUsageRevenueQualityMart: AuthoredProject = {
       stepNumber: 1,
       title: "Type + dedupe raw accounts (latest load wins)",
       instructionMd:
-        "Raw feeds arrive with duplicate loads. Before anything downstream can be trusted, the account key must be unique. Type every column and collapse duplicate `account_id` loads to the most recent one.\n\n**Build:** a staging query over the raw `accounts` feed that (a) casts each column to its target type and (b) dedupes with `qualify row_number() over (partition by account_id order by loaded_at desc) = 1` (latest load wins). The raw fixture has 8 rows including one `account_id` loaded twice.\n\n**Validation:** the in-browser DuckDB adapter runs your SQL and returns `count(*) AS n, count(distinct account_id) AS n_unique` over the deduped staging set, compared against the expected row. This is `sql_resultset`: the in-browser DuckDB adapter executes your SQL for immediate feedback.",
+        "Raw feeds arrive with duplicate loads. Before anything downstream can be trusted, the account key must be unique. Type every column and collapse duplicate `account_id` loads to the most recent one.\n\n**Build:** a staging query over the raw `accounts` feed that (a) casts each column to its target type and (b) dedupes with `qualify row_number() over (partition by account_id order by loaded_at desc) = 1` (latest load wins). The raw fixture has 8 rows including one `account_id` loaded twice.\n\n**Validation:** the in-browser DuckDB adapter runs your SQL and returns `count(*) AS n, count(distinct account_id) AS n_unique` over the deduped staging set, compared against the expected row. This is `sql_resultset`: the in-browser DuckDB adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured result rows against the expected output.",
       learningObjective:
         "Type-cast and dedupe a raw account feed with a ROW_NUMBER 'latest load wins' rule.",
       requiredSkill: "DuckDB type casts, QUALIFY ROW_NUMBER dedupe, distinct counts",
@@ -140,12 +141,12 @@ from stg_accounts;
         "sql_resultset",
         "After dedupe, staged accounts yield 7 rows with 7 distinct account_ids (raw fixture has 8 rows including 1 duplicate load).",
         {
-          // Phase 61B — DARK rowset candidate (serverGrade:false). columns +
-          // expectedRows are pre-populated (verified against real DuckDB over the
-          // committed seeds) so a future phase can flip to serverGrade:true as a
-          // one-line change AFTER a real-browser DuckDB-WASM byte-verification.
-          // The server commit-grader auto-passes today (BC-clean).
-          serverGrade: false,
+          // Phase 61C — LIVE server-grade flip. Real-browser DuckDB-WASM
+          // (@duckdb/duckdb-wasm 1.33.1-dev45.0, the learner runtime) byte-verified
+          // the capture columns=[n,n_unique] rows=[[7,7]] (types number,number):
+          // COUNT/COUNT-DISTINCT → BIGINT → lossless Number, type-stable exact-match.
+          // Envelope enforcement stays OFF — only the commit-path comparator.
+          serverGrade: true,
           query: SRC(`with raw_accounts as (select * from "saas-mart/accounts"),
 typed as (
   select cast(account_id as varchar) as account_id, cast(loaded_at as timestamp) as loaded_at
@@ -187,7 +188,7 @@ select count(*) as n, count(distinct account_id) as n_unique from stg_accounts`)
       stepNumber: 2,
       title: "Clean the usage event stream (drop invalid rows)",
       instructionMd:
-        "The product-usage feed is noisy: some events have no event type and some have a non-positive duration (a logging bug). Bad data must be dropped at the cleaning layer with an EXPLICIT rule, not silently tolerated downstream.\n\n**Build:** a cleaned model over the raw `usage_events` feed that keeps only events where `event_type` is present (not null, not empty) AND `duration_seconds > 0`. Return `count(*) AS valid_events, count(distinct account_id) AS active_accounts` over the cleaned set. The raw fixture has 15 events, 2 of which are invalid.\n\n**Validation:** `sql_resultset` — the in-browser adapter runs your SQL and compares the result row.",
+        "The product-usage feed is noisy: some events have no event type and some have a non-positive duration (a logging bug). Bad data must be dropped at the cleaning layer with an EXPLICIT rule, not silently tolerated downstream.\n\n**Build:** a cleaned model over the raw `usage_events` feed that keeps only events where `event_type` is present (not null, not empty) AND `duration_seconds > 0`. Return `count(*) AS valid_events, count(distinct account_id) AS active_accounts` over the cleaned set. The raw fixture has 15 events, 2 of which are invalid.\n\n**Validation:** `sql_resultset` — the in-browser adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured result rows against the expected output.",
       learningObjective:
         "Clean a noisy event stream by dropping records that fail explicit validity predicates.",
       requiredSkill: "Validity predicates, NULL/empty-string handling, distinct counts in DuckDB",
@@ -211,7 +212,9 @@ from valid_events;
         "sql_resultset",
         "Cleaned usage keeps 13 of 15 events across 7 distinct accounts (2 events dropped: 1 with no type, 1 with negative duration).",
         {
-          serverGrade: false,
+          // Phase 61C — LIVE server-grade flip. Browser DuckDB-WASM byte-verified
+          // columns=[valid_events,active_accounts] rows=[[13,7]] (number,number).
+          serverGrade: true,
           query: SRC(`with raw_events as (select * from "saas-mart/usage_events"),
 valid_events as (
   select cast(account_id as varchar) as account_id
@@ -344,6 +347,12 @@ from active;
         "sql_resultset",
         "Active MRR as of 2025-06-01: 6 active accounts summing to 4950 (one account churned in May is excluded).",
         {
+          // Phase 61C — DEFERRED (stays dark). Browser DuckDB-WASM byte-verify
+          // surfaced a type divergence: SUM over an INTEGER column returns HUGEINT,
+          // which the adapter renders as the STRING "4950" (not the Number 4950 the
+          // CLI yields) — so a flip would fail a correct learner CLOSED. A future
+          // flip needs `cast(sum(mrr_amount) as bigint)` (+ instruction guidance) so
+          // the capture is BIGINT → lossless Number, then re-verify in-browser.
           serverGrade: false,
           query: SRC(`with subs as (select * from "saas-mart/subscriptions"),
 active as (
@@ -384,7 +393,7 @@ select count(*) as active_accounts, sum(mrr_amount) as total_mrr from active`),
       stepNumber: 5,
       title: "Final mart: account revenue-quality with a health label",
       instructionMd:
-        "Assemble the final mart. Join usage (Step 2/3) and revenue (Step 4) per account and label each one. The label rule: `churned` if the account has no active subscription; otherwise `healthy` if it has 2 or more valid usage events, else `at_risk`.\n\n**Build:** for every account, compute `is_active` (has an active subscription as of 2025-06-01) and `valid_events` (count of valid usage events), then derive `health_label`. Return the distribution: `health_label, count(*) AS account_count` ordered by `health_label`.\n\n**Validation:** `csv_set_equal` against the 3-row health distribution — the in-browser adapter runs your SQL and compares the row set.",
+        "Assemble the final mart. Join usage (Step 2/3) and revenue (Step 4) per account and label each one. The label rule: `churned` if the account has no active subscription; otherwise `healthy` if it has 2 or more valid usage events, else `at_risk`.\n\n**Build:** for every account, compute `is_active` (has an active subscription as of 2025-06-01) and `valid_events` (count of valid usage events), then derive `health_label`. Return the distribution: `health_label, count(*) AS account_count` ordered by `health_label`.\n\n**Validation:** `csv_set_equal` against the 3-row health distribution — the in-browser adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured row set against the expected output.",
       learningObjective:
         "Assemble a final per-account mart that joins usage and revenue and classifies each account as healthy / at_risk / churned.",
       requiredSkill: "LEFT JOIN densification, CASE classification, set-membership, mutually-exclusive labels",
@@ -429,7 +438,11 @@ order by health_label;
         "csv_set_equal",
         "Account health distribution: at_risk 2, churned 1, healthy 4 (7 accounts total).",
         {
-          serverGrade: false,
+          // Phase 61C — LIVE server-grade flip. Browser DuckDB-WASM byte-verified
+          // columns=[health_label,account_count] rows=[[at_risk,2],[churned,1],
+          // [healthy,4]] (string,number; normalizeSqlRows passthrough). Ordered by
+          // health_label → stable. Envelope enforcement OFF.
+          serverGrade: true,
           query: SRC(`with subs as (select * from "saas-mart/subscriptions"),
 active_accounts as (
   select cast(account_id as varchar) as account_id from subs
@@ -489,7 +502,7 @@ select health_label, count(*) as account_count from labeled group by health_labe
       stepNumber: 6,
       title: "Data-quality audit (CI gate)",
       instructionMd:
-        "Before the mart is published, a data-quality audit runs in CI. It returns one row per check with a flagged count; the gate fails the build if any count that must be zero is non-zero.\n\n**Build:** a single result set with three checks over the RAW feeds, ordered by `check_name`:\n\n- `dup_account_ids` — count of account_ids that appear more than once in raw accounts (must surface the duplicate load).\n- `invalid_usage_events` — count of usage events failing the validity rule (no type or non-positive duration).\n- `orphan_usage_accounts` — count of usage events whose account_id is not present in accounts (must be 0).\n\n**Validation:** `sql_resultset` — three ordered rows of `(check_name, flagged_count)`.",
+        "Before the mart is published, a data-quality audit runs in CI. It returns one row per check with a flagged count; the gate fails the build if any count that must be zero is non-zero.\n\n**Build:** a single result set with three checks over the RAW feeds, ordered by `check_name`:\n\n- `dup_account_ids` — count of account_ids that appear more than once in raw accounts (must surface the duplicate load).\n- `invalid_usage_events` — count of usage events failing the validity rule (no type or non-positive duration).\n- `orphan_usage_accounts` — count of usage events whose account_id is not present in accounts (must be 0).\n\n**Validation:** `sql_resultset` — three ordered rows of `(check_name, flagged_count)`; the in-browser adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured rows against the expected output.",
       learningObjective:
         "Ship a data-quality audit that surfaces duplicate keys, invalid events, and orphan references as a single CI-ready result set.",
       requiredSkill: "GROUP BY HAVING, anti-join / NOT IN, UNION ALL audit composition, deterministic ordering",
@@ -524,7 +537,11 @@ order by check_name;
         "sql_resultset",
         "DQ audit (ordered by check_name): dup_account_ids 1, invalid_usage_events 2, orphan_usage_accounts 0.",
         {
-          serverGrade: false,
+          // Phase 61C — LIVE server-grade flip. Browser DuckDB-WASM byte-verified
+          // columns=[check_name,flagged_count] rows=[[dup_account_ids,1],
+          // [invalid_usage_events,2],[orphan_usage_accounts,0]] (string,number).
+          // Ordered by check_name → stable. Envelope enforcement OFF.
+          serverGrade: true,
           query: SRC(`with raw_accounts as (select * from "saas-mart/accounts"),
 raw_events as (select * from "saas-mart/usage_events"),
 accounts_keys as (select distinct cast(account_id as varchar) as account_id from raw_accounts),
