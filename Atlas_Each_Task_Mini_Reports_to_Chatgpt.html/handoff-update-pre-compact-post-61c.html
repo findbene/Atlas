@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HANDOFF.md update — pre-compact rich handoff (post Phase 61C)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>HANDOFF.md update — pre-compact rich handoff (post Phase 61C)</h1><p class="meta">2026-06-08 · COMPLETED · docs-only</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Owner request (docs-only): refresh <code>HANDOFF.md</code> before a compact, capturing (1) goal, (2) current code state, (3) files actively editing, (4) everything tried that failed, (5) next step.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Overwrote the hook-clobbered thin <code>HANDOFF.md</code> with a rich 5-section handoff reflecting state after Phase 61C (+ workflow header, standing mini-report protocol, ChatGPT-drift warning). Compact ≠ session end → it survives.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>HANDOFF.md</code> — rich 5-section pre-compact handoff.</li>
+<li><code>Atlas_Each_Task_Mini_Reports_to_Chatgpt.html/src/31-…md</code> (this) + regenerated HTML.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>App/DB/schema? <strong>no</strong> · serverGrade/opt-ins? <strong>no</strong> · env/canary/Phase 52? <strong>no</strong> · next phase started? <strong>no</strong> · docs-only.</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>The handoff records: the master-plan + 4 locked decisions; HEAD <code>a08a395</code> (61C flip <code>1c3c709</code>); the full session arc (Item 1 plan → Item 2 research → Phase 0.2 boot decouple → Phase 61B authoring → Phase 61C 4-row flip); <strong>serverGrade 4 → 8</strong> (csv 2 + sql 6); the mart's per-step flip map (1,2,5,6 live; 3,4 dark); C2 unchanged; and 9 gotchas — headlined by the <strong>HUGEINT→string</strong> finding (sum(INTEGER)→HUGEINT→adapter String() → "4950" ≠ committed number, why step 4 is deferred + why the browser byte-verify gate is non-negotiable), plus the reusable browser-WASM harness recipe, candidate-minting pattern, Vite-boot path, and the cd-persistence archive trap.</p>
+<h2 id="6-tests-and-gates-run">6. Tests and Gates Run</h2>
+<p><code>python build.py</code> (archive regen) — <strong>PASS</strong>. Code gates — <strong>NOT RUN</strong> (docs-only; no source touched).</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<p>None this task. (The cd-persistence archive trap is handled by committing from repo root.)</p>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, HEAD <code>a08a395</code> (pre-archive-31). <code>HANDOFF.md</code> hook-managed. Archive commit follows.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>Unchanged engineering state: serverGrade = 8; envelope OFF; Phase 52 untouched; the SaaS mart project visible+approved with steps 1,2,5,6 live-graded. Rich HANDOFF in place for the post-compact session.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<p>None new. Step 4 (HUGEINT) + step 3 (capped) remain dark flip candidates; C2 step 8 (float) needs a tolerance comparator.</p>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>After the compact, await owner approval for <strong>Phase 61D</strong> (fix+flip step 4 via cast-to-bigint, and/or flip step 3, and/or author the next WASM rowset project). Do not begin unprompted.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p><strong>Stopped.</strong> HANDOFF refreshed + archived; ready for the compact + next instruction. Phase 61D NOT started.</p>
+</main>
+</body>
+</html>
