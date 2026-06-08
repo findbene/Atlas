@@ -596,3 +596,12 @@ Owner directed a 4-item continuous run: **1) persist plan → 2) live-research p
 - Wrote `docs/ATLAS-MASTER-PLAN.md` (canonical finish-to-beta plan: honest current-state map, monorepo extend-not-rebuild w/ 3 new packages tutor-core/labs-core/scout-core, phase-scoped `.claude/` skill model, 6–8 wk roadmap E0.2→E9, runtime-tier taxonomy A/B/C, tutor hint-ladder + 4 modes, ship-top-of-class differentiators).
 - Added a one-line strategic-plan cross-ref to README/PRD/BRD/DESIGN (additive, no rewrite).
 - **Next:** Item 2 live-research (parallel research agents → `docs/research/2026-project-taxonomy.md`), then Items 3∥4 under the full phase ritual. Combined mini-report for Items 1+2; separate full mini-reports for Phase 0.2 and Phase 61B.
+
+## 2026-06-08 — 2026 taxonomy research persisted (Item 2)
+
+Ran 4 parallel web-grounded research agents (Sonnet): DE/AE/Cloud · AI/LLM/MLOps · DS/Python/SQL · cross-cutting 2026 hiring signal. Synthesized → `docs/research/2026-project-taxonomy.md`. Three findings that refine the plan:
+1. **Tier-A backbone confirmed + concentrated:** 24/26 DS+Python+SQL archetypes are WASM-native/auto-gradeable; AE (dbt+DuckDB) also dense Tier A. SQL+Python+DS+AE = the auto-gradeable beta backbone.
+2. **Every discipline has a deterministic "Tier-A carve-out":** even AI/LLM/MLOps/Cloud (Tier B/C whole-project) contain a Pyodide-gradeable sub-step (retrieval P/R, RAG-metric math, stats tests, token-cost math, chunking, feature transforms, Pydantic validation, PEFT math, cosine sim, metric gate). → factory can give EVERY discipline a server-graded evidence step.
+3. **H3 honesty validated by 2026 hiring signal** — narrow falsifiable claim + linkable artifact + Open Badges 3.0 is what hiring managers actually trust. Upgrade = make the completion claim specific + link to the graded commit (marketing/portfolio refinement, not a grading change).
+- Also captured: hiring-signal → factory project-template requirements (arch diagram, messy data, tests, "what failed" section, eval artifact, cost estimate, tradeoff rationale) and a beta-catalog mix (~70% Tier-1 backbone / ~20% Tier-2 carve-out / ~10% Tier-3 dark).
+- **Next:** Items 3∥4 — Phase 0.2 (Replit decouple / local boot) ∥ Phase 61B (author 1 WASM rowset project) under the full phase ritual.
