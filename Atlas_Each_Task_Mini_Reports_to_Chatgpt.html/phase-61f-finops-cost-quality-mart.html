@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 61F — Author Cloud FinOps cost-quality mart (6 dark candidates)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 61F — Author Cloud FinOps cost-quality mart (6 dark candidates)</h1><p class="meta">2026-06-08 · COMPLETED · feat(curriculum) · NEW project, 0 live flips · src in wip 12b5fdd/dbbd1e8, close-out 08975be</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 61F — author ONE new portfolio-worthy, WASM-native project expanding rowset evidence supply beyond C2 + the SaaS mart. ≥5 (prefer 6) dark rowset candidates, ALL <code>serverGrade:false</code>; browser-WASM byte-verify each; keep live serverGrade count exactly 10. Stop after 61F.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Authored <code>cloud-data-engineer-finops-cost-quality-mart</code> — 6 dark rowset candidates (5 sql + 1 csv) + 1 self_attest runbook, all 6 browser-WASM byte-verified, live count unchanged = 10. <strong>The first architect review FAILED</strong> on the runbook step (dead <code>contains</code> gate + false claim); both P1 fixed (→ self_attest); re-reviews <strong>architect PASS + code-review SHIP</strong>.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<p>NEW: <code>scripts/src/authored/cloud-data-engineering__finops-cost-quality-mart.ts</code> · <code>artifacts/atlas/public/datasets/finops-cost-mart/{raw_cloud_billing,account_owners,service_catalog}.csv</code> · <code>scripts/src/backfill-phase61f-candidates.ts</code> · <code>scripts/src/check-authored-finops-mart.ts</code>. MODIFIED (additive): <code>scripts/src/authored/index.ts</code>, <code>scripts/src/authored-lineage.ts</code>, <code>scripts/package.json</code>. + close-out + progress.md. Bulk in wip <code>12b5fdd</code>/<code>dbbd1e8</code> (pushed); close-out <code>08975be</code>. No grader/route/comparator/schema change.</p>
+<h2 id="4-scope-hard-stops-check">4. Scope / Hard-Stops Check</h2>
+<p>New serverGrade flip? <strong>no</strong> (all 6 dark) · live count still <strong>10</strong> · comparator/validation-kind-runtime/envelope/Phase-52/schema? <strong>untouched</strong> · external API/cloud creds/network/dbt? <strong>none</strong> · leak? <strong>no</strong> · 61G? <strong>not started</strong>. Slug uses <code>cloud-data-engineer-</code> (9-course taxonomy; brief recommended <code>cloud-data-engineering-</code> — deviated for consistency).</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>Raw cloud billing → dedupe(latest-load-wins) → clean(positive cost) → normalize env → service spend mart → team allocation → untagged/unallocated detection → cost-quality audit → self_attest runbook. Money = integer cents; every SUM <code>cast(... as bigint)</code>. 6 rowset candidates dark; browser byte-verified; promote+audit → 77.9 approved + visible.</p>
+<h2 id="6-tests-and-gates-run-node-24-docker-pg-5434">6. Tests and Gates Run (Node 24 + Docker PG :5434)</h2>
+<p>typecheck(4)+no-heuristic · check:boot · check:db-baseline (10) · <strong>check:authored-finops-mart (6 dark, 1 self_attest, 0 contains, no false-enforcement, no leak, no H3)</strong> · check:authored-saas-mart · audit:sql-resultset-bc PASS (8 opted + 6 dark byte-identical) · csv-bc PASS (2+1 dark) · contains-bc PASS (4/4) · authoring+pedagogy finops publish-ready/enriched · api-server 648/648 · atlas 170/170 · integration 4/4.</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<ul>
+<li><strong>Architect FAIL → fix (the important one):</strong> step 7 was authored <code>contains</code> with a <code>mustContainAll</code> spec. The <code>contains</code> RUNTIME (<code>grading.ts:104-105</code>) passes the WRAPPED validationConfig (not <code>cfg.spec</code>) to <code>matchContains</code>, which reads top-level <code>needle</code>/<code>needles</code> — so the authored spec is NEVER read → legacy <code>needle=""</code> → <strong>auto-passes any submission</strong> (dead gate). Step 7 also falsely claimed "server-enforced." <strong>Both P1 fixed:</strong> converted step 7 to honest <code>self_attest</code> (auto-passes by design, no verification claimed) + removed the claim + added a false-enforcement guard to the check.</li>
+<li><strong>Discovered pre-existing platform defect (escalate):</strong> the SAME dead <code>contains</code> + false "server-enforced" copy ships LIVE on C2 (since 57B-flip) + the SaaS mart (61D). 61F documented it (close-out §16) + recommended a dedicated dark/BC grader-fix phase. This is a <strong>live H3 honesty debt on two shipped projects</strong> — the architect flagged it must be scheduled as priority.</li>
+<li>self_attest needs a non-empty spec (<code>assertAuthoredProjectComplete:488</code>) → gave it an inert <code>attestationChecklist</code> metadata spec.</li>
+<li>Session-end hook auto-committed the bulk as wip (pushed) before manual commit; not rewritten (no force-push to main).</li>
+</ul>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, HEAD <code>08975be</code> (close-out), pushed. 61F source in wip <code>12b5fdd</code>/<code>dbbd1e8</code>. Tree clean except hook-managed files. Browser harness deleted.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>New project visible + approved (77.9); steps 1-6 dark rowset, step 7 self_attest. Global live serverGrade = 10 unchanged. C2 + Mart unchanged. Candidate supply now spans a third discipline (cloud-data-engineer).</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li><strong>PRIORITY follow-up:</strong> the <code>contains</code>/<code>regex</code> runtime defect (passes wrapped config, not <code>cfg.spec</code>) leaves C2 + SaaS mart shipping a dead gate + a false "server-enforced" claim (live H3 debt). Needs a dedicated dark/BC grader-fix phase (fix the branch to pass <code>cfg.spec</code> + use canonical <code>needles</code> + add a known-bad-submission gate + correct the C2/SaaS copy).</li>
+<li>6 new finops candidates ready for a future controlled flip (re-verify in-browser at flip time).</li>
+</ul>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Schedule the <strong>contains-runtime grader-fix phase</strong> (priority — live H3 debt on C2 + SaaS). Then Phase 61G (owner-gated): next density / flip / authoring. Do not begin unprompted.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p><strong>Stopped.</strong> New FinOps project authored with 6 browser-verified DARK rowset candidates + an honest self_attest runbook; live serverGrade = 10 unchanged; reviews PASS/SHIP after fixing the step-7 dead-gate + false claim; pre-existing contains defect documented + escalated. <strong>Phase 61G NOT started.</strong> Awaiting next instruction.</p>
+<hr />
+<h2 id="13-baseline-preflight-result">13. Baseline Preflight Result</h2>
+<p><code>check:db-baseline</code> OK; global serverGrade sql 8 + csv 2 = 10; C2 + SaaS mart both visible + approved; integration not env-blocked; tree clean + pushed. Authored only on a green baseline.</p>
+<h2 id="14-new-project-summary">14. New Project Summary</h2>
+<p><code>cloud-data-engineer-finops-cost-quality-mart</code> (course <code>cloud-data-engineer</code>, intermediate, candidateId f1f05a3c…). A DuckDB-WASM-native FinOps cost-quality mart: raw daily cloud billing → trusted, team-allocated, audited cost mart. 7 steps. No AWS/Azure/GCP calls, no SDKs, no credentials, no network. Integer cents. Promote → audit 77.9 approved + visible.</p>
+<h2 id="15-dataset-and-fixture-design">15. Dataset and Fixture Design</h2>
+<p><code>artifacts/atlas/public/datasets/finops-cost-mart/</code>: <code>raw_cloud_billing.csv</code> (15 rows — 3 duplicate resource-day load groups, 2 missing team tags, mixed env labels prod/Prod/PROD/Production + dev/Dev + staging/Staging, 1 unknown account A-999 with an anomalous 99000-cent row, 2 invalid-cost rows [-100, 0]); <code>account_owners.csv</code> (4 accounts → owner_team + business_unit); <code>service_catalog.csv</code> (5 services → family + criticality, reference surface). Deterministic; integer cents; no tz ambiguity. (Note: <code>service_catalog.csv</code> + columns usage_quantity/business_unit/criticality are realistic seed surface, unused by the 7 steps — code-review P2.)</p>
+<h2 id="16-step-by-step-project-flow">16. Step-by-Step Project Flow</h2>
+<ol>
+<li>Dedupe billing (latest-load-wins) — sql — <code>[[12,8]]</code>.</li>
+<li>Normalize environment — sql — <code>[[dev,2],[prod,7],[staging,1]]</code>.</li>
+<li>Daily service spend mart — sql — <code>[[cloudfront,99000],[ec2,24300],[lambda,1050],[rds,16200],[s3,7800]]</code>.</li>
+<li>Team allocation mart — csv — <code>[[data,6200],[ml,16200],[platform,25900],[web,1050]]</code>.</li>
+<li>Untagged + unallocated spend — sql — <code>[[unallocated_account_cents,99000],[untagged_cents,16200],[untagged_rows,2]]</code>.</li>
+<li>Cost-quality audit (CI gate) — sql — <code>[[dup_resource_day_loads,3],[invalid_cost_rows,2],[unknown_account_rows,1],[untagged_rows,2]]</code>.</li>
+<li>FinOps runbook — <strong>self_attest</strong> writeup (names 4 checks + dedupe rule + cost-quality intent; not auto-graded).</li>
+</ol>
+<h2 id="17-dark-rowset-candidate-inventory">17. Dark Rowset Candidate Inventory</h2>
+<p>6 candidates, ALL <code>serverGrade:false</code>: steps 1,2,3,5,6 <code>sql_resultset</code> + step 4 <code>csv_set_equal</code>. <code>check:authored-finops-mart</code> pins darkCount===6, liveCount===0. DB confirms each rowset serverGrade=false. 0 live flips.</p>
+<h2 id="18-browser-wasm-verification-table">18. Browser-WASM Verification Table</h2>
+<p>Real Chromium (playwright-cli) · real atlas Vite (Node 24) · real <code>duckdbAdapter</code> (<code>@duckdb/duckdb-wasm@1.33.1-dev45.0</code>) + <code>normalizeSqlRows</code> · committed seeds · exact FE capture→submit transform. All 6 <code>byteMatch=true</code>:
+| Step | kind | cell types | byteMatch |
+|---|---|---|---|
+| 1 | sql | number,number | ✅ |
+| 2 | sql | string,number ×3 | ✅ |
+| 3 | sql | string,<strong>number</strong> ×5 | ✅ |
+| 4 | csv | string,number ×4 | ✅ |
+| 5 | sql | string,<strong>number</strong> ×3 | ✅ |
+| 6 | sql | string,number ×4 | ✅ |
+Steps 3 &amp; 5 cent totals returned as <code>number</code> (the <code>cast(... as bigint)</code> avoided the 61C HUGEINT→string class). Harness deleted. All kept DARK despite byte-matching.</p>
+<h2 id="19-type-stability-decisions">19. Type-Stability Decisions</h2>
+<p>Integer cents (no decimal dollars → no float/tolerance). Every SUM <code>cast(... as bigint)</code> → lossless Number. Counts → BIGINT → Number. Categorical outputs = exact normalized strings (env/team/check/metric names). Timestamps ordered via <code>cast(... as timestamp)</code> but never returned. Every multi-row query has ORDER BY. <code>check:authored-finops-mart</code> asserts every expectedRows cell is integer/string (no floats).</p>
+<h2 id="20-no-leak-and-evidence-honesty-verification">20. No-Leak and Evidence-Honesty Verification</h2>
+<p>6 dark rows → projection emits <code>serverGrade:false</code>; no spec/expectedRows/query to the client. <code>check:authored-finops-mart</code> asserts no distinctive cent-total appears in learner prose (now scanning ALL pedagogy fields — code-review P2-a) AND no false server-enforcement claim (the H3 gap the architect caught). Step 7 honestly states "Atlas records your submission; it does not auto-grade prose." No authorship/tamper/cheat/job/certification claims.</p>
+<h2 id="21-servergrade-count-beforeafter">21. ServerGrade Count Before/After</h2>
+<p>Unchanged: <strong>sql 8 + csv 2 = 10</strong> before AND after 61F (DB-confirmed). The 6 finops rowset rows are dark → candidate supply, not live count.</p>
+<h2 id="22-db-baseline-postflight-result">22. DB Baseline Postflight Result</h2>
+<p><code>check:db-baseline</code> OK (3/3 migrations, required tables, C2 + Mart visible/approved with their server-graded sets, global = 10). Integration 4/4. serverGrade = 10.</p>
+<h2 id="23-export-stack-compatibility-result">23. Export Stack Compatibility Result</h2>
+<p>Export assembly unchanged. api-server 648/648 (incl. export-unit + portfolioZip ZIP-validity) + integration 4/4 (the /submit snapshot round-trip) green with the new project in the DB. Artifact / repository JSON / repository ZIP routes assemble from the same unchanged path; finops dark steps classify non-server-graded, leak-free. No live finops ZIP seeded (no completion); unit + integration coverage stands in.</p>
+<h2 id="24-independent-review-results">24. Independent Review Results</h2>
+<ul>
+<li><strong>First architect pass → FAIL</strong> (gate worked): step 7 dead <code>contains</code> gate + false "server-enforced" claim (2 P1). Fixed → self_attest + claim removed + guard.</li>
+<li><strong>atlas-architect-reviewer re-review → PASS</strong> (0 P0/P1): verified self_attest non-enforcing (<code>grading.ts:92-97</code>), non-empty-spec contract, DB state, 6 rowsets byte-untouched, count = 10. <strong>P2 (must-not-drop):</strong> C2 + SaaS mart's live dead-contains + false copy = H3 debt → schedule the grader-fix phase as priority.</li>
+<li><strong>code-reviewer re-review → SHIP</strong> (0 P0/P1/P2): self_attest genuinely non-enforcing, false-enforcement guard is a true regression gate, 6 rowsets byte-untouched. (First-pass code-review also SHIP'd + re-computed all 6 expectedRows from fixtures.)</li>
+</ul>
+</main>
+</body>
+</html>
