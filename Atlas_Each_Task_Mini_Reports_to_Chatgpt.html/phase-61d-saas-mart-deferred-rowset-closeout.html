@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 61D — Close out the two deferred SaaS-mart rowset candidates</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 61D — Close out the two deferred SaaS-mart rowset candidates</h1><p class="meta">2026-06-08 · COMPLETED · feat(curriculum) · live flip (+2 rows: steps 3+4) · src in wip 1f1ca1c, close-out cb15b82</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Phase 61D — close out the two deferred rowset candidates in <code>data-engineering-saas-usage-revenue-quality-mart</code>: flip <strong>step 3</strong> if still browser byte-verified; <strong>fix + flip step 4</strong> only if it becomes type-stable without comparator changes. Target serverGrade 8→10 ideal / 9 acceptable / 8 with failure report. "Correctness beats count." Hard stops: no comparator/float-tolerance/envelope/schema/Phase-52/route change; no leak; no new authoring; no broad flips; do not start 61E.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED — IDEAL outcome (+2).</strong> Browser-WASM re-verified all 6 rowset steps; <strong>flipped BOTH</strong> steps 3 and 4 → all 6 rowset steps now <code>serverGrade:true</code>. Step 4's HUGEINT deferral closed via <code>cast(sum(mrr_amount) as bigint)</code>. Reviews: architect <strong>PASS</strong> + code-reviewer <strong>SHIP</strong> (0 P0/P1). Authored-source serverGrade <strong>8 → 10</strong>.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<p>2 source: <code>scripts/src/authored/data-engineering__saas-usage-revenue-quality-mart.ts</code> (steps 3+4 <code>serverGrade:false→true</code> + step-4 BIGINT cast in instruction/starterCode/query + honest server-graded copy + comments + header docblock) · <code>scripts/src/check-authored-saas-mart.ts</code> (<code>FLIPPED={1,2,3,4,5,6}</code>, flippedCount===6, darkCount===0). + close-out <code>docs/phases/phase-61d-saas-mart-deferred-rowset-closeout.md</code> + <code>.agentic/progress.md</code>. <strong>The 2 source files + close-out + progress landed in session-end wip <code>1f1ca1c</code> (auto-commit hook, already pushed); the close-out §9 review verdicts in <code>cb15b82</code>.</strong> DB flip propagated via the authoring pipeline (throwaway Docker PG — not committed). Dev-only browser harness created + deleted (never committed).</p>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>Only step 3+4 flipped (sql_resultset)? <strong>yes.</strong> Comparator change? <strong>no</strong> (grading.ts byte-unchanged). Float/tolerance comparator? <strong>no</strong> (step 4 fixed by an integer cast, not tolerance). Envelope enforcement? <strong>no</strong> (OFF). Schema/migration? <strong>no.</strong> Route/projection/export? <strong>no.</strong> Phase 52? <strong>untouched.</strong> Leak? <strong>no</strong> (projection emits only the serverGrade boolean). New authoring? <strong>no.</strong> Broad flip? <strong>no</strong> (exactly the 2 named candidates). C2 changed? <strong>no</strong> (git-unchanged). 61E started? <strong>no.</strong></p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>Step 3 was a clean candidate deferred in 61C only by the max-4 budget — query/columns/expectedRows byte-unchanged, just <code>serverGrade:false→true</code>. Step 4's only query change is wrapping <code>sum(mrr_amount)</code> in <code>cast(... as bigint)</code>, applied in the starterCode SELECT (which is OUTSIDE the learner's <code>-- TODO</code>, so every completion carries the cast for free), the reference query, and the instruction prose; <code>expectedRows</code> stays <code>[[6,4950]]</code>. The cast routes the value through <code>duckdbRunner.ts:106-116</code> (BIGINT in safe range → lossless Number) instead of the <code>:118</code> <code>String()</code> fallback that produced the HUGEINT string <code>"4950"</code>. The runtime comparator is unchanged — the flips only change which path each row takes (dark auto-pass → live re-grade of the FE-captured <code>{columns,rows}</code>).</p>
+<h2 id="6-tests-and-gates-run-node-24160-docker-pg-5434">6. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<p>typecheck (4) + check:no-heuristic <strong>OK</strong> · <code>check:authored-saas-mart</code> <strong>OK</strong> (pins the all-6 set) · <code>audit:sql-resultset-bc</code> <strong>PASS</strong> (5 opted-in mart rows, 32 checks, 0 failures; fail-closed on raw-SQL/malformed/empty/wrong-columns/missing-row/extra-row) · <code>audit:csv-set-equal-bc</code> <strong>PASS</strong> (1 opted-in, 5 checks, 0) · <code>audit:contains-bc</code> <strong>PASS</strong> (3 steps, 21 subs, 0 mismatch) · <code>audit:authoring</code> <strong>✓ publish-ready</strong> (mart) · <code>audit:pedagogy</code> <strong>✓ fully enriched</strong> (mart) · api-server <strong>648/648</strong> · atlas <strong>170/170</strong>. <strong>Integration tests ENV-BLOCKED</strong> (reset DB under-migrated — see §7); the /submit grading + export/ZIP-validity contracts are covered by the api-server unit suite (648, includes 91 export-unit + portfolioZip + grading + envelopeGrade).</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<ul>
+<li><strong>DB-RESET FINDING (material):</strong> the local Docker <code>atlas</code> DB was found reset to a base-only seed at phase start — 0 candidates, no sql/csv steps, neither mart nor C2 present. An out-of-scope re-seed had wiped the prior serverGrade=8 layered state. Reconstructed the <strong>mart only</strong> via the normal pipeline (backfill→promote→audit, 81.4 approved). DB now shows the mart's 6 server-graded rows. C2 not reconstructed (out of scope; git-unchanged).</li>
+<li><strong>Integration tests env-blocked:</strong> the reset DB is under-migrated — the integration harness clones <code>public.portfolio_submission_snapshots</code>, which does not exist. Unrelated to the diff. Remediation: <code>pnpm migrate</code>.</li>
+<li><strong>git-bash mangled <code>BASE_PATH=/</code></strong> → <code>/Program Files/Git/</code> on the first Vite boot (harness 404); fixed by booting via PowerShell with no BASE_PATH (dev base defaults to <code>/</code>).</li>
+<li><strong>Session-end hook auto-committed the source as wip <code>1f1ca1c</code> (and pushed)</strong> before a manual conventional commit; not rewritten (would require force-push to main — hard stop).</li>
+</ul>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>. HEAD <code>cb15b82</code> (close-out verdicts), pushed. 61D source in <code>1f1ca1c</code> (wip, pushed). Working tree clean except hook-managed <code>.agentic/self-review.log</code> + <code>HANDOFF.md</code>. All browser-harness artifacts deleted.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>The mart's six rowset steps (1–6) are all live server-graded; step 7 contains. A completed learner's portfolio now classifies 6 steps in this project as server-graded. Authored-source serverGrade total <strong>= 10</strong> (mart 6 + C2 4). DB (this reset env) shows the mart's 6. All invariants intact; comparator + routes + Phase 52 + envelope unchanged; C2 unchanged.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li>The mart has NO dark rowset rows left. Next density work = a new authored project (E4).</li>
+<li>Restore a full local DB baseline before the next DB-dependent phase: <code>pnpm migrate</code> + re-promote C2 + mart so global=10 is DB-observable and integration tests run.</li>
+<li><code>.gitattributes</code> EOL-normalize <code>scripts/src/authored/**</code> (standing CRLF follow-up).</li>
+</ul>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Observe the 2 newly-live rows in a real env. <strong>Phase 61E (owner-gated):</strong> author the next WASM-native rowset project for more candidate supply, under the full phase ritual. Do not begin unprompted.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p><strong>Stopped.</strong> Steps 3 + 4 browser-verified + flipped to server-graded; all 6 mart rowset steps live; serverGrade authored-source 8→10; no-leak + honesty preserved; C2 unchanged. Reviews PASS/SHIP, gates + audits green (integration env-blocked, disclosed). <strong>Phase 61E NOT started.</strong> Awaiting next instruction.</p>
+<hr />
+<h2 id="13-deferred-candidate-reverification-table">13. Deferred Candidate Reverification Table</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Kind</th>
+<th>61C status</th>
+<th>61D browser capture</th>
+<th>Types</th>
+<th>Committed</th>
+<th>Byte-match</th>
+<th>61D decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>sql_resultset</td>
+<td>dark (max-4 cap)</td>
+<td><code>[[dashboard_view,3],[export,3],[query_run,7]]</code></td>
+<td>str,num</td>
+<td>=</td>
+<td>✅</td>
+<td><strong>FLIP</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>sql_resultset</td>
+<td>dark (HUGEINT)</td>
+<td><code>[[6,4950]]</code></td>
+<td><strong>num,num</strong></td>
+<td><code>[[6,4950]]</code></td>
+<td>✅</td>
+<td><strong>FLIP (cast)</strong></td>
+</tr>
+<tr>
+<td>1,2,5,6</td>
+<td>sql/csv</td>
+<td>live (61C)</td>
+<td><code>[[7,7]]</code>/<code>[[13,7]]</code>/health-dist/DQ-audit</td>
+<td>num/str,num</td>
+<td>=</td>
+<td>✅</td>
+<td>re-confirmed live</td>
+</tr>
+</tbody>
+</table>
+<h2 id="14-step-3-decision-and-evidence">14. Step 3 Decision and Evidence</h2>
+<p>FLIP. Step 3 byte-matched cleanly in 61C and was deferred solely by that phase's max-4 budget. 61D re-verified in real-browser DuckDB-WASM: capture <code>columns=[event_type,event_count] rows=[[dashboard_view,3],[export,3],[query_run,7]]</code> (types string,number; <code>count(*)</code>→BIGINT→lossless Number), ordered by <code>event_type</code> → stable, byte-matches the committed expectedRows. No query/columns/expectedRows change — only <code>serverGrade:false→true</code> + honest copy.</p>
+<h2 id="15-step-4-type-stability-fix">15. Step 4 Type-Stability Fix</h2>
+<p>The 61C deferral: <code>sum(mrr_amount)</code> over an INTEGER column → HUGEINT → adapter <code>String()</code> fallback → STRING <code>"4950"</code> ≠ committed Number <code>4950</code>. Fix: <code>cast(sum(mrr_amount) as bigint)</code> so the value is BIGINT → lossless Number. Applied in the <strong>starterCode SELECT (outside the learner TODO — the learner edits only the <code>where</code> in the <code>active</code> CTE)</strong>, the reference query, and the instruction prose — so every learner's natural capture is type-stable. <code>expectedRows</code> unchanged <code>[[6,4950]]</code>. No comparator/tolerance change. (Architect P2: a learner who deletes the pre-filled cast can still fail closed — not a regression; the same inherent property of every server-graded step, and strictly better than the pre-61D natural-path failure.)</p>
+<h2 id="16-browser-wasm-verification-results">16. Browser-WASM Verification Results</h2>
+<p>Real Chromium (playwright-cli) · real atlas Vite (Node 24) · real <code>@/lib/duckdb/duckdbRunner</code> <code>duckdbAdapter</code> (<code>@duckdb/duckdb-wasm@1.33.1-dev45.0</code>) + <code>@/lib/envelopeClient</code> <code>normalizeSqlRows</code> · committed seed CSVs · queries extracted from the authored file · replicating the EXACT FE capture→submit transform (<code>project-workspace.tsx</code> stash + <code>decideCsvSetEqualSubmission</code> → <code>JSON.stringify({columns,rows})</code>). All 6 <code>ok:true</code>, <code>columnsMatch + rowsMatch + byteMatch = true</code>:</p>
+<pre><code>step1 [n,n_unique]=[[7,7]]                          number,number  MATCH
+step2 [valid_events,active_accounts]=[[13,7]]       number,number  MATCH
+step3 [event_type,event_count]=[[dashboard_view,3],[export,3],[query_run,7]]  string,number  MATCH
+step4 [active_accounts,total_mrr]=[[6,4950]]        number,number  MATCH  (was [[6,&quot;4950&quot;]] pre-cast)
+step5 [health_label,account_count]=[[at_risk,2],[churned,1],[healthy,4]]      string,number  MATCH
+step6 [check_name,flagged_count]=[[dup_account_ids,1],[invalid_usage_events,2],[orphan_usage_accounts,0]]  string,number  MATCH
+</code></pre>
+<p>Harness deleted after capture.</p>
+<h2 id="17-servergrade-count-beforeafter">17. ServerGrade Count Before/After</h2>
+<p><strong>Authored source of truth:</strong> before <strong>8</strong> (mart 4 + C2 4) → after <strong>10</strong> (mart 6 + C2 4). Δ = +2 (mart steps 3,4, both sql_resultset). <strong>DB (this reset env):</strong> mart-scoped before 4 → after <strong>6</strong> (DB-confirmed: csv 1 + sql 5). The global DB total reads 6 (mart only) because C2's 4 rows were wiped by the out-of-scope re-seed and C2 is out of scope; C2's authored source is git-unchanged, so the production/seed-path global is 10.</p>
+<h2 id="18-exact-flipped-step-numbers">18. Exact Flipped Step Numbers</h2>
+<p><code>data-engineering-saas-usage-revenue-quality-mart</code> steps <strong>3 and 4</strong> → <code>serverGrade:true</code> this phase. Full live set now: steps <strong>1, 2, 3, 4, 5, 6</strong>. Step 7 → <code>contains</code> (untouched). DB per-step verified: 1=t,2=t,3=t,4=t,5=t,6=t,7=null. The check pins <code>FLIPPED={1,2,3,4,5,6}</code>, flippedCount===6, darkCount===0.</p>
+<h2 id="19-remaining-dark-rowset-candidates-if-any">19. Remaining Dark Rowset Candidates, If Any</h2>
+<p><strong>None.</strong> All 6 rowset steps in this project are now live server-graded. Zero dark rowset rows remain in the mart.</p>
+<h2 id="20-no-leak-verification-across-check-submit-artifact-json-and-zip">20. No-Leak Verification Across /check, /submit, Artifact, JSON, and ZIP</h2>
+<p>The flips change only the <code>serverGrade</code> boolean. <code>routes/projects.ts:306-307</code> derives <code>serverGrade</code> via <code>isServerGradeOptedIn</code> and returns ONLY that boolean — never <code>validationConfig</code>/<code>spec</code>/<code>expectedRows</code>/<code>query</code> (verified independently + by both reviewers). <strong>/submit:</strong> the BC audits prove a correct capture passes and raw-SQL/malformed/empty/wrong-columns/missing-row/extra-row FAIL CLOSED. <strong>/check:</strong> writes no snapshot (unchanged). <strong>Artifact / repository JSON / ZIP:</strong> assembly byte-unchanged (no export-code edit); a step is classified server-graded via the same <code>isServerGradeOptedIn</code> predicate, so a completed learner's evidence reflects steps 1–6 leak-free. Export unit + ZIP-validity tests pass within api-server 648/648. (DB round-trip integration variants env-blocked — §7.)</p>
+<h2 id="21-portfolio-zip-evidence-result">21. Portfolio ZIP Evidence Result</h2>
+<p>The export stack is byte-unchanged, so the ZIP path is unaffected by the flips; a completed learner's ZIP would classify steps 1–6 of this project as <code>server-graded</code> in VALIDATION_EVIDENCE (via the unchanged classifier), remain leak-free, and stay a valid archive (<code>portfolioZip.test.ts</code> covers <code>zipfile.testzip()=None</code>-equivalent validity; the export unit + 648 api-server tests pass). No new learner completion was seeded this phase (no snapshot created). The live DB ZIP round-trip is env-blocked (reset DB under-migrated).</p>
+<h2 id="22-existing-c2-regression-result">22. Existing C2 Regression Result</h2>
+<p>C2 (<code>analytics-engineer-semantic-layer-with-dbt-and-duckdb</code>) authored source is <strong>byte-unchanged</strong> (git diff empty; last touched Phase 61A — confirmed by the architect). It was not modified, not re-promoted, not flipped. Its 4 server-graded rows are absent from THIS reset DB (wiped by the out-of-scope re-seed, not by 61D); in the production/seed path they are intact, keeping the global authored-source count at 10.</p>
+<h2 id="23-independent-review-results">23. Independent Review Results</h2>
+<ul>
+<li><strong>atlas-architect-reviewer → PASS</strong> (0 P0/P1): hand-traced expected values against the fixtures (step 4 sum=4950 with A-007 excluded; step 3 distribution with E-14/E-15 excluded); confirmed the cast makes the natural capture type-stable (<code>duckdbRunner.ts:106-116</code> vs <code>:118</code>), no leak (<code>projects.ts:40-48</code>), comparator byte-unchanged (multiset path), C2 byte-unchanged, RUBRIC frozen, no H3 overclaim. P2s: learner-deletes-cast fail-closed (not a regression); DB-gated test files env-blocked.</li>
+<li><strong>code-reviewer → SHIP</strong> (0 P0/P1): diff is exactly the 2 source files; step 3 byte-identical; step 4's only query change is the BIGINT cast (3 places, starterCode SELECT outside the learner TODO); expectedRows unchanged; check pins {1..6}; no H3 phrase; no leak. P2s: env-blocked integration + CRLF (pre-existing/tracked).</li>
+</ul>
+</main>
+</body>
+</html>
