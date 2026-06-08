@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 0.2 — Replit-connector decouple → clean local boot (Item 3)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>Phase 0.2 — Replit-connector decouple → clean local boot (Item 3)</h1><p class="meta">2026-06-08 · COMPLETED · feat (boot) · commit e19d0da</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Item 3 of the 4-item run: <strong>Phase 0.2 — decouple Replit platform/connectors so <code>pnpm dev</code> boots on Node 24 with no external secrets</strong>, without weakening production. Full phase ritual. Hard stops: no schema/migration, no grader/serverGrade change, no envelope enforcement, no Phase 52 change, no secret committed.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Fixed the 3 remaining boot-blockers (60D/60E did the rest). API server + Vite frontend now boot with no secrets; production behavior byte-identical. Reviews architect <strong>PASS</strong> + code-reviewer <strong>SHIP</strong> (no P0/P1); converging P2 (missing PORT regression test) + a doc-nit fixed in-phase. All gates green. Committed <code>e19d0da</code>.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<ul>
+<li><code>artifacts/api-server/src/lib/resolvePort.ts</code> — <strong>added</strong> (pure PORT resolver + <code>isProductionEnv</code>).</li>
+<li><code>artifacts/api-server/src/lib/resolvePort.test.ts</code> — <strong>added</strong> (8-case regression guard).</li>
+<li><code>artifacts/api-server/src/index.ts</code> — <strong>modified</strong> (use <code>resolvePort()</code>; dynamic-import <code>runMigrations</code> inside guarded <code>initStripe()</code>).</li>
+<li><code>artifacts/atlas/src/App.tsx</code> — <strong>modified</strong> (Clerk throw gated <code>&amp;&amp; import.meta.env.PROD</code> + dev-only <code>MissingClerkKeyNotice</code>).</li>
+<li><code>docs/phases/phase-0.2-…md</code> — <strong>added</strong> (close-out). <code>.agentic/progress.md</code> — <strong>modified</strong>.</li>
+</ul>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>App code changed? <strong>yes</strong> (boot entry + frontend root + a new lib + test — the phase's purpose). DB schema/migration? <strong>no.</strong> Project content/validation_config? <strong>no.</strong> Env/canary? <strong>no.</strong> OpenAPI/codegen? <strong>no.</strong> Production touched? <strong>behavior preserved</strong> (verified: prod sets PORT+NODE_ENV; vite build → PROD=true; new prod detection strictly broader). Phase 52? <strong>no.</strong> Any row opted in? <strong>no.</strong> Unexpected file? <strong>no.</strong></p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p><code>resolvePort(env)</code> centralizes PORT logic (required in prod via <code>NODE_ENV==="production" || REPLIT_DEPLOYMENT==="1"</code>; defaults 3000 in dev; NaN/empty/≤0 throw) so it's unit-testable (mirrors <code>resolveAllowedOrigins</code>); the boot-warn stays in <code>index.ts</code>. <code>runMigrations</code> from the Replit-coupled <code>stripe-replit-sync</code> is now a dynamic <code>await import(...)</code> inside <code>initStripe()</code>, after the <code>DATABASE_URL</code> + <code>REPLIT_CONNECTORS_HOSTNAME</code> guards, so it never runs on the local path. <code>App.tsx</code> keeps the prod throw (<code>import.meta.env.PROD</code>) but renders a dev notice instead of a white screen when the Clerk key is absent — <code>ClerkProvider</code>/all <code>ProtectedRoute</code>s never mount on that path (no bypass). <code>DATABASE_URL</code> deliberately kept a hard dep (point at Docker PG locally).</p>
+<h2 id="6-tests-and-gates-run-node-24160-docker-pg-5434">6. Tests and Gates Run (Node 24.16.0 + Docker PG :5434)</h2>
+<p>typecheck (4) + <code>check:no-heuristic-runtime</code> <strong>OK</strong> · <code>check:boot</code> <strong>OK</strong> · api-server unit <strong>648/648</strong> (+9 new <code>resolvePort</code>, +1 file) · atlas <strong>170/170</strong>. <strong>Boot smoke (no secrets, ATLAS_E2E_AUTH=1):</strong> logs <code>PORT unset — defaulting to 3000</code> + <code>Server listening port 3000</code>; <code>GET /api/healthz</code> → <strong>200 {"status":"ok"}</strong>; Stripe + signing-secret degrade gracefully.</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<ul>
+<li>First boot smoke hit <code>EADDRINUSE :::3000</code> — which actually <em>proved</em> the PORT decouple (it defaulted to 3000 and reached <code>app.listen</code>); re-ran on a free port for a clean "listening" + 200.</li>
+<li>Health route is <code>/api/healthz</code> (not <code>/api/health</code>) — initial 404/500 probes were wrong-path/clerk-gated; corrected.</li>
+<li>Reviewer P2 (no PORT regression test) — extracted <code>resolvePort</code> + added the vitest in-phase. Doc-nit (the dynamic import doesn't fully unload the package, only defers <code>runMigrations</code>) — comment corrected.</li>
+</ul>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, commit <strong><code>e19d0da</code></strong> (4 source/test + close-out + progress). Archive commit (this report) follows. Tree clean except hook-managed <code>.agentic/self-review.log</code> + <code>HANDOFF.md</code> and 3 pre-existing untracked blueprint files.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p><code>pnpm dev</code> boots the backend with no secrets (degraded mode: billing/email/tutor off, gracefully); the frontend boots to a config notice without a Clerk key (full app with a key). All inherited invariants intact; serverGrade still = 4; envelope OFF; Phase 52 untouched. <strong>Item 4 (Phase 61B) can begin.</strong></p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<ul>
+<li>P2-2 (App.tsx component test for the Clerk dev fallback) deferred — structurally guaranteed prod throw + provably inert fallback; low value vs a full-App render harness. Noted.</li>
+<li>Full frontend <code>pnpm dev</code> against a live backend still needs a Clerk key (auth mandatory, by design). Broader Node-24 <code>pnpm install</code> baseline remains the standing follow-up.</li>
+</ul>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>Recommended next step: <strong>Phase 61B — author 1 WASM-native rowset project (CSV fixtures, 6–8 steps, ≥4 rowset candidates all <code>serverGrade:false</code>)</strong>, per the playbook reconnaissance. Classify: implementation (authoring + browser-WASM byte-verify + audits + reviews).</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p>Stopped on Phase 0.2 — COMPLETED + committed. Proceeding to Item 4 (Phase 61B) per the standing 4-item directive.</p>
+</main>
+</body>
+</html>
