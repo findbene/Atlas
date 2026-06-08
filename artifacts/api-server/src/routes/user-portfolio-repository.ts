@@ -25,6 +25,7 @@ import { findBannedClaims } from "@workspace/execution-core/honest-claims";
 import { requireAuth, getCurrentUser } from "../lib/auth";
 import { assemblePortfolioArtifactInput } from "../lib/portfolioArtifactAssembly";
 import { generatePortfolioRepository } from "../lib/portfolioRepository";
+import { generatePortfolioZip, safeRootFolder } from "../lib/portfolioZip";
 
 const router: IRouter = Router();
 
@@ -74,6 +75,62 @@ router.get(
     } catch (err) {
       req.log.error({ err }, "Failed to build portfolio repository");
       res.status(500).json({ error: "Failed to build portfolio repository" });
+    }
+  },
+);
+
+/**
+ * Phase 60H — the same bundle as a one-click ZIP archive. Identical access /
+ * privacy / no-leak contract as the JSON route above (session-only userId,
+ * 404-not-403, fail-closed banned-claim guard, read-only). The ZIP is built
+ * deterministically from the SAME `generatePortfolioRepository` output, so it
+ * cannot contain anything the JSON route does not.
+ */
+router.get(
+  "/user/projects/:projectSlug/portfolio-repository.zip",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const projectSlug = String(req.params.projectSlug ?? "");
+      const generatedAt = new Date().toISOString();
+
+      const input = await assemblePortfolioArtifactInput(
+        user.id,
+        projectSlug,
+        generatedAt,
+      );
+      if (!input) {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+
+      const repository = generatePortfolioRepository(input);
+
+      // Same fail-closed H3 guard as the JSON route, BEFORE packaging.
+      const banned = findBannedClaims(Object.values(repository.files).join("\n"));
+      if (banned.length > 0) {
+        req.log.error(
+          { banned, projectSlug: input.project.slug },
+          "Portfolio repository ZIP blocked: banned honest-claim pattern in author copy",
+        );
+        res.status(500).json({ error: "Failed to build portfolio repository archive" });
+        return;
+      }
+
+      const zip = generatePortfolioZip(repository.projectSlug, repository.files);
+      const filename = `${safeRootFolder(repository.projectSlug)}-github-ready-repo.zip`;
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Length", String(zip.length));
+      res.status(200).end(zip);
+    } catch (err) {
+      req.log.error({ err }, "Failed to build portfolio repository archive");
+      res.status(500).json({ error: "Failed to build portfolio repository archive" });
     }
   },
 );

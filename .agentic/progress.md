@@ -507,6 +507,34 @@ code-reviewer SHIP** (no P0/P1). Additive export feature; NO GitHub OAuth/token/
   Phase 52 untouched; no schema/migration; routes auth/read-only; `/check`+`/submit` unchanged; no
   OAuth/token/push/publishing. **Phase 60H NOT started** (owner-gated: ZIP; guarded GitHub publishing).
 
+## 2026-06-08 — Phase 60H SHIPPED (one-click ZIP export for the GitHub-ready repository)
+
+Close-out: `docs/phases/phase-60h-one-click-zip-export.md`. Reviews **architect PASS + code-reviewer SHIP**
+(no P0/P1). Turns the 60G repository JSON into a true one-click ZIP. NO GitHub OAuth/token/push/publishing.
+- **Dependency-free ZIP writer** `lib/portfolioZip.ts` (Node `zlib` only): DEFLATE method 8 + table CRC-32 +
+  local/central/EOCD records; FIXED DOS timestamp + sorted entries → byte-deterministic. `safeRootFolder`
+  slug sanitize + `assertSafeEntryName` traversal guard; files nested under `<slug>/`. Python
+  `zipfile.testzip()`=None on live + browser output (standards-valid).
+- **Route** `GET …/portfolio-repository.zip` (sibling of the JSON route, distinct literal): same
+  auth/404-not-403/fail-closed-`findBannedClaims`/read-only; `application/zip` + safe Content-Disposition +
+  Content-Length; built from the SAME `generatePortfolioRepository` files.
+- **OpenAPI decision**: binary NOT added to codegen (avoids friction) → frontend uses `customFetch<Blob>`
+  (responseType blob); `customFetch` additively exported from the api-client-react barrel. No codegen churn.
+- **Frontend**: "Download GitHub-Ready Repo" now downloads ZIP by default via customFetch blob → saves
+  `<slug>-github-ready-repo.zip` (client filename sanitized to match server). On-click only; renders nothing.
+- **No-leak/honesty**: zip-layer test (round-trip), route test (real-ZIP extract + token scan +
+  findBannedClaims), frontend test, live API `.zip` scan, and TRUE full-stack browser ZIP download (real
+  Chromium → real route → real DB → 7926-byte .zip) — all leak-free, honest, 6 files under slug root.
+- **Files (7):** `lib/portfolioZip.ts`(new)+test, `routes/user-portfolio-repository.ts`(+.zip handler)+test,
+  `lib/api-client-react/src/index.ts` (export customFetch), `components/DownloadGithubRepoButton.tsx`+test.
+  P2 fixed: client/server filename consistency. Documented/accepted: no-codegen-binary, cross-Node deflate.
+- **Gates GREEN (Node 24 + Docker PG):** typecheck(4)+no-heuristic · check:boot OK · api-server **630/630** ·
+  atlas **170/170** · integration **4/4** · audit:authoring exit 0 · sql-resultset-bc PASS (3 dark + **1**) ·
+  csv-set-equal-bc PASS (**1**) · contains-bc 3/3 · browser ZIP verified.
+- **Invariants:** 1 csv + 1 sql opt-in (unchanged, total serverGrade=2); no new opt-ins/kinds; envelope OFF;
+  Phase 52 untouched; no schema/migration; routes auth/read-only; `/check`+`/submit` unchanged; no new dep;
+  no OAuth/token/push/publishing. **Phase 60I NOT started** (owner-gated: guarded GitHub publishing).
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 

@@ -11,11 +11,43 @@
  *   - includes the single allowed Atlas verification statement.
  *   - conforms to the generated OpenAPI response contract.
  */
+import zlib from "node:zlib";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import express from "express";
 import request from "supertest";
 import { findBannedClaims } from "@workspace/execution-core/honest-claims";
 import { GetPortfolioRepositoryResponse } from "@workspace/api-zod";
+
+/** supertest binary buffer parser — collects the raw ZIP bytes into res.body. */
+function binaryParser(res: any, cb: (err: Error | null, body: Buffer) => void) {
+  const chunks: Buffer[] = [];
+  res.on("data", (c: Buffer) => chunks.push(Buffer.from(c)));
+  res.on("end", () => cb(null, Buffer.concat(chunks)));
+}
+
+/** Minimal independent ZIP reader (central-directory walk + inflate). */
+function readZip(buf: Buffer): Record<string, string> {
+  const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  const count = buf.readUInt16LE(eocd + 10);
+  let off = buf.readUInt32LE(eocd + 16);
+  const out: Record<string, string> = {};
+  for (let i = 0; i < count; i++) {
+    const nameLen = buf.readUInt16LE(off + 28);
+    const extraLen = buf.readUInt16LE(off + 30);
+    const commentLen = buf.readUInt16LE(off + 32);
+    const localOff = buf.readUInt32LE(off + 42);
+    const name = buf.toString("utf8", off + 46, off + 46 + nameLen);
+    const method = buf.readUInt16LE(localOff + 8);
+    const compSize = buf.readUInt32LE(localOff + 18);
+    const lhNameLen = buf.readUInt16LE(localOff + 26);
+    const lhExtraLen = buf.readUInt16LE(localOff + 28);
+    const dataStart = localOff + 30 + lhNameLen + lhExtraLen;
+    const comp = buf.subarray(dataStart, dataStart + compSize);
+    out[name] = (method === 8 ? zlib.inflateRawSync(comp) : comp).toString("utf8");
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
 
 const TEST_USER = { id: "00000000-0000-0000-0000-000000000001", email: "u@example.com", name: "U" };
 
@@ -230,5 +262,67 @@ describe("GET /user/projects/:slug/portfolio-repository — bundle", () => {
         files: r.body.files,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("GET /user/projects/:slug/portfolio-repository.zip — ZIP archive", () => {
+  function getZip(app: express.Express, slug = SLUG) {
+    return request(app)
+      .get(`/user/projects/${slug}/portfolio-repository.zip`)
+      .buffer(true)
+      .parse(binaryParser);
+  }
+
+  it("401 when there is no authenticated user", async () => {
+    getCurrentUserMock.mockResolvedValueOnce(null);
+    const r = await getZip(await buildApp());
+    expect(r.status).toBe(401);
+  });
+
+  it("404 (not 403) for a hidden/unknown project — no existence leak", async () => {
+    projectsFindFirst.mockResolvedValue(undefined);
+    const r = await getZip(await buildApp());
+    expect(r.status).toBe(404);
+  });
+
+  it("serves a real ZIP with correct content-type + .zip disposition", async () => {
+    mockCompletedProject();
+    const r = await getZip(await buildApp());
+    expect(r.status).toBe(200);
+    expect(r.headers["content-type"]).toContain("application/zip");
+    expect(r.headers["content-disposition"]).toMatch(
+      /attachment; filename="analytics-engineer-semantic-layer-with-dbt-and-duckdb-github-ready-repo\.zip"/,
+    );
+    expect(Number(r.headers["content-length"])).toBe(r.body.length);
+    // ZIP local-file-header magic.
+    expect(r.body.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  });
+
+  it("ZIP contains the required files under the project-slug root, leak-free", async () => {
+    mockCompletedProject();
+    const r = await getZip(await buildApp());
+    const entries = readZip(r.body);
+    const names = Object.keys(entries);
+    for (const required of [
+      `${SLUG}/README.md`,
+      `${SLUG}/VALIDATION_EVIDENCE.md`,
+      `${SLUG}/LIMITATIONS.md`,
+      `${SLUG}/LEARNER_REFLECTION_TEMPLATE.md`,
+      `${SLUG}/atlas-portfolio.json`,
+    ]) {
+      expect(names).toContain(required);
+    }
+    // atlas-portfolio.json is valid JSON after extraction.
+    expect(() => JSON.parse(entries[`${SLUG}/atlas-portfolio.json`]!)).not.toThrow();
+    // Extracted content carries the Atlas claim and no spec/answer-key leakage.
+    const all = Object.values(entries).join("\n").toLowerCase();
+    expect(all).toContain("atlas verified that submitted runtime output or artifacts matched");
+    for (const token of [
+      "validationconfig", "expectedrows", "expectedrowshash", "servergradeflag",
+      "one_current", "overlap", "secretval", "select ", '"spec"',
+    ]) {
+      expect(all).not.toContain(token);
+    }
+    expect(findBannedClaims(Object.values(entries).join("\n\n"))).toEqual([]);
   });
 });

@@ -1,17 +1,22 @@
 /**
- * Phase 60G — manual GitHub-ready repository download for a completed project.
+ * Phase 60G/60H — manual GitHub-ready repository download for a completed
+ * project. Phase 60H switches the default download to a one-click ZIP archive.
  *
- * Sibling of DownloadPortfolioBundleButton: a single button that, ON CLICK
- * (never on mount), fetches the authenticated Phase-60G portfolio-repository
- * route via the generated client and saves the response as a JSON file. We
- * render NOTHING from the bundle — the file written to disk is exactly and only
- * the route's output, so the frontend cannot introduce a leak the backend
- * already guarantees against (no validationConfig / expectedRows / answer keys
- * / over-claiming copy). MANUAL upload only: no GitHub OAuth, no token input,
- * no direct push, no public sharing.
+ * On click (never on mount) it fetches the authenticated Phase-60H ZIP route as
+ * a Blob via the shared `customFetch` (which applies the same base URL + bearer
+ * auth + error semantics as the generated client) and saves it as a `.zip`. We
+ * never read the archive contents on the client — the file written to disk is
+ * exactly the route output, so the frontend cannot introduce a leak the backend
+ * already guarantees against. MANUAL upload only: no GitHub OAuth, no token
+ * input, no direct push, no public sharing.
+ *
+ * The binary `application/zip` response does not fit the JSON-oriented generated
+ * react-query client cleanly, so we call `customFetch` directly with
+ * `responseType: "blob"` (a narrow, documented helper) rather than adding a
+ * binary path to the OpenAPI codegen.
  */
 import { useState } from "react";
-import { getPortfolioRepository } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { Github, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,10 +26,8 @@ interface DownloadGithubRepoButtonProps {
   projectSlug: string;
 }
 
-/** Trigger a browser download of `contents` as `filename`. Tiny + dependency-
- *  free so it is trivial to reason about and to mock in tests. */
-function saveJsonFile(filename: string, contents: string): void {
-  const blob = new Blob([contents], { type: "application/json" });
+/** Trigger a browser download of `blob` as `filename`. Tiny + dependency-free. */
+function saveBlobFile(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   try {
     const anchor = document.createElement("a");
@@ -46,14 +49,18 @@ export function DownloadGithubRepoButton({
   async function handleDownload() {
     setStatus("loading");
     try {
-      // The response IS the download payload — serialised verbatim, never read
-      // field-by-field, so no spec/answer-key channel can exist on the client
-      // that the route does not already expose.
-      const repo = await getPortfolioRepository(projectSlug);
-      saveJsonFile(
-        `${projectSlug}-github-ready-repo.json`,
-        JSON.stringify(repo, null, 2),
+      // The blob IS the download payload — saved verbatim, never inspected, so
+      // no spec/answer-key channel can exist on the client that the route does
+      // not already expose.
+      const zip = await customFetch<Blob>(
+        `/api/user/projects/${encodeURIComponent(projectSlug)}/portfolio-repository.zip`,
+        { responseType: "blob" },
       );
+      // Mirror the server's safe-filename charset (lib/portfolioZip safeRootFolder)
+      // so the saved name is filesystem-safe and matches the route's
+      // Content-Disposition. For normal kebab-case slugs this is identity.
+      const safeName = projectSlug.replace(/[^A-Za-z0-9._-]/g, "-");
+      saveBlobFile(`${safeName}-github-ready-repo.zip`, zip);
       setStatus("idle");
     } catch {
       // Any failure (401 / 404 / network / server) collapses to one safe,
