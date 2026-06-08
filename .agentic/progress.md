@@ -535,6 +535,38 @@ Close-out: `docs/phases/phase-60h-one-click-zip-export.md`. Reviews **architect 
   Phase 52 untouched; no schema/migration; routes auth/read-only; `/check`+`/submit` unchanged; no new dep;
   no OAuth/token/push/publishing. **Phase 60I NOT started** (owner-gated: guarded GitHub publishing).
 
+## 2026-06-08 — Phase 61A SHIPPED (server-graded evidence coverage expansion: +2 rows)
+
+Close-out: `docs/phases/phase-61a-server-graded-coverage-expansion-batch.md`. Reviews **architect PASS +
+code-reviewer SHIP** (no P0/P1). First live server-grade expansion beyond the original 2 rows.
+- **Flipped C2 steps 1 + 5 (`sql_resultset`) dark → serverGrade:true.** Entire rowset universe is in C2
+  (only WASM-native fixture-backed project). Candidates were steps 1/5/8.
+- **Flip = spec conversion**: added `serverGrade:true` + `columns` + `expectedRows` (browser-verified
+  shapes) to steps 1 (`["n","n_unique"]`→`[[7,7]]`) and 5 (`["value"]`→`[[2746]]`); kept `query` +
+  scalar `expectedRow`. Integer-valued outputs → robust exact-match.
+- **Deferred step 8** (NRR `1.05` float): byte-verified clean but float exact-match is brittle (no
+  comparator tolerance = out of scope). Stays dark + BC-clean.
+- **Browser-WASM re-verification** (real Chromium, real duckdbAdapter, engine 1.33.1-dev45.0, dev-only
+  harness deleted after): step1=[[7,7]], step5=[[2746]], step8=[[1.05]] — all number-typed, byte-identical
+  to 0.zz. So expectedRows == the real FE capture.
+- **DB propagation** via `author:project promote` (delete+reinsert steps from authored source; preserved
+  visibility+approved). No schema/migration. Committed source = the authored .ts.
+- **serverGrade count 2 → 4** (csv 1 unchanged; sql 1 → 3 = steps 1,2,5). H3: step-1 instruction "auto-passes"
+  claim corrected; stale project-header docblock fixed (the reviewers' P2).
+- **Audits PASS**: sql-resultset-bc dark 1 (step 8) / opted-in 3 (steps 1,2,5), 19 opt-in checks 0 failures
+  (correct captures pass, negatives fail closed); csv 1; contains 3/3; authoring exit 0. New durable test
+  `grading-c2-flip.test.ts` (9) pins the flip contract.
+- **Live export stack**: artifact/repo/ZIP now classify steps 1,2,3,5 as server-graded (was 2,3); no leak
+  (`7,7`/`2746`/`one_current`/spec tokens all absent); ZIP valid; honest.
+- **Files (2 + docs):** `scripts/src/authored/analytics-engineer__semantic-layer-with-dbt-and-duckdb.ts`
+  (flip + instruction + header), `artifacts/api-server/src/lib/grading-c2-flip.test.ts`(new).
+- **Gates GREEN (Node 24 + Docker PG):** typecheck(4)+no-heuristic · check:boot OK · api-server **639/639** ·
+  atlas **170/170** · integration **4/4** · all 4 audits PASS.
+- **Invariants:** csv 1 / sql 3 opted-in; no other kind flipped; envelope OFF; Phase 52 untouched; no
+  schema/migration; comparator byte-unchanged; routes auth/read-only; `/check`+`/submit` unchanged; C2
+  visible+approved. **Phase 61B NOT started** (owner-gated: author next WASM rowset project OR tolerance-aware
+  comparator for float steps).
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 

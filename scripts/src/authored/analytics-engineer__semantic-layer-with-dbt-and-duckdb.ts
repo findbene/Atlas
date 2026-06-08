@@ -29,11 +29,16 @@
  * `profiles.yml` adapter change called out in the README.
  *
  * Validation discipline: 4 of 8 steps use `sql_resultset` and 1 uses
- * `csv_set_equal` — both audit-classified `client-provisional`, meaning
- * the in-browser DuckDB-WASM adapter actually executes the learner's SQL
- * and compares result rows against the spec (server commit-grader still
- * auto-passes — provisional is real learner feedback, not server
- * enforcement). 2 of 8 use `exact` (audit-classified `enforced` — server
+ * `csv_set_equal`. The in-browser DuckDB-WASM adapter executes the
+ * learner's SQL and compares result rows against the spec for immediate
+ * feedback. FOUR of these are now opted into server-side commit grading
+ * (csv step 3 — Phase 57B-flip; sql step 2 — Phase 58B; sql steps 1 + 5 —
+ * Phase 61A): on Submit the server re-grades the FE-captured `{columns,
+ * rows}` against the spec, gated by a real-browser DuckDB-WASM byte
+ * verification of each opt-in. `sql_resultset` step 8 (NRR float) stays
+ * client-provisional/dark — the commit-grader auto-passes it (exact-match
+ * of a float ratio is brittle; deferred until a tolerance-aware contract).
+ * 2 of 8 use `exact` (audit-classified `enforced` — server
  * commit-grader evaluates the submission body) for the declarative YAML
  * artifacts where exact-match against canonical text is the right gate.
  * 1 of 8 uses `contains` (also `enforced`, but the thin needle-substring
@@ -122,7 +127,7 @@ export const analyticsEngineerSemanticLayerWithDbtAndDuckdb: AuthoredProject = {
       stepNumber: 1,
       title: "Project skeleton + source contracts + staging layer (type-cast + dedupe)",
       instructionMd:
-        "Stand up the dbt project on DuckDB and lay down the staging layer with explicit source contracts. The contract is the load-bearing piece — without it, every downstream model is a guess.\n\n**Build:**\n\n1. `dbt_project.yml` — name `semantic_layer`, profile `semantic_layer`, materialization defaults: `staging` → view, `marts` → table.\n2. `profiles.yml` — DuckDB adapter pointing at `./dev.duckdb`.\n3. `models/staging/sources.yml` — declare 3 sources (`raw.orders`, `raw.subscriptions`, `raw.customers`) with column-level descriptions and a `freshness` block on `orders` (warn 24h, error 48h).\n4. Seed 3 short CSVs into `seeds/` (5-10 rows each is fine for the lab).\n5. `models/staging/stg_customers.sql`, `stg_orders.sql`, `stg_subscriptions.sql` — each MUST: (a) cast every column to its target type, (b) generate a surrogate key with `{{ dbt_utils.generate_surrogate_key(['natural_key']) }}` (or `md5(natural_key)` if you don't want dbt_utils), (c) dedupe with `qualify row_number() over (partition by natural_key order by loaded_at desc) = 1`.\n\n**Validation:** the in-browser DuckDB adapter will execute `SELECT count(*) AS n, count(DISTINCT customer_sk) AS n_unique FROM stg_customers` and compare against `{ n: 7, nUnique: 7 }` (after dedupe — the raw fixture has 1 duplicate). This is `sql_resultset` — the client gives provisional feedback by actually running your SQL; the server commit-grader auto-passes.",
+        "Stand up the dbt project on DuckDB and lay down the staging layer with explicit source contracts. The contract is the load-bearing piece — without it, every downstream model is a guess.\n\n**Build:**\n\n1. `dbt_project.yml` — name `semantic_layer`, profile `semantic_layer`, materialization defaults: `staging` → view, `marts` → table.\n2. `profiles.yml` — DuckDB adapter pointing at `./dev.duckdb`.\n3. `models/staging/sources.yml` — declare 3 sources (`raw.orders`, `raw.subscriptions`, `raw.customers`) with column-level descriptions and a `freshness` block on `orders` (warn 24h, error 48h).\n4. Seed 3 short CSVs into `seeds/` (5-10 rows each is fine for the lab).\n5. `models/staging/stg_customers.sql`, `stg_orders.sql`, `stg_subscriptions.sql` — each MUST: (a) cast every column to its target type, (b) generate a surrogate key with `{{ dbt_utils.generate_surrogate_key(['natural_key']) }}` (or `md5(natural_key)` if you don't want dbt_utils), (c) dedupe with `qualify row_number() over (partition by natural_key order by loaded_at desc) = 1`.\n\n**Validation:** the in-browser DuckDB adapter will execute `SELECT count(*) AS n, count(DISTINCT customer_sk) AS n_unique FROM stg_customers` and compare against `{ n: 7, nUnique: 7 }` (after dedupe — the raw fixture has 1 duplicate). This is `sql_resultset`: the in-browser DuckDB adapter runs your SQL for immediate feedback, and on Submit the server re-grades your captured result rows against the expected output.",
       learningObjective: "Lay down a dbt project on DuckDB with source contracts, type-cast staging models, and ROW_NUMBER dedupe — the non-negotiable substrate of any semantic layer.",
       requiredSkill: "dbt project layout, sources.yml contracts, staging conventions, ROW_NUMBER dedupe in DuckDB SQL",
       starterCode: SRC(`-- The in-browser runner registers the seed CSV as a raw DuckDB table and
@@ -170,6 +175,16 @@ stg_customers as (
   qualify row_number() over (partition by customer_id order by loaded_at desc) = 1
 )
 select count(*) as n, count(distinct customer_sk) as n_unique from stg_customers`),
+          // Phase 61A — server-graded opt-in (controlled evidence-coverage
+          // expansion batch). Real browser DuckDB-WASM (engine 1.33.1-dev45.0,
+          // the learner runtime) byte-verified the FE capture
+          // columns=[n,n_unique] rows=[[7,7]] (types number,number), matching
+          // 0.zz. Integer COUNT output → robust, type-stable exact-match. The
+          // scalar `expectedRow` is retained for the client provisional path.
+          // Envelope enforcement stays OFF — only the commit-path comparator.
+          serverGrade: true,
+          columns: ["n", "n_unique"],
+          expectedRows: [[7, 7]],
           expectedRow: { n: 7, nUnique: 7 },
         },
       ),
@@ -586,6 +601,15 @@ mart_subscription_monthly as (
 select round(sum(mrr_amount)::double, 0) as value
 from mart_subscription_monthly
 where month_start = date '2025-06-01'`),
+          // Phase 61A — server-graded opt-in (controlled evidence-coverage
+          // expansion batch). Real browser DuckDB-WASM (engine 1.33.1-dev45.0)
+          // byte-verified the FE capture columns=[value] rows=[[2746]]
+          // (type number), matching 0.zz. Integer-valued sum → robust,
+          // type-stable exact-match. The scalar `expectedRow` is retained for
+          // the client provisional path. Envelope enforcement stays OFF.
+          serverGrade: true,
+          columns: ["value"],
+          expectedRows: [[2746]],
           expectedRow: { value: 2746 },
         },
       ),
