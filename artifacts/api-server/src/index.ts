@@ -1,21 +1,15 @@
-import { runMigrations } from "stripe-replit-sync";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { getStripeSync } from "./lib/stripeClient";
 import { startBackgroundJobs } from "./lib/backgroundJobs";
+import { resolvePort } from "./lib/resolvePort";
 
-const rawPort = process.env["PORT"];
+// Phase 0.2 — local-boot decouple. PORT is required in production but defaults to
+// 3000 in local dev so `pnpm dev` boots with no env. Logic + tests in resolvePort.ts.
+const port = resolvePort();
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+if (!process.env["PORT"]) {
+  logger.warn("PORT unset — defaulting to 3000 (local dev only).");
 }
 
 async function initStripe(): Promise<void> {
@@ -30,6 +24,10 @@ async function initStripe(): Promise<void> {
   }
 
   try {
+    // Phase 0.2 — defer `runMigrations` (the Replit-connector-dependent migration)
+    // behind the guards above, so it never runs on the local-boot path. (The
+    // package's types are still imported elsewhere; this only moves the call.)
+    const { runMigrations } = await import("stripe-replit-sync");
     logger.info("Initializing Stripe schema...");
     await runMigrations({ databaseUrl });
     logger.info("Stripe schema ready");

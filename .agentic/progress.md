@@ -605,3 +605,12 @@ Ran 4 parallel web-grounded research agents (Sonnet): DE/AE/Cloud · AI/LLM/MLOp
 3. **H3 honesty validated by 2026 hiring signal** — narrow falsifiable claim + linkable artifact + Open Badges 3.0 is what hiring managers actually trust. Upgrade = make the completion claim specific + link to the graded commit (marketing/portfolio refinement, not a grading change).
 - Also captured: hiring-signal → factory project-template requirements (arch diagram, messy data, tests, "what failed" section, eval artifact, cost estimate, tradeoff rationale) and a beta-catalog mix (~70% Tier-1 backbone / ~20% Tier-2 carve-out / ~10% Tier-3 dark).
 - **Next:** Items 3∥4 — Phase 0.2 (Replit decouple / local boot) ∥ Phase 61B (author 1 WASM rowset project) under the full phase ritual.
+
+## 2026-06-08 — Phase 0.2 SHIPPED (Item 3 — Replit-connector decouple → clean local boot)
+
+`pnpm dev` now boots the API server (and Vite frontend) on Node 24 with **NO external secrets**, without weakening any production guarantee. Completes the 60D/60E decouple. Close-out: `docs/phases/phase-0.2-replit-connector-decouple-local-boot.md`.
+- **3 source + 1 test:** new `artifacts/api-server/src/lib/resolvePort.ts` (pure PORT resolver, dev-defaults to 3000, prod still required) + `resolvePort.test.ts` (8 cases, regression-guards the new behavior); `index.ts` uses `resolvePort()` and dynamic-imports `runMigrations` from `stripe-replit-sync` inside the guarded `initStripe()`; `App.tsx` gates the Clerk-key throw behind `import.meta.env.PROD` + a dev-only `MissingClerkKeyNotice` (no auth bypass — prod unchanged).
+- **Verified (Node 24 + Docker PG :5434):** typecheck(4)+no-heuristic OK · check:boot OK · api-server **648/648** (+9) · atlas **170/170**. Boot smoke (no secrets, ATLAS_E2E_AUTH=1): "PORT unset — defaulting to 3000", "Server listening port 3000", `GET /api/healthz` → 200 {"status":"ok"}; Stripe + signing-secret degrade gracefully.
+- **Reviews:** architect **PASS** + code-reviewer **SHIP** (no P0/P1). Converging P2 (missing PORT regression test) + doc-nit fixed in-phase; P2-2 (App.tsx component test) deferred with rationale.
+- **Invariants:** no schema/migration, no grader/serverGrade change, envelope OFF, Phase 52 untouched, no secret committed, H3 preserved. DATABASE_URL kept a legitimate hard dep (point at Docker PG locally).
+- **Next:** Item 4 — Phase 61B (author 1 WASM-native rowset project, all serverGrade:false).

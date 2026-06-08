@@ -53,7 +53,10 @@ function stripBase(path: string): string {
 // The generated API client already uses full paths like /api/...
 // No base URL needed for web apps served from the same domain
 
-if (!clerkPubKey) {
+// Phase 0.2 — local-boot decouple. In production a missing Clerk key is fatal
+// (auth is mandatory). In local dev we render a configuration notice instead of
+// throwing a blank-screen error, so `pnpm dev` boots without secrets.
+if (!clerkPubKey && import.meta.env.PROD) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY env var');
 }
 
@@ -223,7 +226,27 @@ function ClerkProviderWithRoutes() {
   );
 }
 
+// Phase 0.2 — dev-only notice when Clerk is unconfigured (production already threw
+// above). Keeps `pnpm dev` booting with a clear message instead of a white screen.
+function MissingClerkKeyNotice() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-8">
+      <div className="max-w-md rounded-2xl border border-border bg-card p-6 text-center">
+        <h1 className="text-lg font-semibold mb-2">Atlas dev server is running</h1>
+        <p className="text-sm text-muted-foreground">
+          Set <code className="font-mono">VITE_CLERK_PUBLISHABLE_KEY</code> (or
+          <code className="font-mono"> CLERK_PUBLISHABLE_KEY</code>) in your local
+          environment to load the authenticated app.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  if (!clerkPubKey) {
+    return <MissingClerkKeyNotice />;
+  }
   return (
     <WouterRouter base={basePath}>
       <TooltipProvider>
