@@ -44,6 +44,15 @@ const CLONED_TABLES = [
   "project_steps",
   "user_progress",
   "user_step_completions",
+  // Phase 60B added an append-only snapshot write to the /submit fresh-pass
+  // path. Without cloning this table into the test schema, the unqualified
+  // INSERT falls through `search_path` to public's FK-bearing table and a
+  // fresh pass 500s (FK violation against public.users/projects). Cloning it
+  // (LIKE copies the unique index but NOT FKs) keeps the /submit path testable
+  // in isolation. Required by the Phase-60F evidence-loop test AND the
+  // pre-existing Phase-30B concurrency test (which also exercises fresh-pass
+  // /submit and silently broke when 60B shipped).
+  "portfolio_submission_snapshots",
   "user_xp",
   "xp_transactions",
   "user_streaks",

@@ -5,3 +5,9 @@
 lib/api-client-react/src/generated/** text eol=lf
 lib/api-zod/src/generated/**         text eol=lf
 lib/api-spec/openapi.yaml            text eol=lf
+
+# Phase 60F — shell scripts must stay LF. A CRLF line ending on
+# `scripts/e2e-fullstack-portfolio.sh` would carry a trailing `\r` into the
+# `ATLAS_ALLOWED_ORIGINS` value on Windows checkouts, silently breaking the
+# CORS allowlist match for the full-stack browser E2E.
+*.sh                                 text eol=lf

@@ -12,16 +12,15 @@ vi.mock("../lib/auth", () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   getCurrentUser: vi.fn().mockResolvedValue({
     id: "00000000-0000-0000-0000-000000000001",
+    // Phase 60F — the /ai/chat + /ai/chat/mark-read finalize paths invalidate
+    // the user cache by the RESOLVED user's clerkId (not Clerk's getAuth, which
+    // throws under the gated E2E auth mode). The test user carries the clerkId
+    // the assertion below expects.
+    clerkId: "clerk_test_user_finalize",
     subscriptionTier: "free",
     aiTutorLastReadAt: null,
   }),
   invalidateUserCache: (...args: unknown[]) => invalidateUserCacheSpy(...args),
-}));
-
-// getAuth is called inside /ai/chat to derive the clerkId for cache
-// invalidation. Mock it to return a stable userId.
-vi.mock("@clerk/express", () => ({
-  getAuth: vi.fn(() => ({ userId: "clerk_test_user_finalize" })),
 }));
 
 // Mock the Anthropic SDK. The default export is the Anthropic class; we make
@@ -386,8 +385,8 @@ describe("POST /ai/chat finalize path", () => {
     expect(lastReadCall).toBeDefined();
     expect(lastReadCall!.aiTutorLastReadAt!.getTime()).toBe(assistantCreatedAt.getTime());
 
-    // The user-cache invalidation should fire with the Clerk userId from
-    // getAuth so subsequent /ai/chat/unread calls see the fresh value.
+    // The user-cache invalidation should fire with the resolved user's clerkId
+    // so subsequent /ai/chat/unread calls see the fresh value.
     expect(invalidateUserCacheSpy).toHaveBeenCalledWith("clerk_test_user_finalize");
   });
 

@@ -4,7 +4,6 @@ import { db } from "@workspace/db";
 import { users, userProgress, userXp, userStreaks, xpTransactions, projects, projectSteps, userStepCompletions, portfolioSubmissionSnapshots } from "@workspace/db";
 import { eq, and, desc, asc, isNull, ne, sql } from "drizzle-orm";
 import { requireAuth, getCurrentUser, getOrCreateUser } from "../lib/auth";
-import { getAuth } from "@clerk/express";
 import { sendEmail, renderProjectCompletionEmail } from "../lib/email";
 import { bumpStreak } from "../lib/streak";
 import { gradeSubmission, isServerGradeOptedIn } from "../lib/grading";
@@ -45,7 +44,10 @@ const router = Router();
 
 router.get("/user/profile", requireAuth, async (req, res) => {
   try {
-    const auth = getAuth(req);
+    // Phase 60F — `getAuth(req)` was called here but its result was never used
+    // (the response below reads `user.clerkId`, not the Clerk session). It also
+    // throws under the gated E2E auth mode, where clerkMiddleware is not
+    // registered. Removed: dead in production, broken in E2E.
     const user = await getCurrentUser(req);
     if (!user) {
       res.status(404).json({ error: "User not found" });

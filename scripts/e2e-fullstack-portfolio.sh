@@ -25,6 +25,11 @@ export NODE_ENV=development
 API_PORT="${API_PORT:-5055}"
 FE_PORT="${FE_PORT:-4178}"
 SLUG="${ATLAS_E2E_PROJECT_SLUG:-analytics-engineer-semantic-layer-with-dbt-and-duckdb}"
+# Phase 60F — the API now enforces a CORS allowlist instead of reflecting every
+# origin. Declare the frontend origin explicitly so the gated cross-origin fetch
+# (frontend :FE_PORT -> API :API_PORT) is permitted. This also exercises the
+# operator lever (ATLAS_ALLOWED_ORIGINS) the hardening adds.
+export ATLAS_ALLOWED_ORIGINS="${ATLAS_ALLOWED_ORIGINS:-http://127.0.0.1:${FE_PORT}}"
 
 echo "==> [1/5] Seeding project catalog (idempotent) + E2E test user/completion"
 pnpm --filter @workspace/scripts run seed >/dev/null 2>&1 || true

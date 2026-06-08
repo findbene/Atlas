@@ -442,6 +442,39 @@ artifacts. **No GitHub OAuth/publishing, no new serverGrade/opt-ins, envelope OF
   untouched; no schema/migration; route authenticated/read-only; `/check` no snapshots; `/submit` unchanged; backend
   local boot blocker removed (prod-inert); full-stack download browser-verified. **Phase 60F NOT started.**
 
+## 2026-06-08 — Phase 60F SHIPPED (fresh-submit snapshot E2E + auth/CORS hardening)
+
+Close-out: `docs/phases/phase-60f-fresh-submit-snapshot-e2e-and-auth-cors-hardening.md`. Reviews
+**architect PASS + code-reviewer SHIP** (no P0/P1). Two thrusts, no production behaviour change.
+- **Auth hardening (both = removals):** `user.ts` `/user/profile` dropped a DEAD `getAuth(req)` (result
+  unused; response uses `user.clerkId`); `ai.ts` finalize + mark-read now `invalidateUserCache(user.clerkId)`
+  instead of `getAuth(req).userId` (equivalent in prod — same cache key; works under gated E2E mode where
+  `getAuth` throws). Removed both `getAuth` imports. No route made public; no request userId trusted.
+- **CORS hardening:** `lib/cors.ts` — env allowlist (`ATLAS_ALLOWED_ORIGINS`), localhost defaults in non-prod,
+  PRODUCTION-INERT legacy reflective fallback when unset in prod (+ boot warn). Unknown origin → `cb(null,false)`
+  (no header, no 500); never wildcard+credentials. `lib/cors.test.ts` pins 3 branches. **Verified live:** allowed
+  origin gets ACAO, disallowed gets none.
+- **Evidence loop proven 2 ways (real Postgres, no mocks):** (1) API-level `user-fresh-submit-snapshot.integration.test.ts`
+  (throwaway schema, synthetic opted-in `sql_resultset` step — NOT a catalog opt-in) proves /check-no-write
+  (correct+invalid), /submit one safe snapshot, idempotency (no dup XP/snapshot), monotonic pass, artifact
+  before/after reflection, 404-not-403, and no-leak via a `secretSentinel` spec key. (2) TRUE full-stack browser:
+  real `/submit` of C2 step-2 rows → real snapshot → Certificates **Download Portfolio Bundle** in real Chromium →
+  downloaded JSON reflects the snapshot (code-included flips on), leak-free (`one_current` absent; `overlap` = the
+  authored "no overlapping…" false positive), honest claims only.
+- **Latent 60B defect found + fixed:** `lib/db/src/test-helpers.ts` `CLONED_TABLES` lacked
+  `portfolio_submission_snapshots`; 60B's /submit snapshot write made the unqualified INSERT fall through to
+  public's FK-bearing table → 500. This had silently broken the Phase-30B integration test (4 fail → 4 pass after).
+- **Files (10):** `routes/user.ts`, `routes/ai.ts`, `routes/ai.test.ts`, `lib/cors.ts`(new), `lib/cors.test.ts`(new),
+  `app.ts`, `routes/user-fresh-submit-snapshot.integration.test.ts`(new), `lib/db/src/test-helpers.ts`,
+  `scripts/src/seed-e2e-user.ts` (fresh-submit mode), `scripts/e2e-fullstack-portfolio.sh` (ATLAS_ALLOWED_ORIGINS),
+  `.gitattributes` (`*.sh eol=lf`). P2s fixed in-phase (sh-EOL + 4178 dev default).
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck(4) + no-heuristic · check:boot OK · api-server **604/604** ·
+  atlas **165/165** · **integration 4/4** · audit:authoring exit 0 · sql-resultset-bc PASS (3 dark + **1**) ·
+  csv-set-equal-bc PASS (**1**) · contains-bc 3/3 · browser download verified.
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips/kinds; envelope OFF; Phase 52
+  untouched; no schema/migration; route authenticated/read-only; `/check` no snapshots; `/submit` unchanged.
+  **Phase 60G NOT started** (owner-gated: safe excerpt preview → GitHub export; + set ATLAS_ALLOWED_ORIGINS in deploy).
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 
