@@ -1,0 +1,6 @@
+service,service_family,criticality
+ec2,compute,high
+s3,storage,medium
+rds,database,high
+lambda,compute,low
+cloudfront,network,medium

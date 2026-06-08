@@ -38,6 +38,7 @@
     "backfill:phase41-candidates": "tsx ./src/backfill-phase41-candidates.ts",
     "backfill:phase55-candidates": "tsx ./src/backfill-phase55-candidates.ts",
     "backfill:phase61b-candidates": "tsx ./src/backfill-phase61b-candidates.ts",
+    "backfill:phase61f-candidates": "tsx ./src/backfill-phase61f-candidates.ts",
     "backfill:enrolled-count": "tsx ./src/backfill-enrolled-count.ts",
     "cleanup:run-envelope-nonces": "tsx ./src/cleanup-run-envelope-nonces.ts",
     "audit:difficulty": "tsx ./src/audit-difficulty.ts",
@@ -51,6 +52,7 @@
     "archive:phase12b-replaced": "tsx ./src/archive-phase12b-replaced.ts",
     "check:no-heuristic-runtime": "tsx ./src/check-no-runtime-mapToCourse.ts",
     "check:authored-saas-mart": "tsx ./src/check-authored-saas-mart.ts",
+    "check:authored-finops-mart": "tsx ./src/check-authored-finops-mart.ts",
     "check:db-baseline": "tsx ./src/check-db-baseline.ts",
     "grant:admin": "tsx ./src/grant-admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

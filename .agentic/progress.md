@@ -658,3 +658,16 @@ Restored a fully-migrated local DB baseline; global authored-source serverGrade 
 - **Diff:** `_journal.json` (1 timestamp) + new guard + package.json (1 line) + close-out. **No grader/route/authored-copy/comparator/Phase-52/envelope change** → trust/leak/H3 byte-unchanged from 61D.
 - **Reviews:** architect **PASS** + code-reviewer **SHIP** (see close-out §12).
 - **Prod note (operator):** if production/Neon is stuck in the identical poisoned partial state it needs the same `created_at` correction — but the live app already depends on `portfolio_submission_snapshots`, so prod is most likely fully migrated + unaffected. Flagged, not executed. **Phase 61F NOT started.**
+
+## 2026-06-08 — Phase 61F SHIPPED (author Cloud FinOps cost-quality mart — 6 DARK candidates)
+
+Authored ONE net-new intermediate **Cloud-Data-Engineer** project `cloud-data-engineer-finops-cost-quality-mart` (FinOps cost-quality mart) creating **6 fresh DARK rowset candidates** (5 sql_resultset + 1 csv_set_equal, ALL serverGrade:false) + 1 contains runbook — expanding rowset supply into a THIRD discipline. **Live serverGrade count UNCHANGED = 10.** Close-out: `docs/phases/phase-61f-finops-cost-quality-mart.md`.
+- **7 steps**, DuckDB-WASM-native over 3 committed CSV fixtures (`artifacts/atlas/public/datasets/finops-cost-mart/`): dedupe(latest-load-wins)→normalize-env→service-spend-mart→team-allocation(csv)→untagged/unallocated→cost-quality-audit→runbook. Money = **integer cents**; every SUM `cast(... as bigint)` (proactively avoids the 61C HUGEINT→string class). All outputs integer/exact-string.
+- **All 6 candidates real-browser DuckDB-WASM byte-verified** (1.33.1-dev45.0) — steps 3 & 5 cent totals returned as `number` (bigint cast worked). Kept DARK per brief.
+- **Slug note:** used `cloud-data-engineer-` (the 9-course taxonomy slug; brief recommended `cloud-data-engineering-`) for convention consistency.
+- **Wiring:** authored .ts + index import/array + `COURSE_FOR_AUTHORED_SLUG`(cloud-data-engineer) + `NET_NEW_FOR_SLUG_PHASE61F` + `backfill-phase61f-candidates.ts` (candidate f1f05a3c) + `check-authored-finops-mart.ts` (asserts 6 dark / 0 live / integer-only / ordered / no leak / no H3). Promote → audit **79.1 approved, visible**.
+- **Gates (Node 24 + Docker PG):** typecheck+no-heuristic · check:boot · check:db-baseline (10) · check:authored-finops-mart (6 dark) · check:authored-saas-mart · audit:sql-resultset-bc PASS (8 opted + 6 dark byte-identical) · csv-bc PASS (2+1 dark) · contains-bc PASS (5) · authoring+pedagogy finops publish-ready/enriched · api-server 648/648 · atlas 170/170 · integration 4/4.
+- **DB:** finops steps 1-6 serverGrade=false, step 7 contains, visible+approved; global serverGrade=10 unchanged; C2+Mart unchanged.
+- **Diff:** all new/additive (project + 3 fixtures + backfill + check + index/lineage/package). No grader/route/comparator/schema/Phase-52/envelope change.
+- **Reviews:** architect **PASS** + code-reviewer **SHIP** (see close-out §13).
+- **Invariants:** live count 10, comparator byte-unchanged, RUBRIC frozen, 9-course taxonomy respected, H3 honest, no leak. **Phase 61G NOT started.**

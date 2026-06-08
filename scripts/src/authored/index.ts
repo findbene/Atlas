@@ -65,6 +65,8 @@ import { aiEngineerLlmOutputQualityScoring } from "./ai-engineer__llm-output-qua
 import { appliedLlmEngineerGuardrailsAndStructuredOutputSafety } from "./applied-llm-engineer__guardrails-and-structured-output-safety";
 import { analyticsEngineerSemanticLayerWithDbtAndDuckdb } from "./analytics-engineer__semantic-layer-with-dbt-and-duckdb";
 import { dataEngineeringSaasUsageRevenueQualityMart } from "./data-engineering__saas-usage-revenue-quality-mart";
+// Phase 61F — Author next WASM-native rowset evidence project (C3 — Cloud FinOps cost-quality mart).
+import { cloudDataEngineeringFinopsCostQualityMart } from "./cloud-data-engineering__finops-cost-quality-mart";
 import { pythonLibrariesPydanticValidationService } from "./python-libraries__pydantic-validation-service";
 import { dataScientistNotebookToProduction } from "./data-scientist__notebook-to-production";
 import { dataScientistPytorchImageFinetuning } from "./data-scientist__pytorch-image-finetuning";
@@ -169,6 +171,7 @@ export const AUTHORED_PROJECTS: AuthoredProject[] = [
   appliedLlmEngineerGuardrailsAndStructuredOutputSafety,
   analyticsEngineerSemanticLayerWithDbtAndDuckdb,
   dataEngineeringSaasUsageRevenueQualityMart,
+  cloudDataEngineeringFinopsCostQualityMart,
 ];
 
 export function findAuthored(slug: string): AuthoredProject | undefined {
