@@ -158,7 +158,11 @@ router.get("/user/portfolio", requireAuth, async (req, res) => {
       .where(
         and(
           eq(xpTransactions.userId, user.id),
-          sql`${xpTransactions.metadata}->>'projectId' = ANY(${projectIds})`,
+          // Phase 60E fix: bind the project-id set with inArray (`IN ($1,$2,…)`).
+          // The prior `= ANY(${projectIds})` passed a JS array into a single
+          // bind slot, which Postgres rejected as a "malformed array literal"
+          // and 500'd the portfolio for any user with a completed project.
+          inArray(sql`${xpTransactions.metadata}->>'projectId'`, projectIds),
         ),
       )
       .groupBy(sql`${xpTransactions.metadata}->>'projectId'`);

@@ -10,6 +10,7 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { isE2EAuthMode } from "./lib/auth";
 import { WebhookHandlers } from "./lib/webhookHandlers";
 
 const app: Express = express();
@@ -68,12 +69,19 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
 
-app.use(clerkMiddleware((req) => ({
-  publishableKey: publishableKeyFromHost(
-    getClerkProxyHost(req) ?? "",
-    process.env.CLERK_PUBLISHABLE_KEY,
-  ),
-})));
+// Phase 60E — in local full-stack E2E mode (gated, non-production) Clerk's
+// middleware is intentionally NOT registered: it hard-fails ("Missing Clerk
+// Secret Key") without real Clerk credentials, which blocked every request in
+// a local stack. In that mode requireAuth uses the gated test-auth adapter
+// instead. Production (ATLAS_E2E_AUTH unset) is unaffected — real Clerk runs.
+if (!isE2EAuthMode()) {
+  app.use(clerkMiddleware((req) => ({
+    publishableKey: publishableKeyFromHost(
+      getClerkProxyHost(req) ?? "",
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+  })));
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

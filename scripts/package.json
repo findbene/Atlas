@@ -7,6 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "migrate": "tsx ./src/migrate.ts",
     "seed": "tsx ./src/seed.ts",
+    "seed:e2e": "tsx ./src/seed-e2e-user.ts",
     "seed:stripe": "tsx ./src/seed-stripe-products.ts",
     "audit:pedagogy": "tsx ./src/audit-pedagogy.ts",
     "audit:authoring": "tsx ./src/audit-project-authoring.ts",

@@ -414,6 +414,34 @@ artifacts. **No GitHub OAuth/publishing, no new serverGrade/opt-ins, envelope OF
   untouched; no schema/migration; 60B route still authenticated/read-only; `/check` writes no snapshots;
   `/submit` unchanged; boot blocker removed (prod-safe); download browser-verified. **Phase 60E NOT started.**
 
+## 2026-06-08 — Phase 60E backend decouple + TRUE full-stack portfolio download E2E — SHIPPED
+- **Blocker (real):** the API already boots locally (connectors self-guard); the true blocker was AUTH —
+  `clerkMiddleware` (app.ts) 500s EVERY request ("Missing Clerk Secret Key") without real Clerk creds.
+- **Fix (gated, production-inert):** test-auth adapter in `lib/auth.ts` — `isE2EAuthMode()` = `ATLAS_E2E_AUTH==="1"
+  && NODE_ENV!=="production"`; `e2eClerkIdFromRequest` (matching `X-Atlas-E2E-Auth` header vs `ATLAS_E2E_AUTH_TOKEN`
+  → FIXED `ATLAS_E2E_AUTH_CLERK_ID`, else null — no impersonation). requireAuth/getCurrentUser use it (never call
+  getAuth) in e2e mode; `app.ts` registers clerkMiddleware only `if (!isE2EAuthMode())`. Production path byte-unchanged.
+- **Bug fixed (needed for E2E):** `user-portfolio.ts` `= ANY(${projectIds})` → malformed-array-literal 500 for any
+  user with a completed project → changed to `inArray(...)`. Scoping preserved.
+- **Seed:** `scripts/src/seed-e2e-user.ts` (+`seed:e2e`) — learner-side only (user + completed C2 progress + step
+  completions); no authored content/serverGrade/answer keys; idempotent. Runner: `scripts/e2e-fullstack-portfolio.sh`.
+- **Frontend:** `e2e/e2e-main.tsx` dual-mode — full-stack (real API via setBaseUrl + token-header injection) vs 60D mock.
+- **TRUE full-stack browser E2E (real Chromium):** real frontend → real API → real Postgres → real route → real
+  generator → real JSON download. Card showed the REAL DB project title; payload had projectSlug/generatedAt/4 files;
+  VALIDATION_EVIDENCE showed step2 sql_resultset + step3 csv_set_equal server-graded (real predicate); LIMITATIONS
+  honestly degraded (no snapshot → "code not included"); DOM+payload leak-free (one_current/secretval/expectedRows
+  absent; "overlap" = false positive from "overlapping"); API-level healthz 200 / 401-no-token / 200-token / 404-unknown.
+- **Reviews:** architect **PASS** + code-reviewer **SHIP**, no P0/P1 (code-reviewer verified NODE_ENV=production at the
+  deploy manifest `artifact.toml` → adapter dead in prod). Fixed P2: getCurrentUser e2e branch tested (+2). Deferred P2
+  (rationale): `getAuth` throws in e2e mode in out-of-scope prod routes (user.ts:48, ai.ts) — not the portfolio flow,
+  not production; reflective CORS (pre-existing). Both logged for a future hardening pass.
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck + no-heuristic · check:boot OK · api-server **598/598**
+  (+10 auth) · atlas **165/165** · audit:csv-set-equal-bc PASS (1) · audit:sql-resultset-bc PASS (3 dark + 1) ·
+  audit:contains-bc 3/3 · audit:authoring exit 0 (csv 1 / sql 1).
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips/kinds; envelope OFF; Phase 52
+  untouched; no schema/migration; route authenticated/read-only; `/check` no snapshots; `/submit` unchanged; backend
+  local boot blocker removed (prod-inert); full-stack download browser-verified. **Phase 60F NOT started.**
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 

@@ -4,6 +4,37 @@ import { db } from "@workspace/db";
 import { users } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
+/**
+ * Phase 60E — env-gated, production-inert test-auth adapter.
+ *
+ * Lets a local FULL-STACK E2E authenticate as a single SEEDED test user through
+ * the REAL `requireAuth` / `getCurrentUser` path, WITHOUT real Clerk. It is
+ * fail-closed on three independent gates, so it is dead code in production:
+ *   1. `ATLAS_E2E_AUTH` must equal "1" (never set in production),
+ *   2. `NODE_ENV` must NOT be "production" (defense in depth),
+ *   3. `ATLAS_E2E_AUTH_TOKEN` must be set AND the request must carry a matching
+ *      `X-Atlas-E2E-Auth` header (absent / mismatch ⇒ treated as anonymous ⇒
+ *      401, exactly like the real Clerk path).
+ * It resolves a FIXED clerkId (`ATLAS_E2E_AUTH_CLERK_ID`), NEVER a userId taken
+ * from the request, so it cannot be used to impersonate an arbitrary user, and
+ * it does not alter the route's 404-not-403 / hidden-project behaviour (the
+ * resolved test user simply is not enrolled in hidden projects).
+ */
+export function isE2EAuthMode(): boolean {
+  return (
+    process.env.ATLAS_E2E_AUTH === "1" &&
+    process.env.NODE_ENV !== "production"
+  );
+}
+
+function e2eClerkIdFromRequest(req: Request): string | null {
+  const expected = process.env.ATLAS_E2E_AUTH_TOKEN;
+  if (!expected) return null; // fail-closed when no token is configured
+  const provided = req.header("x-atlas-e2e-auth");
+  if (!provided || provided !== expected) return null;
+  return process.env.ATLAS_E2E_AUTH_CLERK_ID ?? "e2e_test_user";
+}
+
 // In-memory cache of clerkId -> local user row, so we don't hit the Clerk API
 // or run a SELECT on every request. Per-process; small footprint; cleared on restart.
 const userCache = new Map<string, Awaited<ReturnType<typeof loadOrProvisionUser>>>();
@@ -65,6 +96,31 @@ async function loadOrProvisionUser(clerkId: string, req: Request) {
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  // Phase 60E — local full-stack E2E path (gated; dead code in production).
+  // Never touches Clerk: in e2e mode clerkMiddleware is not registered, so
+  // getAuth(req) would throw. Resolve the seeded test user from the gated
+  // header, else 401 — exercising the real requireAuth contract.
+  if (isE2EAuthMode()) {
+    const e2eClerkId = e2eClerkIdFromRequest(req);
+    if (!e2eClerkId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    try {
+      let user = userCache.get(e2eClerkId);
+      if (!user) {
+        user = await loadOrProvisionUser(e2eClerkId, req);
+        userCache.set(e2eClerkId, user);
+      }
+      (req as Request & { localUser?: typeof user }).localUser = user;
+      next();
+    } catch (err) {
+      req.log.error({ err, e2e: true }, "Failed to resolve E2E test user");
+      res.status(500).json({ error: "Failed to resolve user" });
+    }
+    return;
+  }
+
   const { userId } = getAuth(req);
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
@@ -128,6 +184,18 @@ export async function getCurrentUser(req: Request) {
   // Fast path: requireAuth populated req.localUser already.
   const cached = (req as Request & { localUser?: typeof users.$inferSelect }).localUser;
   if (cached) return cached;
+
+  // Phase 60E — in e2e mode, never call getAuth (clerkMiddleware is absent).
+  if (isE2EAuthMode()) {
+    const e2eClerkId = e2eClerkIdFromRequest(req);
+    if (!e2eClerkId) return null;
+    const memo = userCache.get(e2eClerkId);
+    if (memo) return memo;
+    const user = await db.query.users.findFirst({
+      where: eq(users.clerkId, e2eClerkId),
+    });
+    return user ?? null;
+  }
 
   const auth = getAuth(req);
   if (!auth.userId) return null;
