@@ -60,7 +60,9 @@ async function serverGradedSteps(slug: string): Promise<number[]> {
   const r = (await db.execute(sql`
     select s.step_number as n
     from project_steps s join projects p on p.id = s.project_id
-    where p.slug = ${slug} and s.validation_config->'spec'->>'serverGrade' = 'true'
+    where p.slug = ${slug}
+      and s.validation_type in ('sql_resultset', 'csv_set_equal')
+      and s.validation_config->'spec'->>'serverGrade' = 'true'
     order by s.step_number
   `)) as unknown as { rows: Array<{ n: number }> };
   return r.rows.map((x) => Number(x.n));

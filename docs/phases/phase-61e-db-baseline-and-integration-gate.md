@@ -145,17 +145,47 @@ sources unchanged. **Phase 61F not started.**
 
 ## 12. Reviews
 
-- **atlas-architect-reviewer → PASS** — _(recorded at close; see §12 of the
-  mini-report archive entry for the verbatim verdict)._
-- **code-reviewer → SHIP** — _(recorded at close.)_
+- **atlas-architect-reviewer → PASS** (no P0/P1). Verified the journal-edit safety
+  against the **actual drizzle-orm 0.45.2 migrator source**: the migration `hash`
+  is `sha256(query)` over the `.sql` only (`migrator.js:23`) — `when` is never
+  checksummed, so editing it cannot re-apply; the apply rule is `apply IFF (no
+  rows) OR (max(created_at) < migration.when)`, strict `<`, idx order
+  (`pg-core/dialect.js:56-71`). Enumerated every existing-DB state (fresh /
+  fully-migrated / poisoned-partial / re-baselined) → the new monotonic journal
+  never causes a wrong apply, wrong skip, or re-application; lowering an applied
+  entry's `when` only makes its own apply-condition more false. Confirmed scope,
+  guard correctness (parameterized SQL, read-only, `serverGrade='true'` matches the
+  grader's `=== true` source of truth), and all inherited invariants.
+  - **P2 (addressed):** the close-out's "production is most likely fully migrated"
+    was an inference presented as near-fact — softened to an operator-verify
+    directive in §13.
+  - **P2 (noted):** `check:db-baseline` is manual/DB-gated, not yet wired into an
+    automated CI gate (already a §13 follow-up).
+- **code-reviewer → SHIP** (no P0/P1). Confirmed the diff is exactly the journal
+  one-liner + the new guard + the package.json line; `_journal.json` valid +
+  monotonic; the guard is read-only with no injection (table names from a constant
+  array, slugs bound via the Drizzle `sql` template); assertions match claims;
+  sensible exit codes.
+  - **P2 (addressed):** `serverGradedSteps` now filters
+    `validation_type in ('sql_resultset','csv_set_equal')` so the per-project and
+    global queries read identically.
+  - **P2 (noted):** the hardcoded `EXPECTED_*` baseline is an intentional,
+    documented maintenance tax (same pattern as `check:authored-saas-mart`).
 
 ## 13. Remaining / next
 
-- The journal `when` fix lands the source defect; **production/Neon may need the
-  same `created_at` correction IF it is stuck in the identical partial state**
-  (operator action — the app already depends on `portfolio_submission_snapshots`
-  for Phase 60b, so production is most likely fully migrated and unaffected).
-  Flagged for operator awareness, not executed by the agent.
+- The journal `when` fix corrects the source defect. **Production/Neon migration
+  state MUST be verified by the operator** — run `check:db-baseline` (or inspect
+  `drizzle.__drizzle_migrations`) against prod; **if row 0 shows
+  `created_at=1779790340390`, apply the same one-time `created_at` correction**
+  then `pnpm migrate`. Note (architect 61E): a prod DB migrated purely
+  incrementally via `pnpm migrate` under the OLD journal would have skipped 0002
+  (and possibly 0001) — so prod *having* `portfolio_submission_snapshots` implies
+  it was provisioned another way (`drizzle-kit push` / a fresh baseline), which the
+  operator should confirm rather than assume. The committed journal edit is
+  strictly non-harmful to any prod state (it never re-applies or wrong-skips a
+  migration — verified against the drizzle-orm 0.45.2 migrator source); it only
+  removes the future landmine. Not executed by the agent.
 - `check:db-baseline` is a candidate to wire into the phase ritual / CI once a DB
   is provisioned in that environment.
 - `.gitattributes` EOL-normalize follow-up still standing.
