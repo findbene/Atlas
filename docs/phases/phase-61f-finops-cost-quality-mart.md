@@ -155,8 +155,27 @@ atlas **170/170** · integration **4/4**.
 
 ## 13. Reviews
 
-- **atlas-architect-reviewer → PASS** — _(recorded at close.)_
-- **code-reviewer → SHIP** — _(recorded at close.)_
+- **First architect pass → FAIL** (the gate working as intended): caught that step 7
+  was a `contains` runbook that auto-passed ANY submission (the contains runtime
+  never reads the authored spec — §16) AND falsely claimed "server-enforced." Two
+  P1. Fixed by converting step 7 to honest `self_attest` + removing the claim +
+  adding a false-enforcement guard to the check.
+- **atlas-architect-reviewer re-review → PASS** (0 P0/P1): verified end-to-end
+  against the grading runtime (`self_attest` at `grading.ts:92-97` returns
+  `{passed:true}` unconditionally — the `attestationChecklist` is honest inert
+  metadata), the authoring non-empty-spec contract (`authoring.ts:488-490`), the
+  live DB (step 7 = self_attest, steps 1-6 dark, global = 10), and confirmed the 6
+  rowset specs are byte-untouched. **P2 (accept with note, MUST NOT be dropped):**
+  C2 + the SaaS mart still ship the identical dead `contains` step with the same
+  false "server-enforced" copy — a **live H3 honesty debt** on two shipped projects,
+  pre-existing + out of 61F scope, documented in §16; the recommended grader-fix
+  phase must be **scheduled as priority**.
+- **code-reviewer re-review → SHIP** (0 P0/P1/P2): confirmed `self_attest` is
+  genuinely non-enforcing, the non-empty-spec contract is satisfied, the
+  false-enforcement guard fires on the pre-fix code (a true regression gate), the
+  guard corpus correctly excludes comments, and the 6 rowset candidates are
+  byte-untouched. (The earlier first-pass code-review also SHIP'd the rowset side +
+  independently re-computed all 6 expectedRows from the fixtures.)
 
 ## 14. Invariants
 
