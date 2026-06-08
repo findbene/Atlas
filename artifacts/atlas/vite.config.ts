@@ -5,29 +5,35 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
 
-const rawPort = process.env.PORT;
+// Phase 60D — local/test boot decouple. Replit injected PORT + BASE_PATH; off
+// Replit they are absent and the previous hard `throw` at config load blocked
+// every local `vite build` / `dev` / `preview`. Keep production fail-fast (an
+// unconfigured prod deploy must error loudly), but fall back to safe local
+// defaults outside production so the learner frontend boots in a controlled
+// dev/test environment without Replit coupling. `mode` is Vite's canonical
+// signal: `vite dev` → "development", `vite build`/`preview` → "production".
+export default defineConfig(async ({ mode }) => {
+  const isProduction = mode === "production";
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+  const rawPort = process.env.PORT ?? (isProduction ? undefined : "5173");
+  if (!rawPort) {
+    throw new Error(
+      "PORT environment variable is required in production but was not provided.",
+    );
+  }
+  const port = Number(rawPort);
+  if (Number.isNaN(port) || port <= 0) {
+    throw new Error(`Invalid PORT value: "${rawPort}"`);
+  }
 
-const port = Number(rawPort);
+  const basePath = process.env.BASE_PATH ?? (isProduction ? undefined : "/");
+  if (!basePath) {
+    throw new Error(
+      "BASE_PATH environment variable is required in production but was not provided.",
+    );
+  }
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
-
-export default defineConfig({
+  return {
   base: basePath,
   plugins: [
     react(),
@@ -154,4 +160,5 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
   },
+  };
 });

@@ -385,6 +385,35 @@ artifacts. **No GitHub OAuth/publishing, no new serverGrade/opt-ins, envelope OF
   Phase 52 untouched; **no schema/migration**; route still authenticated/read-only; `/check` writes no
   snapshots; `/submit` snapshot behavior unchanged; RUBRIC_VERSION frozen. **Phase 60D NOT started.**
 
+## 2026-06-08 — Phase 60D frontend boot decouple + portfolio download E2E verification — SHIPPED
+- **Boot blocker (root cause):** `artifacts/atlas/vite.config.ts` hard-`throw`ew at config load when the
+  Replit-injected `PORT`/`BASE_PATH` env were absent → blocked every local `vite build`/`dev`/`preview`.
+  (The `@replit/vite-plugin-*` are NOT the blocker — cartographer/dev-banner already gated behind `REPL_ID`.)
+- **Fix:** converted to `defineConfig(async ({ mode }) => …)`; `PORT`/`BASE_PATH` default to `5173`/`/` when
+  `mode !== "production"`, still throw in production (fail-fast preserved). Rest of config byte-identical.
+  Verified: prod build no-env still throws; dev mode → base "/" + port 5173; explicit env honored.
+- **Regression guard:** `scripts/check-boot-config.ts` via `pnpm --filter @workspace/atlas run check:boot`
+  (tsx, not vitest — importing the real config pulls esbuild which breaks under jsdom).
+- **Real-browser E2E:** isolated `vite.e2e.config.ts` + `e2e/{index.html,e2e-main.tsx,clerk-mock.tsx}` builds
+  the REAL Certificates page + REAL download button + REAL generated client; `@clerk/react` aliased to a
+  test-only mock, backend faked at `window.fetch`. Served via `python -m http.server`, driven by global
+  `playwright-cli` (no `@playwright/test` install — lockfile is a hard-stop). **Verified in real Chromium:**
+  card renders, button visible, click → generated-client call → real JSON download with
+  projectSlug/generatedAt/files{README,VALIDATION_EVIDENCE,LIMITATIONS,LEARNER_REFLECTION_TEMPLATE};
+  DOM + payload leak-free; 404 → safe error + no download. Only console error = benign favicon 404.
+- **Production-inert:** `vite.e2e.config.ts` + `e2e/*` never imported by prod `vite.config.ts`; outside
+  tsconfig + vitest include; grep of `src/` for the mocks → 0 matches. No auth weakened, no prod userId.
+- **Reviews:** architect **PASS** + code-reviewer **SHIP**, no P0/P1. Fixed close-out + this progress entry.
+  Deferred P2 (rationale): e2e/ + scripts/ outside CI typecheck (node vs browser tsconfig mismatch; both
+  runtime/browser-verified). Corrected an inaccurate `.gitignore` claim (`.playwright-cli/` already ignored
+  since Phase 0.zz — no edit made this phase). Noted `pnpm serve` (vite preview = prod mode) still needs PORT.
+- **Gates GREEN (Node 24 + Docker PG :5434):** typecheck + check:no-heuristic · **check:boot OK** ·
+  api-server **588/588** · atlas **165/165** · audit:csv-set-equal-bc PASS (1) · audit:sql-resultset-bc PASS
+  (3 dark + 1) · audit:contains-bc 3/3 · audit:authoring exit 0 (csv 1 / sql 1).
+- **Invariants:** 1 csv + 1 sql opted in (unchanged); no new serverGrade/flips/kinds; envelope OFF; Phase 52
+  untouched; no schema/migration; 60B route still authenticated/read-only; `/check` writes no snapshots;
+  `/submit` unchanged; boot blocker removed (prod-safe); download browser-verified. **Phase 60E NOT started.**
+
 ## Build note
 Phase-specific commands (`/atlas-harden-grader`, `/atlas-author-wave`, `/atlas-promote`, `/atlas-cloud-lab`, `/atlas-skill-model`, `/atlas-ship-check`, `/atlas-market-scout`) are created just-in-time at the start of their phase, not upfront (YAGNI). Universal spine (`phase-plan`/`validate`/`phase-close` + architect-reviewer + conventions) is live now.
 
