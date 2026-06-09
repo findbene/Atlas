@@ -58,7 +58,7 @@ export const dataEngineeringDataQualityFramework: AuthoredProject = {
       stepNumber: 1,
       title: "dbt tests for relational invariants",
       instructionMd:
-        "On the `mart_orders` model add four tests in `schema.yml`: `unique` on `order_id`; `not_null` on `order_id` + `user_id`; `relationships` from `user_id` to `mart_users.user_id`; `accepted_values` on `status` ∈ {`pending`, `paid`, `cancelled`}. Validator runs `dbt test --select mart_orders` against (a) a clean fixture → 4 pass; (b) a fixture with 5 duplicate `order_id`s + 1 invalid status → 2 tests fail with the right counts.",
+        "On the `mart_orders` model add four tests in `schema.yml`: `unique` on `order_id`; `not_null` on `order_id` + `user_id`; `relationships` from `user_id` to `mart_users.user_id`; `accepted_values` on `status` ∈ {`pending`, `paid`, `cancelled`}. Self-check: run `dbt test --select mart_orders` against (a) a clean fixture — all 4 should pass; (b) a fixture with 5 duplicate `order_id`s + 1 invalid status — the unique and accepted_values tests should fail with the right counts.",
       learningObjective: "Four canonical dbt tests cover ~70% of real-world relational failures.",
       requiredSkill: "dbt schema.yml tests + relationships + accepted_values + interpreting failure output",
       starterCode: SRC(`# models/marts/schema.yml
@@ -83,10 +83,16 @@ models:
               values: ['pending', 'paid', 'cancelled']
       # TODO: add timestamp not_null + range check via dbt_utils.expression_is_true if relevant.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "multi_file",
-      validation: validationConfig("json_equal", "Clean fixture: 4/4 pass. Fixture with 5 duplicate order_ids + 1 invalid status: unique fails (5 dupes), accepted_values fails (1 invalid), not_null + relationships pass.", {
-        expected: { cleanPass: 4, cleanFail: 0, dirtyPass: 2, dirtyFail: 2, duplicateCount: 5, invalidStatusCount: 1 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Running `dbt test --select mart_orders` against the clean fixture passes all 4 tests: unique, not_null (order_id + user_id), relationships, and accepted_values.",
+          "Against the fixture with 5 duplicate order_ids, the `unique` test fails and the failure output reports 5 duplicate rows.",
+          "Against the fixture with 1 invalid status value, the `accepted_values` test fails and names the invalid value.",
+          "The `not_null` and `relationships` tests still pass against the dirty fixture (only unique and accepted_values should fail).",
+          "Test severity is set to 'error' (not 'warn') for the critical relational tests so `dbt build` blocks on failure.",
+        ],
       }),
       expectedOutputs: { cleanPass: 4, dirtyPass: 2, dirtyFail: 2 },
       datasetRefs: ["fixtures/dbt_test_cases.json"],
@@ -161,7 +167,7 @@ print({'success': result.success, 'evaluated': len(result.results)})
       stepNumber: 3,
       title: "Source freshness SLAs",
       instructionMd:
-        "In `sources.yml`, declare freshness on `raw.events`: `warn_after: {count: 6, period: hour}`, `error_after: {count: 12, period: hour}`, `loaded_at_field: ingested_at`. Validator runs `dbt source freshness` against (a) data loaded 4h ago → all green; (b) data loaded 8h ago → warn; (c) data loaded 14h ago → error with the actual lag reported.",
+        "In `sources.yml`, declare freshness on `raw.events`: `warn_after: {count: 6, period: hour}`, `error_after: {count: 12, period: hour}`, `loaded_at_field: ingested_at`. Self-check: run `dbt source freshness` against (a) data loaded 4h ago — should be all green; (b) data loaded 8h ago — should show warn; (c) data loaded 14h ago — should show error with the actual lag reported.",
       learningObjective: "Freshness SLAs catch silent pipeline halts — the failure mode dbt tests can't see.",
       requiredSkill: "dbt source freshness + warn_after/error_after thresholds + loaded_at_field",
       starterCode: SRC(`# models/sources.yml
@@ -181,10 +187,16 @@ sources:
 # $ dbt source freshness --select source:raw.events
 # Output includes 'pass | warn | error' + the actual lag.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "multi_file",
-      validation: validationConfig("json_equal", "3 fixture scenarios: 4h lag → pass; 8h lag → warn; 14h lag → error with lag reported.", {
-        expected: { case4hStatus: "pass", case8hStatus: "warn", case14hStatus: "error", case14hLagHours: 14 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Running `dbt source freshness --select source:raw.events` against data loaded 4 hours ago shows status 'pass' (within the 6h warn threshold).",
+          "Against data loaded 8 hours ago (past the 6h warn but under the 12h error threshold), the command reports status 'warn' and shows the actual lag.",
+          "Against data loaded 14 hours ago (past the 12h error threshold), the command reports status 'error' and includes the lag in hours in the output.",
+          "The `loaded_at_field: ingested_at` column is a timestamp that updates on each pipeline run, not a static created_at.",
+          "Both `warn_after` and `error_after` are declared in sources.yml — omitting error_after means late data only warns but never errors.",
+        ],
       }),
       expectedOutputs: { pass: "4h", warn: "8h", error: "14h" },
       datasetRefs: ["fixtures/freshness_scenarios.json"],
@@ -207,7 +219,7 @@ sources:
       stepNumber: 4,
       title: "Severity-routed alerts — page critical, Slack warn, ignore advisory",
       instructionMd:
-        "Implement `route_alerts(failures)` that classifies each failure by `severity` (critical / warn / advisory) and sends accordingly: critical → PagerDuty incident, warn → Slack channel, advisory → log only. Validator passes a mix of 1 critical + 3 warns + 2 advisories and asserts: 1 PagerDuty call, 3 Slack messages, 0 advisory escalations, log contains all 6 failures.",
+        "Implement `route_alerts(failures)` that classifies each failure by `severity` (critical / warn / advisory) and sends accordingly: critical → PagerDuty incident, warn → Slack channel, advisory → log only. Self-check: pass a mix of 1 critical + 3 warns + 2 advisories and confirm 1 PagerDuty call fires, 3 Slack messages fire, 0 advisory escalations occur, and all 6 failures appear in the log.",
       learningObjective: "Severity routing is what makes DQ alerts sustainable — without it, alert fatigue kills the framework.",
       requiredSkill: "Alert routing + severity classification + idempotent incident creation",
       starterCode: SRC(`# alerts.py
@@ -240,10 +252,16 @@ def route_alerts(failures: list[DqFailure], pagerduty_url: str, slack_url: str) 
         counts[f.severity] += 1
     return counts
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Mix of 1 critical + 3 warns + 2 advisories: routing produces 1 PagerDuty + 3 Slack + 0 advisory escalations; all 6 entries in logs.", {
-        expected: { pagerCount: 1, slackCount: 3, advisoryCount: 2, logCount: 6 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Calling route_alerts() with 1 critical + 3 warn + 2 advisory failures triggers exactly 1 PagerDuty HTTP POST and 3 Slack HTTP POSTs.",
+          "Advisory failures are only logged (via logging.warning) — no HTTP call is made for them.",
+          "All 6 failures appear in the log output, regardless of their severity.",
+          "route_alerts() returns counts dict with {'critical': 1, 'warn': 3, 'advisory': 2}.",
+          "The PagerDuty payload includes a dedup_key per failure to prevent alert storms during multi-test outages.",
+        ],
       }),
       expectedOutputs: { paged: 1, slacked: 3, advisory: 2 },
       datasetRefs: ["fixtures/alert_cases.json"],

@@ -80,20 +80,16 @@ def load_orders() -> pd.DataFrame:
     # TODO: pass dtype + parse_dates so order_id stays a string, dates parse to datetime64
     return pd.read_csv(RAW)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
-        expected: {
-          shape: [20, 6],
-          dtypes: {
-            order_id: "object",
-            ordered_at: "datetime64[ns]",
-            region: "object",
-            qty: "Int64",
-            unit_price_cents: "Int64",
-            status: "object",
-          },
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "df.shape == (20, 6) — exactly 20 rows and 6 columns loaded.",
+          "str(df.dtypes['order_id']) == 'object' — order_id is a string, not an integer (leading zeros preserved).",
+          "str(df.dtypes['ordered_at']) == 'datetime64[ns]' — dates parsed, not left as strings.",
+          "str(df.dtypes['qty']) == 'Int64' and str(df.dtypes['unit_price_cents']) == 'Int64' — nullable integer columns.",
+          "str(df.dtypes['region']) == 'object' and str(df.dtypes['status']) == 'object' — string columns.",
+        ],
       }),
       expectedOutputs: { shape: [20, 6], orderIdStaysString: true },
       datasetRefs: ["fixtures/orders_raw.csv"],
@@ -121,7 +117,7 @@ def load_orders() -> pd.DataFrame:
       stepNumber: 2,
       title: "Boolean-mask filter — keep paid orders only",
       instructionMd:
-        "Write `keep_paid(df)` returning the subset of orders where `status == 'paid'`. Use a boolean mask (`df[df['status'] == 'paid']`), not `.query()` and not `.loc` with a callable. Why: boolean masks are the most-used pandas pattern in production — they're the easiest to read, debug (just print the mask), and chain. Validator: returned df has 14 rows (6 are 'cancelled' or 'refunded').",
+        "Write `keep_paid(df)` returning the subset of orders where `status == 'paid'`. Use a boolean mask (`df[df['status'] == 'paid']`), not `.query()` and not `.loc` with a callable. Why: boolean masks are the most-used pandas pattern in production — they're the easiest to read, debug (just print the mask), and chain. Self-verify: the returned df has 14 rows and every row has status == 'paid' (6 cancelled/refunded rows are excluded).",
       learningObjective:
         "Boolean-mask filtering is the #1 pandas pattern in real code. Master it before exploring `.query()` and `.loc[callable]`.",
       requiredSkill: "Boolean mask construction + dataframe subsetting",
@@ -131,13 +127,15 @@ def keep_paid(df: pd.DataFrame) -> pd.DataFrame:
     # TODO: return df filtered to status == 'paid'
     return df
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
-        expected: {
-          rowCount: 14,
-          allStatusPaid: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "len(keep_paid(df)) == 14 — exactly 14 rows remain after filtering.",
+          "keep_paid(df)['status'].unique() == ['paid'] — every surviving row has status 'paid', no 'cancelled' or 'refunded' rows remain.",
+          "The filter uses a boolean mask (df[df['status'] == 'paid']), not .query() or .loc with a callable.",
+          "The original df is not mutated — keep_paid returns a new filtered DataFrame.",
+        ],
       }),
       expectedOutputs: { rowCount: 14, allPaid: true },
       datasetRefs: ["fixtures/orders_raw.csv"],
@@ -165,7 +163,7 @@ def keep_paid(df: pd.DataFrame) -> pd.DataFrame:
       stepNumber: 3,
       title: "Project + rename — keep only the report columns",
       instructionMd:
-        "Write `select_report_columns(df)` returning a DataFrame with exactly these columns in this order: `order_id, region, qty, unit_price_cents`, renamed to `order_id, region, units, unit_price_cents`. Use `.loc[:, [...]]` for the projection and `.rename(columns={...})` for the rename. Why renaming matters: downstream consumers shouldn't know that you internally called it `qty` when they asked for `units`.",
+        "Write `select_report_columns(df)` returning a DataFrame with exactly these columns in this order: `order_id, region, qty, unit_price_cents`, renamed to `order_id, region, units, unit_price_cents`. Use `.loc[:, [...]]` for the projection and `.rename(columns={...})` for the rename. Self-verify: the returned DataFrame has exactly 4 columns in the order `[order_id, region, units, unit_price_cents]` and no `qty` column remains.",
       learningObjective:
         "Projection + rename in one chained step is the canonical 'prepare for downstream' move.",
       requiredSkill: ".loc projection + .rename(columns=...) chaining",
@@ -178,13 +176,15 @@ def select_report_columns(df: pd.DataFrame) -> pd.DataFrame:
     # TODO: project to REPORT_COLS, then rename qty -> units
     return df
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
-        expected: {
-          columns: ["order_id", "region", "units", "unit_price_cents"],
-          columnCount: 4,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "list(select_report_columns(df).columns) == ['order_id', 'region', 'units', 'unit_price_cents'] — exactly 4 columns in this order.",
+          "No 'qty' column is present in the returned DataFrame (it was renamed to 'units').",
+          "'status', 'ordered_at', and any other source columns are not included in the output.",
+          "The original df is not mutated — select_report_columns returns a new DataFrame.",
+        ],
       }),
       expectedOutputs: { columns: ["order_id", "region", "units", "unit_price_cents"] },
       datasetRefs: ["fixtures/orders_raw.csv"],

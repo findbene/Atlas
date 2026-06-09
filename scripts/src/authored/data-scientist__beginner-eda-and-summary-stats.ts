@@ -6,7 +6,7 @@
  * Candidate 100f741c-1ca3-4dcd-8b85-84d0d54b3258 — the universal first
  * data-science deliverable: load → schema audit → null/dupe count →
  * per-column summary → groupwise summary → correlation matrix + top
- * pair. All numeric assertions are `numeric_tolerance`-validated.
+ * pair. All steps use `self_attest` validation (learner self-verifies numeric outputs).
  */
 import {
   pedagogyConfig, validationConfig, portfolioArtifact, projectMeta,
@@ -20,7 +20,7 @@ export const dataScientistBeginnerEdaAndSummaryStats: AuthoredProject = {
   candidateId: "100f741c-1ca3-4dcd-8b85-84d0d54b3258",
   title: "EDA + Summary Stats (Beginner DS) — The 5-Step Audit Every Dataset Deserves",
   shortDescription:
-    "The first 5 things a data scientist does with any new dataset: read + schema audit, null/dupe counts, per-column summaries (mean / median / std), groupwise comparison, correlation matrix + top correlated pair. Every step's numbers are verified via `numeric_tolerance` against a known answer.",
+    "The first 5 things a data scientist does with any new dataset: read + schema audit, null/dupe counts, per-column summaries (mean / median / std), groupwise comparison, correlation matrix + top correlated pair. Every step gives you concrete expected values to check your output against.",
   fullDescription:
     "Most data-science courses leap to scikit-learn before the learner has ever properly looked at the data. This one does the opposite: you'll walk a real (small) tabular dataset through the five steps every senior DS does in the first 30 minutes with new data — load + schema audit (right types? expected shape?), null + duplicate audit (where's the data missing? where are the dupes?), per-column central-tendency + spread, groupwise summary stats (does the metric differ by segment?), and a correlation matrix with the strongest pair pulled out. Every numeric output is validated to a small tolerance against a known answer, so when you fix a bug you see the number move. By the end you have a reusable EDA notebook template that scales to real work.",
   language: "python",
@@ -188,7 +188,7 @@ def summary_stats(df: pd.DataFrame, cols: list[str]) -> dict:
         hints: [
           "`df[col].std(ddof=1)` = sample standard deviation (n-1 denominator). pandas default. NumPy default is `ddof=0`. Always be explicit.",
           "Mean ≈ median → roughly symmetric distribution. Mean ≫ median → right-skewed (long tail of large values). Mean ≪ median → left-skewed.",
-          "`round(x, 2)` for display. For tests, use `numeric_tolerance` rather than equality — float arithmetic is not bit-exact.",
+          "`round(x, 2)` for display. When comparing floats in your own tests, allow a small tolerance (±0.01) rather than strict equality — float arithmetic is not bit-exact.",
           "`df.describe()` returns all of these and more in a DataFrame — great for notebooks, but for testable code, build the dict yourself.",
           "{'mean': round(df[col].mean(), 2), 'median': round(df[col].median(), 2), 'std': round(df[col].std(ddof=1), 2)}",
         ],

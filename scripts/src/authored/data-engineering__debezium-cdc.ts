@@ -61,7 +61,7 @@ export const dataEngineeringDebeziumCdc: AuthoredProject = {
       stepNumber: 1,
       title: "Quantify polling losses",
       instructionMd:
-        "Implement `lost_events(before, after)` that counts the events a 5-minute poll would miss: deletes (rows in before but not in after), and missed intermediate updates (sum of `update_count` deltas for rows in both). Validator drives with a controlled scenario.",
+        "Implement `lost_events(before, after)` that counts the events a 5-minute poll would miss: deletes (rows in before but not in after), and missed intermediate updates (sum of `update_count` deltas for rows in both). Self-check: drive it with the controlled scenario in the attestation criteria and confirm the result.",
       learningObjective: "Make polling's data loss concrete — not theoretical.",
       requiredSkill: "Set ops over row dicts + update-count arithmetic",
       starterCode: SRC(`def lost_events(rows_before, rows_after):
@@ -106,11 +106,16 @@ export const dataEngineeringDebeziumCdc: AuthoredProject = {
     # TODO: hi, lo = lsn.split('/'); return (int(hi, 16) << 32) | int(lo, 16)
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "lsn_to_int across 5 representative LSNs returns the correct comparable 64-bit ints.", {
-        inputs: ["0/0", "0/16B3748", "1/0", "1/16B3748", "1/A"],
-        expected: [0, 23803720, 4294967296, 4318771016, 4294967306],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "lsn_to_int('0/0') returns 0.",
+          "lsn_to_int('0/16B3748') returns 23803720.",
+          "lsn_to_int('1/0') returns 4294967296 — confirming the high word shifts correctly and is larger than any '0/...' LSN.",
+          "lsn_to_int('1/16B3748') returns 4318771016 and lsn_to_int('1/A') returns 4294967306.",
+          "Sorting ['1/0', '0/16B3748', '0/0', '1/A'] by lsn_to_int produces the correct ascending order: 0/0 < 0/16B3748 < 1/A < 1/0... wait — verify '1/A' > '1/0' is False; confirm your sort matches integer comparison, not lexicographic.",
+        ],
       }),
       expectedOutputs: { parsedLsns: 5, monotonicWhenSorted: true },
       datasetRefs: ["fixtures/lsn_examples.json"],

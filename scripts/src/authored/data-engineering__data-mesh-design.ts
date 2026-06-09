@@ -341,7 +341,7 @@ def get_product(name: str) -> dict:
       stepNumber: 5,
       title: "Catalog with freshness tracking",
       instructionMd:
-        "Extend the platform with `record_freshness(product_name, last_written_at)` (call from producer pipelines) and `GET /catalog` returning per-product `{name, domain, owner, version, freshness_status}` where `freshness_status = 'fresh' | 'stale' | 'expired'` based on `(now - last_written_at) vs slo.freshness_hours`. Validator: 3 products recorded with varying freshness → expect 1 fresh, 1 stale (>SLO but <2× SLO), 1 expired (>2× SLO).",
+        "Extend the platform with `record_freshness(product_name, last_written_at)` (call from producer pipelines) and `GET /catalog` returning per-product `{name, domain, owner, version, freshness_status}` where `freshness_status = 'fresh' | 'stale' | 'expired'` based on `(now - last_written_at) vs slo.freshness_hours`. Self-check: record 3 products at 2h, 30h, and 60h ago (SLO=24h) and confirm catalog() returns 'fresh', 'stale', and 'expired' respectively.",
       learningObjective: "Make freshness the first thing consumers see — operationalize the SLO.",
       requiredSkill: "Freshness tracking + SLO comparison + multi-band status",
       starterCode: SRC(`# catalog.py
