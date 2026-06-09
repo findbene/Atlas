@@ -69,8 +69,9 @@ Unchanged: sql 8 + csv 2 = **10**. No flip; C2 set [1,2,3,5]; no rowset/comparat
 Copy-only instructionMd edits; no runtime/projection/export change. api-server 679/679 (incl. export-unit + portfolioZip) + integration 4/4.
 
 ## 22. Independent Review Results
-- **atlas-architect-reviewer → PASS** (verdict recorded post-review).
-- **code-reviewer → SHIP** (verdict recorded post-review).
+- **atlas-architect-reviewer → PASS** (0 P0/P1; own broad scan of all 220 self_attest steps = 0 residual; no runtime/Phase-52/schema drift; serverGrade=10). 3 deferrable P2s → all fixed.
+- **code-reviewer → SHIP** (0 P0/P1; lint compiles + behaves on Node 24, tests pin each pattern, only instructionMd changed, 3 serverGrade files untouched). Low notes → folded into the P2 fixes.
+- **P2 hardening applied:** stale audit comment fixed; lint broadened (lowercase/`The` validator, `server validates/validated`, `Atlas asserts/evaluates`, `auto-graded`, `the grader <verb>`) without new false positives; audit now lints `validation.description` too. +8 lint tests; audit:validation-keys still 0.
 
 ## 23. Remaining Risks / Recommended Next Phase
 Non-self_attest "Validator" overstatement (contains/sql) unaddressed (lower priority). Learner-code execution-grading harness = future epic. Honesty lint now gates the self_attest class. Do not begin the next phase unprompted.

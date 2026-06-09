@@ -100,8 +100,23 @@ Sweep + lint + tests in pushed session wips + a clean conventional commit; close
 + archive follow. The throwaway `diag-self-attest-copy.ts` was deleted before commit.
 
 ## 13. Independent reviews (§22)
-- **atlas-architect-reviewer → _pending_**.
-- **code-reviewer → _pending_**.
+- **atlas-architect-reviewer → PASS** (0 P0/P1). Re-derived every claim: 0 misleading
+  self_attest copy (own broader scan of all 220 steps = 0 residual); rewrites
+  product-grade + scenario-preserving; no runtime/comparator/schema/Phase-52 drift;
+  serverGrade=10; H3 intact; diag deleted. 3 deferrable P2s → **all fixed**.
+- **code-reviewer → SHIP** (0 P0/P1). Verified the lint compiles + behaves on Node 24
+  (lookbehind, negation, learner-validator suppression), the 14 tests pin each
+  pattern, only instructionMd changed across 33 files, the 3 serverGrade files
+  untouched, no runtime drift. Low/informational notes → folded into the P2 fixes.
+
+**P2 fixes applied (post-review hardening):** (1) corrected the stale "Phase 61J"
+audit-lint comment; (2) broadened `selfAttestHonestyViolations` — lowercase/`The`
+`validator <verb>` (case-insensitive lookbehind), `server validates/validated`,
+`Atlas asserts/evaluates`, `auto-graded`, `the grader <verb>` — while still NOT
+flagging a learner-owned "your/a validator runs" or a legit "the server runs in
+production"; (3) the audit now lints the `validation.description` too, not just
+`instructionMd`. +8 lint tests. `audit:validation-keys` still 0 (no catalog false
+positives).
 
 ## 14. Remaining risks / recommended next phase (§23)
 - The honesty lint covers self_attest `instructionMd`. A future pass could extend it

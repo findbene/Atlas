@@ -335,6 +335,27 @@ describe("selfAttestHonestyViolations — Phase 61K honesty lint", () => {
     ok("");
     ok("Implement the dispatch macro and write three unit tests.");
   });
+
+  // Phase 61K hardening (reviewer P2): broader phrase coverage.
+  it("flags lowercase 'validator runs …'", () => bad("Then validator runs the suite against the fixture."));
+  it("flags 'The Validator runs …' (capital, case-insensitive)", () => bad("The Validator runs your code on submit."));
+  it("flags 'server validates' / 'server-validated'", () => {
+    bad("The server validates your output on commit.");
+    bad("This output is server-validated.");
+  });
+  it("flags 'Atlas asserts/evaluates'", () => {
+    bad("Atlas asserts the result equals 42.");
+    bad("Atlas evaluates your output against the key.");
+  });
+  it("flags 'auto-graded' / 'autograded'", () => {
+    bad("This step is auto-graded on submit.");
+    bad("Your code is autograded against the fixture.");
+  });
+  it("flags 'the grader runs …'", () => bad("Behind the scenes the grader runs your function."));
+  it("does NOT flag a learner-owned server ('the server runs in production')", () =>
+    ok("Deploy it so the server runs in production behind a load balancer."));
+  it("still passes 'your validator runs' under the hardened (case-insensitive) pattern", () =>
+    ok("Confirm your validator runs the suite and reports pass/fail."));
 });
 
 

@@ -48,18 +48,22 @@ for (const p of AUTHORED_PROJECTS) {
   for (const s of p.steps) {
     const kind = s.validation?.kind;
 
-    // Phase 61J — honesty lint (all kinds): a `self_attest` step must not claim
-    // Atlas grades it. self_attest performs no check, so "Atlas checks/verifies/
-    // grades …" in its instruction is a false H3 grading claim (the exact defect
-    // the numeric_tolerance→self_attest conversions risked, caught in review).
-    // Narrow: matches only "Atlas <checks|verifies|grades>" — the honest "Atlas
-    // does NOT run/grade" line and the contains "Atlas checks that the required
-    // markers …" copy (which lives on contains steps, not self_attest) don't trip it.
+    // Phase 61K — self_attest honesty lint (all kinds): a `self_attest` step
+    // performs NO grading, so its learner-facing copy must not imply automated /
+    // Atlas validation ("Validator runs/asserts X", "server-enforced", "Atlas
+    // verifies", "commit-grader", "graded by Atlas", "auto-graded", …). The shared
+    // `selfAttestHonestyViolations` helper (curriculum-quality) encodes the phrase
+    // set and suppresses honest negations ("Atlas does NOT run/grade…") and
+    // learner-owned validators ("your validator runs…"). Lints BOTH the
+    // instructionMd and the validation description so neither can smuggle a claim.
     if (kind === "self_attest") {
-      const bad = selfAttestHonestyViolations(s.instructionMd ?? "");
+      const bad = [
+        ...selfAttestHonestyViolations(s.instructionMd ?? ""),
+        ...selfAttestHonestyViolations((s.validation?.description as string) ?? ""),
+      ];
       if (bad.length > 0) {
         failures.push(
-          `${p.slug} step ${s.stepNumber} (self_attest): instructionMd implies automated/Atlas ` +
+          `${p.slug} step ${s.stepNumber} (self_attest): copy implies automated/Atlas ` +
             `validation, but self_attest performs no grading (false H3 claim): "${bad.join('", "')}". ` +
             `Reword to honest self-verification copy.`,
         );

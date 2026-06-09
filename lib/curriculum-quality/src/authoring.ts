@@ -343,17 +343,27 @@ function assertValidNumericToleranceSpec(spec: Record<string, unknown>): void {
 // learner-owned validators ("your validator runs…") are intentionally NOT flagged.
 const SELF_ATTEST_MISLEADING: RegExp[] = [
   // Atlas as the grading subject (extends the Phase-61J pattern).
-  /\bAtlas\s+(checks|verifies|grades|validates|confirms|runs|executes)\b/i,
-  // Server / commit-grader / automated grading language.
-  /\bserver[- ](verifies|confirms|enforced|enforces|grades|checks)\b/i,
+  /\bAtlas\s+(checks|verifies|grades|validates|confirms|runs|executes|asserts|evaluates)\b/i,
+  // Server / commit-grader / auto-grading language. (`server runs/asserts` is
+  // intentionally NOT flagged — a self_attest step may legitimately describe the
+  // learner's own server running; only validation verbs imply Atlas grading.)
+  /\bserver[- ](verifies|confirms|enforced|enforces|grades|checks|validates|validated)\b/i,
   /\bcommit[- ]grader\b/i,
+  /\bauto[- ]?grad(e|ed|es|ing)\b/i,
   /\bautomated\s+(check|validation|grading|grader)\b/i,
-  /\b(graded|validated|verified)\s+by\s+(atlas|the\s+(server|grader|commit|validator))\b/i,
-  // "Validator <verb>" as an automated subject. Capital-V proper-noun subject
-  // only; a learner-owned validator ("your/own/my/a/the/each/learner's validator
-  // runs…") is excluded via lookbehind so legit "build a validator that runs…"
-  // copy is not flagged.
-  /(?<!\b(?:your|own|my|a|the|each|learner'?s)\s)\bValidator\s+(runs|asserts|drives|hits|checks|verifies|evaluates|parses|executes)\b/,
+  /\b(graded|validated|verified)\s+by\s+(atlas|the\s+(server|grader|commit|validator|system))\b/i,
+  // "the grader <verb>" as an automated grading subject (a self_attest step has
+  // no grader). Limited to grader/commit-grader to avoid flagging a legit
+  // "the server runs …" describing the learner's own infrastructure.
+  /\bthe\s+(grader|commit[- ]grader)\s+(runs|grades|checks|asserts|verifies|validates|evaluates)\b/i,
+  // "validator <verb>" as an automated subject. A learner-owned validator
+  // ("your/own/my/a/each/learner's validator runs…") is excluded via the
+  // lookbehind. "the/The Validator runs…" IS flagged (a self_attest step has no
+  // grader, so it reads as an automated-validation claim); legit "build a
+  // validator that runs…" is safe because `validator` must be immediately
+  // followed by the verb (so "the validator you wrote runs" does not match). The
+  // `i` flag closes the lowercase-`validator` / capital-`Validator` gaps.
+  /(?<!\b(?:your|own|my|a|each|learner'?s)\s)\bvalidator\s+(runs|asserts|drives|hits|checks|verifies|evaluates|parses|executes)\b/i,
 ];
 const HONEST_NEGATION = /\b(does not|doesn't|do not|don't|never|not|no)\s*$/i;
 
