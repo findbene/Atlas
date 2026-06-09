@@ -153,7 +153,19 @@ export function gradeSubmission(
   }
 
   if (step.validationType === "regex" && step.validationConfig) {
-    const config = step.validationConfig as { pattern?: string; flags?: string };
+    // Phase 61I — extract the inner `spec` when present (the `validationConfig()`
+    // wrapped shape `{kind, spec, description}`), mirroring the contains (61G) /
+    // csv_set_equal / sql_resultset branches. Legacy seed regex configs store
+    // `{pattern, flags}` at the TOP level, so fall back to the config itself when
+    // there is no nested object `spec`. Before this fix an authored
+    // `validationConfig("regex", …, {pattern})` wrapped its pattern under `spec`,
+    // the runtime read top-level `pattern` (undefined) → `new RegExp("")` →
+    // matched every submission (a dead gate). 0 live regex rows today, so this is
+    // a latent fix; the authoring guard `assertValidRegexSpec` keeps it that way.
+    const cfg = step.validationConfig as { spec?: unknown };
+    const config = (cfg.spec && typeof cfg.spec === "object"
+      ? cfg.spec
+      : step.validationConfig) as { pattern?: string; flags?: string };
     try {
       const re = new RegExp(config.pattern ?? "", config.flags ?? "");
       const passed = re.test(submission ?? "");

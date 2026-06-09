@@ -197,19 +197,72 @@ describe("validationConfig(contains) — Phase 56 structured-spec validator", ()
     ok({ needles: ["a", "b"] }));
 });
 
-// ── Phase 61H — `exact` structured-spec validator ─────────────────────────
-describe("validationConfig(exact) — Phase 61H marker-key rejection", () => {
+// ── Phase 61I — `exact` authoring→runtime contract (require `expected`) ─────
+describe("validationConfig(exact) — Phase 61I expected-output contract", () => {
   const okExact = (spec: Record<string, unknown>) =>
     expect(() => validationConfig("exact", "desc", spec)).not.toThrow();
   const badExact = (spec: Record<string, unknown>, match: RegExp) =>
     expect(() => validationConfig("exact", "desc", spec)).toThrow(match);
 
-  it("rejects 'mustContainAll' on exact (the dead C2 4/6 pattern)", () =>
-    badExact({ mustContainAll: ["a"] }, /marker key the exact runtime never reads/));
-  it("rejects 'needles' on exact", () => badExact({ needles: ["a"] }, /never reads/));
-  it("rejects 'needle' on exact", () => badExact({ needle: "a" }, /never reads/));
-  it("accepts a non-marker spec", () => okExact({ note: "expected comes from expected_output" }));
-  it("accepts empty {}", () => okExact({}));
+  it("accepts the canonical { expected: <non-empty string> }", () =>
+    okExact({ expected: "the one true answer" }));
+
+  it("rejects a missing expected (empty {}) — would fail closed at runtime", () =>
+    badExact({}, /non-empty string 'expected' is required/));
+  it("rejects an empty-string expected", () =>
+    badExact({ expected: "" }, /non-empty string 'expected' is required/));
+  it("rejects a non-string expected", () =>
+    badExact({ expected: 123 }, /non-empty string 'expected' is required/));
+
+  // Marker keys (the dead C2 4/6 pattern) and bespoke expected* assertions are
+  // category errors — rejected by the strict allowlist (only `expected` allowed).
+  it("rejects 'mustContainAll' on exact", () =>
+    badExact({ mustContainAll: ["a"] }, /not read by the exact runtime/));
+  it("rejects 'needles' on exact", () =>
+    badExact({ needles: ["a"] }, /not read by the exact runtime/));
+  it("rejects 'needle' on exact", () =>
+    badExact({ needle: "a" }, /not read by the exact runtime/));
+  it("rejects a bespoke expected* key (e.g. expectedSchemaPattern)", () =>
+    badExact({ expectedSchemaPattern: "x" }, /not read by the exact runtime/));
+  it("rejects an extra key alongside a valid expected", () =>
+    badExact({ expected: "x", note: "y" }, /not read by the exact runtime/));
+});
+
+// ── Phase 61I — `contains` strict allowlist ────────────────────────────────
+describe("validationConfig(contains) — Phase 61I strict allowlist", () => {
+  const bad = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("contains", "desc", spec)).toThrow(match);
+  it("rejects bespoke 'required'", () => bad({ required: ["a"] }, /not a key the runtime reads/));
+  it("rejects bespoke 'mustContain'", () => bad({ mustContain: ["a"] }, /not a key the runtime reads/));
+  it("rejects bespoke 'scenarios'", () => bad({ scenarios: [{}] }, /not a key the runtime reads/));
+  it("rejects bespoke 'expected'", () => bad({ expected: ["a"] }, /not a key the runtime reads/));
+  it("rejects bespoke 'forbidden' (must-NOT-contain — use self_attest)", () =>
+    bad({ forbidden: ["secret"] }, /not a key the runtime reads/));
+  it("still accepts canonical { needles }", () =>
+    expect(() => validationConfig("contains", "desc", { needles: ["a", "b"] })).not.toThrow());
+});
+
+// ── Phase 61I — `regex` structured-spec validator ──────────────────────────
+describe("validationConfig(regex) — Phase 61I structured-spec validator", () => {
+  const okRe = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("regex", "desc", spec)).not.toThrow();
+  const badRe = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("regex", "desc", spec)).toThrow(match);
+
+  it("accepts { pattern }", () => okRe({ pattern: "^ok$" }));
+  it("accepts { pattern, flags }", () => okRe({ pattern: "ok", flags: "i" }));
+  it("rejects a missing pattern (would match everything)", () =>
+    badRe({}, /non-empty string 'pattern' is required/));
+  it("rejects an empty-string pattern", () =>
+    badRe({ pattern: "" }, /non-empty string 'pattern' is required/));
+  it("rejects a non-string pattern", () =>
+    badRe({ pattern: 1 }, /non-empty string 'pattern' is required/));
+  it("rejects an unknown key", () =>
+    badRe({ pattern: "ok", needle: "x" }, /Only 'pattern' and 'flags' are allowed/));
+  it("rejects non-string flags", () =>
+    badRe({ pattern: "ok", flags: 2 }, /'flags' must be a string/));
+  it("rejects a pattern that does not compile", () =>
+    badRe({ pattern: "(" }, /does not compile/));
 });
 
 

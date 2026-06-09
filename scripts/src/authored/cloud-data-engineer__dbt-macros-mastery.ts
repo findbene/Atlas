@@ -103,7 +103,7 @@ def surrogate_key(*columns):
       stepNumber: 2,
       title: "dispatch — warehouse-portable week_trunc",
       instructionMd:
-        "Implement `dispatch(macro_name, adapter, implementations)` returning the right impl: prefer `implementations[adapter]`, fall back to `implementations['default']`, raise KeyError if neither. This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.",
+        "Implement `dispatch(macro_name, adapter, implementations)` returning the right impl: prefer `implementations[adapter]`, fall back to `implementations['default']`, raise KeyError if neither. Validator drives Postgres (default) and BigQuery (override) for a `week_trunc` macro.",
       learningObjective: "Use dbt's dispatch pattern to write macros that compile correctly on every warehouse.",
       requiredSkill: "Adapter-aware macro resolution + safe fallback",
       starterCode: SRC(`def dispatch(macro_name, adapter, implementations):
@@ -112,15 +112,15 @@ def surrogate_key(*columns):
     # TODO: raise KeyError(f'no impl for {macro_name} on {adapter} and no default')
     pass
 `),
-      validationType: "self_attest",
+      validationType: "json_equal",
       stepType: "code_python",
-      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
-        attestationCriteria: [
-          "dispatch('week_trunc','postgres',{default:fn_pg}) returns fn_pg('order_date') == \"date_trunc('week', order_date)\"",
-          "dispatch('week_trunc','bigquery',{default:fn_pg, bigquery:fn_bq}) returns fn_bq('order_date') == \"date_trunc(order_date, week)\"",
-          "dispatch('week_trunc','snowflake',{default:fn_pg}) falls back to fn_pg (default) correctly",
-          "dispatch('week_trunc','snowflake',{bigquery:fn_bq}) raises KeyError (no default, no match)",
+      validation: validationConfig("json_equal", "dispatch('week_trunc','postgres',{default:fn_pg, bigquery:fn_bq})('order_date') == \"date_trunc('week', order_date)\"; same for bigquery returns BQ form; missing default + missing adapter raises.", {
+        cases: [
+          { adapter: "postgres", expected: "date_trunc('week', order_date)" },
+          { adapter: "bigquery", expected: "date_trunc(order_date, week)" },
+          { adapter: "snowflake", expected: "date_trunc('week', order_date)" },
         ],
+        expectErrorWhenNoDefault: true,
       }),
       expectedOutputs: { pgOk: true, bqOk: true, fallbackOk: true, missingRaises: true },
       datasetRefs: ["fixtures/dispatch_cases.json"],

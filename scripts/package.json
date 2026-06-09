@@ -13,6 +13,7 @@
     "audit:authoring": "tsx ./src/audit-project-authoring.ts",
     "audit:contains-bc": "tsx ./src/audit-contains-bc.ts",
     "audit:exact-bc": "tsx ./src/audit-exact-bc.ts",
+    "audit:validation-keys": "tsx ./src/audit-validation-keys.ts",
     "audit:csv-set-equal-bc": "tsx ./src/audit-csv-set-equal-bc.ts",
     "audit:sql-resultset-bc": "tsx ./src/audit-sql-resultset-bc.ts",
     "audit:quality": "tsx ./src/audit-quality.ts",

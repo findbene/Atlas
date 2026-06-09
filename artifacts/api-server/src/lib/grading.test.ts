@@ -926,6 +926,38 @@ describe("gradeSubmission", () => {
     expect(r.feedback).toMatch(/invalid regex/i);
   });
 
+  it("regex (Phase 61I — wrapped spec): reads inner spec.pattern, passes on match", () => {
+    const r = gradeSubmission(
+      step({
+        validationType: "regex",
+        // The validationConfig() wrapped shape — pre-61I the runtime read the
+        // (absent) top-level `pattern` → new RegExp("") → matched anything.
+        validationConfig: { kind: "regex", description: "d", spec: { pattern: "^hello", flags: "i" } },
+      }),
+      "HELLO world",
+    );
+    expect(r.passed).toBe(true);
+  });
+
+  it("regex (Phase 61I — wrapped spec): a non-matching submission FAILS (not a dead gate)", () => {
+    const r = gradeSubmission(
+      step({
+        validationType: "regex",
+        validationConfig: { kind: "regex", description: "d", spec: { pattern: "^hello", flags: "" } },
+      }),
+      "goodbye world",
+    );
+    expect(r.passed).toBe(false);
+  });
+
+  it("regex (Phase 61I): legacy top-level { pattern } still works (BC fallback)", () => {
+    const r = gradeSubmission(
+      step({ validationType: "regex", validationConfig: { pattern: "^ok$" } }),
+      "ok",
+    );
+    expect(r.passed).toBe(true);
+  });
+
   it("unknown / null validationType passes with generic feedback (legacy default)", () => {
     expect(gradeSubmission(step({ validationType: null }), "anything").passed).toBe(true);
     expect(gradeSubmission(step({ validationType: "mystery" }), "x").feedback).toBe("Step completed.");

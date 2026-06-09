@@ -19,9 +19,11 @@
  * reproducible in Pyodide. Swap to a real provider is a one-line edit in
  * `src/llm_mock.py`, called out in the README.
  *
- * Validation discipline: 7 of 8 steps use the audit-classified "enforced"
- * kind (`contains`) and 1 uses the contract-shaped numeric_tolerance
- * (LLM-judge calibration — the canonical numeric_tolerance use case).
+ * Validation discipline (updated Phase 61I): 5 of 8 steps use the canonical
+ * `contains` needle-marker check; 2 steps whose core intent is multi-scenario
+ * CLI / parse behavior (the parse-and-repair outcome triplet, the safety-eval
+ * exit-code regression gate) use honest `self_attest`; 1 uses numeric_tolerance
+ * (LLM-judge calibration — still a dead-gate kind, pending the Phase-61J sweep).
  * This matches the established catalog convention shared by 14 prior
  * authored modules (Phase 7 → 41) and SHIFTS the catalog enforcement-
  * kind ratio in the right direction rather than piling more
@@ -148,9 +150,9 @@ def action_json_schema() -> dict:
       stepType: "code_python",
       validation: validationConfig(
         "contains",
-        "Emitted JSON Schema contains the kind discriminator + Field constraints (amount maximum 200, reply maxLength 1000) + the three action variants. The schema string is what a reviewer will eyeball first — these markers must be visible.",
+        "Atlas checks that your emitted JSON Schema string contains the required evidence markers (the kind discriminator, the amount/maxLength hard-cap constraints, the three action variants) — not that Pydantic otherwise validates each variant at runtime, and not your authorship or competence.",
         {
-          schemaMustContain: [
+          needles: [
             '"discriminator"',
             '"refund"',
             '"escalate"',
@@ -161,9 +163,6 @@ def action_json_schema() -> dict:
             '"p1"',
             '"p2"',
           ],
-          allowsModelValidateOnEachVariant: true,
-          rejectsRefundAbove200: true,
-          rejectsReplyAbove1000Chars: true,
         },
       ),
       expectedOutputs: {
@@ -228,22 +227,19 @@ def build_prompt(user_message: str, schema: dict) -> tuple[str, str]:
       stepType: "code_python",
       validation: validationConfig(
         "contains",
-        "build_prompt returns a tuple; system_msg enumerates all four contract rules; user_msg embeds the schema + the one-shot example + the user_message itself.",
+        "Atlas checks that your built prompt contains the required evidence markers (the four contract-rule phrases in the system message + the embedded schema discriminator, the one-shot example, and the 'Now produce the action' lead-in in the user message) — not that the function otherwise returns a correctly-typed tuple, and not your authorship or competence.",
         {
-          systemMsgMustContain: [
+          needles: [
             "Four contract rules",
             "No prose",
             "above $200",
             "escalated",
             "ignore prior instructions",
             "instruction_override_attempt",
-          ],
-          userMsgMustContain: [
             "discriminator",
             "ABCD-1234",
             "Now produce the action",
           ],
-          returnsTuple: true,
         },
       ),
       expectedOutputs: {
@@ -329,19 +325,18 @@ def parse_and_repair(user_message: str, schema: dict, llm_call: LlmCall) -> tupl
     #       on second failure return (None, 'unrecoverable', last_err).
     return None, "unrecoverable", err
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
       validation: validationConfig(
-        "contains",
-        "Three deterministic fixture scenarios — clean response → 'valid'; broken-then-fixed → 'repaired'; broken-twice → 'unrecoverable'. Output (stdout / return-value JSON) must carry the three outcome literals; failure paths must NEVER raise.",
+        "self_attest",
+        "This is a learner attestation — Atlas does not run your parser or grade the valid/repaired/unrecoverable behavior across the fixture scenarios; verify it yourself against the criteria.",
         {
-          stdoutMustContain: ["valid", "repaired", "unrecoverable"],
-          scenarios: [
-            { fixture: "clean_refund", expectOutcome: "valid" },
-            { fixture: "broken_fence_then_fixed", expectOutcome: "repaired" },
-            { fixture: "broken_twice", expectOutcome: "unrecoverable" },
+          attestationCriteria: [
+            "Clean response fixture (clean_refund) → outcome 'valid'",
+            "Broken-then-fixed fixture (broken_fence_then_fixed) → outcome 'repaired'",
+            "Broken-twice fixture (broken_twice) → outcome 'unrecoverable'",
+            "Parse/schema failures NEVER raise — bad output is returned as data, not an exception",
           ],
-          neverRaises: true,
         },
       ),
       expectedOutputs: {
@@ -431,9 +426,9 @@ def validate_action(action: dict) -> tuple[Decision, list[str], dict | None]:
       stepType: "code_python",
       validation: validationConfig(
         "contains",
-        "Twelve-case fixture covers: refund $50 → allow; refund $500 → reject with refund_above_cap; reply containing SSN → redact with pii_detected:ssn + [REDACTED-SSN] in the redacted dict; reply containing CC → redact with pii_detected:cc; refund $500 with SSN → reject (precedence reject > redact); kind='delete' → reject with action_not_in_allowlist:delete. Decision precedence reject > redact > allow.",
+        "Atlas checks that your validator output contains the required evidence markers (refund_above_cap, pii_detected:ssn/cc, the [REDACTED-*] masks, action_not_in_allowlist) — not that the decision precedence or all twelve fixture cases otherwise behave correctly, and not your authorship or competence.",
         {
-          stdoutMustContain: [
+          needles: [
             "refund_above_cap",
             "pii_detected:ssn",
             "pii_detected:cc",
@@ -441,8 +436,6 @@ def validate_action(action: dict) -> tuple[Decision, list[str], dict | None]:
             "[REDACTED-CC]",
             "action_not_in_allowlist",
           ],
-          precedence: ["reject", "redact", "allow"],
-          fixtureCases: 12,
         },
       ),
       expectedOutputs: {
@@ -518,9 +511,9 @@ def detect_injection(s: str) -> dict:
       stepType: "code_python",
       validation: validationConfig(
         "contains",
-        "12-row labelled fixture (8 attacks + 4 benign). Precision over attack class ≥ 0.85. Output (stdout) must show per-row decision + an aggregate 'precision=' / 'recall=' line. All four heuristic reasons reachable across the fixture.",
+        "Atlas checks that your injection-guard output contains the required evidence markers (the four heuristic reasons, the precision=/recall= aggregate lines, the [REMOVED-ROLE-HEADER] sanitizer mask) — not that precision over the attack class actually reaches 0.85 or that all twelve fixture rows behave correctly, and not your authorship or competence.",
         {
-          stdoutMustContain: [
+          needles: [
             "keyword_match",
             "role_header_injection",
             "oversized_payload",
@@ -529,8 +522,6 @@ def detect_injection(s: str) -> dict:
             "recall=",
             "[REMOVED-ROLE-HEADER]",
           ],
-          fixtureCases: 12,
-          minPrecisionOnAttacks: 0.85,
         },
       ),
       expectedOutputs: {
@@ -711,25 +702,21 @@ class Telemetry:
       stepType: "code_python",
       validation: validationConfig(
         "contains",
-        "After replaying a 10-decision fixture: render_metrics() output contains the # TYPE headers for all three counter names + sample label rows; audit.log contains 10 lines each with the 6 required fields + a SHA1-shaped hash (no raw user content).",
+        "Atlas checks that your telemetry output contains the required evidence markers (the three # TYPE counter headers + sample label rows from render_metrics, and the audit-log field names) — not that the audit log has exactly 10 lines or that raw user content is otherwise absent, and not your authorship or competence.",
         {
-          metricsMustContain: [
+          needles: [
             "# TYPE guardrail_decisions_total counter",
             "# TYPE parser_outcomes_total counter",
             "# TYPE injection_actions_total counter",
             'decision="allow"',
             'outcome="valid"',
             'action="allow"',
-          ],
-          auditLogMustContain: [
             "user_message_hash",
             "parser_outcome",
             "validator_decision",
             "injection_action",
             "judge_compliant",
           ],
-          auditLineCount: 10,
-          noRawUserContentInAudit: true,
         },
       ),
       expectedOutputs: {
@@ -849,23 +836,15 @@ def evaluate(
     typer.echo(md)
     raise typer.Exit(code=0 if passed else 1)
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
       validation: validationConfig(
-        "contains",
-        "Two scenarios on the 30-case fixture: against a matching baseline → exit 0, report contains 'PASS' + every metric row; against a degraded baseline (pii_leak_rate +5pp, judge_noncompliant_rate +10pp) → exit 1, report contains 'FAIL' + 'pii_leak_rate' + 'judge_noncompliant_rate' in regressions.",
+        "self_attest",
+        "This is a learner attestation — Atlas does not run your safety-eval CLI or check its exit code on the pass/regression scenarios; verify it yourself against the criteria.",
         {
-          scenarios: [
-            {
-              args: ["evaluate", "fixtures/cases_30.jsonl", "--baseline", "fixtures/baseline_matching.json"],
-              expectExit: 0,
-              stdoutContains: ["PASS", "parser_repair_rate", "validator_reject_rate", "judge_noncompliant_rate"],
-            },
-            {
-              args: ["evaluate", "fixtures/cases_30.jsonl", "--baseline", "fixtures/baseline_degraded.json"],
-              expectExit: 1,
-              stdoutContains: ["FAIL", "pii_leak_rate", "judge_noncompliant_rate", "Regressions"],
-            },
+          attestationCriteria: [
+            "Against a matching baseline: `safety-eval evaluate fixtures/cases_30.jsonl --baseline fixtures/baseline_matching.json` exits 0 and the report shows PASS with every metric row",
+            "Against a degraded baseline (pii_leak_rate +5pp, judge_noncompliant_rate +10pp): the CLI exits 1 and the report lists pii_leak_rate + judge_noncompliant_rate under Regressions",
           ],
         },
       ),

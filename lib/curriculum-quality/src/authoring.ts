@@ -112,6 +112,9 @@ export function validationConfig(
   if (kind === "exact") {
     assertValidExactSpec(spec);
   }
+  if (kind === "regex") {
+    assertValidRegexSpec(spec);
+  }
   return { kind, description, spec };
 }
 
@@ -139,7 +142,31 @@ export type ContainsSpec = {
   caseInsensitive?: boolean;
 };
 
+/** Canonical keys the `contains` runtime (`matchContains`) actually reads. */
+const CONTAINS_ALLOWED_KEYS = new Set(["needle", "needles", "match", "caseInsensitive"]);
+
 function assertValidContainsSpec(spec: Record<string, unknown>): void {
+  // Phase 61I — strict allowlist. The contains runtime reads ONLY `needle` /
+  // `needles` (+ the `match` / `caseInsensitive` modifiers); ANY other key is
+  // silently ignored and would ship a dead gate (auto-pass on every submission).
+  // The 61I catalog sweep converted every legacy bespoke key (`mustContainAll`,
+  // `mustContain`, `required`, `requiredSubstrings`, `expected`, `*MustContain`,
+  // `scenarios`, `cases`, `forbidden`, …) to canonical `needles` or to
+  // `self_attest`, so this strict allowlist no longer breaks the authored-index
+  // import (proven catalog-wide by `audit:validation-keys`). For a check the
+  // contains runtime cannot perform (must-NOT-contain, exit codes, counts,
+  // multi-scenario behavior) use `self_attest` — never smuggle it into a contains
+  // spec, where it would silently pass everyone.
+  for (const k of Object.keys(spec)) {
+    if (!CONTAINS_ALLOWED_KEYS.has(k)) {
+      throw new Error(
+        `contains spec: '${k}' is not a key the runtime reads — it would silently ` +
+          `auto-pass any submission. Use the canonical 'needles' array (or legacy ` +
+          `'needle'); for a check 'contains' cannot perform, use self_attest.`,
+      );
+    }
+  }
+
   if (spec.needle !== undefined && typeof spec.needle !== "string") {
     throw new Error(
       `contains spec: 'needle' must be a string when present (got ${typeof spec.needle}).`,
@@ -170,48 +197,72 @@ function assertValidContainsSpec(spec: Record<string, unknown>): void {
   if (spec.caseInsensitive !== undefined && typeof spec.caseInsensitive !== "boolean") {
     throw new Error(`contains spec: 'caseInsensitive' must be a boolean when present (got ${typeof spec.caseInsensitive}).`);
   }
+  // (Phase 61I: the dead `mustContainAll` / bespoke-marker rejection is now
+  // subsumed by the strict allowlist at the top of this function.)
+}
 
-  // Phase 61G — reject the specific dead `mustContainAll` alias the runtime never
-  // reads. It shipped on C2 / SaaS mart / FinOps pre-61G and silently auto-passed
-  // any submission; the canonical multi-marker key is `needles` (defaults to
-  // match:"all"). Failing it here makes the mistake surface at authoring time
-  // instead of shipping a dead gate.
-  //
-  // NOTE (tracked follow-up, NOT fixed in 61G): a broader set of legacy authored
-  // contains steps use OTHER bespoke keys the runtime also ignores (`mustContain`,
-  // `userMsgMustContain`, `reportMustContain`, `expected`, …) — those are
-  // catalog-wide dead gates too. They are tolerated here (a hard reject would
-  // break importing the authored index) and surfaced by `audit:contains-bc` for
-  // the visible ones; converting them all to `needles` is a separate content
-  // sweep. See docs/phases/phase-61g-*.
-  if (spec.mustContainAll !== undefined) {
+// ── Phase 61H/61I — `exact` structured-spec validator ──────────────────────
+//
+// The exact runtime grades the FULL submission against the DB `expected_output`
+// text column. Phase 61I closes the authoring→runtime contract: `promote` now
+// populates `expected_output` from `spec.expected`, so an authored exact step is
+// actually enforceable. Require a non-empty string `expected` and reject every
+// other key — a marker key (`needles`/`mustContainAll`/…) or a bespoke
+// `expected*` assertion was a category error that, as `exact`, fails closed on a
+// null expected (a dead gate pre-61H). For a marker/substring check use
+// `contains` with `needles`; for a check Atlas cannot perform use `self_attest`.
+// See docs/phases/phase-61i-*.
+function assertValidExactSpec(spec: Record<string, unknown>): void {
+  for (const k of Object.keys(spec)) {
+    if (k !== "expected") {
+      throw new Error(
+        `exact spec: '${k}' is not read by the exact runtime (it compares the full ` +
+        `submission against expected_output). Only 'expected' is allowed; for a ` +
+        `marker/substring check use validationConfig("contains", …, { needles: [...] }), ` +
+        `and for a check Atlas cannot perform use self_attest.`,
+      );
+    }
+  }
+  const expected = (spec as { expected?: unknown }).expected;
+  if (typeof expected !== "string" || expected.length === 0) {
     throw new Error(
-      `contains spec: 'mustContainAll' is not a key the runtime reads — it would ` +
-      `silently auto-pass any submission. Use the canonical 'needles' array instead.`,
+      `exact spec: a non-empty string 'expected' is required — promote maps it to the ` +
+      `expected_output column the exact grader compares against; a missing/empty ` +
+      `expected would fail closed (a dead gate).`,
     );
   }
 }
 
-// ── Phase 61H — `exact` structured-spec validator ──────────────────────────
+// ── Phase 61I — `regex` structured-spec validator ──────────────────────────
 //
-// The exact runtime grades the FULL submission against the DB `expected_output`
-// column; it does NOT read the authored spec, and the authoring→promote path
-// never populates `expected_output`. So an authored exact step that carries
-// marker keys (`mustContainAll`/`needle`/`needles`) is a category error — the
-// author meant a marker/substring check (`contains`) — and as `exact` it auto-
-// passes any submission (a dead gate). Reject those keys here and point the
-// author at the canonical `contains` path (C2 steps 4/6 were exactly this, now
-// converted). See docs/phases/phase-61h-*.
-function assertValidExactSpec(spec: Record<string, unknown>): void {
-  for (const k of ["mustContainAll", "needles", "needle"]) {
-    if (spec[k] !== undefined) {
+// The regex runtime tests the submission against `new RegExp(spec.pattern,
+// spec.flags)`. An empty/absent pattern compiles to `//`, which matches every
+// string → an auto-pass dead gate (the same wrapper-shaped defect 61G fixed for
+// contains; 61I also fixes the runtime to read the inner `spec`). Require a
+// non-empty string `pattern` that compiles, allow only `pattern`/`flags`, and
+// type-check `flags`. There are zero authored regex steps today, so this guard
+// is forward-looking — it stops a future regex dead gate from shipping.
+function assertValidRegexSpec(spec: Record<string, unknown>): void {
+  for (const k of Object.keys(spec)) {
+    if (k !== "pattern" && k !== "flags") {
       throw new Error(
-        `exact spec: '${k}' is a marker key the exact runtime never reads — it would ` +
-        `silently auto-pass. For a marker/substring check use ` +
-        `validationConfig("contains", …, { needles: [...] }); 'exact' compares the full ` +
-        `submission against the step's expected_output.`,
+        `regex spec: '${k}' is not read by the regex runtime. Only 'pattern' and 'flags' are allowed.`,
       );
     }
+  }
+  if (typeof spec.pattern !== "string" || spec.pattern.length === 0) {
+    throw new Error(
+      `regex spec: a non-empty string 'pattern' is required (an empty pattern matches ` +
+      `everything = a dead gate).`,
+    );
+  }
+  if (spec.flags !== undefined && typeof spec.flags !== "string") {
+    throw new Error(`regex spec: 'flags' must be a string when present (got ${typeof spec.flags}).`);
+  }
+  try {
+    new RegExp(spec.pattern, typeof spec.flags === "string" ? spec.flags : "");
+  } catch (e) {
+    throw new Error(`regex spec: 'pattern' does not compile — ${(e as Error).message}`);
   }
 }
 

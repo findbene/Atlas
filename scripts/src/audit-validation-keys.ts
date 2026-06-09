@@ -1,0 +1,98 @@
+/**
+ * Phase 61I — authored validation-key audit (catalog-wide, latent + visible).
+ *
+ * The grading runtime reads only a fixed, kind-specific set of keys from each
+ * step's `validation.spec`. Any OTHER key is silently ignored — for the
+ * gate-bearing kinds (`contains`, `exact`, `regex`) that means a bespoke key
+ * produces a dead gate (auto-pass / fail-closed-on-null), exactly the class of
+ * defect Phases 61G/61H fixed at runtime and 61I sweeps out of the authored
+ * catalog. This audit loads the FULL authored index (every project, promoted or
+ * not — so latent dead gates are caught before they can ship) and asserts:
+ *
+ *   - kind "contains": spec keys ⊆ { needle, needles, match, caseInsensitive }.
+ *   - kind "exact":    spec keys ⊆ { expected }, and `expected` is a NON-EMPTY
+ *                      string (the canonical 61I contract — promote maps it to
+ *                      the `expected_output` column; a missing/empty expected
+ *                      would fail closed at runtime = a dead gate).
+ *   - kind "regex":    spec keys ⊆ { pattern, flags }.
+ *
+ * Kinds out of 61I scope are intentionally NOT policed here: `json_equal` and
+ * `numeric_tolerance` are also dead-gate kinds (no runtime branch) but their
+ * catalog-wide sweep is deferred to Phase 61J (and `json_equal` overlaps the
+ * Phase-52 operator-pending canary); rowset kinds (`csv_set_equal`,
+ * `sql_resultset`) and `self_attest` carry their own rich/empty-by-design specs.
+ *
+ * Read-only, no DB. Exits non-zero on the first violation so the phase ritual
+ * and CI gate on it. Mirrors the authoring-time guards in
+ * `@workspace/curriculum-quality` (`assertValidContainsSpec` /
+ * `assertValidExactSpec`) — anything those reject at construction, this rejects
+ * across the whole index.
+ */
+import { AUTHORED_PROJECTS } from "./authored";
+
+const ALLOWED: Record<string, Set<string>> = {
+  contains: new Set(["needle", "needles", "match", "caseInsensitive"]),
+  exact: new Set(["expected"]),
+  regex: new Set(["pattern", "flags"]),
+};
+
+const failures: string[] = [];
+let checked = 0;
+
+for (const p of AUTHORED_PROJECTS) {
+  for (const s of p.steps) {
+    const kind = s.validation?.kind;
+    if (!kind || !(kind in ALLOWED)) continue; // only police contains/exact/regex
+    checked++;
+    const tag = `${p.slug} step ${s.stepNumber} (${kind})`;
+    const spec = (s.validation.spec ?? {}) as Record<string, unknown>;
+    const allowed = ALLOWED[kind];
+
+    const stray = Object.keys(spec).filter((k) => !allowed.has(k));
+    if (stray.length > 0) {
+      failures.push(
+        `${tag}: bespoke spec key(s) the runtime never reads → silent dead gate: ${stray.join(", ")}. ` +
+          `Allowed for '${kind}': ${[...allowed].join(", ")}.`,
+      );
+    }
+
+    if (kind === "exact") {
+      const exp = (spec as { expected?: unknown }).expected;
+      if (typeof exp !== "string" || exp.length === 0) {
+        failures.push(
+          `${tag}: 'exact' requires a non-empty string 'expected' (promote maps it to the ` +
+            `expected_output column; missing/empty would fail closed = a dead gate).`,
+        );
+      }
+    }
+
+    if (kind === "regex") {
+      const pat = (spec as { pattern?: unknown }).pattern;
+      if (typeof pat !== "string" || pat.length === 0) {
+        failures.push(
+          `${tag}: 'regex' requires a non-empty string 'pattern' (an empty pattern matches ` +
+            `everything = a dead gate).`,
+        );
+      }
+    }
+  }
+}
+
+console.log(`\n=== Phase 61I — authored validation-key audit ===`);
+console.log(`Projects: ${AUTHORED_PROJECTS.length}   contains/exact/regex steps checked: ${checked}`);
+console.log(`Violations: ${failures.length}`);
+
+if (failures.length > 0) {
+  for (const f of failures) console.log(`  - ${f}`);
+  console.log(
+    `\nFAIL — ${failures.length} authored validation step(s) carry keys the runtime never reads. ` +
+      `Convert to canonical needle(s) / expected / pattern, or to self_attest where Atlas cannot grade.`,
+  );
+  process.exit(1);
+}
+
+console.log(
+  `\nPASS — every authored contains/exact/regex step uses only canonical, runtime-read keys ` +
+    `(no bespoke dead gates remain).`,
+);
+process.exit(0);
