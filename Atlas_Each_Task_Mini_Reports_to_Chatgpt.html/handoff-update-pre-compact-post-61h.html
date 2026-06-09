@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HANDOFF.md update — pre-compact rich handoff (post Phase 61H)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="report">
+<p class="back"><a href="index.html">&larr; All mini-reports</a></p>
+<header class="rpt-head"><h1>HANDOFF.md update — pre-compact rich handoff (post Phase 61H)</h1><p class="meta">2026-06-08 · COMPLETED · docs-only</p></header><h2 id="1-task-received">1. Task Received</h2>
+<p>Owner (docs-only, pre-compact): refresh <code>HANDOFF.md</code> capturing (1) goal, (2) current code state, (3) files actively editing, (5) next step.</p>
+<h2 id="2-completion-status">2. Completion Status</h2>
+<p><strong>COMPLETED.</strong> Overwrote the hook-clobbered thin <code>HANDOFF.md</code> with a rich 5-section handoff (post Phase 61H) + workflow header + standing mini-report protocol. Compact ≠ session end → it survives.</p>
+<h2 id="3-files-changed">3. Files Changed</h2>
+<p><code>HANDOFF.md</code> (rich) + this archive report (<code>src/37-…md</code> + regenerated HTML).</p>
+<h2 id="4-scope-control-hard-stops-check">4. Scope Control / Hard Stops Check</h2>
+<p>App/grader/DB/schema? <strong>no</strong> · serverGrade/flip? <strong>no</strong> · env/canary/Phase 52? <strong>no</strong> · next phase started? <strong>no</strong> · docs-only.</p>
+<h2 id="5-implementation-details">5. Implementation Details</h2>
+<p>HANDOFF records: the goal + master plan + H3-honesty law; HEAD <code>af8f2ba</code> (tip phase <code>b094894</code>); the session arc 61D (flip 8→10) → 61E (DB-baseline journal-defect fix) → 61F (FinOps authoring, surfaced the contains dead-gate) → 61G (contains runtime fix, surfaced the exact dead-gate) → 61H (exact runtime fix); <strong>serverGrade live = 10</strong>; C2/SaaS/FinOps states; gates (api-server 659/659, contains-bc 6/6, exact-bc PASS, db-baseline 10); env setup (Node 24 PATH prepend + Docker PG :5434); the 7 carry-forward gotchas headed by the <strong>catalog-wide bespoke-key dead-gate</strong> (the documented Phase-61I follow-up) + the narrow-authoring-guard rule + the browser-WASM harness recipe + the bigint-cast rule.</p>
+<h2 id="6-tests-and-gates-run">6. Tests and Gates Run</h2>
+<p><code>python build.py</code> (archive regen) — PASS. Code gates — NOT RUN (docs-only).</p>
+<h2 id="7-failures-fixes-and-surprises">7. Failures, Fixes, and Surprises</h2>
+<p>HANDOFF.md was hook-rewritten mid-edit (Write blocked) → re-read then overwrote. Otherwise none.</p>
+<h2 id="8-current-git-state">8. Current Git State</h2>
+<p>Branch <code>main</code>, HEAD <code>af8f2ba</code> (pre-archive-37). <code>HANDOFF.md</code> hook-managed. Archive commit follows.</p>
+<h2 id="9-current-project-state-after-this-task">9. Current Project State After This Task</h2>
+<p>Unchanged engineering state: serverGrade = 10; contains + exact dead-gates fixed; envelope OFF; Phase 52 untouched; C2 + SaaS + FinOps visible+approved. Rich HANDOFF ready for the post-compact session.</p>
+<h2 id="10-remaining-risks-blockers">10. Remaining Risks / Blockers</h2>
+<p>None new. The catalog-wide bespoke-key sweep (~15 contains + ~6 exact un-promoted) + latent regex bug remain the documented Phase-61I follow-up.</p>
+<h2 id="11-recommended-next-step">11. Recommended Next Step</h2>
+<p>After the compact: await owner approval for <strong>Phase 61I</strong> (the bespoke-key sweep / authoring→expected_output path). Do not begin unprompted.</p>
+<h2 id="12-explicit-stop-statement">12. Explicit Stop Statement</h2>
+<p><strong>Stopped.</strong> HANDOFF refreshed + archived; ready for the compact + next instruction. Phase 61I NOT started.</p>
+</main>
+</body>
+</html>
