@@ -143,8 +143,27 @@ opted + 6 dark) · audit:csv-set-equal-bc PASS (2 + 1 dark) · audit:authoring (
 api-server **654/654** · atlas **170/170** · integration **4/4**.
 
 ## 13. Reviews
-- **atlas-architect-reviewer → PASS** — _(recorded at close.)_
-- **code-reviewer → SHIP** — _(recorded at close.)_
+- **atlas-architect-reviewer → PASS** (0 P0/P1). Independently reproduced the
+  dead-gate on the old contract (garbage + empty → `passed:true`), confirmed the
+  fix is a single one-line→13-line hunk in the contains branch only
+  (`matchContains`/`gradeCsvSetEqual`/`gradeSqlResultset` byte-unchanged), BC for
+  all 4 live contains steps (DB-verified the 2 legacy seed steps have no `.spec`),
+  enforcement audit 4/4, serverGrade=10, copy honest, no leak, scope defensible.
+  - **P2 (ADDRESSED):** the `mustContainAll` reject had no direct unit test —
+    added 2 cases to `authoring.test.ts` (rejects `{mustContainAll}`, accepts
+    `{needles}`); authoring suite 59/59.
+  - **P2 (noted):** pre-existing `COURSE_TAXONOMY.test.ts` ENOENT on a gitignored
+    `.local` file (unrelated to 61G; owner to confirm in CI). Latent benign
+    fallback edge (`spec:[]`) — fails closed, note for the regex/exact follow-up.
+- **code-reviewer → SHIP** (0 P0/P1). Verified root cause, BC-safe extraction,
+  enforcement proven by the real grader (not just asserted), honest copy, zero
+  drift (serverGrade/sql/csv/Phase-52/envelope/schema), guard scoped to
+  `mustContainAll` only.
+  - **P2 (prioritize next):** the C2 `exact` steps 4 + 6 remain dead gates
+    (`expected_output NULL` → auto-pass) with inaccurate "exact-match check" copy —
+    live, learner-facing; the highest-priority follow-up (§11.2).
+  - **P2 (noted):** latent `regex` wrapper bug (0 live, §11.3); catalog-wide
+    bespoke-key contains content sweep (§11.1).
 
 ## 14. Invariants
 Live serverGrade **= 10** (unchanged); `matchContains` byte-unchanged; only the

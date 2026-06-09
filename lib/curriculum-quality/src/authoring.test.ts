@@ -188,6 +188,13 @@ describe("validationConfig(contains) — Phase 56 structured-spec validator", ()
     ok({ needle: "x", match: "any" }));
   it("does NOT reject match:'any' (runtime: looser combinator; audit advisory only)", () =>
     ok({ needles: ["a"], match: "any" }));
+
+  // Phase 61G — the dead `mustContainAll` alias (which the runtime never reads →
+  // silent auto-pass) must be rejected at authoring time; `needles` is canonical.
+  it("Phase 61G — rejects the dead 'mustContainAll' alias", () =>
+    bad({ mustContainAll: ["a", "b"] }, /mustContainAll/));
+  it("Phase 61G — accepts the canonical 'needles' replacement for mustContainAll", () =>
+    ok({ needles: ["a", "b"] }));
 });
 
 
