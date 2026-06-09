@@ -72,7 +72,7 @@ export const aiEngineerLlmOutputQualityScoring: AuthoredProject = {
       stepNumber: 1,
       title: "Rubric dataclass + weighted dispatch",
       instructionMd:
-        "Write `scoring/rubric.py` exposing a frozen `Rubric` dataclass with `dimensions: dict[str, float]` (the weights) and a `RubricScore` dataclass with `per_dim: dict[str, float]` (each in [0, 1]) + `overall: float` (weighted sum). The default `Rubric.default()` returns dimensions `{faithfulness: 0.4, format: 0.2, refusal_handling: 0.2, instruction_following: 0.2}`. Add `Rubric.__post_init__` asserting the weights sum to 1.0 (within 1e-6) and every weight is in [0, 1]. Add `score(per_dim) -> RubricScore` that computes the weighted sum, asserting `per_dim.keys() == self.dimensions.keys()`.",
+        "Write `scoring/rubric.py` exposing a frozen `Rubric` dataclass with `dimensions: dict[str, float]` (the weights) and a `RubricScore` dataclass with `per_dim: dict[str, float]` (each in [0, 1]) + `overall: float` (weighted sum). The default `Rubric.default()` returns dimensions `{faithfulness: 0.4, format: 0.2, refusal_handling: 0.2, instruction_following: 0.2}`. Add `Rubric.__post_init__` asserting the weights sum to 1.0 (within 1e-6) and every weight is in [0, 1]. Add `score(per_dim) -> RubricScore` that computes the weighted sum, asserting `per_dim.keys() == self.dimensions.keys()`. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "A rubric is a typed, weighted contract — not a dict of magic numbers. Forcing weights to sum to 1.0 and forcing the per-dim keys to match makes the scorer self-documenting and self-validating.",
       requiredSkill: "frozen dataclass + __post_init__ invariants + weighted-sum dispatch + key-set equality assertion",
@@ -104,16 +104,16 @@ class RubricScore:
     per_dim: dict[str, float]
     overall: float
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Rubric.default() weights sum to 1.0; constructing with weights summing to 0.9 raises; constructing with a negative weight raises; score(per_dim) on the default rubric with per_dim={faithfulness:0.8, format:1.0, refusal_handling:0.5, instruction_following:1.0} returns overall=0.82.", {
-        expected: {
-          defaultWeightsSumToOne: true,
-          rejectsWeightsNotSummingToOne: true,
-          rejectsNegativeWeight: true,
-          rejectsKeyMismatch: true,
-          sampleOverallScore: 0.82,
-        },
+      validation: validationConfig("self_attest", "Learner attests the Rubric dataclass is correct.", {
+        attestationCriteria: [
+          "Rubric.default() returns a frozen Rubric with dimensions {faithfulness:0.4, format:0.2, refusal_handling:0.2, instruction_following:0.2} — summing to 1.0.",
+          "Constructing a Rubric with weights that don't sum to 1.0 (e.g. 0.9) raises a ValueError.",
+          "Constructing a Rubric with a negative weight raises a ValueError.",
+          "score(per_dim) raises when per_dim keys don't match dimensions keys.",
+          "score({faithfulness:0.8, format:1.0, refusal_handling:0.5, instruction_following:1.0}) returns overall = 0.4*0.8 + 0.2*1.0 + 0.2*0.5 + 0.2*1.0 = 0.82.",
+        ],
       }),
       expectedOutputs: { weightsSumChecked: true, sampleOverall: 0.82, dimensionCount: 4 },
       datasetRefs: ["fixtures/rubric_defaults.json"],
@@ -136,7 +136,7 @@ class RubricScore:
       stepNumber: 2,
       title: "Faithfulness via token overlap against source",
       instructionMd:
-        "Write `scoring/faithfulness.py` exposing `faithfulness(output: str, source: str) -> float`. Tokenize both to lowercase word-set (`re.findall(r'\\b[a-z]{3,}\\b', s.lower())`) — words of 3+ letters, ignoring punctuation. Return the fraction of OUTPUT tokens that also appear in SOURCE: `len(output_tokens & source_tokens) / len(output_tokens)` (or 0.0 if output_tokens is empty). Validator runs on 4 fixture (output, source, expected_score) triples covering: fully-grounded (=1.0), half-grounded (~0.5), zero-grounded (=0.0), empty-output (=0.0).",
+        "Write `scoring/faithfulness.py` exposing `faithfulness(output: str, source: str) -> float`. Tokenize both to lowercase word-set (`re.findall(r'\\b[a-z]{3,}\\b', s.lower())`) — words of 3+ letters, ignoring punctuation. Return the fraction of OUTPUT tokens that also appear in SOURCE: `len(output_tokens & source_tokens) / len(output_tokens)` (or 0.0 if output_tokens is empty). Verify manually on 4 cases: fully-grounded output → 1.0; half-grounded → ~0.5; zero-grounded → 0.0; empty output → 0.0. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Token-overlap is the cheap deterministic faithfulness heuristic. It catches the worst hallucinations (output asserts entities never in source) without an LLM-as-judge round-trip. Calibrated, it correlates ~0.6 with human ratings — enough to flag the worst 20%.",
       requiredSkill: "regex tokenisation + set intersection + edge cases (empty output → 0.0, not div-by-zero)",
@@ -156,16 +156,17 @@ def faithfulness(output: str, source: str) -> float:
     # TODO: return |out & src| / |out|
     return 0.0
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "faithfulness scorer on 4 fixture triples: full-grounded output → 1.0; half-grounded → ~0.5 (±0.05); zero-grounded → 0.0; empty output → 0.0.", {
-        expected: {
-          fullyGrounded: 1.0,
-          halfGroundedApprox: 0.5,
-          halfGroundedTolerance: 0.05,
-          zeroGrounded: 0.0,
-          emptyOutput: 0.0,
-        },
+      validation: validationConfig("self_attest", "Learner attests the faithfulness scorer is correct.", {
+        attestationCriteria: [
+          "faithfulness tokenizes output and source to lowercase word-sets using re.findall(r'\\b[a-z]{3,}\\b', s.lower()).",
+          "Returns len(out_tokens & src_tokens) / len(out_tokens), or 0.0 if out_tokens is empty (no div-by-zero).",
+          "A fully-grounded output (all output tokens present in source) returns 1.0.",
+          "A half-grounded output returns approximately 0.5 (within ±0.05).",
+          "A zero-grounded output (no output tokens in source) returns 0.0.",
+          "An empty output string returns 0.0.",
+        ],
       }),
       expectedOutputs: { scorerDeterministic: true, edgeCasesHandled: 4 },
       datasetRefs: ["fixtures/faithfulness_triples.jsonl"],
@@ -188,7 +189,7 @@ def faithfulness(output: str, source: str) -> float:
       stepNumber: 3,
       title: "JSON-schema format with three-region partial credit",
       instructionMd:
-        "Write `scoring/format.py` exposing `format_score(output: str, schema: dict) -> float`. Try `json.loads(output)`; on JSONDecodeError → return 0.0. On success, validate with `jsonschema.Draft202012Validator(schema).validate(parsed)`: if it passes → 1.0; if it fails, inspect the error — if every error is `extra_keys` (unexpected properties on an object) → 0.5 (parseable + structurally close, just over-spec); any other error → 0.0. Validator runs on 4 fixture outputs against a `{type: object, properties: {name, age}, required: [name, age], additionalProperties: false}` schema: clean output → 1.0; output with extra `nickname` field → 0.5; output missing `age` → 0.0; non-JSON output → 0.0.",
+        "Write `scoring/format.py` exposing `format_score(output: str, schema: dict) -> float`. Try `json.loads(output)`; on JSONDecodeError → return 0.0. On success, validate with `jsonschema.Draft202012Validator(schema).validate(parsed)`: if it passes → 1.0; if it fails, inspect the error — if every error is `extra_keys` (unexpected properties on an object) → 0.5 (parseable + structurally close, just over-spec); any other error → 0.0. Verify manually on 4 cases against a `{type: object, properties: {name, age}, required: [name, age], additionalProperties: false}` schema: clean output → 1.0; extra `nickname` field → 0.5; missing `age` → 0.0; non-JSON → 0.0. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Three-region format scoring (clean/extra-keys/broken) is the realistic compromise. Binary pass/fail penalises 'almost right' too harshly; floating-point free-form is gameable. The middle 0.5 region encodes 'easy to fix downstream'.",
       requiredSkill: "json.loads exception handling + jsonschema validator iteration + error-class introspection (additionalProperties vs required vs type)",
@@ -209,15 +210,16 @@ def format_score(output: str, schema: dict) -> float:
     # TODO: any other error class (required, type, enum, ...) → return 0.0
     return 0.0
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "format_score on 4 fixture outputs against the {name, age, additionalProperties:false} schema: clean → 1.0; extra-keys-only → 0.5; missing required → 0.0; non-JSON → 0.0.", {
-        expected: {
-          clean: 1.0,
-          extraKeysOnly: 0.5,
-          missingRequired: 0.0,
-          nonJson: 0.0,
-        },
+      validation: validationConfig("self_attest", "Learner attests the format scorer is correct.", {
+        attestationCriteria: [
+          "format_score returns 0.0 for any output that is not valid JSON.",
+          "format_score returns 1.0 for output that is valid JSON AND passes the schema.",
+          "format_score returns 0.5 when every jsonschema error has e.validator == 'additionalProperties' (extra keys only, no missing required).",
+          "format_score returns 0.0 for any other error (missing required field, wrong type, etc.).",
+          "Tested on: clean JSON → 1.0, JSON with extra key → 0.5, JSON missing required field → 0.0, non-JSON string → 0.0.",
+        ],
       }),
       expectedOutputs: { regions: 3, fixtureCases: 4 },
       datasetRefs: ["fixtures/format_outputs.jsonl"],
@@ -240,7 +242,7 @@ def format_score(output: str, schema: dict) -> float:
       stepNumber: 4,
       title: "Failure taxonomy — 6-class classifier from rubric subscores",
       instructionMd:
-        "Write `scoring/taxonomy.py` exposing `classify_failure(per_dim: dict[str, float], expected_refusal: bool, output_text: str) -> str` returning one of: `clean` (every dim ≥ 0.8), `hallucination` (faithfulness < 0.4), `off_format` (format < 0.5), `refused_correctly` (output starts with 'I cannot' AND expected_refusal=True), `over_refusal` (output starts with 'I cannot' AND expected_refusal=False), `instruction_violation` (instruction_following < 0.5 AND none of the above fired). Decision order matters: check `clean` first, then `hallucination`, then `off_format`, then refusal branches, then `instruction_violation`. Validator runs on 6 labelled fixtures covering each class.",
+        "Write `scoring/taxonomy.py` exposing `classify_failure(per_dim: dict[str, float], expected_refusal: bool, output_text: str) -> str` returning one of: `clean` (every dim ≥ 0.8), `hallucination` (faithfulness < 0.4), `off_format` (format < 0.5), `refused_correctly` (output starts with 'I cannot' AND expected_refusal=True), `over_refusal` (output starts with 'I cannot' AND expected_refusal=False), `instruction_violation` (instruction_following < 0.5 AND none of the above fired). Decision order matters: check `clean` first, then `hallucination`, then `off_format`, then refusal branches, then `instruction_violation`. Verify manually on 6 labelled fixtures covering each class. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "A deterministic failure-mode classifier (rule-based, NOT LLM-as-judge) turns rubric subscores into actionable categories. The decision-order is the product policy.",
       requiredSkill: "ordered if/elif decision tree + multi-condition branching + edge case for refusal-detection prefix",
@@ -261,14 +263,15 @@ def classify_failure(per_dim: dict[str, float], expected_refusal: bool, output_t
     #   default → 'clean' (subtly imperfect but no named failure)
     return "clean"
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "On 6 labelled fixtures the classifier returns the expected class for each: clean, hallucination, off_format, refused_correctly, over_refusal, instruction_violation.", {
-        expected: {
-          fixtureCount: 6,
-          allClassesCovered: ["clean", "hallucination", "off_format", "refused_correctly", "over_refusal", "instruction_violation"],
-          decisionOrderRespected: true,
-        },
+      validation: validationConfig("self_attest", "Learner attests the failure taxonomy classifier is correct.", {
+        attestationCriteria: [
+          "classify_failure checks 'clean' first (all dims ≥ 0.8), then 'hallucination' (faithfulness < 0.4), then 'off_format' (format < 0.5), then refusal branches, then 'instruction_violation'.",
+          "Decision order is enforced: a hallucinated refusal returns 'hallucination', not 'refused_correctly'.",
+          "On 6 labelled fixtures, each of the 6 classes (clean, hallucination, off_format, refused_correctly, over_refusal, instruction_violation) is returned for the appropriate fixture.",
+          "All 6 classes are reachable — no dead branch in the decision tree.",
+        ],
       }),
       expectedOutputs: { classes: 6, classifierDeterministic: true },
       datasetRefs: ["fixtures/taxonomy_labelled.jsonl"],
