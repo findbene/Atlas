@@ -77,6 +77,15 @@ the literal config markers (e.g. `kind: ServingRuntime`, `type: prometheus`,
 (e.g. iceberg step 3 — terraform-validate + DagBag parse + retries). Markers
 byte-preserved; honest copy.
 
+**Note (architect P2-1, accept-with-note):** a few exact→contains conversions
+make the `needles` set _stricter_ than the original (dead) `expected*` key encoded
+— e.g. `dbt-ci-state-modified` step 4 went from a single `expectedSelector`
+substring to three required flags (`--select state:modified+`, `--defer`,
+`--state prod_state`), matching the step's own instruction + starter TODO. These
+projects are un-promoted (0 live impact). When any is eventually promoted,
+eyeball that a reference solution contains every `needle` before flipping it
+visible.
+
 ## 6. Bespoke contains-key sweep (§ "Bespoke Contains-Key Sweep Result")
 Per the owner rule: positive-literal-marker steps → `needles` (byte-preserved;
 `needle`+`secondaryNeedle` merged into one `needles`); steps whose CORE intent is
@@ -173,7 +182,17 @@ Sweep bulk (17 files + the promote map) in pushed session wips `0d08b2b` /
 `e9515d8` (clean conventional). This close-out + the mini-report archive follow.
 
 ## 16. Independent reviews
-- **atlas-architect-reviewer → _pending_** (verdict + P0/P1/P2 to be recorded).
+- **atlas-architect-reviewer → PASS** (0 P0/P1). Ran every gate itself on Node 24
+  against the live DB; probed `audit:validation-keys` with planted bad specs
+  (not a vacuous pass); confirmed the exact root cause + fix, known-bad exact
+  fails, bespoke contains/exact can't ship, 61G/61H intact, **serverGrade=10**, no
+  rowset/envelope/schema/publish drift, honesty ceiling respected, and — by direct
+  DB query — **0 visible `json_equal`/`numeric_tolerance` dead gates** (61J
+  deferral sound). Two accept-with-note P2s: (P2-1) some exact→contains
+  conversions tightened the marker set beyond the original key (see §5 note — un-promoted,
+  not a regression); (P2-2) the regex `""` fallback is the latent dead-gate class
+  but double-blocked by `assertValidRegexSpec` + `audit:validation-keys` (0 live
+  regex). Neither blocking.
 - **code-reviewer → _pending_** (SHIP/NO-SHIP to be recorded).
 
 ## 17. Tracked follow-ups (NOT in 61I)
