@@ -114,8 +114,28 @@ fail-closed)** · **audit:contains-bc 6/6 enforcing** · audit:sql-resultset-bc 
 atlas **170/170** · integration **4/4** · authoring.test **64/64** (+5).
 
 ## 13. Reviews
-- **atlas-architect-reviewer → PASS** — _(recorded at close.)_
-- **code-reviewer → SHIP** — _(recorded at close.)_
+- **atlas-architect-reviewer → PASS** (0 P0/P1). Re-derived every claim against
+  the live DB + code: exact fails closed on null/empty expected (traced both
+  paths); **zero live BC blast radius** (visible AND hidden exact = 0 after the C2
+  conversion); C2 4,6,7 all `contains` with `needles` (markers byte-unchanged),
+  step 4 enforces via real `gradeSubmission`; 61G contains branch untouched
+  (`audit:contains-bc` 6/6); serverGrade=10, C2 set [1,2,3,5]; no
+  sql/csv/Phase-52/envelope/schema drift; the guard rejects only marker keys
+  (imported all 6 other exact projects — bespoke `expected*` keys pass through).
+  - **P2 (close-out hygiene):** the source landed in a `chore: wip` auto-commit,
+    not a conventional phase commit → this follow-up commit + close-out is the
+    clean record (pushed wip not rewritten — no force-push to main).
+  - **P2 (noted):** integration 4/4 was run by the orchestrator this phase (the
+    architect ran unit only). Optional: a populated-expected-with-config synthetic
+    case in `audit-exact-bc` (harmless — exact ignores validationConfig).
+- **code-reviewer → SHIP** (0 P0/P1). Confirmed root cause via the real `/submit`
+  route (`user.ts:859`), known-bad fails on old code, the guard rejects ONLY the 3
+  marker keys (audited all other exact projects — bespoke `expected*` pass
+  through), C2 needles byte-identical to the old `mustContainAll`, honest copy,
+  61G contains intact, serverGrade=10, no comparator/Phase-52/envelope/schema
+  drift, audit read-only + injection-free. grading.test 113/113, authoring 64/64.
+  P2s = the documented catalog-wide bespoke-`expected*` follow-up + the
+  deliberately-narrow guard (both accept-with-note).
 
 ## 14. Tracked follow-ups (NOT fixed in 61H)
 - **Catalog-wide bespoke-`expected*` exact** (~5 un-promoted projects, §3): convert
