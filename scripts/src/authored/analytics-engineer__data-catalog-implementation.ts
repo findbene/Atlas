@@ -252,7 +252,7 @@ def apply_overlay(entities, overlay_path: str):
       stepNumber: 5,
       title: "FastAPI search + lineage endpoints",
       instructionMd:
-        "Expose two endpoints: `GET /search?q=email` returns column matches (substring, case-insensitive) and `GET /lineage/{fqn}` returns `{upstream: [...], downstream: [...]}`. Both must respond <100ms on the 9-table fixture. Validator hits both endpoints + asserts response shapes + checks p95 latency.",
+        "Expose two endpoints: `GET /search?q=email` returns column matches (substring, case-insensitive) and `GET /lineage/{fqn}` returns `{upstream: [...], downstream: [...]}`. Both must respond <100ms on the 9-table fixture. Atlas checks that your submission contains the required evidence marker (`analytics.dim_user.email`) — it does not run your API, count results, or measure latency. Verify endpoint behavior and latency yourself.",
       learningObjective: "Wrap catalog primitives behind a stable API a UI can iterate against.",
       requiredSkill: "FastAPI + Pydantic response models + simple latency budgets",
       starterCode: SRC(`# api.py
@@ -284,9 +284,8 @@ def lineage(fqn: str) -> LineageResp:
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "GET /search?q=email returns ≥3 results including 'analytics.dim_user.email'; GET /lineage/analytics.dim_user.email returns downstream=3, upstream=0; p95 <100ms.", {
-        searchResultsMin: 3, downstreamCount: 3, upstreamCount: 0, p95MsMax: 100,
-        mustContain: ["analytics.dim_user.email"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the query/API otherwise behaves correctly, and not your authorship or competence. Specifically: your submission must contain 'analytics.dim_user.email'. Atlas does not run your API, count search results, verify downstream counts, or measure p95 latency — verify those yourself.", {
+        needles: ["analytics.dim_user.email"],
       }),
       expectedOutputs: { searchHits: 3, downstream: 3, upstream: 0, p95Ms: 35 },
       datasetRefs: ["fixtures/expected_search.json"],

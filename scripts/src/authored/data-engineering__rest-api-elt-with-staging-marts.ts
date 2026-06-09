@@ -315,7 +315,7 @@ def run_checks(checks: list, conn) -> list[dict]:
       stepNumber: 5,
       title: "CLI runner — structured JSON logs + meaningful exit codes",
       instructionMd:
-        "Write `elt/run.py` exposing a CLI: `python -m elt.run --since YYYY-MM-DD --db-url postgresql://...`. Orchestrate: extract → stage → mart → DQ. Emit ONE JSON log line per stage to stdout: `{\"ts\": ..., \"stage\": \"extract\", \"status\": \"complete\", \"metrics\": {...}}`. Exit 0 if all DQ checks pass; exit 2 if any DQ assertion fails; exit 1 on any other error. Validator runs against the rigged fixture and asserts: stdout contains a JSON line with `\"stage\": \"dq\"` AND `\"dq_failures\": 3`; process exit code is 2.",
+        "Write `elt/run.py` exposing a CLI: `python -m elt.run --since YYYY-MM-DD --db-url postgresql://...`. Orchestrate: extract → stage → mart → DQ. Emit ONE JSON log line per stage to stdout: `{\"ts\": ..., \"stage\": \"extract\", \"status\": \"complete\", \"metrics\": {...}}`. Exit 0 if all DQ checks pass; exit 2 if any DQ assertion fails; exit 1 on any other error. Paste your terminal output into the submission — Atlas checks that it contains a JSON line with `\"stage\": \"dq\"` and `dq_failures`. Atlas does not run your CLI or verify the exit code; verify that yourself before submitting.",
       learningObjective:
         "A CLI with structured JSON logs + meaningful exit codes is the contract with ops. The exit code is the alert signal; the JSON logs are the audit trail; together they replace 5 dashboards with `tail -f | jq` + `if [ $? -ne 0 ]; then page; fi`.",
       requiredSkill: "argparse + per-stage structured logging dict + sys.exit with semantic codes",
@@ -362,10 +362,8 @@ if __name__ == "__main__":
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "Run output contains a JSON line with 'stage': 'dq' and 'dq_failures' (any non-zero count on the rigged fixture); process exit code is 2.", {
-        needle: "\"stage\": \"dq\"",
-        secondaryNeedle: "dq_failures",
-        expectedExitCode: 2,
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the service otherwise behaves correctly, and not your authorship or competence. Note: exit code 2 is not enforced by Atlas; verify it yourself.", {
+        needles: ["\"stage\": \"dq\"", "dq_failures"],
       }),
       expectedOutputs: { stagedLogged: true, dqLogged: true, exitCodeOnFailure: 2 },
       datasetRefs: ["fixtures/dq_rigged_seed.csv"],

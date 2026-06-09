@@ -154,7 +154,7 @@ def wait_for_manifest(execution_date_str: str) -> S3KeySensorAsync:
       stepNumber: 3,
       title: "dbt build via BashOperator with selectors",
       instructionMd:
-        "Add a `dbt_build` task that runs `dbt build --select +mart_daily_events --vars '{run_date: {{ ds }}}'` via BashOperator after extract. Validator runs the task against a 5-model dbt project and asserts: only `mart_daily_events` + its upstreams ran (not the whole project), the `run_date` Jinja var resolved to `{{ ds }}` correctly, exit code 0.",
+        "Add a `dbt_build` task that runs `dbt build --select +mart_daily_events --vars '{run_date: {{ ds }}}'` via BashOperator after extract. Paste the dbt run log output into the submission field. Atlas checks that the required evidence markers are present in your submission — not that the dbt job otherwise ran correctly, and not your authorship or competence. Required markers: 'Running with dbt', 'mart_daily_events', 'PASS', and 'run_date' must all appear in your log.",
       learningObjective: "Per-DAG-run dbt build with selectors keeps DAG runtime tied to data dependencies, not the whole warehouse.",
       requiredSkill: "dbt selectors (+model, model+) + Airflow Jinja + BashOperator env passing",
       starterCode: SRC(`# tasks/dbt.py
@@ -180,8 +180,8 @@ def dbt_build(target_model: str = 'mart_daily_events') -> BashOperator:
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "dbt run log mentions: 'Running with dbt', mart_daily_events + at least 1 upstream model, run_date = today, 'Done. PASS'.", {
-        expected: ["Running with dbt", "mart_daily_events", "PASS", "run_date"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the dbt job otherwise runs correctly, and not your authorship or competence. Markers: 'Running with dbt', 'mart_daily_events', 'PASS', 'run_date'.", {
+        needles: ["Running with dbt", "mart_daily_events", "PASS", "run_date"],
       }),
       expectedOutputs: { modelsRun: 3, exitCode: 0 },
       datasetRefs: ["fixtures/dbt_project.json"],

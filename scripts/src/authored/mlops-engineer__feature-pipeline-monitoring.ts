@@ -306,7 +306,7 @@ def null_rate_alert(
       stepNumber: 5,
       title: "Alert rule pack — severity, runbook link, group_by routing",
       instructionMd:
-        "Write `alerts.yml` with 4 PrometheusRule groups (skew / freshness / drift / null_rate). Each rule includes: `severity` label (`page` for skew & freshness breaches, `ticket` for drift watch, `page` for null-rate 3σ), `runbook_url` annotation, and a `for: 10m` clause so transient blips don't page. Validator parses the YAML, asserts: 4 groups, 8 total rules, every rule has severity + runbook_url, no rule pages on `severity=ticket`.",
+        "Write `alerts.yml` with 4 PrometheusRule groups (skew / freshness / drift / null_rate). Each rule includes: `severity` label (`page` for skew & freshness breaches, `ticket` for drift watch, `page` for null-rate 3σ), `runbook_url` annotation, and a `for: 10m` clause so transient blips don't page. This is a learner attestation — Atlas does not enforce the group count, rule count, forbidden severities, or routing logic; verify it yourself against the criteria below.",
       learningObjective: "An alert pack without severity, runbook, and dedup routing IS the alert-fatigue problem. The YAML matters as much as the metric.",
       requiredSkill: "Prometheus rule YAML + Alertmanager severity routing + 'for:' debounce",
       starterCode: SRC(`# alerts.yml
@@ -365,12 +365,18 @@ groups:
 # TODO: add 3 more rules (your choice — synthetic_canary, schema_change,
 # materialization_runtime_p95) for the 8-rule total the validator expects.
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("contains", "Valid YAML, 4 groups, 8 rules total, every rule has severity + runbook_url, no severity=ticket rule has 'page' anywhere in routing.", {
-        expected: { groups: 4, rules: 8, everyRuleHasSeverity: true, everyRuleHasRunbook: true },
-        forbidden: ["severity: critical"],
-        required: ["severity: page", "severity: ticket", "runbook_url", "for: "],
+      validation: validationConfig("self_attest", "Alert rule pack: 4 groups, 8 total rules, every rule has severity + runbook_url + for: clause, no severity: critical used, page/ticket routing is correct.", {
+        attestationCriteria: [
+          "alerts.yml contains exactly 4 rule groups (skew, freshness, drift, null_rate)",
+          "There are exactly 8 total alert rules across all groups",
+          "Every rule has a severity label (page or ticket) and a runbook_url annotation",
+          "No rule uses severity: critical — only page or ticket are valid values",
+          "Every rule has a for: clause to debounce transient blips",
+          "Page-severity rules cover: skew rate spike, freshness SLO breach, PSI > 0.25, null-rate 3σ spike",
+          "Ticket-severity rules cover: PSI > 0.1 watch (and any other watch-level conditions)",
+        ],
       }),
       expectedOutputs: { groups: 4, rules: 8, allSeveritiesMapped: true },
       datasetRefs: ["fixtures/alertmanager_routes_expected.yml"],

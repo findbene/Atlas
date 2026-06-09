@@ -306,7 +306,7 @@ def regress(baseline: EvalResults, candidate: EvalResults) -> RegressionReport:
       stepNumber: 5,
       title: "CI harness — `eval-cli compare baseline.json candidate.json` exits non-zero on regression",
       instructionMd:
-        "Wire a Typer CLI `eval-cli compare <baseline.json> <candidate.json> [--report out.md]`. Loads both EvalResults, runs `regress`, writes a markdown report with side-by-side metrics + delta column + pass/fail banner. Exit 0 on pass, 1 on regression. Validator runs the CLI against fixture files; asserts: regression scenario exits 1 + report contains 'FAIL' + 'grounded_rate'; pass scenario exits 0 + report contains 'PASS'.",
+        "Wire a Typer CLI `eval-cli compare <baseline.json> <candidate.json> [--report out.md]`. Loads both EvalResults, runs `regress`, writes a markdown report with side-by-side metrics + delta column + pass/fail banner. Exit 0 on pass, 1 on regression. This is a learner attestation — Atlas does not run your CLI or check exit codes; verify locally that the regression scenario exits 1 with a FAIL report and the pass scenario exits 0 with a PASS report.",
       learningObjective: "The CLI is what turns the harness into infrastructure. A markdown report is what makes it human-readable in GitHub PR comments.",
       requiredSkill: "Typer CLI + structured markdown report + non-zero exit-on-regress",
       starterCode: SRC(`# eval/cli.py
@@ -345,12 +345,13 @@ def compare(
     # TODO: non-zero exit on regression — what makes this a CI gate.
     raise typer.Exit(code=0 if r.pass_ else 1)
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("contains", "regression scenario: exit 1, report contains 'FAIL' + 'grounded_rate'. pass scenario: exit 0, report contains 'PASS'.", {
-        scenarios: [
-          { args: ["compare", "fixtures/baseline.json", "fixtures/candidate_bad.json"], expectExit: 1, stdoutContains: ["FAIL", "grounded_rate"] },
-          { args: ["compare", "fixtures/baseline.json", "fixtures/candidate_good.json"], expectExit: 0, stdoutContains: ["PASS"] },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Running `eval-cli compare fixtures/baseline.json fixtures/candidate_bad.json` exits with code 1 (regression detected) and the printed report contains 'FAIL' and 'grounded_rate'.",
+          "Running `eval-cli compare fixtures/baseline.json fixtures/candidate_good.json` exits with code 0 (no regression) and the printed report contains 'PASS'.",
+          "The `--report out.md` flag writes the markdown report to the specified file.",
         ],
       }),
       expectedOutputs: { regressionExit: 1, passExit: 0 },

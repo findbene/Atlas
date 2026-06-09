@@ -130,7 +130,7 @@ def output_json_schema() -> dict:
       stepNumber: 2,
       title: "Write the one-shot prompt — system + user + {schema} placeholder",
       instructionMd:
-        "Write `src/prompt.py` exposing `build_prompt(review_text: str, schema: dict) -> tuple[str, str]` returning `(system_msg, user_msg)`. System message: terse instruction (\"You extract structured fields. Return ONLY a JSON object matching the schema. No prose, no markdown fences.\"). User message: the schema (as `json.dumps(schema, indent=2)`), then a one-shot example (a SHORT review + the JSON answer it should produce), then the actual review. Why one-shot not zero-shot: a single demonstration of a parseable JSON answer dramatically improves JSON-adherence on small models and costs almost nothing.",
+        "Write `src/prompt.py` exposing `build_prompt(review_text: str, schema: dict) -> tuple[str, str]` returning `(system_msg, user_msg)`. System message: terse instruction (\"You extract structured fields. Return ONLY a JSON object matching the schema. No prose, no markdown fences.\"). User message: the schema (as `json.dumps(schema, indent=2)`), then a one-shot example (a SHORT review + the JSON answer it should produce), then the actual review. Why one-shot not zero-shot: a single demonstration of a parseable JSON answer dramatically improves JSON-adherence on small models and costs almost nothing. Atlas checks that key evidence markers are present in your submission — it does not run your code or verify that it returns a tuple correctly.",
       learningObjective:
         "Prompt structure: (1) terse system role, (2) the schema verbatim in the user message, (3) one-shot example, (4) the input. This four-block structure is the boring-but-reliable starting point.",
       requiredSkill: "Multi-line f-string prompt template + json.dumps formatting + one-shot example pattern",
@@ -160,10 +160,8 @@ def build_prompt(review_text: str, schema: dict) -> tuple[str, str]:
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "build_prompt returns (system_msg, user_msg) where user_msg contains the formatted schema, the one-shot example, AND the review_text. system_msg explicitly forbids markdown fences.", {
-        userMsgMustContain: ["properties", "Acme", "Now extract"],
-        systemMsgMustContain: ["JSON object", "No prose"],
-        returnsTuple: true,
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence. Markers: the formatted schema (contains 'properties'), the one-shot Acme example, the 'Now extract' cue, plus the system-message markers 'JSON object' and 'No prose'.", {
+        needles: ["properties", "Acme", "Now extract", "JSON object", "No prose"],
       }),
       expectedOutputs: { promptBuilt: true, oneShotIncluded: true, schemaEmbedded: true },
       datasetRefs: [],
@@ -319,7 +317,7 @@ def run_batch(reviews: list[str]) -> tuple[list[dict], list[dict]]:
       stepNumber: 5,
       title: "10-row gold eval + report.md",
       instructionMd:
-        "Write `src/eval.py::run_eval()` that: (1) loads `fixtures/reviews_gold.jsonl` (10 rows of `{review, expected}`), (2) calls `run_batch` on the reviews, (3) for each (predicted, expected) computes per-field exact-match (name, brand, rating_out_of_5 within ±0.5, sentiment exact), (4) writes `report.md` with: total cases, # rejects (with reasons), per-field accuracy as a markdown table, and exact-match-row count. Why a 10-row gold eval at the beginner tier: small enough to hand-label, large enough to spot a regression, big enough to compute meaningful per-field accuracy.",
+        "Write `src/eval.py::run_eval()` that: (1) loads `fixtures/reviews_gold.jsonl` (10 rows of `{review, expected}`), (2) calls `run_batch` on the reviews, (3) for each (predicted, expected) computes per-field exact-match (name, brand, rating_out_of_5 within ±0.5, sentiment exact), (4) writes `report.md` with: total cases, # rejects (with reasons), per-field accuracy as a markdown table, and exact-match-row count. Why a 10-row gold eval at the beginner tier: small enough to hand-label, large enough to spot a regression, big enough to compute meaningful per-field accuracy. Atlas checks that key section headings and field names are present in your submission — it does not run your code or verify the returned dict structure.",
       learningObjective:
         "A tiny gold-labelled eval set + a per-field accuracy report = the difference between 'I changed the prompt and it feels better' and 'I changed the prompt and accuracy went 70%→85% on the 10-row gold'.",
       requiredSkill: "JSONL parse + per-field scoring + numeric tolerance + markdown report writer",
@@ -356,9 +354,8 @@ if __name__ == "__main__":
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "run_eval() reads 10 rows; writes report.md containing total cases, reject count, per-field accuracy markdown table, and exact-match count. Returned summary dict has total + rejects + results + per_field_accuracy + exact_match_count.", {
-        reportMustContain: ["Total cases", "Rejects", "Per-field accuracy", "name", "brand", "rating_out_of_5", "sentiment", "Exact-match"],
-        returnDictMustHave: ["total", "rejects", "results", "per_field_accuracy", "exact_match_count"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence. Markers verify your report.md contains the required sections and field names.", {
+        needles: ["Total cases", "Rejects", "Per-field accuracy", "name", "brand", "rating_out_of_5", "sentiment", "Exact-match"],
       }),
       expectedOutputs: { evalRan: true, reportWritten: true, perFieldAccuracyComputed: true },
       datasetRefs: ["fixtures/reviews_gold.jsonl", "fixtures/mock_responses.json"],

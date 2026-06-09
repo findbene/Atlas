@@ -176,7 +176,7 @@ class Settings(BaseSettings):
       stepNumber: 3,
       title: "SecretStr + log redaction — secrets never appear in repr or structlog",
       instructionMd:
-        "Add `db_password: SecretStr` and `slack_token: SecretStr` to settings. Configure structlog so any value that is a `SecretStr` is rendered as `'***'` in JSON logs. Validator: `log.info('starting', settings=settings)` produces a JSON line where `db_password='***'` and `slack_token='***'`, NEVER the actual secret. `repr(settings)` also redacts. `settings.db_password.get_secret_value()` returns the real value when needed.",
+        "Add `db_password: SecretStr` and `slack_token: SecretStr` to settings. Configure structlog so any value that is a `SecretStr` is rendered as `'***'` in JSON logs. Verify locally that `log.info('starting', settings=settings)` produces a JSON line where `db_password='***'` and `slack_token='***'`, NEVER the actual secret. `repr(settings)` also redacts. `settings.db_password.get_secret_value()` returns the real value when needed. This is a learner attestation — Atlas does not run your code or check for forbidden strings; verify secret masking yourself before attesting.",
       learningObjective: "Secret hygiene = secrets are a different type that requires explicit unwrap. Then `__repr__` and serializers can't accidentally leak them.",
       requiredSkill: "SecretStr + structlog processor + safe `get_secret_value` access",
       starterCode: SRC(`# logging_setup.py
@@ -208,11 +208,15 @@ def configure_logging() -> None:
         ],
     )
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("contains", "JSON log line for settings contains '***' for db_password + slack_token; never the actual secret string.", {
-        forbidden: ["super-secret-pw-42", "xoxb-real-token-9001"],
-        required: ['"db_password": "***"', '"slack_token": "***"'],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The JSON log line produced by `log.info('starting', settings=settings)` contains '\"db_password\": \"***\"' and '\"slack_token\": \"***\"' — never the actual secret values.",
+          "The actual secret strings used in the fixture (the plaintext db password and the Slack token) do not appear anywhere in the log output.",
+          "`repr(settings)` also redacts the secrets — they do not appear as plaintext in the repr.",
+          "`settings.db_password.get_secret_value()` returns the real secret value when explicitly requested.",
+        ],
       }),
       expectedOutputs: { secretsRedacted: true, getSecretValueWorks: true },
       datasetRefs: ["fixtures/log_redaction_input.json", "fixtures/log_redaction_expected.json"],
@@ -260,8 +264,8 @@ def load_settings() -> Settings:
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "ConfigError message mentions both s3.bucket and database.port with a reason each.", {
-        required: ["s3.bucket", "database.port", "Invalid config"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence. Markers verify the ConfigError message contains the expected field paths and header.", {
+        needles: ["s3.bucket", "database.port", "Invalid config"],
       }),
       expectedOutputs: { configErrorRaised: true, mentionsBothFields: true },
       datasetRefs: ["fixtures/invalid_env_scenario.json"],
@@ -284,7 +288,7 @@ def load_settings() -> Settings:
       stepNumber: 5,
       title: "Typer subcommand graph driven by typed Settings",
       instructionMd:
-        "Wire a Typer app with three subcommands: `seedctl db migrate`, `seedctl s3 sync`, `seedctl notify send <message>`. Each receives the loaded `Settings` via a `@app.callback` that runs `load_settings()` once and stashes it on `ctx.obj`. Override flag: `--env-name dev` flows through the precedence chain. Validator: `seedctl db migrate --env-name prod` exits 0 and prints `'env=prod, db=<host>:<port>'`; `seedctl --invalid` exits 2 with Typer's standard error.",
+        "Wire a Typer app with three subcommands: `seedctl db migrate`, `seedctl s3 sync`, `seedctl notify send <message>`. Each receives the loaded `Settings` via a `@app.callback` that runs `load_settings()` once and stashes it on `ctx.obj`. Override flag: `--env-name dev` flows through the precedence chain. Verify locally that `seedctl db migrate --env-name prod` exits 0 and prints `'env=prod, db=<host>:<port>'`, and that `seedctl --invalid` exits 2 with Typer's standard error. This is a learner attestation — Atlas does not run your CLI or check exit codes.",
       learningObjective: "Typer + Pydantic together = type-checked CLI all the way from `argv` to a typed config object. No runtime casting, no string-juggling.",
       requiredSkill: "Typer app structure + ctx.obj for shared state + callback ordering",
       starterCode: SRC(`# cli.py
@@ -325,13 +329,13 @@ def notify_send(ctx: typer.Context, message: str) -> None:
     s: Settings = ctx.obj
     typer.echo(f"channel={s.notify.default_channel} msg={message}")
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("contains", "'seedctl db migrate --env-name prod' stdout contains 'env=prod'; '--invalid' exits 2.", {
-        required: ["env=prod"],
-        scenarios: [
-          { argv: ["db", "migrate", "--env-name", "prod"], expectExit: 0, stdoutContains: "env=prod" },
-          { argv: ["--invalid"], expectExit: 2 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Running `seedctl db migrate --env-name prod` exits with code 0 and stdout contains 'env=prod'.",
+          "Running `seedctl --invalid` exits with code 2 (Typer's standard error exit for bad arguments).",
+          "The `--report out.md` flag (if applicable) writes the report to the specified file.",
         ],
       }),
       expectedOutputs: { migrateExit: 0, invalidExit: 2 },

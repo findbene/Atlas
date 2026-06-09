@@ -58,7 +58,7 @@ export const cloudDataEngineerDeltaLakeLakehouse: AuthoredProject = {
       stepNumber: 1,
       title: "Terraform-provision S3 + IAM for Delta",
       instructionMd:
-        "Write `main.tf` provisioning: an S3 bucket with versioning enabled + a 30-day non-current-version lifecycle rule + a `delta/` prefix block-public-access policy + an IAM role with `s3:GetObject/PutObject/DeleteObject/ListBucket` scoped to `arn:aws:s3:::<bucket>/delta/*`. Validator runs `terraform plan -out=tfplan` against a fixture state and asserts the plan contains: 1 `aws_s3_bucket` with `versioning=Enabled`, 1 `aws_s3_bucket_lifecycle_configuration` with 30-day expiry, 1 `aws_iam_role` with the correct policy.",
+        "Write `main.tf` provisioning: an S3 bucket with versioning enabled + a 30-day non-current-version lifecycle rule + a `delta/` prefix block-public-access policy + an IAM role with `s3:GetObject/PutObject/DeleteObject/ListBucket` scoped to `arn:aws:s3:::<bucket>/delta/*`. Submit your Terraform file; Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Lakehouse storage MUST be versioned + lifecycle-managed; Delta's logs accumulate fast.",
       requiredSkill: "Terraform AWS provider + S3 versioning + IAM least-privilege",
       starterCode: SRC(`# main.tf
@@ -82,8 +82,8 @@ resource "aws_s3_bucket_versioning" "lakehouse" {
 `),
       validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("contains", "terraform plan output mentions: aws_s3_bucket, versioning Enabled, aws_s3_bucket_lifecycle_configuration with 30, aws_iam_role with s3:GetObject + s3:PutObject + s3:DeleteObject + s3:ListBucket.", {
-        expected: ["aws_s3_bucket", "Enabled", "aws_s3_bucket_lifecycle_configuration", "30", "aws_iam_role", "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: ["aws_s3_bucket", "Enabled", "aws_s3_bucket_lifecycle_configuration", "30", "aws_iam_role", "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
       }),
       expectedOutputs: { bucketCount: 1, lifecycleDays: 30, iamRoles: 1 },
       datasetRefs: ["fixtures/terraform_state.json"],

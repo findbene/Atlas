@@ -56,7 +56,7 @@ export const analyticsEngineerDbtCiStateModified: AuthoredProject = {
       stepNumber: 1,
       title: "profiles.yml — per-PR Snowflake schema",
       instructionMd:
-        "Author `profiles/ci/profiles.yml` that uses `schema: \"PR_{{ env_var('GITHUB_PR_NUMBER') }}\"` so each PR builds into its own schema. Auth via Snowflake key-pair (private key in GH secret). Validator parses the YAML and asserts schema includes the env var template.",
+        "Author `profiles/ci/profiles.yml` that uses `schema: \"PR_{{ env_var('GITHUB_PR_NUMBER') }}\"` so each PR builds into its own schema. Auth via Snowflake key-pair (private key in GH secret). Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Isolate per-PR builds into distinct Snowflake schemas using env var interpolation.",
       requiredSkill: "dbt profiles.yml + env_var Jinja + Snowflake key-pair auth",
       starterCode: SRC(`# profiles/ci/profiles.yml
@@ -75,11 +75,13 @@ my_project:
       threads: 4
 # TODO: confirm the schema template includes PR number so concurrent PRs don't collide.
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "writeup",
-      validation: validationConfig("exact", "profiles.yml has schema=\"PR_{{ env_var('GITHUB_PR_NUMBER') }}\" and uses private_key_path.", {
-        expectedSchemaPattern: "PR_{{ env_var('GITHUB_PR_NUMBER') }}",
-        expectedAuthField: "private_key_path",
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "PR_{{ env_var('GITHUB_PR_NUMBER') }}",
+          "private_key_path",
+        ],
       }),
       expectedOutputs: { schemaIsolated: true, authPath: "private_key_path" },
       datasetRefs: ["fixtures/profiles_yml_expected.yml"],
@@ -102,7 +104,7 @@ my_project:
       stepNumber: 2,
       title: "Download prod manifest from S3",
       instructionMd:
-        "GH Actions step: download `manifest.json` from `s3://dbt-artifacts/prod/manifest.json` (uploaded by the production dbt run) into `./prod_state/`. Validator parses the workflow YAML and asserts the download step uses aws-actions/configure-aws-credentials with OIDC role + aws s3 cp.",
+        "GH Actions step: download `manifest.json` from `s3://dbt-artifacts/prod/manifest.json` (uploaded by the production dbt run) into `./prod_state/`. Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Wire artifact pickup from S3 with OIDC auth (no long-lived AWS keys in CI).",
       requiredSkill: "GH Actions OIDC + aws-actions/configure-aws-credentials + dbt state artifact",
       starterCode: SRC(`# .github/workflows/dbt_ci.yml (snippet)
@@ -124,11 +126,13 @@ jobs:
           aws s3 cp s3://dbt-artifacts/prod/manifest.json prod_state/manifest.json
       # TODO: confirm prod_state/manifest.json exists and is valid JSON before next step.
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "writeup",
-      validation: validationConfig("exact", "Workflow YAML has aws-actions/configure-aws-credentials with role-to-assume + aws s3 cp to prod_state/manifest.json.", {
-        expectedAction: "aws-actions/configure-aws-credentials",
-        expectedDownload: "prod_state/manifest.json",
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "aws-actions/configure-aws-credentials",
+          "prod_state/manifest.json",
+        ],
       }),
       expectedOutputs: { ociConfigured: true, manifestPath: "prod_state/manifest.json" },
       datasetRefs: ["fixtures/workflow_yml_expected.yml"],
@@ -151,7 +155,7 @@ jobs:
       stepNumber: 3,
       title: "Slim build with state:modified+",
       instructionMd:
-        "Add `dbt build --select state:modified+ --defer --state prod_state --fail-fast` step. `state:modified+` = changed nodes + descendants. `--defer` = resolve upstream refs from prod (no rebuild). `--fail-fast` = bail on first error. Validator asserts the dbt command has all three flags.",
+        "Add `dbt build --select state:modified+ --defer --state prod_state --fail-fast` step. `state:modified+` = changed nodes + descendants. `--defer` = resolve upstream refs from prod (no rebuild). `--fail-fast` = bail on first error. Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Use state:modified+ + defer + fail-fast to minimize PR build time + cost.",
       requiredSkill: "dbt build selectors + state comparison + defer semantics",
       starterCode: SRC(`# .github/workflows/dbt_ci.yml (continued)
@@ -163,10 +167,15 @@ jobs:
           dbt deps
           # TODO: dbt build --select state:modified+ --defer --state prod_state --fail-fast
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "writeup",
-      validation: validationConfig("exact", "dbt command includes --select state:modified+ --defer --state prod_state --fail-fast.", {
-        expectedFlags: ["--select state:modified+", "--defer", "--state prod_state", "--fail-fast"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "--select state:modified+",
+          "--defer",
+          "--state prod_state",
+          "--fail-fast",
+        ],
       }),
       expectedOutputs: { flagsPresent: 4 },
       datasetRefs: ["fixtures/dbt_build_command.sh"],
@@ -189,7 +198,7 @@ jobs:
       stepNumber: 4,
       title: "dbt test on the slim selection",
       instructionMd:
-        "Add `dbt test --select state:modified+ --defer --state prod_state` step after build. Tests on changed models + downstream deps. Validator asserts the test command uses the same selectors as build.",
+        "Add `dbt test --select state:modified+ --defer --state prod_state` step after build. Tests on changed models + downstream deps. Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Run dbt tests scoped to the slim selection — full coverage on what changed without re-testing the world.",
       requiredSkill: "dbt test + selector consistency between build and test",
       starterCode: SRC(`      - name: dbt test (slim)
@@ -198,10 +207,14 @@ jobs:
         run: |
           # TODO: dbt test --select state:modified+ --defer --state prod_state
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "writeup",
-      validation: validationConfig("exact", "dbt test command uses the same --select state:modified+ --defer --state prod_state.", {
-        expectedSelector: "state:modified+",
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "--select state:modified+",
+          "--defer",
+          "--state prod_state",
+        ],
       }),
       expectedOutputs: { testSelectorMatchesBuild: true },
       datasetRefs: ["fixtures/dbt_test_command.sh"],
@@ -224,7 +237,7 @@ jobs:
       stepNumber: 5,
       title: "PR comment: model graph diff",
       instructionMd:
-        "Final step uses `dbt ls --select state:modified+ --state prod_state --resource-type model --output name` to print changed model names, then posts a sticky PR comment with the list using `peter-evans/create-or-update-comment@v4`. Validator asserts the workflow has the comment step + the dbt ls command.",
+        "Final step uses `dbt ls --select state:modified+ --state prod_state --resource-type model --output name` to print changed model names, then posts a sticky PR comment with the list using `peter-evans/create-or-update-comment@v4`. Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Surface what the slim build actually built via a PR comment for reviewer context.",
       requiredSkill: "dbt ls + sticky PR comment via GH Action",
       starterCode: SRC(`      - name: List changed models
@@ -241,11 +254,13 @@ jobs:
             Changed models (state:modified+):
             \${{ steps.changed.outputs.models }}
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "writeup",
-      validation: validationConfig("exact", "Workflow has `dbt ls --select state:modified+` step + peter-evans/create-or-update-comment with models output.", {
-        expectedActions: ["peter-evans/create-or-update-comment"],
-        expectedCommand: "dbt ls --select state:modified+",
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "peter-evans/create-or-update-comment",
+          "dbt ls --select state:modified+",
+        ],
       }),
       expectedOutputs: { commentStep: true, lsCommand: true },
       datasetRefs: ["fixtures/pr_comment_expected.md"],

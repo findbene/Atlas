@@ -59,7 +59,7 @@ export const cloudDataEngineerSnowflakeDataWarehouse: AuthoredProject = {
       stepNumber: 1,
       title: "Terraform: warehouses + databases + schemas",
       instructionMd:
-        "Write `main.tf` provisioning 2 warehouses (`WH_INGEST` size=MEDIUM, `WH_ANALYTICS` size=XSMALL, both auto_suspend=60s, auto_resume=true), 1 database `RAW`, and 3 schemas (`RAW.EVENTS`, `RAW.USERS`, `ANALYTICS.MARTS`). Validator runs `terraform plan` against a fixture state and asserts: 2 `snowflake_warehouse` resources with correct sizes + auto_suspend=60, 1 `snowflake_database`, 3 `snowflake_schema`.",
+        "Write `main.tf` provisioning 2 warehouses (`WH_INGEST` size=MEDIUM, `WH_ANALYTICS` size=XSMALL, both auto_suspend=60s, auto_resume=true), 1 database `RAW`, and 3 schemas (`RAW.EVENTS`, `RAW.USERS`, `ANALYTICS.MARTS`). Submit your Terraform file; Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Cost control starts with sized warehouses + aggressive auto-suspend — both must be IaC, not console-clicked.",
       requiredSkill: "Snowflake Terraform provider + warehouse sizing + schema layout",
       starterCode: SRC(`# main.tf
@@ -80,8 +80,8 @@ resource "snowflake_warehouse" "wh_ingest" {
 `),
       validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("contains", "terraform plan mentions: snowflake_warehouse with WH_INGEST + WH_ANALYTICS + warehouse_size MEDIUM + XSMALL + auto_suspend = 60 + auto_resume; snowflake_database RAW; snowflake_schema EVENTS + USERS + MARTS.", {
-        expected: ["snowflake_warehouse", "WH_INGEST", "WH_ANALYTICS", "MEDIUM", "XSMALL", "auto_suspend", "60", "auto_resume", "snowflake_database", "RAW", "snowflake_schema", "EVENTS", "USERS", "MARTS"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: ["snowflake_warehouse", "WH_INGEST", "WH_ANALYTICS", "MEDIUM", "XSMALL", "auto_suspend", "60", "auto_resume", "snowflake_database", "RAW", "snowflake_schema", "EVENTS", "USERS", "MARTS"],
       }),
       expectedOutputs: { warehouses: 2, databases: 1, schemas: 3 },
       datasetRefs: ["fixtures/snowflake_state.json"],

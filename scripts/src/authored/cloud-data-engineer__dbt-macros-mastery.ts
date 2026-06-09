@@ -57,7 +57,7 @@ export const cloudDataEngineerDbtMacrosMastery: AuthoredProject = {
       stepNumber: 1,
       title: "surrogate_key — handle NULLs correctly",
       instructionMd:
-        "Implement `surrogate_key(*columns)` returning a SQL string: `md5(cast(coalesce(cast(<col> as varchar), '_dbt_null_') as varchar) || '||' || ... )`. Raises on empty input. Validator drives single + multi-column cases.",
+        "Implement `surrogate_key(*columns)` returning a SQL string: `md5(cast(coalesce(cast(<col> as varchar), '_dbt_null_') as varchar) || '||' || ... )`. Raises on empty input. Atlas checks that the required SQL markers appear in your submission.",
       learningObjective: "Generate Jinja → SQL macros that handle the NULL-collision trap correctly.",
       requiredSkill: "Jinja-style SQL generation + COALESCE for NULL handling",
       starterCode: SRC(`SEP = "||"
@@ -73,14 +73,14 @@ def surrogate_key(*columns):
     joined = (" || '" + SEP + "' || ").join(parts)
     return f"md5({joined})"
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "code_sql",
-      validation: validationConfig("exact", "surrogate_key('email') and surrogate_key('first_name','last_name') match the documented SQL strings character-for-character.", {
-        singleColumnExpected: "md5(cast(coalesce(cast(email as varchar), '_dbt_null_') as varchar))",
-        multiColumnExpected:
-          "md5(cast(coalesce(cast(first_name as varchar), '_dbt_null_') as varchar)" +
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "md5(cast(coalesce(cast(email as varchar), '_dbt_null_') as varchar))",
+          "md5(cast(coalesce(cast(first_name as varchar), '_dbt_null_') as varchar)",
           " || '||' || cast(coalesce(cast(last_name as varchar), '_dbt_null_') as varchar))",
-        expectErrorOnEmpty: true,
+        ],
       }),
       expectedOutputs: { singleColMatches: true, multiColMatches: true, emptyRaises: true },
       datasetRefs: ["fixtures/surrogate_key_cases.json"],
@@ -103,7 +103,7 @@ def surrogate_key(*columns):
       stepNumber: 2,
       title: "dispatch — warehouse-portable week_trunc",
       instructionMd:
-        "Implement `dispatch(macro_name, adapter, implementations)` returning the right impl: prefer `implementations[adapter]`, fall back to `implementations['default']`, raise KeyError if neither. Validator drives Postgres (default) and BigQuery (override) for a `week_trunc` macro.",
+        "Implement `dispatch(macro_name, adapter, implementations)` returning the right impl: prefer `implementations[adapter]`, fall back to `implementations['default']`, raise KeyError if neither. This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.",
       learningObjective: "Use dbt's dispatch pattern to write macros that compile correctly on every warehouse.",
       requiredSkill: "Adapter-aware macro resolution + safe fallback",
       starterCode: SRC(`def dispatch(macro_name, adapter, implementations):
@@ -112,15 +112,15 @@ def surrogate_key(*columns):
     # TODO: raise KeyError(f'no impl for {macro_name} on {adapter} and no default')
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "dispatch('week_trunc','postgres',{default:fn_pg, bigquery:fn_bq})('order_date') == \"date_trunc('week', order_date)\"; same for bigquery returns BQ form; missing default + missing adapter raises.", {
-        cases: [
-          { adapter: "postgres", expected: "date_trunc('week', order_date)" },
-          { adapter: "bigquery", expected: "date_trunc(order_date, week)" },
-          { adapter: "snowflake", expected: "date_trunc('week', order_date)" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "dispatch('week_trunc','postgres',{default:fn_pg}) returns fn_pg('order_date') == \"date_trunc('week', order_date)\"",
+          "dispatch('week_trunc','bigquery',{default:fn_pg, bigquery:fn_bq}) returns fn_bq('order_date') == \"date_trunc(order_date, week)\"",
+          "dispatch('week_trunc','snowflake',{default:fn_pg}) falls back to fn_pg (default) correctly",
+          "dispatch('week_trunc','snowflake',{bigquery:fn_bq}) raises KeyError (no default, no match)",
         ],
-        expectErrorWhenNoDefault: true,
       }),
       expectedOutputs: { pgOk: true, bqOk: true, fallbackOk: true, missingRaises: true },
       datasetRefs: ["fixtures/dispatch_cases.json"],
@@ -143,7 +143,7 @@ def surrogate_key(*columns):
       stepNumber: 3,
       title: "pivot — rows to columns",
       instructionMd:
-        "Implement `pivot(column, values, agg='sum', value_col='amount')` returning the comma-joined SUM-CASE-WHEN fragments with safe lowercase-snake aliases. Empty `values` → ValueError. Validator drives 2 invocations.",
+        "Implement `pivot(column, values, agg='sum', value_col='amount')` returning the comma-joined SUM-CASE-WHEN fragments with safe lowercase-snake aliases. Empty `values` → ValueError. Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Replace 50-line hand-written pivots with a one-line macro call.",
       requiredSkill: "Jinja SQL generation + identifier sanitisation",
       starterCode: SRC(`import re
@@ -160,18 +160,13 @@ def pivot(column, values, agg='sum', value_col='amount'):
 `),
       validationType: "contains",
       stepType: "code_sql",
-      validation: validationConfig("contains", "pivot('status',['paid','refunded']) contains both CASE expressions + correct aliases; pivot('region',['North America','EMEA']) generates 'north_america' alias.", {
-        cases: [
-          {
-            column: "status", values: ["paid", "refunded"],
-            requiredSubstrings: ["sum(case when status = 'paid' then amount end) as paid", "sum(case when status = 'refunded' then amount end) as refunded"],
-          },
-          {
-            column: "region", values: ["North America", "EMEA"],
-            requiredSubstrings: ["as north_america", "as emea"],
-          },
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "sum(case when status = 'paid' then amount end) as paid",
+          "sum(case when status = 'refunded' then amount end) as refunded",
+          "as north_america",
+          "as emea",
         ],
-        expectErrorOnEmpty: true,
       }),
       expectedOutputs: { statusOk: true, regionOk: true, emptyRaises: true },
       datasetRefs: ["fixtures/pivot_cases.json"],
@@ -194,7 +189,7 @@ def pivot(column, values, agg='sum', value_col='amount'):
       stepNumber: 4,
       title: "date_spine — fill missing days",
       instructionMd:
-        "Implement `date_spine(start_date, end_date, granularity='day')` returning the Postgres SQL `select generate_series('<start>'::date, '<end>'::date, '<interval>'::interval)::date as date_<granularity>`. Supports day/week/month. Validator drives 3 calls.",
+        "Implement `date_spine(start_date, end_date, granularity='day')` returning the Postgres SQL `select generate_series('<start>'::date, '<end>'::date, '<interval>'::interval)::date as date_<granularity>`. Supports day/week/month. Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Generate the date-spine SQL every time-series model joins onto.",
       requiredSkill: "Jinja SQL generation + granularity validation",
       starterCode: SRC(`GRANULARITIES = {'day': '1 day', 'week': '1 week', 'month': '1 month'}
@@ -209,12 +204,13 @@ def date_spine(start_date, end_date, granularity='day'):
 `),
       validationType: "contains",
       stepType: "code_sql",
-      validation: validationConfig("contains", "date_spine('2026-01-01','2026-01-31') contains generate_series + '1 day'::interval + 'as date_day'; week granularity returns 'as date_week'; unknown granularity raises.", {
-        cases: [
-          { start: "2026-01-01", end: "2026-01-31", granularity: "day", requiredSubstrings: ["generate_series('2026-01-01'::date, '2026-01-31'::date, '1 day'::interval)", "as date_day"] },
-          { start: "2026-01-01", end: "2026-03-31", granularity: "week", requiredSubstrings: ["as date_week", "'1 week'::interval"] },
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: [
+          "generate_series('2026-01-01'::date, '2026-01-31'::date, '1 day'::interval)",
+          "as date_day",
+          "as date_week",
+          "'1 week'::interval",
         ],
-        expectErrorOnUnsupported: true,
       }),
       expectedOutputs: { dayOk: true, weekOk: true, unsupportedRaises: true },
       datasetRefs: ["fixtures/date_spine_cases.json"],
@@ -237,7 +233,7 @@ def date_spine(start_date, end_date, granularity='day'):
       stepNumber: 5,
       title: "Macro testing — assert_macro_renders",
       instructionMd:
-        "Implement `assert_macro_renders(macro_fn, args, expected)` that calls the macro, normalises both outputs (collapse whitespace), and raises AssertionError with a clear diff if they differ. Validator drives a passing case and a failing one.",
+        "Implement `assert_macro_renders(macro_fn, args, expected)` that calls the macro, normalises both outputs (collapse whitespace), and raises AssertionError with a clear diff if they differ. This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.",
       learningObjective: "Lock macros into CI so a regression is caught before it propagates across 40 models.",
       requiredSkill: "SQL-string normalisation + assertion-with-diff",
       starterCode: SRC(`import re
@@ -253,12 +249,14 @@ def assert_macro_renders(macro_fn, args, expected):
         pass
     return True
 `),
-      validationType: "contains",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("contains", "Passing case returns True; mismatched case raises AssertionError whose message contains 'expected' and 'got'.", {
-        passingCase: { renderedSql: "date_trunc('week', order_date)", expected: "date_trunc('week', order_date)" },
-        failingCase: { renderedSql: "date_trunc('week', x)", expected: "date_trunc('month', x)" },
-        requiredErrorSubstrings: ["expected", "got"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "assert_macro_renders(fn, ['order_date'], \"date_trunc('week', order_date)\") returns True when fn produces the matching string",
+          "assert_macro_renders(fn, ['x'], \"date_trunc('month', x)\") raises AssertionError when fn produces a different string",
+          "The AssertionError message includes both 'expected' and 'got' so the diff is clear",
+        ],
       }),
       expectedOutputs: { passingReturnsTrue: true, failingRaisesWithDiff: true },
       datasetRefs: ["fixtures/macro_test_cases.json"],

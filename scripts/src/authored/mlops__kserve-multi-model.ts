@@ -55,7 +55,7 @@ export const mlopsKserveMultiModel: AuthoredProject = {
       stepNumber: 1,
       title: "Author the ModelMesh ServingRuntime",
       instructionMd:
-        "Write a `ServingRuntime` CR for the `mlserver-mlflow` runtime: supported formats `[mlflow, sklearn]`, container image `seldonio/mlserver:1.5.0`, replicas 2, resource requests CPU=500m / mem=2Gi. ModelMesh will route prediction requests to whichever runtime pod has the requested model loaded; idle models are evicted from memory. Validator parses the YAML and asserts (a) kind=ServingRuntime, (b) supportedModelFormats includes both names, (c) replicas==2.",
+        "Write a `ServingRuntime` CR for the `mlserver-mlflow` runtime: supported formats `[mlflow, sklearn]`, container image `seldonio/mlserver:1.5.0`, replicas 2, resource requests CPU=500m / mem=2Gi. ModelMesh will route prediction requests to whichever runtime pod has the requested model loaded; idle models are evicted from memory. Atlas checks that the required evidence markers are present in your submission — not that the manifest otherwise applies cleanly, and not your authorship or competence.",
       learningObjective: "Define a multi-format ServingRuntime so many models can co-tenant the same pods.",
       requiredSkill: "Kubernetes CRDs + KServe ServingRuntime spec",
       starterCode: SRC(`# k8s/serving-runtime.yaml
@@ -80,12 +80,10 @@ spec:
           cpu: "2"
           memory: 4Gi
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "kubectl apply --dry-run=client succeeds; ServingRuntime has the two model formats + replicas=2.", {
-        expectedKind: "ServingRuntime",
-        expectedFormats: ["mlflow", "sklearn"],
-        expectedReplicas: 2,
+      validation: validationConfig("contains", "ServingRuntime YAML contains the required kind, both model format names, and replicas marker.", {
+        needles: ["kind: ServingRuntime", "name: mlflow", "name: sklearn", "replicas: 2"],
       }),
       expectedOutputs: { kind: "ServingRuntime", formats: ["mlflow", "sklearn"], replicas: 2 },
       datasetRefs: ["fixtures/runtime_expected.yaml"],
@@ -169,7 +167,7 @@ if __name__ == "__main__":
       stepNumber: 3,
       title: "KEDA ScaledObject for per-model RPS autoscale",
       instructionMd:
-        "Define a `ScaledObject` that scales the ServingRuntime Deployment based on Prometheus query `sum(rate(model_request_seconds_count[1m])) by (model_name)`. minReplicas=2, maxReplicas=20, scale trigger threshold=10 RPS per pod. KEDA watches Prometheus, computes desired replicas, and updates the runtime's Deployment. Validator parses the YAML and asserts (a) kind=ScaledObject, (b) trigger type=prometheus, (c) threshold='10'.",
+        "Define a `ScaledObject` that scales the ServingRuntime Deployment based on Prometheus query `sum(rate(model_request_seconds_count[1m])) by (model_name)`. minReplicas=2, maxReplicas=20, scale trigger threshold=10 RPS per pod. KEDA watches Prometheus, computes desired replicas, and updates the runtime's Deployment. Atlas checks that the required evidence markers are present in your submission — not that the manifest otherwise applies cleanly, and not your authorship or competence.",
       learningObjective: "Wire KEDA to autoscale inference workloads on a Prometheus signal instead of CPU.",
       requiredSkill: "KEDA ScaledObject + Prometheus query + per-trigger threshold reasoning",
       starterCode: SRC(`# k8s/keda-scaledobject.yaml
@@ -190,12 +188,10 @@ spec:
         # TODO: query: sum(rate(model_request_seconds_count[1m]))
         # threshold: "10"
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "ScaledObject parses; trigger type=prometheus; threshold='10'; min=2 max=20.", {
-        expectedTriggerType: "prometheus",
-        expectedThreshold: "10",
-        expectedMin: 2, expectedMax: 20,
+      validation: validationConfig("contains", "ScaledObject YAML contains the kind marker, prometheus trigger type, and threshold string. minReplicas/maxReplicas values are not enforced by this check.", {
+        needles: ["kind: ScaledObject", "type: prometheus", 'threshold: "10"'],
       }),
       expectedOutputs: { triggerType: "prometheus", threshold: "10" },
       datasetRefs: ["fixtures/keda_expected.yaml"],
@@ -273,7 +269,7 @@ class CustomerModel(MLModel):
       stepNumber: 5,
       title: "SLO + multi-window burn-rate alert",
       instructionMd:
-        "Define a Prometheus PrometheusRule with a 99% latency-under-200ms SLO and the standard 2-window burn-rate alerts (fast: 1h+5m windows > 14.4× budget burn → critical; slow: 6h+30m > 6× → warning). Use the standard formula: burn_rate = (1 - successful_fraction) / (1 - slo) where successful_fraction = histogram_quantile(0.99, ...) <= 0.2. Validator parses the YAML and asserts 2 alert rules with the right burn-rate thresholds.",
+        "Define a Prometheus PrometheusRule with a 99% latency-under-200ms SLO and the standard 2-window burn-rate alerts (fast: 1h+5m windows > 14.4× budget burn → critical; slow: 6h+30m > 6× → warning). Use the standard formula: burn_rate = (1 - successful_fraction) / (1 - slo) where successful_fraction = histogram_quantile(0.99, ...) <= 0.2. Atlas checks that the required evidence markers are present in your submission — not that the manifest otherwise applies cleanly, and not your authorship or competence.",
       learningObjective: "Define a 2-window burn-rate SLO alert for inference latency.",
       requiredSkill: "Prometheus recording rules + SLO burn-rate alerting (Google SRE pattern)",
       starterCode: SRC(`# k8s/prometheus-rules.yaml
@@ -293,11 +289,10 @@ spec:
           # TODO: expr for 30m AND 6h windows > 6
           # severity: warning
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "Two alert rules present with the right names + severities.", {
-        expectedAlerts: ["MLServerLatencyBurnRateFast", "MLServerLatencyBurnRateSlow"],
-        expectedSeverities: ["critical", "warning"],
+      validation: validationConfig("contains", "PrometheusRule YAML contains both alert names and both severity labels.", {
+        needles: ["MLServerLatencyBurnRateFast", "MLServerLatencyBurnRateSlow", "severity: critical", "severity: warning"],
       }),
       expectedOutputs: { alerts: 2, severities: ["critical", "warning"] },
       datasetRefs: ["fixtures/slo_rules_expected.yaml"],

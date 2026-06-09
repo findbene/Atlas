@@ -257,7 +257,7 @@ def evaluate_policies(policies: list[Policy], products: list[DataProduct]) -> di
       stepNumber: 4,
       title: "Self-serve platform API (FastAPI)",
       instructionMd:
-        "Expose three endpoints: `POST /products` (publish: parse manifest, validate, run all policies, reject if violations), `GET /products` (list filtered by domain), `GET /products/{name}` (full product detail including policy report). Validator hits all three endpoints; expects POST to reject a manifest with policy violations (400 + violation list); list endpoint filters by `?domain=sales` correctly.",
+        "Expose three endpoints: `POST /products` (publish: parse manifest, validate, run all policies, reject if violations), `GET /products` (list filtered by domain), `GET /products/{name}` (full product detail including policy report). Your submission should include output showing a clean publish returning `'published'` status and a policy-violating publish returning a `violations` array. Atlas checks for those markers in your submission — it does not send HTTP requests to your running service or verify status codes.",
       learningObjective: "Give domain teams self-serve publish + consume — the platform's reason for being.",
       requiredSkill: "FastAPI + Pydantic request validation + policy-gated publishing",
       starterCode: SRC(`# api.py
@@ -299,9 +299,8 @@ def get_product(name: str) -> dict:
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "POST /products with clean manifest → 200 status='published'. POST with policy violation → 400 + violations array. GET /products?domain=sales returns only sales products.", {
-        expected: { cleanPublishStatus: "published", violationStatus: 400, domainFilterWorks: true },
-        mustContain: ["published", "violations"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers ('published' and 'violations') are present in your submission — not that the service otherwise behaves correctly, and not your authorship or competence.", {
+        needles: ["published", "violations"],
       }),
       expectedOutputs: { publish: "published", filter: "sales", reject: 400 },
       datasetRefs: ["fixtures/sales_product.yml"],

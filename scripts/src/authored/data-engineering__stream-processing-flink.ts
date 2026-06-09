@@ -242,7 +242,7 @@ def stream_aggregate(events, window_ms, allowed_lateness_ms):
       stepNumber: 5,
       title: "Exactly-once across heterogeneous sinks — write the contract",
       instructionMd:
-        "Write a 200-400 word Markdown note (return as a Python string) covering: (1) why at-least-once is easier than exactly-once; (2) why the sink must participate in the checkpoint protocol; (3) one concrete scenario where Kafka+Postgres exactly-once is harder than within Flink alone (XA, idempotent upserts, or 2PC tradeoffs). Validator checks length AND that all three concepts appear.",
+        "Write a 200-400 word Markdown note (return as a Python string) covering: (1) why at-least-once is easier than exactly-once; (2) why the sink must participate in the checkpoint protocol; (3) one concrete scenario where Kafka+Postgres exactly-once is harder than within Flink alone (XA, idempotent upserts, or 2PC tradeoffs). Atlas checks that the required evidence markers are present in your submission — not that the note is otherwise correct, and not your authorship or competence. The word-count range is guidance, not a graded gate. Required markers: 'checkpoint' and 'idempot' (covers idempotent/idempotency) must appear; your note should also reference at least one of Kafka or Postgres to ground the cross-sink discussion, though Atlas does not enforce that last requirement.",
       learningObjective: "Defend an exactly-once design in plain prose — the actual interview test.",
       requiredSkill: "Streaming design literacy + clear technical writing",
       starterCode: SRC(`def exactly_once_note():
@@ -257,10 +257,8 @@ def stream_aggregate(events, window_ms, allowed_lateness_ms):
 `),
       validationType: "contains",
       stepType: "writeup",
-      validation: validationConfig("contains", "Note is 200-400 words AND contains 'checkpoint', 'idempot', and either 'Kafka' or 'Postgres'.", {
-        minWords: 200, maxWords: 400,
-        requiredSubstrings: ["checkpoint", "idempot"],
-        anyOfSubstrings: ["Kafka", "Postgres"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the note is otherwise correct, and not your authorship or competence. Word-count guidance (200-400 words) and the Kafka/Postgres cross-sink requirement are not enforced by the grader. Markers 'checkpoint' and 'idempot' must both appear.", {
+        needles: ["checkpoint", "idempot"],
       }),
       expectedOutputs: { passesWordCount: true, containsRequiredConcepts: true },
       datasetRefs: ["fixtures/exactly_once_rubric.json"],

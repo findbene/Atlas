@@ -154,7 +154,7 @@ cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
       stepNumber: 3,
       title: "Terraform EMR Serverless + Airflow DAG",
       instructionMd:
-        "Provision an EMR Serverless application via Terraform (`aws_emrserverless_application` with type=Spark, release=emr-7.0.0). Write `dags/iceberg_maintenance.py` (Airflow ≥2.7) that runs daily at 03:00 UTC, submits the compaction job via `EmrServerlessStartJobOperator`, retries=2 with `retry_delay=timedelta(minutes=15)`, on_failure_callback notifies Slack. Validator runs `terraform validate` + parses the DAG file via Airflow's DagBag and asserts no parse errors + the operator config.",
+        "Provision an EMR Serverless application via Terraform (`aws_emrserverless_application` with type=Spark, release=emr-7.0.0). Write `dags/iceberg_maintenance.py` (Airflow ≥2.7) that runs daily at 03:00 UTC, submits the compaction job via `EmrServerlessStartJobOperator`, retries=2 with `retry_delay=timedelta(minutes=15)`, on_failure_callback notifies Slack. This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.",
       learningObjective: "Provision serverless Spark + schedule the maintenance pipeline with production-grade retry/alerting.",
       requiredSkill: "Terraform aws_emrserverless_application + Airflow EmrServerlessStartJobOperator",
       starterCode: SRC(`# infra/main.tf
@@ -192,10 +192,15 @@ with DAG("iceberg_maintenance", schedule="0 3 * * *",
     #   on_failure_callback=slack_alert)
     pass
 `),
-      validationType: "exact",
+      validationType: "self_attest",
       stepType: "multi_file",
-      validation: validationConfig("exact", "terraform validate passes; DagBag reports 0 errors; operator has retries=2 and on_failure_callback set.", {
-        expectedTfValid: true, expectedDagErrors: 0, expectedRetries: 2,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "terraform validate passes with no errors on your infra/main.tf",
+          "The Airflow DAG file parses without errors (DagBag reports 0 import errors)",
+          "EmrServerlessStartJobOperator has retries=2 and on_failure_callback configured",
+          "auto_suspend is omitted or inapplicable (EMR Serverless is event-driven, no idle clusters)",
+        ],
       }),
       expectedOutputs: { tfValid: true, dagErrors: 0, retries: 2 },
       datasetRefs: ["fixtures/tf_plan_emr.json"],

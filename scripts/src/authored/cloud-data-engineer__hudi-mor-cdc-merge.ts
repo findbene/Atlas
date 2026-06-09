@@ -195,7 +195,7 @@ spark = (SparkSession.builder.appName("hudi-compact")
       stepNumber: 4,
       title: "Terraform: S3 bucket + Glue catalog + IAM",
       instructionMd:
-        "Author `infra/main.tf`: `aws_s3_bucket` (lifecycle to expire old log files), `aws_glue_catalog_database` for the Hudi tables, `aws_iam_role` + policy granting the EMR/Spark executor s3:GetObject/PutObject/DeleteObject on the bucket and glue:GetTable/UpdateTable. Validator runs `terraform validate` + asserts the IAM policy document has all 5 required actions.",
+        "Author `infra/main.tf`: `aws_s3_bucket` (lifecycle to expire old log files), `aws_glue_catalog_database` for the Hudi tables, `aws_iam_role` + policy granting the EMR/Spark executor s3:GetObject/PutObject/DeleteObject on the bucket and glue:GetTable/UpdateTable. Submit your Terraform file; Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.",
       learningObjective: "Provision the lake foundations (S3 + Glue + IAM) reproducibly with Terraform.",
       requiredSkill: "Terraform aws_s3_bucket + aws_glue_catalog_database + IAM policy authoring",
       starterCode: SRC(`# infra/main.tf
@@ -228,10 +228,10 @@ resource "aws_iam_role" "spark_exec" {
 
 # TODO: aws_iam_role_policy attaching spark_exec policy doc.
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "terraform validate passes; IAM policy has 5 distinct actions: s3:GetObject, s3:PutObject, s3:DeleteObject, s3:ListBucket, glue:GetTable, glue:UpdateTable.", {
-        expectedActions: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "glue:GetTable", "glue:UpdateTable"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the program otherwise runs correctly, and not your authorship or competence.", {
+        needles: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "glue:GetTable", "glue:UpdateTable"],
       }),
       expectedOutputs: { actions: 6, tfValid: true },
       datasetRefs: ["fixtures/tf_iam_policy.json"],

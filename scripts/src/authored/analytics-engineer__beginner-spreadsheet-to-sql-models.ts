@@ -305,8 +305,8 @@ CREATE TEMP TABLE expected_fct_monthly_revenue (
 `),
       validationType: "contains",
       stepType: "code_sql",
-      validation: validationConfig("contains", "tests/test_models.sql contains both symmetric-difference patterns: `EXCEPT SELECT * FROM expected_dim_customer` AND `EXCEPT SELECT * FROM dim_customer` (and the analogous pair for fct); each test returns 0 rows when run.", {
-        required: ["EXCEPT", "expected_dim_customer", "expected_fct_monthly_revenue", "dim_customer", "fct_monthly_revenue"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the query/API otherwise behaves correctly, and not your authorship or competence. Specifically: the SQL file must contain EXCEPT, expected_dim_customer, expected_fct_monthly_revenue, dim_customer, and fct_monthly_revenue.", {
+        needles: ["EXCEPT", "expected_dim_customer", "expected_fct_monthly_revenue", "dim_customer", "fct_monthly_revenue"],
       }),
       expectedOutputs: { dimSetEqual: true, fctSetEqual: true, testsZeroRowsOnSuccess: true },
       datasetRefs: ["fixtures/dim_customer_expected.csv", "fixtures/fct_monthly_revenue_expected.csv"],

@@ -93,6 +93,30 @@ function printScorecard(slug: string, card: Scorecard): void {
 
 // ── promote ─────────────────────────────────────────────────────────────────
 
+/**
+ * Phase 61I — exact authoring→runtime contract.
+ *
+ * The `exact` grader (`gradeSubmission` in api-server) compares the learner
+ * submission against the `project_steps.expected_output` TEXT column. The
+ * authored→promote path historically never populated that column, so every
+ * authored `exact` step shipped with a NULL expected — a silent auto-pass dead
+ * gate pre-61H, fail-closed post-61H. This maps the canonical authored shape
+ * `validationConfig("exact", …, { expected: "<string>" })` into the column so a
+ * true exact step is actually enforceable.
+ *
+ * Returns the `spec.expected` string ONLY for an `exact` step. Every non-exact
+ * step (and any exact step without a non-empty string `expected`) stays null —
+ * byte-identical to the pre-61I write — so the server-graded rowset rows and
+ * all contains/self_attest steps are unaffected. The authoring guard
+ * (`assertValidExactSpec`) rejects an exact spec lacking a string `expected`, so
+ * the null-for-exact fallback here is defense-in-depth, not a live path.
+ */
+function exactExpected(s: AuthoredProject["steps"][number]): string | null {
+  if (s.validationType !== "exact") return null;
+  const spec = (s.validation?.spec ?? {}) as { expected?: unknown };
+  return typeof spec.expected === "string" && spec.expected.length > 0 ? spec.expected : null;
+}
+
 async function promote(slug: string): Promise<void> {
   const authored = findAuthored(slug);
   if (!authored) fail(`No authored module found for slug '${slug}' in scripts/src/authored/.`);
@@ -167,6 +191,9 @@ async function promote(slug: string): Promise<void> {
       instructionMd: s.instructionMd,
       validationType: s.validationType,
       validationConfig: s.validation as unknown as object,
+      // Phase 61I — populate the exact `expected_output` text column from the
+      // canonical `{ expected }` spec (null for every non-exact step → BC).
+      expectedOutput: exactExpected(s),
       starterCode: s.starterCode,
       type: s.stepType,
       expectedOutputs: s.expectedOutputs as unknown as object,

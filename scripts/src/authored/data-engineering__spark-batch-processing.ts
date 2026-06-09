@@ -284,7 +284,7 @@ def write_sized(df: DataFrame, out_path: str, est_bytes_per_row: int = 256) -> N
       stepNumber: 5,
       title: "CI gate — shuffle bytes + spill bytes regression budget",
       instructionMd:
-        "Emit `metrics.json` at end of run with `{ shuffleWriteBytes, shuffleReadBytes, spillBytes, runtimeSec, inputBytes }` pulled from `spark.sparkContext.statusTracker()` + `_jsc.sc().listenerBus()`. Write a CI script that compares to a committed baseline `metrics.baseline.json` and fails if `shuffleWriteBytes` regressed > 20% OR `spillBytes` > 0. Validator: against a perturbed job (intentionally `repartition(10000)`), assert the gate fails with code 1 and the message names `shuffleWriteBytes 5.4x baseline`.",
+        "Emit `metrics.json` at end of run with `{ shuffleWriteBytes, shuffleReadBytes, spillBytes, runtimeSec, inputBytes }` pulled from `spark.sparkContext.statusTracker()` + `_jsc.sc().listenerBus()`. Write a CI script that compares to a committed baseline `metrics.baseline.json` and fails if `shuffleWriteBytes` regressed > 20% OR `spillBytes` > 0. Run the gate against a perturbed job (intentionally `repartition(10000)`) so it reports a regression. Paste the gate's stderr output into the submission field. Atlas checks that the required evidence markers appear in your submission — not that the gate ran correctly or that your exit code was 1, and not your authorship or competence.",
       learningObjective: "A shuffle-bytes regression budget in CI is the only way to keep a Spark job fast over time — without it, every PR adds 5% and you wake up at 4 hours.",
       requiredSkill: "Spark listener metrics + simple regression-budget script + CI exit-code discipline",
       starterCode: SRC(`# metrics.py
@@ -326,8 +326,8 @@ def gate(current_path: str, baseline_path: str, shuffle_budget_ratio: float = 1.
 `),
       validationType: "contains",
       stepType: "code_python",
-      validation: validationConfig("contains", "Perturbed run: gate exits 1; stderr names 'shuffleWriteBytes' + Nx baseline.", {
-        expected: ["CI gate FAILED", "shuffleWriteBytes", "baseline"],
+      validation: validationConfig("contains", "Atlas checks that the required evidence markers are present in your submission — not that the gate otherwise executed correctly, and not your authorship or competence. Paste your gate's stderr output. Markers: 'CI gate FAILED', 'shuffleWriteBytes', and 'baseline' must all appear.", {
+        needles: ["CI gate FAILED", "shuffleWriteBytes", "baseline"],
       }),
       expectedOutputs: { exitCode: 1, mentions: ["shuffleWriteBytes"] },
       datasetRefs: ["fixtures/metrics_perturbed.json"],

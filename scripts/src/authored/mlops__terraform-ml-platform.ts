@@ -54,7 +54,7 @@ export const mlopsTerraformMlPlatform: AuthoredProject = {
       stepNumber: 1,
       title: "Multi-env state backend (S3 + DynamoDB lock)",
       instructionMd:
-        "Author `modules/state-backend/main.tf` that provisions the S3 bucket + DynamoDB lock table used by all OTHER environments. Each env (dev/stage/prod) gets its own state key under the same bucket: `envs/dev/terraform.tfstate`. Use bucket versioning + server-side encryption. Validator runs `terraform validate` + parses the resulting plan JSON and asserts (a) bucket has versioning enabled, (b) DynamoDB table has the LockID hash key.",
+        "Author `modules/state-backend/main.tf` that provisions the S3 bucket + DynamoDB lock table used by all OTHER environments. Each env (dev/stage/prod) gets its own state key under the same bucket: `envs/dev/terraform.tfstate`. Use bucket versioning + server-side encryption. Atlas checks that the required evidence markers are present in your submission — not that the Terraform plan parses or applies cleanly, and not your authorship or competence.",
       learningObjective: "Bootstrap the IaC state backend itself with IaC so disaster recovery is just `terraform apply`.",
       requiredSkill: "Terraform S3 backend + DynamoDB lock table + bucket versioning",
       starterCode: SRC(`# modules/state-backend/main.tf
@@ -82,12 +82,10 @@ resource "aws_dynamodb_table" "lock" {
   # TODO: hash_key = "LockID" + attribute { name = "LockID", type = "S" }
 }
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "`terraform validate` succeeds; bucket has Versioning=Enabled + SSE; DynamoDB table has hash_key=LockID type=S.", {
-        expectedVersioning: "Enabled",
-        expectedSse: "AES256",
-        expectedHashKey: "LockID",
+      validation: validationConfig("contains", "Terraform file contains the required versioning, encryption, and lock-key markers.", {
+        needles: ["status = \"Enabled\"", "sse_algorithm = \"AES256\"", "hash_key = \"LockID\""],
       }),
       expectedOutputs: { versioning: "Enabled", sse: "AES256", lockKey: "LockID" },
       datasetRefs: ["fixtures/state_backend_expected.tfplan.json"],
@@ -110,7 +108,7 @@ resource "aws_dynamodb_table" "lock" {
       stepNumber: 2,
       title: "EKS cluster module with managed node groups",
       instructionMd:
-        "Author `modules/eks/main.tf` provisioning an EKS cluster + a managed node group + the OIDC provider needed for IRSA. Use the official `terraform-aws-modules/eks/aws` module v20+ — building from scratch is multi-thousand-line YAML. Inputs: cluster_name, vpc_id, subnet_ids, node_instance_types. Outputs: cluster_endpoint, oidc_provider_arn. Validator runs `terraform validate` + asserts the OIDC provider output is wired so step 3 can consume it.",
+        "Author `modules/eks/main.tf` provisioning an EKS cluster + a managed node group + the OIDC provider needed for IRSA. Use the official `terraform-aws-modules/eks/aws` module v20+ — building from scratch is multi-thousand-line YAML. Inputs: cluster_name, vpc_id, subnet_ids, node_instance_types. Outputs: cluster_endpoint, oidc_provider_arn. Atlas checks that the required evidence markers are present in your submission — not that the Terraform plan parses or applies cleanly, and not your authorship or competence.",
       learningObjective: "Provision an EKS cluster with OIDC for IRSA using the community-standard EKS module.",
       requiredSkill: "Terraform module composition + EKS OIDC + node group sizing",
       starterCode: SRC(`# modules/eks/main.tf
@@ -131,12 +129,10 @@ module "eks" {
 output "cluster_endpoint" { value = module.eks.cluster_endpoint }
 output "oidc_provider_arn" { value = module.eks.oidc_provider_arn }
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "validate succeeds; module config has enable_irsa=true; ml node group has desired_size=3.", {
-        expectedIrsa: true,
-        expectedNodeGroupName: "ml",
-        expectedDesiredSize: 3,
+      validation: validationConfig("contains", "Terraform file contains IRSA enable flag and the 'ml' node group name. desired_size value is not enforced by this check.", {
+        needles: ["enable_irsa = true", "\"ml\""],
       }),
       expectedOutputs: { irsa: true, nodeGroup: "ml", desired: 3 },
       datasetRefs: ["fixtures/eks_module_expected.tfplan.json"],
@@ -159,7 +155,7 @@ output "oidc_provider_arn" { value = module.eks.oidc_provider_arn }
       stepNumber: 3,
       title: "S3 + RDS + IRSA role for MLflow",
       instructionMd:
-        "Author `modules/mlflow-deps/main.tf`: an S3 bucket for model artifacts, a PostgreSQL RDS for MLflow metadata, and an IAM role + IRSA trust policy so the `mlflow` ServiceAccount in the `mlflow` namespace can read/write the bucket WITHOUT long-lived keys. IRSA = IAM Roles for Service Accounts; the trust policy condition keys are `oidc-provider:sub` matching `system:serviceaccount:mlflow:mlflow`. Validator runs `terraform validate` + asserts the role's assume-role policy has the right condition.",
+        "Author `modules/mlflow-deps/main.tf`: an S3 bucket for model artifacts, a PostgreSQL RDS for MLflow metadata, and an IAM role + IRSA trust policy so the `mlflow` ServiceAccount in the `mlflow` namespace can read/write the bucket WITHOUT long-lived keys. IRSA = IAM Roles for Service Accounts; the trust policy condition keys are `oidc-provider:sub` matching `system:serviceaccount:mlflow:mlflow`. Atlas checks that the required evidence markers are present in your submission — not that the Terraform plan parses or applies cleanly, and not your authorship or competence.",
       learningObjective: "Wire IRSA so pods get scoped, short-lived AWS credentials via OIDC instead of static IAM users.",
       requiredSkill: "IAM trust policies + OIDC + IRSA + RDS/S3 module composition",
       starterCode: SRC(`# modules/mlflow-deps/main.tf
@@ -200,11 +196,10 @@ resource "aws_iam_role" "mlflow" {
 
 # TODO: attach a policy allowing s3:GetObject/PutObject/ListBucket on aws_s3_bucket.models.arn.
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "Trust policy has StringEquals on oidc-provider:sub = 'system:serviceaccount:mlflow:mlflow'; role has policy granting s3 RW on the bucket.", {
-        expectedTrustSub: "system:serviceaccount:mlflow:mlflow",
-        expectedS3Actions: ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+      validation: validationConfig("contains", "Terraform file contains the IRSA trust subject and required S3 action markers.", {
+        needles: ["system:serviceaccount:mlflow:mlflow", "s3:GetObject", "s3:PutObject", "s3:ListBucket"],
       }),
       expectedOutputs: { trustSub: "system:serviceaccount:mlflow:mlflow", s3Actions: 3 },
       datasetRefs: ["fixtures/mlflow_deps_expected.tfplan.json"],
@@ -227,7 +222,7 @@ resource "aws_iam_role" "mlflow" {
       stepNumber: 4,
       title: "MLflow Helm release wired to S3 + RDS",
       instructionMd:
-        "Use the `helm_release` resource to install MLflow (or the bitnami/mlflow chart) on EKS. Wire the chart values: backendStoreUri=`postgresql://mlflow:...@<rds-endpoint>/mlflow`, artifactRoot=`s3://<env>-ml-models/mlflow/`, serviceAccount.annotations[`eks.amazonaws.com/role-arn`]=role-arn-from-step-3. Validator runs `terraform validate` + asserts the SA annotation contains the IRSA role ARN.",
+        "Use the `helm_release` resource to install MLflow (or the bitnami/mlflow chart) on EKS. Wire the chart values: backendStoreUri=`postgresql://mlflow:...@<rds-endpoint>/mlflow`, artifactRoot=`s3://<env>-ml-models/mlflow/`, serviceAccount.annotations[`eks.amazonaws.com/role-arn`]=role-arn-from-step-3. Atlas checks that the required evidence markers are present in your submission — not that the Terraform plan parses or applies cleanly, and not your authorship or competence.",
       learningObjective: "Install MLflow on the EKS cluster with backend store + artifact store + IRSA annotation.",
       requiredSkill: "Terraform helm_release + Helm values templating + IRSA SA annotation",
       starterCode: SRC(`# modules/mlflow-app/main.tf
@@ -260,10 +255,10 @@ resource "helm_release" "mlflow" {
   })]
 }
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "helm_release.mlflow has serviceAccount.annotations with eks.amazonaws.com/role-arn = the IRSA role from step 3.", {
-        expectedAnnotationKey: "eks.amazonaws.com/role-arn",
+      validation: validationConfig("contains", "Terraform file contains the IRSA annotation key for the MLflow service account.", {
+        needles: ["eks.amazonaws.com/role-arn"],
       }),
       expectedOutputs: { irsaAnnotationPresent: true },
       datasetRefs: ["fixtures/mlflow_release_expected.tfplan.json"],
@@ -286,7 +281,7 @@ resource "helm_release" "mlflow" {
       stepNumber: 5,
       title: "GitHub Actions: terraform plan on every PR",
       instructionMd:
-        "Write `.github/workflows/tf-plan.yml` running `terraform init && terraform validate && terraform plan -out=plan.bin` for each env on every PR. Use OIDC federation to AWS (no long-lived keys in repo secrets) via `aws-actions/configure-aws-credentials` with `role-to-assume`. Post the plan summary as a sticky PR comment. Validator parses the workflow YAML and asserts (a) job triggers on pull_request, (b) AWS auth uses OIDC, (c) at least three jobs (one per env).",
+        "Write `.github/workflows/tf-plan.yml` running `terraform init && terraform validate && terraform plan -out=plan.bin` for each env on every PR. Use OIDC federation to AWS (no long-lived keys in repo secrets) via `aws-actions/configure-aws-credentials` with `role-to-assume`. Post the plan summary as a sticky PR comment. Atlas checks that the required evidence markers are present in your submission — not that the workflow runs or is otherwise valid, and not your authorship or competence.",
       learningObjective: "Gate every Terraform change behind a CI plan + OIDC auth to AWS.",
       requiredSkill: "GitHub Actions OIDC + matrix strategy + Terraform plan diff",
       starterCode: SRC(`# .github/workflows/tf-plan.yml
@@ -315,12 +310,10 @@ jobs:
       - run: terraform -chdir=envs/\${{ matrix.env }} validate
       - run: terraform -chdir=envs/\${{ matrix.env }} plan -out=plan.bin
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
-      validation: validationConfig("exact", "Workflow runs on pull_request; permissions.id-token=write; matrix has dev/stage/prod; role-to-assume present.", {
-        triggers: ["pull_request"],
-        expectedMatrix: ["dev", "stage", "prod"],
-        expectedAuthMethod: "oidc",
+      validation: validationConfig("contains", "Workflow YAML contains the pull_request trigger, OIDC permission, all three env matrix values, and the role-to-assume OIDC marker.", {
+        needles: ["pull_request", "id-token: write", "dev", "stage", "prod", "role-to-assume"],
       }),
       expectedOutputs: { trigger: "pull_request", envs: 3, auth: "oidc" },
       datasetRefs: ["fixtures/tf_plan_workflow_expected.yml"],
