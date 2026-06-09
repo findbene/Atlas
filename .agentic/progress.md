@@ -4,6 +4,28 @@
 > Live engineering state of the *Replit-era code* remains in `HANDOFF.md` (Phase 57A). This file
 > tracks the *Claude Code continuation* (the build-to-finish).
 
+## 2026-06-09 — Phase 61J SHIPPED (json_equal + numeric_tolerance contract + downgrade sweep)
+
+Closed the last two catalog-wide dead-gate families. Close-out:
+`docs/phases/phase-61j-json-equal-numeric-tolerance-sweep.md`.
+- **Runtime:** `gradeSubmission` gains `json_equal` (deep-equal vs `spec.expected`) + `numeric_tolerance`
+  (scalar |sub−expected|≤tolerance) branches, both fail-closed, reading `validationConfig.spec` (NOT
+  `expected_output`) so the Phase-48/52 envelope canary `envelopeGrade.ts` stays **byte-frozen**.
+- **Guards:** assertValidJsonEqualSpec ({expected}) + assertValidNumericToleranceSpec ({expected,tolerance})
+  wired; `audit:validation-keys` extended to both kinds + a **self_attest honesty lint** (rejects "Atlas
+  checks/verifies/grades" on self_attest steps).
+- **Sweep:** **211 steps → self_attest** (174 json_equal + 37 numeric_tolerance) via 8 sweep + 3 correction
+  workers. **0 kept** — the FE submits editor CODE for these steps (`project-workspace.tsx:675-694`), so
+  neither comparator can grade a current authored step; contracts ship built+tested but unexercised (61I exact precedent).
+- **Reviews:** architect **FAIL→PASS** (1 P1 H3 false-"Atlas checks numeric" claim on 2 steps → fixed +
+  honesty lint) + code-reviewer **NO-SHIP→SHIP** after the same P1.
+- **Gates green:** api-server 679/679 · atlas 170/170 · integration 4/4 · curriculum-quality 190/191
+  (1 pre-existing env-only) · validation-keys 0 · contains-bc 6/6 · exact-bc PASS · sql/csv-bc no drift ·
+  serverGrade **= 10** · C2 [1,2,3,5] · authoring/pedagogy exit 0. Commits: wips `174d434..91cc449`;
+  `21626ff`; `15bf80b`; close-out/archive next.
+- **Next (61K, owner-gated):** ~48 pre-existing "Validator runs/asserts" self_attest copy cleanup, OR a
+  learner-code execution-grading harness.
+
 ## 2026-06-08 — Phase 61I SHIPPED (exact contract + catalog-wide bespoke-key sweep)
 
 Closed the authoring/promotion trust gap from 61H. Close-out:
