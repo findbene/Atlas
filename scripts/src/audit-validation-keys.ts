@@ -102,7 +102,7 @@ for (const p of AUTHORED_PROJECTS) {
   }
 }
 
-console.log(`\n=== Phase 61I — authored validation-key audit ===`);
+console.log(`\n=== Phase 61I/61J — authored validation-key audit ===`);
 console.log(`Projects: ${AUTHORED_PROJECTS.length}   contains/exact/regex steps checked: ${checked}`);
 console.log(`Violations: ${failures.length}`);
 
@@ -116,7 +116,7 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `\nPASS — every authored contains/exact/regex step uses only canonical, runtime-read keys ` +
-    `(no bespoke dead gates remain).`,
+  `\nPASS — every authored contains/exact/regex/json_equal/numeric_tolerance step uses only ` +
+    `canonical, runtime-read keys (no bespoke dead gates remain).`,
 );
 process.exit(0);

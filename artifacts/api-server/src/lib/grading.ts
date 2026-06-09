@@ -272,7 +272,8 @@ export function gradeSubmission(
  *  intentional independent copy of the same-named helper in `envelopeGrade.ts`
  *  (the Phase-48/52 envelope canary): keeping a separate copy lets the commit
  *  path enforce json_equal without editing the operator-pending envelope module.
- *  `grading.test.ts` pins the two implementations agree on sample inputs. */
+ *  Both copies implement identical semantics; the `json_equal` cases in
+ *  `grading.test.ts` pin this copy's behavior (key-order/array-order/exact-number). */
 function deepEqualJson(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a === null || b === null) return a === b;
