@@ -4,6 +4,23 @@
 > Live engineering state of the *Replit-era code* remains in `HANDOFF.md` (Phase 57A). This file
 > tracks the *Claude Code continuation* (the build-to-finish).
 
+## 2026-06-09 — Phase 61K SHIPPED (self_attest copy honesty cleanup + lint)
+
+Cleaned the pre-existing misleading self_attest copy (61J follow-up). Close-out:
+`docs/phases/phase-61k-self-attest-copy-honesty-cleanup.md`.
+- **Inventory:** 220 self_attest steps; **67 instructionMd matches across ~24 projects** claimed an
+  automated "Validator runs/asserts/drives X" did the checking (false — self_attest grades nothing).
+- **Sweep:** 6 parallel workers rewrote every flagged clause → honest "Self-check: … confirm …",
+  preserving the scenario (fixtures/counts/thresholds); 0 non-self_attest steps touched.
+- **Lint:** new exported `selfAttestHonestyViolations()` (negation- + learner-validator-aware) wired into
+  `audit:validation-keys`; +14 unit tests. audit self_attest violations **65 → 0**.
+- **Gates green:** full typecheck · api-server 679/679 · atlas 170/170 · integration 4/4 ·
+  curriculum-quality 204/205 (1 pre-existing env-only) · validation-keys 0 · contains-bc 6/6 · exact-bc PASS ·
+  sql/csv-bc no drift · serverGrade **= 10** · C2 [1,2,3,5] · authoring/pedagogy exit 0.
+- **Copy + lint only** — no runtime/comparator/kind change; Phase-52/envelope untouched. Commit 33747c9.
+- **Next (owner-gated):** optionally extend lint to non-self_attest "Validator runs" overstatement, OR a
+  learner-code execution-grading harness epic.
+
 ## 2026-06-09 — Phase 61J SHIPPED (json_equal + numeric_tolerance contract + downgrade sweep)
 
 Closed the last two catalog-wide dead-gate families. Close-out:
