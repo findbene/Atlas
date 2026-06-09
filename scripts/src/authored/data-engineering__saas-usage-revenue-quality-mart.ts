@@ -597,7 +597,7 @@ order by check_name`),
       stepNumber: 7,
       title: "Data-quality runbook",
       instructionMd:
-        "Document the runbook an on-call engineer reads when the DQ audit fails at 2am. Plain Markdown, no SQL required — it explains what each check means and the first triage step.\n\n**Build:** `docs/data_quality_runbook.md` covering all three checks. For each, state what a non-zero count means and the first action. It MUST name each of the three checks and describe the dedupe rule and the validity rule in words.\n\n**Validation:** `contains` — the document must include the required phrases (the three check names plus the words 'latest load wins' and 'data quality'). This is server-enforced (the commit-grader evaluates your submission body).",
+        "Document the runbook an on-call engineer reads when the DQ audit fails at 2am. Plain Markdown, no SQL required — it explains what each check means and the first triage step.\n\n**Build:** `docs/data_quality_runbook.md` covering all three checks. For each, state what a non-zero count means and the first action. It MUST name each of the three checks and describe the dedupe rule and the validity rule in words.\n\n**Validation:** `contains` — Atlas checks the runbook for the required marker phrases (the three check names plus 'latest load wins' and 'data quality'); every marker must be present. This confirms the markers are present, not that your prose is complete or expert-level, and Atlas does not verify independent authorship or professional competence.",
       learningObjective:
         "Document the data-quality runbook so an on-call engineer can triage a failed load without reading the SQL.",
       requiredSkill: "Operational documentation, runbook structure, translating SQL rules into plain English",
@@ -625,7 +625,10 @@ TODO: what an orphan usage account is and why it must be zero.
         "contains",
         "The runbook names all three DQ checks and describes the dedupe ('latest load wins') and the validity rule.",
         {
-          mustContainAll: [
+          // Phase 61G — `needles` is the canonical multi-marker key the runtime
+          // actually reads (was the dead `mustContainAll`, which `matchContains`
+          // never reads). Defaults to match:"all" — every marker must be present.
+          needles: [
             "dup_account_ids",
             "invalid_usage_events",
             "orphan_usage_accounts",

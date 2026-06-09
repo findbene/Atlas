@@ -89,6 +89,19 @@ const text = [
 const hits = BANNED.filter((b) => text.includes(b));
 check(`no H3 banned claims in learner-facing copy (${hits.join(", ") || "none"})`, hits.length === 0);
 
+// Phase 61G — the runbook `contains` step must use the canonical `needles` key the
+// runtime reads (NOT the dead `mustContainAll`), and no step may falsely claim the
+// commit-grader semantically enforces it. (Note: the honest live-rowset copy "on
+// Submit the server re-grades your captured result rows" is NOT a false claim — it
+// is true for the serverGrade:true steps — so it is deliberately not scanned here.)
+const containsStep = P.steps.find((s) => s.validationType === "contains");
+const cSpec = (containsStep?.validation as { spec?: Record<string, unknown> } | undefined)?.spec ?? {};
+check("contains step uses canonical 'needles' (not the dead 'mustContainAll')",
+  Array.isArray(cSpec["needles"]) && (cSpec["needles"] as unknown[]).length > 0 && cSpec["mustContainAll"] === undefined);
+const FALSE_ENFORCE = ["server-enforced", "server enforced", "commit-grader evaluates"];
+const feHits = FALSE_ENFORCE.filter((p) => text.includes(p));
+check(`no false server-enforcement claims (${feHits.join(", ") || "none"})`, feHits.length === 0);
+
 if (failures > 0) {
   console.error(`\n[check:authored-saas-mart] ${failures} failure(s).`);
   process.exit(1);

@@ -2254,3 +2254,6 @@ operable program or batch file.
 [check] OK — no runtime mapToCourse callers outside the 4-entry allowlist.
 ── build: FAIL
 
+
+════ self-review @ 2026-06-08 20:43:52 ════
+── typecheck: npm run typecheck --silent

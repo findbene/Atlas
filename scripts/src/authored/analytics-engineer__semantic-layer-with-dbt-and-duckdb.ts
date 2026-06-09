@@ -715,7 +715,7 @@ where mrr_amount < 0;
       stepNumber: 7,
       title: "Stakeholder questions → metric mapping doc + exposures.yml",
       instructionMd:
-        "The stakeholder mapping doc is what stops the next 'why is our NRR 117%?' email. exposures.yml is what stops the next 'we deprecated mart_X without realizing the CFO pack queried it' incident.\n\n**Build:**\n\n1. `docs/stakeholder_questions.md` — map 12 real stakeholder questions to the metric name + invocation. Group them by stakeholder (CFO / CS / PM / Sales / Board). Each row: the question in plain English; the metric name from `metrics.yml`; the CLI invocation from step 8 (e.g. `python bin/metric.py net_revenue_retention --as-of 2025-06 --filter-dim=plan_tier=enterprise`); the data freshness commitment.\n2. `models/exposures.yml` — declare 3 exposures: `cfo_monthly_pack` (owner: CFO, type: dashboard, depends_on: [`ref('_metric_mrr')`, `ref('_metric_net_revenue_retention')`, `ref('_metric_gross_revenue_retention')`]); `cs_health_review` (owner: Head of CS, type: dashboard, depends_on: [`ref('_metric_active_customers')`, `ref('_metric_monthly_churn_rate')`]); `board_kpi_dashboard` (owner: CEO, type: dashboard, depends_on: [all 5 metric views]).\n\n**Validation:** `contains` — the validator scans both files for required phrase/exposure names. Note: `contains` is audit-classified `enforced` but the server-side grader is the inherited thin needle-substring check (catalog-wide limitation, not specific to this step). The substantive value of the doc is that you wrote it; the test is a guardrail against forgetting to declare an exposure or a stakeholder mapping.",
+        "The stakeholder mapping doc is what stops the next 'why is our NRR 117%?' email. exposures.yml is what stops the next 'we deprecated mart_X without realizing the CFO pack queried it' incident.\n\n**Build:**\n\n1. `docs/stakeholder_questions.md` — map 12 real stakeholder questions to the metric name + invocation. Group them by stakeholder (CFO / CS / PM / Sales / Board). Each row: the question in plain English; the metric name from `metrics.yml`; the CLI invocation from step 8 (e.g. `python bin/metric.py net_revenue_retention --as-of 2025-06 --filter-dim=plan_tier=enterprise`); the data freshness commitment.\n2. `models/exposures.yml` — declare 3 exposures: `cfo_monthly_pack` (owner: CFO, type: dashboard, depends_on: [`ref('_metric_mrr')`, `ref('_metric_net_revenue_retention')`, `ref('_metric_gross_revenue_retention')`]); `cs_health_review` (owner: Head of CS, type: dashboard, depends_on: [`ref('_metric_active_customers')`, `ref('_metric_monthly_churn_rate')`]); `board_kpi_dashboard` (owner: CEO, type: dashboard, depends_on: [all 5 metric views]).\n\n**Validation:** `contains` — the validator checks both files for the required marker phrases (the stakeholder section headers + the 3 named exposures); every marker must be present. This confirms the markers are present, not that your prose is complete or expert-level, and Atlas does not verify independent authorship or professional competence. The substantive value of the doc is that you wrote it; the check is a guardrail against forgetting to declare an exposure or a stakeholder mapping.",
       learningObjective: "Publish the stakeholder-question→metric mapping and declare downstream exposures so consumers and dependencies are tracked in the dbt graph.",
       requiredSkill: "dbt exposures.yml, stakeholder-mapping docs, semantic-layer documentation discipline",
       starterCode: SRC(`# docs/stakeholder_questions.md
@@ -769,7 +769,10 @@ exposures:
         "contains",
         "Both files contain the required stakeholder rows + the 3 named exposures.",
         {
-          mustContainAll: [
+          // Phase 61G — `needles` is the canonical multi-marker key the runtime
+          // actually reads (was the dead `mustContainAll`, which `matchContains`
+          // never reads). Defaults to match:"all" — every marker must be present.
+          needles: [
             "## CFO",
             "## Head of Customer Success",
             "net_revenue_retention",

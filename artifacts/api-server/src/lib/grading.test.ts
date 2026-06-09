@@ -261,6 +261,50 @@ describe("gradeSubmission", () => {
     });
   });
 
+  // ── Phase 61G — wrapped `{kind, spec, description}` config extraction ──
+  // Before 61G the contains branch passed the WRAPPED validationConfig to
+  // matchContains, which reads TOP-LEVEL needle/needles → an authored
+  // `{spec:{needles}}` was never read → the step auto-passed ANY submission (a
+  // dead gate). gradeSubmission now extracts the inner spec; these prove the
+  // wrapped shape actually enforces, and that the legacy top-level shape is BC.
+  describe("contains (Phase 61G — wrapped-spec extraction enforces)", () => {
+    const wrapped = (spec: unknown) =>
+      step({
+        validationType: "contains",
+        validationConfig: { kind: "contains", spec, description: "x" } as Parameters<typeof gradeSubmission>[0]["validationConfig"],
+        expectedOutput: null,
+      });
+    const legacy = (needle: string) =>
+      step({
+        validationType: "contains",
+        validationConfig: { needle } as Parameters<typeof gradeSubmission>[0]["validationConfig"],
+        expectedOutput: null,
+      });
+
+    it("wrapped needles: all markers present → pass", () => {
+      expect(gradeSubmission(wrapped({ needles: ["alpha", "beta"] }), "has alpha and beta here").passed).toBe(true);
+    });
+    it("wrapped needles: a required marker missing → FAIL (was a dead auto-pass pre-61G)", () => {
+      const r = gradeSubmission(wrapped({ needles: ["alpha", "beta"] }), "only alpha here");
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toContain("beta");
+    });
+    it("wrapped needles: empty submission → FAIL", () => {
+      expect(gradeSubmission(wrapped({ needles: ["alpha", "beta"] }), "").passed).toBe(false);
+    });
+    it("wrapped needles: garbage submission → FAIL", () => {
+      expect(gradeSubmission(wrapped({ needles: ["alpha", "beta"] }), "zzz unrelated yyy").passed).toBe(false);
+    });
+    it("wrapped single needle: present → pass; absent → fail", () => {
+      expect(gradeSubmission(wrapped({ needle: "gamma" }), "xx gamma yy").passed).toBe(true);
+      expect(gradeSubmission(wrapped({ needle: "gamma" }), "xx yy").passed).toBe(false);
+    });
+    it("BC: legacy TOP-LEVEL {needle} (no nested spec, the live seed shape) still enforces", () => {
+      expect(gradeSubmission(legacy("copy_expert"), "uses copy_expert now").passed).toBe(true);
+      expect(gradeSubmission(legacy("copy_expert"), "no match").passed).toBe(false);
+    });
+  });
+
   // ── Phase 57A — csv_set_equal DARK comparator ────────────────────────
   describe("csv_set_equal (Phase 57A — dark server-side comparator)", () => {
     const cstep = (spec: unknown) =>

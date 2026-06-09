@@ -167,6 +167,26 @@ function assertValidContainsSpec(spec: Record<string, unknown>): void {
   if (spec.caseInsensitive !== undefined && typeof spec.caseInsensitive !== "boolean") {
     throw new Error(`contains spec: 'caseInsensitive' must be a boolean when present (got ${typeof spec.caseInsensitive}).`);
   }
+
+  // Phase 61G — reject the specific dead `mustContainAll` alias the runtime never
+  // reads. It shipped on C2 / SaaS mart / FinOps pre-61G and silently auto-passed
+  // any submission; the canonical multi-marker key is `needles` (defaults to
+  // match:"all"). Failing it here makes the mistake surface at authoring time
+  // instead of shipping a dead gate.
+  //
+  // NOTE (tracked follow-up, NOT fixed in 61G): a broader set of legacy authored
+  // contains steps use OTHER bespoke keys the runtime also ignores (`mustContain`,
+  // `userMsgMustContain`, `reportMustContain`, `expected`, …) — those are
+  // catalog-wide dead gates too. They are tolerated here (a hard reject would
+  // break importing the authored index) and surfaced by `audit:contains-bc` for
+  // the visible ones; converting them all to `needles` is a separate content
+  // sweep. See docs/phases/phase-61g-*.
+  if (spec.mustContainAll !== undefined) {
+    throw new Error(
+      `contains spec: 'mustContainAll' is not a key the runtime reads — it would ` +
+      `silently auto-pass any submission. Use the canonical 'needles' array instead.`,
+    );
+  }
 }
 
 // ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────

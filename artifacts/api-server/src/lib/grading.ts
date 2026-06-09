@@ -102,7 +102,18 @@ export function gradeSubmission(
   }
 
   if (step.validationType === "contains" && step.validationConfig) {
-    return matchContains(step.validationConfig, submission, expected);
+    // Phase 61G — extract the inner `spec` when present (the `validationConfig()`
+    // wrapped shape `{kind, spec, description}`), matching the csv_set_equal /
+    // sql_resultset branches below. Legacy seed configs store the matcher fields
+    // at the TOP level (`{needle}` / `{needles}`), so fall back to the config
+    // itself when there is no nested object `spec`. Before this fix the wrapped
+    // shape was passed verbatim → `matchContains` read top-level `needle`/`needles`
+    // (both absent) → legacy `needle=""` fallback → `includes("")` → the step
+    // auto-passed ANY submission (a dead gate). See docs/phases/phase-61g-*.
+    const cfg = step.validationConfig as { spec?: unknown };
+    const containsSpec =
+      cfg.spec && typeof cfg.spec === "object" ? cfg.spec : step.validationConfig;
+    return matchContains(containsSpec, submission, expected);
   }
 
   if (step.validationType === "csv_set_equal" && step.validationConfig) {
