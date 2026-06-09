@@ -20,7 +20,7 @@ export const dataEngineeringBeginnerCsvCleanupPipeline: AuthoredProject = {
   candidateId: "86667efa-bf0c-47eb-8803-3f016cc53784",
   title: "CSV Cleanup Pipeline (Beginner DE) — Tolerant Read → Normalise → Dedupe → Clean + Reject Out",
   shortDescription:
-    "Build the canonical junior-DE pipeline: read a messy customer CSV that has a BOM, mixed-case emails, three date formats, and duplicate rows; produce a `clean.csv` of validated rows + a `rejects.csv` of broken rows with a `reason` column. Every step is verified set-equal against expected outputs.",
+    "Build the canonical junior-DE pipeline: read a messy customer CSV that has a BOM, mixed-case emails, three date formats, and duplicate rows; produce a `clean.csv` of validated rows + a `rejects.csv` of broken rows with a `reason` column. The final write step is set-compared against expected fixtures; earlier steps use self-attestation checklists you verify against the criteria.",
   fullDescription:
     "Every junior data engineer writes this script in their first month — and almost everyone gets it 80% right and 20% wrong-in-quiet-ways. You'll read a CSV that has every realistic problem (a UTF-8 BOM, mixed-case emails, whitespace padding, dates in three different formats, two duplicate rows on natural key, and a few rows missing required fields), then produce two outputs: `clean.csv` of the canonicalised survivors and `rejects.csv` of the broken rows annotated with a `reason` column. Every step is verified set-equal against an expected fixture, so the feedback loop is tight and the bugs you introduce are visible. By the end you can ingest any small CSV without copy-pasting a regex from Stack Overflow.",
   language: "python",
@@ -117,7 +117,7 @@ def read_raw() -> pd.DataFrame:
       stepNumber: 2,
       title: "Normalise text — trim everything, lowercase only what should be",
       instructionMd:
-        "Write `normalise_text(df)` that: (1) strips leading/trailing whitespace from EVERY string column; (2) lowercases ONLY the `email` column (case matters in names: `'Mary McKenzie'` ≠ `'MARY MCKENZIE'`). Use `.str.strip()` and `.str.lower()`. Validator: spot-checks `'  Alice@Example.COM  '` → `'alice@example.com'`, but `'  Bob McNeil  '` → `'Bob McNeil'`.",
+        "Write `normalise_text(df)` that: (1) strips leading/trailing whitespace from EVERY string column; (2) lowercases ONLY the `email` column (case matters in names: `'Mary McKenzie'` ≠ `'MARY MCKENZIE'`). Use `.str.strip()` and `.str.lower()`. Self-check: `'  Alice@Example.COM  '` should become `'alice@example.com'`; `'  Bob McNeil  '` should become `'Bob McNeil'` (trimmed, case preserved).",
       learningObjective:
         "Normalisation rules are SURGICAL, not blanket. Lowercase emails (case-insensitive RFC), preserve case in names.",
       requiredSkill: ".str.strip + .str.lower applied to specific columns",
@@ -131,14 +131,16 @@ def normalise_text(df: pd.DataFrame) -> pd.DataFrame:
     #       2) .str.lower() ONLY the email column
     return df
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After normalise: every column is trimmed; emails are lowercased; names preserve original case.", {
-        expected: {
-          aliceEmailLowercase: "alice@example.com",
-          bobNamePreservesCase: "Bob McNeil",
-          allStringColsTrimmed: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The input email '  Alice@Example.COM  ' (with surrounding spaces) becomes 'alice@example.com' after normalise_text.",
+          "The input name '  Bob McNeil  ' (with surrounding spaces) becomes 'Bob McNeil' — spaces stripped, original case preserved.",
+          "Every column in STRING_COLS has no leading or trailing whitespace in any row after normalise_text.",
+          "Only the email column is lowercased; all other columns retain their original casing.",
+          "The function returns a copy and does not mutate the input DataFrame.",
+        ],
       }),
       expectedOutputs: { emailLower: true, nameCasePreserved: true, allTrimmed: true },
       datasetRefs: ["fixtures/customers_raw.csv"],
@@ -184,14 +186,16 @@ def parse_dates_with_rejects(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFra
     rejects = pd.DataFrame(columns=list(df.columns) + ["reason"])
     return clean, rejects
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "clean_df rows all have valid signup_date as datetime64; rejects_df has 'reason' column with values in {missing_required, bad_signup_date}; row partition is exhaustive (clean + rejects = input).", {
-        expected: {
-          partitionExhaustive: true,
-          rejectReasonsAllowed: ["missing_required", "bad_signup_date"],
-          cleanSignupDateIsDatetime: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Every row in clean_df has a valid, non-NaT signup_date with dtype datetime64.",
+          "rejects_df has a 'reason' column; every value in that column is one of 'missing_required' or 'bad_signup_date'.",
+          "len(clean_df) + len(rejects_df) == len(input_df) — the partition is exhaustive with no rows dropped silently.",
+          "Rows missing customer_id or email appear in rejects with reason='missing_required', not 'bad_signup_date'.",
+          "Rows with an unparseable signup_date but otherwise complete appear in rejects with reason='bad_signup_date'.",
+        ],
       }),
       expectedOutputs: { partitionExhaustive: true, hasReasonColumn: true },
       datasetRefs: ["fixtures/customers_raw.csv"],
@@ -219,7 +223,7 @@ def parse_dates_with_rejects(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFra
       stepNumber: 4,
       title: "Dedupe on email, keep most-recent signup",
       instructionMd:
-        "Write `dedupe_keep_latest(clean_df)` that drops duplicates on `email` (the natural key), keeping the row with the latest `signup_date`. Implementation: `.sort_values('signup_date').drop_duplicates('email', keep='last')`, then resort by `customer_id` for a deterministic output. Validator: `'alice@example.com'` (which appears twice with two different signup_dates) appears exactly once with the later date.",
+        "Write `dedupe_keep_latest(clean_df)` that drops duplicates on `email` (the natural key), keeping the row with the latest `signup_date`. Implementation: `.sort_values('signup_date').drop_duplicates('email', keep='last')`, then resort by `customer_id` for a deterministic output. Self-check: `'alice@example.com'` (which appears twice with two different signup_dates) should appear exactly once with the later date.",
       learningObjective:
         "Dedupe on a natural key — and choose which duplicate wins deterministically with a sort + `keep='last'`.",
       requiredSkill: "sort_values + drop_duplicates with subset + keep semantics",
@@ -230,13 +234,16 @@ def dedupe_keep_latest(clean: pd.DataFrame) -> pd.DataFrame:
     #       then sort by customer_id ASC for deterministic output
     return clean
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After dedupe: email column is unique; for duplicate emails the row with the LATER signup_date survives.", {
-        expected: {
-          emailIsUnique: true,
-          aliceKeepsLaterDate: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The email column in the output DataFrame has no duplicate values (df['email'].is_unique == True).",
+          "For the duplicate email 'alice@example.com' (two rows with different signup_dates), the row with the LATER signup_date survives.",
+          "The output is sorted by customer_id so the row order is deterministic across runs.",
+          "The row count after dedupe is less than the input count when duplicates were present.",
+          "The function does not mutate the input DataFrame — it returns a new one.",
+        ],
       }),
       expectedOutputs: { emailUnique: true, latestKept: true },
       datasetRefs: ["fixtures/customers_raw.csv"],

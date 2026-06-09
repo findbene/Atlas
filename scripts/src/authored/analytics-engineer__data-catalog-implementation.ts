@@ -238,10 +238,16 @@ def apply_overlay(entities, overlay_path: str):
         # TODO: stamp per-column pii + per-column overrides.
     return entities
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
-        expected: { owner: "data-platform@", pii: true, slo_hours: 24 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "apply_overlay() reads the YAML and stamps entity-level owner and slo_hours onto matching entities.",
+          "apply_overlay() stamps per-column pii=true on columns listed in the YAML's columns section.",
+          "analytics.dim_user.email column has owner='data-platform@', pii=True, and slo_hours=24 after applying the fixture overlay.",
+          "Entity-level owner cascades to columns that do not have a column-specific owner override in the YAML.",
+          "Re-running apply_overlay() on already-stamped entities produces the same result (idempotent).",
+        ],
       }),
       expectedOutputs: { owner: "data-platform@", pii: true, slo_hours: 24 },
       datasetRefs: ["fixtures/governance_overlay.yml"],

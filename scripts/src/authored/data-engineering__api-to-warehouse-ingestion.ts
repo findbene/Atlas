@@ -83,10 +83,15 @@ def events(
         # TODO: yield batch (dlt handles row-level cursor advance)
         page += 1
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Initial pipeline run: 1000 rows; second run after 50 new rows added: exactly 50 rows loaded; cursor advanced; no duplicates.", {
-        expected: { initialRows: 1000, incrementalRows: 50, duplicates: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The first pipeline run loads exactly 1000 rows from the fixture API (full initial load from initial_value='2026-01-01T00:00:00Z').",
+          "After adding 50 new rows server-side, a second pipeline run loads exactly 50 rows (cursor advances to the last updated_at seen in run 1).",
+          "No duplicate rows appear in the destination table after the second run (primary_key='id' enables dedup).",
+          "The dlt cursor state file (.dlt/pipelines/<name>/state.json) reflects the advanced last_value after each run.",
+        ],
       }),
       expectedOutputs: { initialRows: 1000, incrementalRows: 50 },
       datasetRefs: ["fixtures/events_api.json"],
@@ -137,10 +142,15 @@ def events(
         yield batch
         page += 1
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After update-100 + add-50 round: table row count = 1050; updated_at on the 100 modified rows reflects the new payload; no duplicate ids.", {
-        expected: { rowCount: 1050, modifiedCount: 100, newCount: 50, duplicates: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After the initial run (1000 rows) followed by a second run (100 updated rows + 50 new rows), SELECT COUNT(*) returns 1050 — not 1150.",
+          "The 100 rows with updated payloads reflect the new payload values after the second run (upsert via primary key 'id').",
+          "The 50 truly new rows are present in the table.",
+          "SELECT COUNT(*) FROM events GROUP BY id HAVING COUNT(*) > 1 returns 0 rows (no duplicate ids).",
+        ],
       }),
       expectedOutputs: { rowCount: 1050, duplicates: 0 },
       datasetRefs: ["fixtures/api_round2.json"],
@@ -190,10 +200,15 @@ try:
 except DltException as e:
     print(f"Schema contract violated: {e}")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Phase A: new 'priority' column added under evolve mode — table now has the column. Phase B: under freeze mode, adding 'category' raises SchemaContractViolation.", {
-        expected: { evolveAddedColumn: true, freezeRaisedException: true, columnName: "category" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Under schema_contract={'tables':'evolve','columns':'evolve'}: after adding the 'priority' column server-side and re-running, the destination table gains the 'priority' column automatically.",
+          "Under schema_contract={'tables':'evolve','columns':'freeze'}: adding a new 'category' column server-side and re-running raises a DltException (SchemaContractViolation) — the column is rejected, not silently dropped.",
+          "The evolve run completes without errors and the 'priority' column is queryable in the destination.",
+          "The freeze run raises the exception before writing any data containing the rejected column.",
+        ],
       }),
       expectedOutputs: { evolveAdded: "priority", freezeRejected: "category" },
       datasetRefs: ["fixtures/schema_evolution.json"],
@@ -241,10 +256,15 @@ def fetch_with_retry(url: str, params: dict, timeout: int = 15) -> dict:
     resp.raise_for_status()  # 4xx (except 429) bubbles up immediately
     return resp.json()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Mocked API: 503 first 3 attempts, 200 on the 4th. Total request count = 4, pipeline completes without raising.", {
-        expected: { requestCount: 4, pipelineSucceeded: true, retriesTriggered: 3 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "fetch_with_retry() raises TransientApiError (not HTTPError directly) for status codes in {429, 500, 502, 503, 504} — this triggers tenacity's retry predicate.",
+          "With a mocked API returning 503 for the first 3 calls then 200 on the 4th: fetch_with_retry completes successfully with total request count = 4.",
+          "Non-transient 4xx codes (e.g., 400, 403, 404) are not retried — resp.raise_for_status() propagates them immediately.",
+          "tenacity is configured with stop=stop_after_attempt(5) and wait=wait_exponential(multiplier=1, min=1, max=16) — retries do not exceed 5 attempts or a 16s wait cap.",
+        ],
       }),
       expectedOutputs: { requests: 4, succeeded: true },
       datasetRefs: ["fixtures/retry_sim.json"],
@@ -294,10 +314,16 @@ def load_summary(pipeline_name: str, conn_str: str, schema: str = 'raw') -> list
         #       to count rows per resource. Also read cursor state from _dlt_pipeline_state.
     return summaries
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "3 sequential runs of 1000/50/25 rows: summary returns 3 distinct load_ids, monotonic started_at, total rows summed = 1075.", {
-        expected: { distinctLoads: 3, monotonicTimestamps: true, totalRows: 1075 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "load_summary() returns 3 LoadSummary entries after 3 sequential pipeline runs (1000 / 50 / 25 rows).",
+          "The 3 load_ids are all distinct strings.",
+          "The started_at timestamps are monotonically increasing across the 3 runs (run 1 < run 2 < run 3).",
+          "Summing rows_per_resource['events'] across all 3 summaries equals 1075 (1000 + 50 + 25).",
+          "The cursor_state dict is non-empty and reflects the updated_at value from the latest run.",
+        ],
       }),
       expectedOutputs: { loads: 3, totalRows: 1075 },
       datasetRefs: ["fixtures/load_summary.json"],

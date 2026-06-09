@@ -62,7 +62,7 @@ export const dataEngineeringMlFeatureStore: AuthoredProject = {
       stepNumber: 1,
       title: "Define entities + feature views over offline Parquet",
       instructionMd:
-        "Declare an `Entity('user', join_key='user_id', value_type=STRING)` and two `FeatureView`s: `user_7d_spend` (TTL=7d, sources from `s3://offline/spend.parquet` partitioned by `event_date`), `user_session_count_24h` (TTL=24h). Each view must declare its `event_timestamp_col` + `created_timestamp_col` + `source` + `entities`. Validator asserts: registry parses 2 views + 1 entity, schema lists exactly the right column names, TTLs in seconds.",
+        "Declare an `Entity('user', join_key='user_id', value_type=STRING)` and two `FeatureView`s: `user_7d_spend` (TTL=7d, sources from `s3://offline/spend.parquet` partitioned by `event_date`), `user_session_count_24h` (TTL=24h). Each view must declare its `event_timestamp_col` + `created_timestamp_col` + `source` + `entities`. Self-verify: the REGISTRY dict contains 1 entity with join_key='user_id' and 2 views with correct feature columns and TTLs (7d = 604800s, 24h = 86400s).",
       learningObjective: "Feature definitions are contracts — the registry enforces them at registration so downstream training + serving share one source of truth.",
       requiredSkill: "Feature-view declaration + entity-feature relationship + TTL semantics + Parquet partitioning",
       starterCode: SRC(`# definitions.py
@@ -106,16 +106,15 @@ user_session_count_24h = FeatureView(
 
 REGISTRY: dict = {"entities": {user.name: user}, "views": {user_7d_spend.name: user_7d_spend, user_session_count_24h.name: user_session_count_24h}}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Registry parses: 1 entity (user), 2 views with correct columns + TTLs.", {
-        expected: {
-          entityCount: 1, viewCount: 2,
-          userJoinKey: "user_id",
-          spend7dTtlSec: 7 * 24 * 3600,
-          sessionsTtlSec: 24 * 3600,
-          spend7dFeatures: ["spend_7d", "txn_count_7d"],
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "REGISTRY contains exactly 1 entity named 'user' with join_key='user_id' and value_type='STRING'.",
+          "REGISTRY contains exactly 2 feature views: 'user_7d_spend' (TTL 7 days = 604800s, features: spend_7d + txn_count_7d) and 'user_session_count_24h' (TTL 24h = 86400s, feature: sessions_24h).",
+          "Each FeatureView declares event_timestamp_col and a non-empty entities list referencing 'user'.",
+          "TTLs are expressed as timedelta objects (not raw integers) so they can be converted to seconds for Redis.",
+        ],
       }),
       expectedOutputs: { entities: 1, views: 2, ttlsCorrect: true },
       datasetRefs: ["fixtures/registry.json"],
@@ -188,7 +187,7 @@ def get_training_set(entity_df: pd.DataFrame, source_parquet: str, feature_cols:
       stepNumber: 3,
       title: "Materialize offline → online (Redis) with version pinning",
       instructionMd:
-        "Write `materialize(feature_view, end_timestamp, version: str)`. For each entity, fetch the latest feature value AS OF `end_timestamp` from offline Parquet; write to Redis key `fs:{view_name}:{version}:{entity_id}` with TTL from the FeatureView declaration. Validator: materialize `user_7d_spend` v1 + v2 for 10k users; assert: 20k keys present, TTL correctly set to 7 days, value at v2 reflects more-recent end_timestamp than v1.",
+        "Write `materialize(feature_view, end_timestamp, version: str)`. For each entity, fetch the latest feature value AS OF `end_timestamp` from offline Parquet; write to Redis key `fs:{view_name}:{version}:{entity_id}` with TTL from the FeatureView declaration. Self-verify: call materialize for `user_7d_spend` with two different versions (v1 + v2) and two different end_timestamps for 10k users; confirm 20k keys are present in Redis, TTL is set to 604800s (7 days), and v2 keys reflect a more-recent end_timestamp than v1 keys.",
       learningObjective: "Versioned materialization lets multiple models share the store without overwriting each other's features.",
       requiredSkill: "Redis pipelining + key schema design + TTL configuration + versioned writes",
       starterCode: SRC(`# materialize.py
@@ -217,10 +216,15 @@ def materialize(view_name: str, source_parquet: str, feature_cols: list[str], en
     pipe.execute()
     return len(df)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "v1+v2 materialized for 10k users: 20k keys, TTL=7d, v2 strictly newer than v1.", {
-        expected: { totalKeys: 20000, v1Keys: 10000, v2Keys: 10000, ttlSeconds: 604800, v2NewerThanV1: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After materializing v1 and v2 for 10k users, Redis contains exactly 20000 keys (10k per version) following the schema fs:{view_name}:{version}:{user_id}.",
+          "Each key has a TTL of 604800 seconds (7 days), matching the FeatureView.ttl declaration.",
+          "v2 keys were written with a later end_timestamp than v1 keys, so their feature values reflect more-recent data.",
+          "Writes use Redis pipelining (pipe.execute()) — not individual r.set() per row.",
+        ],
       }),
       expectedOutputs: { keys: 20000, ttlOk: true, v2Newer: true },
       datasetRefs: ["fixtures/materialize_10k.parquet"],

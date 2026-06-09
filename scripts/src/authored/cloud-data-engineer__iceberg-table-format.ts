@@ -77,15 +77,15 @@ export const cloudDataEngineerIcebergTableFormat: AuthoredProject = {
         'total_rows':  max(0, total_rows),
     }
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "3 manifests: (+5 files, +1000 rows), (+2 files, +500 rows, -1 file, -100 rows), (+0 files, +0 rows, -1 file, -50 rows) → {total_files: 5, total_rows: 1350}.", {
-        manifests: [
-          { manifest_path: "m1", added_files: 5, deleted_files: 0, added_rows: 1000, deleted_rows: 0 },
-          { manifest_path: "m2", added_files: 2, deleted_files: 1, added_rows: 500, deleted_rows: 100 },
-          { manifest_path: "m3", added_files: 0, deleted_files: 1, added_rows: 0, deleted_rows: 50 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "snapshot_summary() sums added_files - deleted_files across all manifests for total_files.",
+          "snapshot_summary() sums added_rows - deleted_rows across all manifests for total_rows.",
+          "Both totals are clamped to 0 with max(0, ...) — negative file/row counts are physically impossible.",
+          "For 3 manifests (+5/+1000), (+2-1/+500-100), (0-1/0-50): total_files = 5, total_rows = 1350.",
         ],
-        expected: { total_files: 5, total_rows: 1350 },
       }),
       expectedOutputs: { total_files: 5, total_rows: 1350 },
       datasetRefs: ["fixtures/iceberg_manifests.json"],
@@ -121,11 +121,15 @@ def partition_value(ts_ms, transform):
     # TODO: if transform == 'hour':  return dt.strftime('%Y-%m-%dT%H')
     raise ValueError(f'unknown transform: {transform}')
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "ts_ms=1747315200000 (2025-05-15T12:00:00Z) → year='2025', month='2025-05', day='2025-05-15', hour='2025-05-15T12'.", {
-        ts_ms: 1747315200000,
-        expected: { year: "2025", month: "2025-05", day: "2025-05-15", hour: "2025-05-15T12" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "partition_value() uses UTC timezone when converting ts_ms to a datetime (datetime.fromtimestamp(ts_ms/1000, tz=timezone.utc)).",
+          "For ts_ms=1747315200000 (2025-05-15T12:00:00Z): year='2025', month='2025-05', day='2025-05-15', hour='2025-05-15T12'.",
+          "The function raises ValueError for unknown transform strings rather than silently returning None.",
+          "All four transforms produce ISO-8601-style strings that sort lexicographically (no '/' separators).",
+        ],
       }),
       expectedOutputs: { year: "2025", month: "2025-05", day: "2025-05-15", hour: "2025-05-15T12" },
       datasetRefs: ["fixtures/iceberg_partition_cases.json"],

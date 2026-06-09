@@ -57,7 +57,7 @@ export const dataEngineeringDataMeshDesign: AuthoredProject = {
       stepNumber: 1,
       title: "DataProduct manifest schema",
       instructionMd:
-        "Define a Pydantic `DataProduct` model: `name`, `domain` (e.g. 'sales', 'marketing'), `owner` (email), `slo` (freshness_hours, completeness_pct), `schema` (list of `Column(name, dtype, nullable, pii)`), `version` (semver). Validate with `assert_manifest_valid()` — non-empty owner, semver version, ≥1 non-PK column, no duplicate column names. Validator loads 3 fixture YAMLs (sales/marketing/finance), expects all to parse + validate.",
+        "Define a Pydantic `DataProduct` model: `name`, `domain` (e.g. 'sales', 'marketing'), `owner` (email), `slo` (freshness_hours, completeness_pct), `schema` (list of `Column(name, dtype, nullable, pii)`), `version` (semver). Validate with `assert_manifest_valid()` — non-empty owner, semver version, ≥1 non-PK column, no duplicate column names. Self-check: load the 3 fixture YAMLs (sales/marketing/finance) and confirm all parse + validate; confirm a bad-semver product raises ValueError.",
       learningObjective: "Treat data products as first-class, version-controlled artifacts with manifest contracts.",
       requiredSkill: "Pydantic + semver validation + manifest design",
       starterCode: SRC(`# manifest.py
@@ -99,10 +99,16 @@ def assert_manifest_valid(p: DataProduct) -> None:
         seen.add(col.name)
     # TODO: also assert SLO completeness_pct ∈ (0, 100], freshness_hours > 0.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "3 fixture manifests (sales/marketing/finance) parse + validate. Invalid manifest (bad semver) is rejected with a clear error.", {
-        expected: { validProducts: 3, invalidRejected: true, domainsCovered: ["sales", "marketing", "finance"] },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Loading all three fixture YAMLs (sales_product.yml, marketing_product.yml, finance_product.yml) via DataProduct.model_validate() succeeds without raising.",
+          "assert_manifest_valid() passes for each of the three valid products.",
+          "A product with a malformed semver version string (e.g. '1.0' or 'v1.0.0') raises ValueError with a message mentioning 'semver'.",
+          "A product with slo.completeness_pct=0 or negative raises ValueError.",
+          "A product with duplicate column names in schema_ raises ValueError.",
+        ],
       }),
       expectedOutputs: { valid: 3, rejected: 1 },
       datasetRefs: ["fixtures/sales_product.yml", "fixtures/marketing_product.yml", "fixtures/finance_product.yml"],
@@ -125,7 +131,7 @@ def assert_manifest_valid(p: DataProduct) -> None:
       stepNumber: 2,
       title: "Contract testing in CI",
       instructionMd:
-        "Implement `run_contract_tests(product, sample_df) -> ContractReport` checking: (1) all manifest columns exist in df, (2) dtypes match (int↔int64, string↔object, etc), (3) PII columns present iff `manifest.column.pii`, (4) completeness ≥ slo.completeness_pct. Validator: matching sales df → pass; sales df missing `customer_email` → fail with specific column name in report; sales df with extra column → pass (consumers tolerate extras).",
+        "Implement `run_contract_tests(product, sample_df) -> ContractReport` checking: (1) all manifest columns exist in df, (2) dtypes match (int↔int64, string↔object, etc), (3) PII columns present iff `manifest.column.pii`, (4) completeness ≥ slo.completeness_pct. Self-check: a matching sales df should return passed=True; a df missing `customer_email` should return passed=False with that column name in missing_columns; a df with an extra unmanaged column should still return passed=True.",
       learningObjective: "Mechanically enforce contracts so producers can't silently drift from the manifest.",
       requiredSkill: "Pandas dtype coercion + contract-test reporting + producer-consumer compatibility rules",
       starterCode: SRC(`# contract_test.py
@@ -161,10 +167,16 @@ def run_contract_tests(product: DataProduct, df: pd.DataFrame) -> ContractReport
         # TODO: if completeness < product.slo.completeness_pct: append + mark failed.
     return rep
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Matching sales df: passed=True. Missing customer_email: passed=False, missing_columns=['customer_email']. df with extra unmanaged column 'debug_id': passed=True (extras are fine).", {
-        expected: { matchingPasses: true, missingColumnFails: ["customer_email"], extraColumnsTolerated: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "run_contract_tests(sales_product, matching_df) returns ContractReport(passed=True) with no missing_columns, no dtype_mismatches, and no completeness_failures.",
+          "run_contract_tests(sales_product, df_missing_customer_email) returns passed=False and missing_columns=['customer_email'].",
+          "run_contract_tests(sales_product, df_with_extra_column_debug_id) returns passed=True — extra columns beyond the manifest are tolerated.",
+          "A column where actual dtype is 'float64' but manifest says 'int' is reported in dtype_mismatches with the column name, expected dtype, and actual dtype.",
+          "A column with completeness below slo.completeness_pct is reported in completeness_failures with the actual and required percentages.",
+        ],
       }),
       expectedOutputs: { passed_matching: true, missing_caught: ["customer_email"] },
       datasetRefs: ["fixtures/sales_product.yml", "fixtures/sales_sample.csv"],
@@ -187,7 +199,7 @@ def run_contract_tests(product: DataProduct, df: pd.DataFrame) -> ContractReport
       stepNumber: 3,
       title: "Federated governance policy engine",
       instructionMd:
-        "Implement `Policy` (`name`, `rule_fn: (DataProduct) -> list[str]` returning violations). Build 3 policies: `pii_must_have_owner` (every PII column owner non-empty), `retention_max_days` (no PII column may have unbounded retention), `slo_completeness_floor` (completeness_pct ≥ 95). Run `evaluate_policies(policies, products) -> dict[product_name, list[Violation]]`. Validator: 3 products evaluated against 3 policies → 0 violations on clean fixtures; perturbed fixture (PII column with no owner) → exactly 1 violation flagging the column.",
+        "Implement `Policy` (`name`, `rule_fn: (DataProduct) -> list[str]` returning violations). Build 3 policies: `pii_must_have_owner` (every PII column owner non-empty), `retention_max_days` (no PII column may have unbounded retention), `slo_completeness_floor` (completeness_pct ≥ 95). Run `evaluate_policies(policies, products) -> dict[product_name, list[Violation]]`. Self-check: 3 clean products should return 0 violations; a perturbed product with a PII column and no owner should return exactly 1 violation flagging the column and naming the '[pii_must_have_owner]' policy.",
       learningObjective: "Centralize cross-cutting governance in the platform, separate from domain logic.",
       requiredSkill: "Policy engine pattern + cross-cutting governance + violation reporting",
       starterCode: SRC(`# policies.py
@@ -231,10 +243,16 @@ def evaluate_policies(policies: list[Policy], products: list[DataProduct]) -> di
         if viols: report[p.name] = viols
     return report
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Clean 3-product fixture: 0 violations. Perturbed fixture (sales product PII column with no product owner): exactly 1 violation tagged [pii_must_have_owner].", {
-        expected: { cleanViolations: 0, perturbedViolations: 1, perturbedPolicyTag: "pii_must_have_owner" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "evaluate_policies(POLICIES, [sales_product, marketing_product, finance_product]) returns an empty dict when all three clean fixtures have valid owners, SLOs ≥95, and PII columns with retention metadata.",
+          "A perturbed sales product where owner is set to empty string triggers exactly 1 violation string containing '[pii_must_have_owner]'.",
+          "A product with slo.completeness_pct=80 triggers a '[slo_completeness_floor]' violation.",
+          "Each violation string includes both the policy name (in brackets) and the specific column or field that caused it.",
+          "Adding a new Policy to POLICIES applies it uniformly across all products without changing evaluate_policies itself.",
+        ],
       }),
       expectedOutputs: { clean_viol: 0, perturbed_viol: 1 },
       datasetRefs: ["fixtures/sales_product.yml", "fixtures/marketing_product.yml", "fixtures/finance_product.yml"],
@@ -354,10 +372,16 @@ def catalog(now: datetime | None = None) -> list[dict]:
         for p in _REGISTRY.values()
     ]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "3 products with SLO=24h: sales recorded 2h ago→fresh, marketing 30h ago→stale (>24,<48), finance 60h ago→expired (>48). catalog() returns the right status for each.", {
-        expected: { sales: "fresh", marketing: "stale", finance: "expired", totalProducts: 3 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "With SLO=24h: a product recorded 2 hours ago returns freshness_status='fresh' in the catalog() output.",
+          "With SLO=24h: a product recorded 30 hours ago (>24h but <48h) returns freshness_status='stale'.",
+          "With SLO=24h: a product recorded 60 hours ago (>48h, i.e. >2×SLO) returns freshness_status='expired'.",
+          "A product with no freshness record (record_freshness never called) returns freshness_status='unknown', not a crash.",
+          "All timestamps use UTC-aware datetime objects — mixing naïve and aware datetimes raises TypeError.",
+        ],
       }),
       expectedOutputs: { fresh: 1, stale: 1, expired: 1 },
       datasetRefs: ["fixtures/freshness_seed.json"],

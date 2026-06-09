@@ -59,7 +59,7 @@ export const dataEngineeringKafkaStreamingPipeline: AuthoredProject = {
       stepNumber: 1,
       title: "Idempotent producer — enable.idempotence + acks=all + max.in.flight",
       instructionMd:
-        "Configure a `confluent_kafka.Producer` with `enable.idempotence=true`, `acks=all`, `max.in.flight.requests.per.connection=5`, `retries=Integer.MAX_VALUE`. Write 1000 orders to topic `orders.raw` partition 0 while a chaos script restarts the broker leader mid-write. Validator asserts: all 1000 distinct order_ids present in the topic exactly once (no duplicates from producer retries, no gaps from acks=1 silent drops).",
+        "Configure a `confluent_kafka.Producer` with `enable.idempotence=true`, `acks=all`, `max.in.flight.requests.per.connection=5`, `retries=Integer.MAX_VALUE`. Write 1000 orders to topic `orders.raw` partition 0 while a chaos script restarts the broker leader mid-write. Self-verify: all 1000 distinct order_ids present in the topic exactly once (no duplicates from producer retries, no gaps from acks=1 silent drops).",
       learningObjective: "Idempotence at the producer is the foundation of EOS — without it, a retried batch becomes a duplicate batch on the broker.",
       requiredSkill: "Kafka producer config matrix + the acks/idempotence/retries interaction",
       starterCode: SRC(`# producer.py
@@ -116,7 +116,7 @@ def emit_orders(producer: Producer, topic: str, n: int) -> list[str]:
       stepNumber: 2,
       title: "Transactional consume-transform-produce (read-process-write EOS)",
       instructionMd:
-        "Build a worker that reads from `orders.raw`, normalizes amount → cents, produces to `orders.normalized`, and commits the consumed offset INSIDE the same transaction via `producer.send_offsets_to_transaction()`. Validator runs 500 messages through, kills the worker mid-transaction at message 250, restarts it, and asserts: `orders.normalized` contains exactly the 500 records exactly once AND `orders.raw` consumer-group offset advanced exactly 500.",
+        "Build a worker that reads from `orders.raw`, normalizes amount → cents, produces to `orders.normalized`, and commits the consumed offset INSIDE the same transaction via `producer.send_offsets_to_transaction()`. Run 500 messages through, kill the worker mid-transaction at message 250, restart it, and self-verify: `orders.normalized` contains exactly the 500 records exactly once AND `orders.raw` consumer-group offset advanced exactly 500.",
       learningObjective: "EOS = consumed offset + produced messages atomic. If offset commit and produce aren't in one transaction, you get duplicates after every restart.",
       requiredSkill: "Kafka transactional API + `send_offsets_to_transaction` + transactional.id semantics",
       starterCode: SRC(`# worker.py
@@ -162,10 +162,16 @@ def run_worker(bootstrap: str, group_id: str, txn_id: str):
             producer.commit_transaction()
             batch.clear()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Kill at msg 250, restart: orders.normalized = 500 distinct records; consumer offset = 500. No duplicates, no gaps.", {
-        expected: { normalizedCount: 500, distinctIds: 500, consumerOffset: 500, duplicates: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The worker uses begin_transaction / produce / send_offsets_to_transaction / commit_transaction in one atomic unit.",
+          "After killing the worker mid-transaction at message 250 and restarting, orders.normalized contains exactly 500 distinct records with no duplicates.",
+          "The consumer group offset for orders.raw advanced exactly 500 (no records were skipped).",
+          "transactional.id is stable across restarts so the broker can fence the previous epoch's incomplete writes.",
+          "enable.auto.commit is False and offsets are committed inside the transaction, not by a separate consumer.commit() call.",
+        ],
       }),
       expectedOutputs: { normalized: 500, duplicates: 0, gap: 0 },
       datasetRefs: ["fixtures/orders_500.json"],
@@ -188,7 +194,7 @@ def run_worker(bootstrap: str, group_id: str, txn_id: str):
       stepNumber: 3,
       title: "Rebalance safety — cooperative-sticky + commit-on-revoke",
       instructionMd:
-        "Switch the consumer to `partition.assignment.strategy=cooperative-sticky` and register `on_revoke` + `on_assign` handlers. In `on_revoke`, finish the current transaction (or abort cleanly). Validator runs 2 workers reading 800 messages; mid-stream, a 3rd worker joins forcing rebalance, then leaves. Assert: 800 distinct records in `orders.normalized` exactly once; no partition processed by 2 workers simultaneously per the rebalance log.",
+        "Switch the consumer to `partition.assignment.strategy=cooperative-sticky` and register `on_revoke` + `on_assign` handlers. In `on_revoke`, finish the current transaction (or abort cleanly). Run 2 workers reading 800 messages; mid-stream, have a 3rd worker join forcing rebalance, then leave. Self-verify: 800 distinct records in `orders.normalized` exactly once; no partition processed by 2 workers simultaneously per the rebalance log.",
       learningObjective: "Cooperative rebalance keeps unaffected partitions running; commit-on-revoke prevents the partition's in-flight transaction from becoming a zombie.",
       requiredSkill: "Cooperative sticky assignor + rebalance callbacks + transactional cleanup on revoke",
       starterCode: SRC(`# rebalance.py
@@ -217,10 +223,16 @@ def build_consumer(bootstrap: str, group_id: str, producer: Producer, in_txn: di
         # stop-the-world for every worker. Cooperative only revokes the moving ones.
     })
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Mid-stream worker join + leave: 800 distinct normalized records; no partition double-processed per rebalance log.", {
-        expected: { distinct: 800, duplicates: 0, doubleProcessedPartitions: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Consumer is configured with partition.assignment.strategy='cooperative-sticky'.",
+          "on_revoke aborts any in-flight transaction before partitions are handed off to the new owner.",
+          "After running 2 workers through 800 messages with a 3rd worker joining and then leaving mid-stream, orders.normalized contains exactly 800 distinct records.",
+          "The rebalance log shows no partition was processed by two workers simultaneously (no double-processing).",
+          "incremental_assign / incremental_unassign are used in the cooperative callbacks, not the eager assign.",
+        ],
       }),
       expectedOutputs: { distinct: 800, doubleProcessed: 0 },
       datasetRefs: ["fixtures/orders_800.json"],
@@ -243,7 +255,7 @@ def build_consumer(bootstrap: str, group_id: str, producer: Producer, in_txn: di
       stepNumber: 4,
       title: "Avro + Schema Registry — backward+forward compat evolution",
       instructionMd:
-        "Register schema v1 for `orders.normalized` requiring `order_id`, `amount_cents`. Evolve to v2 by adding optional `currency` (default 'USD'). Validator: produce a v2 record, consume with v1 reader (must succeed — backward compat); produce a v1 record, consume with v2 reader (must succeed — forward compat). Then attempt v3 with a renamed field (`amount_cents` → `total_cents`); registry MUST reject as incompatible.",
+        "Register schema v1 for `orders.normalized` requiring `order_id`, `amount_cents`. Evolve to v2 by adding optional `currency` (default 'USD'). Self-verify: produce a v2 record, consume with v1 reader (must succeed — backward compat); produce a v1 record, consume with v2 reader (must succeed — forward compat). Then attempt v3 with a renamed field (`amount_cents` → `total_cents`); the registry should reject it as incompatible.",
       learningObjective: "Backward+forward compatible schema evolution is non-negotiable for streaming systems — incompatible changes break consumers in the middle of the night.",
       requiredSkill: "Avro schema design + Schema Registry compatibility modes (BACKWARD / FORWARD / FULL)",
       starterCode: SRC(`# schema.py
@@ -274,10 +286,15 @@ def register_v1_v2(client: SchemaRegistryClient, subject: str) -> tuple[int, int
     v2 = client.register_schema(subject, Schema(SCHEMA_V2, "AVRO"))
     return v1, v2
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "v1 reads v2 record OK; v2 reads v1 record OK; v3 (renamed field) rejected by registry with 409.", {
-        expected: { v1ReadsV2: true, v2ReadsV1: true, v3Rejected: true, v3ErrorCode: 409 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Schema v1 and v2 are registered under FULL compatibility mode (both backward and forward).",
+          "A v2 record (with the optional 'currency' field) can be deserialized by a v1 reader without error (backward compatibility).",
+          "A v1 record (without 'currency') can be deserialized by a v2 reader, defaulting currency to 'USD' (forward compatibility).",
+          "Attempting to register schema v3 with a renamed field (e.g. amount_cents → total_cents) is rejected by the registry with a 409 Conflict error.",
+        ],
       }),
       expectedOutputs: { backwardOk: true, forwardOk: true, v3Rejected: true },
       datasetRefs: ["fixtures/schema_compat.json"],
@@ -300,7 +317,7 @@ def register_v1_v2(client: SchemaRegistryClient, subject: str) -> tuple[int, int
       stepNumber: 5,
       title: "DLQ + observability — bounded retry, structured failure, consumer-lag SLO",
       instructionMd:
-        "Add a try/except around the per-message transform; on N=3 retries failed, route the original message + failure metadata (error class, stacktrace, original offset, attempt count) to `orders.dlq` and continue. Expose Prometheus metrics: `consumer_lag_records`, `messages_processed_total`, `dlq_routed_total`. Validator injects 10 poison messages (invalid JSON) into a 100-message run; asserts: 90 in `orders.normalized`, 10 in `orders.dlq` with structured metadata, `dlq_routed_total=10`, consumer didn't stall (no lag > 200 at end).",
+        "Add a try/except around the per-message transform; on N=3 retries failed, route the original message + failure metadata (error class, stacktrace, original offset, attempt count) to `orders.dlq` and continue. Expose Prometheus metrics: `consumer_lag_records`, `messages_processed_total`, `dlq_routed_total`. Self-verify by injecting 10 poison messages (invalid JSON) into a 100-message run: confirm 90 in `orders.normalized`, 10 in `orders.dlq` with structured metadata, `dlq_routed_total=10`, and that the consumer did not stall.",
       learningObjective: "DLQ + bounded retry lets the pipeline keep moving in the face of poison messages — and observability tells you when to act.",
       requiredSkill: "DLQ pattern + retry budget + Prometheus client (counter/gauge) + lag computation",
       starterCode: SRC(`# dlq.py
@@ -339,10 +356,16 @@ def transform_or_dlq(msg, producer: Producer, attempt: int = 0) -> str:
         dlq_total.labels(reason=e.__class__.__name__).inc()
         return "dlq"
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "100 in, 10 poison: 90 normalized, 10 in DLQ with structured metadata, dlq_routed_total=10, no consumer stall.", {
-        expected: { normalized: 90, dlq: 10, dlqMetadataComplete: true, dlqMetric: 10, finalLag: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After sending 100 messages including 10 deliberately malformed (non-JSON) records, orders.normalized contains exactly 90 records.",
+          "orders.dlq contains exactly 10 records, each with structured metadata including original_offset, original_topic, attempts, error_class, and stacktrace.",
+          "The Prometheus counter dlq_routed_total reads 10 after the run.",
+          "The consumer did not stall — consumer_lag_records returns 0 (or near 0) at end of run, confirming poison messages were handled and not retried infinitely.",
+          "Bounded retry (MAX_RETRIES=3) was respected — each poison message was attempted at most 3 times before routing to the DLQ.",
+        ],
       }),
       expectedOutputs: { normalized: 90, dlq: 10, finalLag: 0 },
       datasetRefs: ["fixtures/dlq_100_with_10_poison.json"],

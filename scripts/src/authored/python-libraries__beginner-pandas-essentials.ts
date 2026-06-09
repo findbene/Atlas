@@ -66,7 +66,7 @@ export const pythonLibrariesBeginnerPandasEssentials: AuthoredProject = {
       stepNumber: 1,
       title: "read_csv with explicit dtype + parse_dates — never trust inference",
       instructionMd:
-        "Read `fixtures/orders_raw.csv` (columns: `order_id, ordered_at, region, qty, unit_price_cents, status`). Pass `dtype={'order_id': str, 'region': str, 'status': str, 'qty': 'Int64', 'unit_price_cents': 'Int64'}` and `parse_dates=['ordered_at']`. Why explicit types: pandas's inference reads a leading-zero `order_id` like `'00042'` as the int `42`, then writes it back as `42` and breaks every downstream join. Validator: asserts dtypes match exactly + `df.shape == (20, 6)`.",
+        "Read `fixtures/orders_raw.csv` (columns: `order_id, ordered_at, region, qty, unit_price_cents, status`). Pass `dtype={'order_id': str, 'region': str, 'status': str, 'qty': 'Int64', 'unit_price_cents': 'Int64'}` and `parse_dates=['ordered_at']`. Why explicit types: pandas's inference reads a leading-zero `order_id` like `'00042'` as the int `42`, then writes it back as `42` and breaks every downstream join. Self-verify: `df.shape == (20, 6)` and each dtype string matches the expected values.",
       learningObjective:
         "Auto-inferred dtypes is the #1 silent bug in pandas ETL. Always pass `dtype=` and `parse_dates=` to `read_csv`.",
       requiredSkill: "pandas.read_csv with explicit dtype + parse_dates",

@@ -57,7 +57,7 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
       stepNumber: 1,
       title: "Tumbling windows by event-time",
       instructionMd:
-        "Implement `tumbling_window(event_ms, window_ms)` returning the window-start epoch the event belongs to (`event_ms // window_ms * window_ms`). Validator drives 4 events across 2 boundaries.",
+        "Implement `tumbling_window(event_ms, window_ms)` returning the window-start epoch the event belongs to (`event_ms // window_ms * window_ms`). Self-verify by calling the function on 4 events spanning 2 window boundaries and confirming the results.",
       learningObjective: "Bucket events deterministically by event-time so identical events always land in the same window — anywhere, on replay, after a restart.",
       requiredSkill: "Epoch arithmetic + tumbling-window contract",
       starterCode: SRC(`def tumbling_window(event_ms, window_ms):
@@ -66,10 +66,15 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
     # TODO: return (event_ms // window_ms) * window_ms
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
-        expected: [0, 0, 1000, 1000],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "tumbling_window(0, 1000) returns 0 and tumbling_window(999, 1000) returns 0 (both land in the [0, 1000) bucket).",
+          "tumbling_window(1000, 1000) returns 1000 and tumbling_window(1999, 1000) returns 1000 (both land in the [1000, 2000) bucket).",
+          "tumbling_window(event_ms=0, window_ms=0) raises ValueError (window_ms must be > 0).",
+          "The formula is (event_ms // window_ms) * window_ms — integer arithmetic only, no float.",
+        ],
       }),
       expectedOutputs: { windows: [0, 0, 1000, 1000] },
       datasetRefs: ["fixtures/tumbling_window_events.json"],

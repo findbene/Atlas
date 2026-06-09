@@ -66,7 +66,7 @@ export const dataScientistBeginnerEdaAndSummaryStats: AuthoredProject = {
       stepNumber: 1,
       title: "Schema audit — `.info()` + `.shape` + `.dtypes`",
       instructionMd:
-        "Read `fixtures/transactions.csv` (columns: `txn_id, user_id, amount_cents, category, ts`) with explicit dtypes (`txn_id: str, user_id: str, amount_cents: 'Int64', category: str`) and `parse_dates=['ts']`. Write `schema_summary(df)` returning a dict: `{rows, columns, dtypes: {col: dtype_str}}`. Validator: `rows == 200`, `columns == 5`, dtypes exactly match.",
+        "Read `fixtures/transactions.csv` (columns: `txn_id, user_id, amount_cents, category, ts`) with explicit dtypes (`txn_id: str, user_id: str, amount_cents: 'Int64', category: str`) and `parse_dates=['ts']`. Write `schema_summary(df)` returning a dict: `{rows, columns, dtypes: {col: dtype_str}}`. Self-verify: `rows == 200`, `columns == 5`, and each dtype string matches the expected value from `fixtures/eda_expected.json`.",
       learningObjective:
         "First 30 seconds with any dataset: how many rows, how many columns, what types? Without this, every later analysis is dead-reckoning.",
       requiredSkill: "read_csv with explicit dtype + parse_dates + .info()/.shape/.dtypes summary",
@@ -87,20 +87,16 @@ def schema_summary(df: pd.DataFrame) -> dict:
     # TODO: return {"rows": ..., "columns": ..., "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()}}
     return {}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "schema_summary(df) == {rows: 200, columns: 5, dtypes: exact match}.", {
-        expected: {
-          rows: 200,
-          columns: 5,
-          dtypes: {
-            txn_id: "object",
-            user_id: "object",
-            amount_cents: "Int64",
-            category: "object",
-            ts: "datetime64[ns]",
-          },
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "schema_summary(df)['rows'] == 200 and schema_summary(df)['columns'] == 5.",
+          "schema_summary(df)['dtypes']['txn_id'] == 'object' and 'user_id' == 'object' (strings, not ints).",
+          "schema_summary(df)['dtypes']['amount_cents'] == 'Int64' (nullable integer, capital I).",
+          "schema_summary(df)['dtypes']['ts'] == 'datetime64[ns]' (parsed from string, not left as object).",
+          "schema_summary(df)['dtypes']['category'] == 'object'.",
+        ],
       }),
       expectedOutputs: { rows: 200, columns: 5 },
       datasetRefs: ["fixtures/transactions.csv", "fixtures/eda_expected.json"],

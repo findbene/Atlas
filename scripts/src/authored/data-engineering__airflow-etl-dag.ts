@@ -79,10 +79,16 @@ def extract_daily_events(execution_date: datetime, ti, api_client, conn_str: str
     ti.xcom_push(key='rows_extracted', value=inserted)
     return inserted
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After 1st run: 500 rows; after 2nd run on same execution_date: still 500 rows + all ingested_at timestamps updated to the second run's time.", {
-        expected: { rowsAfterRun1: 500, rowsAfterRun2: 500, ingestedAtChanged: true, duplicates: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The INSERT uses ON CONFLICT (event_id) DO UPDATE so a second run with the same data does not create duplicate rows.",
+          "After the first run against the 500-row fixture, SELECT COUNT(*) FROM events returns 500.",
+          "After the second run with the same execution_date and same fixture, SELECT COUNT(*) FROM events still returns 500 (no duplicates).",
+          "The ingested_at column is updated to NOW() on the second run (DO UPDATE SET ingested_at = NOW()), confirming re-processing happened.",
+          "execution_date (not datetime.now()) is used as the event_date value, so backfills produce correct historical partitions.",
+        ],
       }),
       expectedOutputs: { rows: 500, duplicates: 0, idempotent: true },
       datasetRefs: ["fixtures/api_500.json"],
@@ -228,10 +234,15 @@ with DAG(
     # TODO: wait_for_manifest >> extract >> dbt_build >> dq_gate
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Sim 30-day backfill: max_concurrent_runs ≤ 5; depends_on_past blocks day N until N-1 success; failure on day 10 blocks 11+.", {
-        expected: { maxConcurrent: 5, dependsOnPastHonored: true, failureBlocksDownstream: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The DAG is defined with max_active_runs=5 so a 30-day backfill never schedules more than 5 simultaneous DAG runs.",
+          "catchup=True is set so Airflow schedules all historical intervals from start_date.",
+          "depends_on_past=True is set in default_args so day N's extract waits for day N-1's extract to succeed before starting.",
+          "Simulating a failure on day 10: day 11 and beyond remain in the 'waiting' state until day 10 is manually cleared or re-run successfully.",
+        ],
       }),
       expectedOutputs: { maxConcurrent: 5, dependsOnPast: true, failureBlocks: true },
       datasetRefs: ["fixtures/backfill_sim_30d.json"],
@@ -279,10 +290,15 @@ def dq_gate(execution_date_str: str, conn_str: str) -> None:
         # TODO: AirflowFailException prevents retries — DQ failures aren't transient.
         raise AirflowFailException("DQ gate failed:\\n" + "\\n".join(failures))
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Clean fixture: dq_gate returns None. Fixture with 10 NULL user_ids: AirflowFailException raised, message names 'no_null_user' assertion + count=10.", {
-        expected: { cleanPasses: true, nullsFailWithNamedAssertion: true, exceptionType: "AirflowFailException" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "dq_gate() returns None (no exception) when run against a clean fixture with >0 rows, no NULL user_ids, and all event_dates matching execution_date.",
+          "dq_gate() raises AirflowFailException (not a generic Exception) when any assertion fails — this prevents Airflow from retrying a non-transient data quality failure.",
+          "Running against a fixture with 10 NULL user_ids raises AirflowFailException with the message naming 'no_null_user' and the count 10.",
+          "All failed assertion names are included in a single exception message — not just the first failure.",
+        ],
       }),
       expectedOutputs: { cleanPass: true, nullsFail: "no_null_user" },
       datasetRefs: ["fixtures/dq_cases.json"],

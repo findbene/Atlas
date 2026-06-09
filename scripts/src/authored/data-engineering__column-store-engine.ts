@@ -167,7 +167,7 @@ def encode(arr: np.ndarray, max_cardinality_ratio: float = 0.5) -> 'np.ndarray |
       stepNumber: 3,
       title: "Vectorized scan in 1024-row batches",
       instructionMd:
-        "Implement `scan(table, project: list[str], batch_size=1024) -> Iterator[dict[str, np.ndarray]]` yielding column batches. Each yielded dict has only the projected columns, each batch ≤batch_size rows. Validator runs over 1M rows, yields exactly 977 batches (last partial), each having only the projected columns; uses no Python-level per-row loop (asserted by counting iter overhead).",
+        "Implement `scan(table, project: list[str], batch_size=1024) -> Iterator[dict[str, np.ndarray]]` yielding column batches. Each yielded dict has only the projected columns, each batch ≤batch_size rows. Self-check: running over 1M rows should yield exactly 977 batches (last partial); every batch should contain only the projected columns; the implementation should use numpy slicing — not a Python-level per-row loop.",
       learningObjective: "Process data in vectorized batches — eliminate per-row Python overhead.",
       requiredSkill: "Batched iteration + numpy slicing + projection",
       starterCode: SRC(`# scan.py
@@ -182,10 +182,16 @@ def scan(table, project: list[str], batch_size: int = 1024) -> Iterator[dict]:
         # TODO: yield {k: v[start:end] for k, v in cols.items()}
         yield {}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "scan over 1M rows, project=['id','price'], batch_size=1024 → yields 977 batches; every batch has exactly keys {'id','price'}; all batches but last have len 1024.", {
-        expected: { batchCount: 977, projectedKeys: ["id", "price"], firstNBatchLen: 1024, lastBatchLen: 576 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Calling scan(table, project=['id','price'], batch_size=1024) over a 1M-row table yields exactly 977 batches (ceil(1000000/1024) = 977).",
+          "Every yielded batch dict has exactly the keys {'id', 'price'} — no other columns.",
+          "Every batch except the last has length 1024; the last batch has length 576 (1000000 mod 1024).",
+          "No Python-level per-row loop exists in the scan — only numpy slice operations (v[start:end]).",
+          "Projecting only ['id','price'] from a wider table means non-projected columns are never loaded into the batch.",
+        ],
       }),
       expectedOutputs: { batches: 977, last_len: 576 },
       datasetRefs: ["fixtures/sales_1M_shape.json"],
