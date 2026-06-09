@@ -243,7 +243,7 @@ $$;
       stepNumber: 5,
       title: "Offline-online parity check",
       instructionMd:
-        "Write a parity query: pick 10 customer_ids, compare each customer's latest features as computed offline (DuckDB customer_features) vs. online (Postgres online_features). Raise an error if any row differs by more than 1 cent on revenue or any value on counts. Validator runs against matched data → 0 mismatches; perturbs one online row → mismatch detected.",
+        "Write a parity query: pick 10 customer_ids, compare each customer's latest features as computed offline (DuckDB customer_features) vs. online (Postgres online_features). Raise an error if any row differs by more than 1 cent on revenue or any value on counts. Self-check: run the parity orchestrator against matched data and confirm it reports 0 mismatches; then intentionally perturb one online row (e.g. change C5's revenue_last_30d) and re-run to confirm exactly 1 mismatch is detected and reported.",
       learningObjective: "Validate that offline (training) and online (serving) feature pipelines agree.",
       requiredSkill: "Cross-engine SQL diff + tolerance-based comparison + assertion in CTE",
       starterCode: SRC(`-- 05_parity.sql (run from Python orchestrator that targets both engines)

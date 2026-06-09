@@ -61,7 +61,7 @@ export const mlopsEngineerFeaturePipelineMonitoring: AuthoredProject = {
       stepNumber: 1,
       title: "Training-vs-serving skew — replay serving requests through offline materialization",
       instructionMd:
-        "Implement `detect_skew(serving_logs, offline_materializer) -> {skew_rate: float, mismatched_keys: list[str]}`. For each (entity_id, feature_name, served_value, served_at) in serving logs, look up the materialized value at the same point-in-time and assert ==. Validator runs against a fixture with 1000 serving requests including 23 deliberate skew cases; expects `skew_rate ≈ 0.023`, `mismatched_keys` length 23.",
+        "Implement `detect_skew(serving_logs, offline_materializer) -> {skew_rate: float, mismatched_keys: list[str]}`. For each (entity_id, feature_name, served_value, served_at) in serving logs, look up the materialized value at the same point-in-time and assert ==. Self-check: run detect_skew against the 1000-request fixture (23 deliberate skew cases) and confirm skew_rate ≈ 0.023 and len(mismatched_keys) == 23.",
       learningObjective: "Skew detection IS replay. The cheap version (compare distributions) misses the most-dangerous bugs (the same entity getting different values online vs offline).",
       requiredSkill: "Point-in-time correct lookup + tuple-equality skew computation",
       starterCode: SRC(`# monitors/skew.py
@@ -118,7 +118,7 @@ def detect_skew(
       stepNumber: 2,
       title: "Freshness SLO — feature_max_lag_seconds gauge per feature group",
       instructionMd:
-        "Expose `feature_max_lag_seconds{group}` Prometheus gauge = max(now - feature_updated_at) within the group. Run a scrape every 30s. Validator: 4 feature groups with materialization lags of 30s, 120s, 600s, 3600s; assert the gauge shows the exact value per group; SLO breaches surface in `breaches` list when lag > group SLO.",
+        "Expose `feature_max_lag_seconds{group}` Prometheus gauge = max(now - feature_updated_at) within the group. Run a scrape every 30s. Self-check: call scrape_freshness with 4 feature groups at materialization lags of 30s, 120s, 600s, 3600s — confirm the gauge reflects the exact max lag per group and that the returned breaches list includes only the groups where lag exceeds their SLO.",
       learningObjective: "Freshness alerts are the easiest monitor to define correctly and the most-skipped. Stale features cause model drift that looks like model drift.",
       requiredSkill: "Prometheus gauge with labels + per-group SLO threshold definition",
       starterCode: SRC(`# monitors/freshness.py
@@ -186,7 +186,7 @@ def scrape_freshness(
       stepNumber: 3,
       title: "PSI — population stability index vs rolling reference",
       instructionMd:
-        "Implement `psi(reference, current, bins=10) -> float` using deciles of the REFERENCE distribution as bin edges. PSI = Σ (curr_pct - ref_pct) * ln(curr_pct / ref_pct), with a small epsilon to avoid log(0). Validator: identical distributions → PSI ≈ 0.0; small shift → PSI < 0.1; major shift → PSI > 0.25. Test against 3 fixture pairs with known PSI values.",
+        "Implement `psi(reference, current, bins=10) -> float` using deciles of the REFERENCE distribution as bin edges. PSI = Σ (curr_pct - ref_pct) * ln(curr_pct / ref_pct), with a small epsilon to avoid log(0). Self-check: run your function against 3 fixture pairs and confirm: identical distributions → PSI < 0.01; small shift → PSI in 0.02–0.10; major shift → PSI > 0.25.",
       learningObjective: "PSI is the standard distribution-drift metric for production ML. The bins-from-reference detail is what most implementations get wrong.",
       requiredSkill: "PSI computation + reference-defined bin edges + epsilon for log stability",
       starterCode: SRC(`# monitors/drift.py
@@ -243,7 +243,7 @@ def psi(reference: np.ndarray, current: np.ndarray, bins: int = 10, eps: float =
       stepNumber: 4,
       title: "Null-rate EWMA — alert on > 3σ deviation, not absolute threshold",
       instructionMd:
-        "Implement `null_rate_alert(window) -> {alerts: list[{feature, current, baseline_mean, baseline_std, z}]}`. For each feature, compute its rolling EWMA mean and std (α=0.05); current is the latest 5-minute window's null rate; emit an alert when `|current - mean| > 3*std` AND `current > 0.005`. Validator: 24-hour stream of null rates with a 2-hour deliberate spike (0.001→0.045 on one feature); assert exactly 1 alert is emitted during the spike window for that feature, 0 alerts for the other 9 features.",
+        "Implement `null_rate_alert(window) -> {alerts: list[{feature, current, baseline_mean, baseline_std, z}]}`. For each feature, compute its rolling EWMA mean and std (α=0.05); current is the latest 5-minute window's null rate; emit an alert when `|current - mean| > 3*std` AND `current > 0.005`. Self-check: run your function against the 24-hour fixture stream (10 features, one feature spiking from 0.001 to 0.045 over a 2-hour window) and confirm exactly 1 alert fires for the spiking feature and 0 alerts for the other 9.",
       learningObjective: "Absolute null-rate alerts ALWAYS fire false-positive because every feature has a different baseline. EWMA + 3σ adapts to the feature's own normal.",
       requiredSkill: "Exponentially-weighted mean/std + z-score thresholding + minimum-floor guard",
       starterCode: SRC(`# monitors/null_rate.py

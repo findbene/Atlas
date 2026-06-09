@@ -231,7 +231,7 @@ except DltException as e:
       stepNumber: 4,
       title: "Retry with exponential backoff on transient errors",
       instructionMd:
-        "Wrap the API call with `tenacity` retry: 5 attempts, exponential backoff 1s→16s, retry only on `requests.HTTPError` where `response.status_code in {429, 500, 502, 503, 504}`. Validator simulates an API that returns 503 the first 3 calls then succeeds, and asserts: pipeline completes successfully, total request count = 4 (3 fails + 1 success).",
+        "Wrap the API call with `tenacity` retry: 5 attempts, exponential backoff 1s→16s, retry only on `requests.HTTPError` where `response.status_code in {429, 500, 502, 503, 504}`. Self-check: mock an API that returns 503 for the first 3 calls then 200 on the 4th, and confirm the pipeline completes successfully with a total request count of 4 (3 failures + 1 success).",
       learningObjective: "Distinguish transient (retry) from permanent (don't retry) failures — the basic ops discipline.",
       requiredSkill: "tenacity + selective retry on status codes + exponential backoff",
       starterCode: SRC(`# api_client.py

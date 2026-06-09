@@ -209,7 +209,7 @@ def cosine_norm(a, b):
       stepNumber: 5,
       title: "Index query-time tuning: probes vs ef_search",
       instructionMd:
-        "IVFFlat exposes `probes` and HNSW exposes `ef_search` — both trade query time for recall. Implement `recommend_query_param(index_kind, target_recall)` returning the suggested value: IVFFlat → `max(1, min(50, int(target_recall * 50)))`; HNSW → `max(40, min(400, int(target_recall * 400)))`. Validator drives both indexes at 3 recall targets.",
+        "IVFFlat exposes `probes` and HNSW exposes `ef_search` — both trade query time for recall. Implement `recommend_query_param(index_kind, target_recall)` returning the suggested value: IVFFlat → `max(1, min(50, int(target_recall * 50)))`; HNSW → `max(40, min(400, int(target_recall * 400)))`. Self-check: drive your function across both indexes at 3 recall targets each and confirm every returned parameter value matches the expected result.",
       learningObjective: "Translate a recall target into a concrete query-time parameter for each index.",
       requiredSkill: "Index-internal parameter literacy + bounded scaling",
       starterCode: SRC(`def recommend_query_param(index_kind, target_recall):

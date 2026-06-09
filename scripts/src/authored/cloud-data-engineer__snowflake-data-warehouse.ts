@@ -257,7 +257,7 @@ USE ROLE FR_PII_VIEWER;    SELECT email FROM RAW.USERS LIMIT 1;  -- expect real 
       stepNumber: 5,
       title: "Resource monitors + cost isolation under load",
       instructionMd:
-        "Create a `RM_ANALYTICS` resource monitor with `CREDIT_QUOTA=10`, `TRIGGER … ON 80 PERCENT DO NOTIFY` + `ON 100 PERCENT DO SUSPEND`, attached to `WH_ANALYTICS`. Then run a heavy 30-second query on `WH_ANALYTICS` while a lightweight query runs on `WH_INGEST`. Validator asserts: WH_INGEST query latency is <2s (not throttled by WH_ANALYTICS), the heavy query consumes >2 credits on WH_ANALYTICS, and `SHOW RESOURCE MONITORS` returns the monitor with the configured triggers.",
+        "Create a `RM_ANALYTICS` resource monitor with `CREDIT_QUOTA=10`, `TRIGGER … ON 80 PERCENT DO NOTIFY` + `ON 100 PERCENT DO SUSPEND`, attached to `WH_ANALYTICS`. Then run a heavy 30-second query on `WH_ANALYTICS` while a lightweight query runs on `WH_INGEST`. Self-check: confirm `SHOW RESOURCE MONITORS` shows RM_ANALYTICS with both triggers (NOTIFY at 80%, SUSPEND at 100%); confirm `WH_INGEST` query latency stays <2s during the concurrent test; and confirm `SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY` shows >2 credits consumed on WH_ANALYTICS for the heavy query.",
       learningObjective: "Per-warehouse resource monitors prevent runaway queries from blowing the monthly budget — and prove cost isolation works.",
       requiredSkill: "Snowflake RESOURCE MONITOR + ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY + per-WH isolation",
       starterCode: SRC(`-- monitor.sql
