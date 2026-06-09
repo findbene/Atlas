@@ -82,7 +82,7 @@ def load_orders() -> pd.DataFrame:
 `),
       validationType: "json_equal",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "df.shape == (20, 6); dtypes match exactly: order_id=str, ordered_at=datetime64[ns], region=str, qty=Int64, unit_price_cents=Int64, status=str.", {
+      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
         expected: {
           shape: [20, 6],
           dtypes: {
@@ -133,7 +133,7 @@ def keep_paid(df: pd.DataFrame) -> pd.DataFrame:
 `),
       validationType: "json_equal",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "keep_paid(df) returns a DataFrame with exactly 14 rows; every row has status == 'paid'.", {
+      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
         expected: {
           rowCount: 14,
           allStatusPaid: true,
@@ -180,7 +180,7 @@ def select_report_columns(df: pd.DataFrame) -> pd.DataFrame:
 `),
       validationType: "json_equal",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Returned df has exactly columns [order_id, region, units, unit_price_cents] in that order.", {
+      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
         expected: {
           columns: ["order_id", "region", "units", "unit_price_cents"],
           columnCount: 4,

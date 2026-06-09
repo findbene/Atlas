@@ -82,10 +82,15 @@ class OrderRefunded(BaseModel):
 
 # TODO: OrderEvent = Annotated[Union[OrderCreated, OrderShipped, OrderRefunded], Discriminator("event_type")]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "POST 3 payloads: order.created → OrderCreated; order.shipped → OrderShipped; order.refunded → OrderRefunded. Bad event_type → 422.", {
-        expectedTypes: ["OrderCreated", "OrderShipped", "OrderRefunded"], expectedBadStatus: 422,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Parsing a payload with event_type='order.created' yields an OrderCreated instance.",
+          "Parsing a payload with event_type='order.shipped' yields an OrderShipped instance.",
+          "Parsing a payload with event_type='order.refunded' yields an OrderRefunded instance.",
+          "Parsing a payload with an unknown event_type raises a validation error (422 in FastAPI).",
+        ],
       }),
       expectedOutputs: { types: 3, badStatus: 422 },
       datasetRefs: ["fixtures/event_payloads.jsonl"],
@@ -136,10 +141,14 @@ class OrderCreated(_Base):
 # TODO: OrderRefunded.model_validator(mode='after') checking refund_cents <= total_cents
 # (you'll need a way to know total_cents at refund time — typically a DB lookup in the route handler, not the schema)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Payload {eventType: 'order.created', orderId: 'X', customerId: 'C', totalCents: -1} → 422 with msg mentioning total_cents.", {
-        expectedStatus: 422, expectedErrorField: "total_cents",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "A camelCase payload {eventType:'order.created', orderId:'X', customerId:'C', totalCents:-1} is rejected with a validation error (HTTP 422 in FastAPI).",
+          "The validation error message references the total_cents field.",
+          "A valid camelCase payload with totalCents>0 is accepted and parses to an OrderCreated instance.",
+        ],
       }),
       expectedOutputs: { status: 422, errorField: "total_cents" },
       datasetRefs: ["fixtures/invalid_payloads.jsonl"],
@@ -181,10 +190,15 @@ def summarize_customers(events: list[OrderEvent]) -> pl.DataFrame:
     #           .collect())
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "100 events across 3 customers (50/30/20 each, totals 5000/3000/2000) → 3 rows: counts [50,30,20], values [5000,3000,2000].", {
-        expectedRows: 3, expectedCounts: [50, 30, 20], expectedValues: [5000, 3000, 2000],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "summarize_customers() returns a Polars DataFrame with 3 rows — one per customer.",
+          "total_orders counts are [50, 30, 20] for customers sorted by customer_id.",
+          "lifetime_value_cents sums are [5000, 3000, 2000] corresponding to those customers.",
+          "Output is sorted by customer_id so results are deterministic.",
+        ],
       }),
       expectedOutputs: { rows: 3, counts: [50, 30, 20] },
       datasetRefs: ["fixtures/customer_events_100.jsonl"],
@@ -237,10 +251,14 @@ def persist_orders(rows: list[dict]) -> int:
             session.rollback()
             raise
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Batch of 5 rows where row[2] has duplicate primary key → IntegrityError → all 5 rolled back → DB row count unchanged.", {
-        expectedRowsPersisted: 0,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Inserting a batch of 5 rows where one row has a duplicate primary key raises an IntegrityError.",
+          "The session.rollback() is called on error so the entire batch is rolled back atomically.",
+          "After the failed insert, the DB row count for the orders table is unchanged (0 new rows persisted).",
+        ],
       }),
       expectedOutputs: { rolledBack: true, rowsPersisted: 0 },
       datasetRefs: ["fixtures/orders_with_dup.jsonl"],
@@ -280,10 +298,15 @@ async def test_openapi_has_discriminator():
     assert r.status_code == 200
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "GET /openapi.json includes OrderEvent with discriminator propertyName=event_type + 3 mapped subschemas.", {
-        expectedDiscriminatorField: "event_type", expectedMappingCount: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "GET /openapi.json returns HTTP 200.",
+          "The OpenAPI spec includes an OrderEvent schema with a discriminator block where propertyName='event_type'.",
+          "The discriminator mapping covers all 3 event types: OrderCreated, OrderShipped, OrderRefunded.",
+          "The httpx AsyncClient integration test passes without connecting to a real server.",
+        ],
       }),
       expectedOutputs: { discriminator: "event_type", mappings: 3 },
       datasetRefs: ["fixtures/openapi_expected.json"],

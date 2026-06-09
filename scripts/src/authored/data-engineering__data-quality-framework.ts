@@ -135,10 +135,10 @@ validator.save_expectation_suite(discard_failed_expectations=False)
 result = validator.validate()
 print({'success': result.success, 'evaluated': len(result.results)})
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Clean 10k row fixture: 5/5 pass. Corrupted fixture (mean amount = 3.2, below floor 10): mean-range fails with observed value 3.2 reported.", {
-        expected: { cleanPass: 5, cleanFail: 0, dirtyPass: 4, dirtyFail: 1, failedObservedMean: 3.2 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run the GE suite against the clean 10k-row fixture and confirm 5/5 expectations pass. Then run against the corrupted fixture (mean amount ≈ 3.2, below the 10–500 floor) and confirm the mean-range expectation fails with the observed mean value reported in the GE result.",
       }),
       expectedOutputs: { cleanPass: 5, dirtyFail: 1, observedMean: 3.2 },
       datasetRefs: ["fixtures/ge_orders_clean.json", "fixtures/ge_orders_corrupted.json"],

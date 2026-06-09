@@ -93,11 +93,14 @@ def distribution(rows: list[QAExample]) -> dict[str, float]:
         out[d] = sum(1 for r in rows if r.difficulty == d) / n
     return out
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "200 valid QAExample rows; difficulty distribution 0.40/0.40/0.20 ±0.05.", {
-        expected: { rowCount: 200, distribution: { easy: 0.40, med: 0.40, hard: 0.20 } },
-        tolerance: 0.05,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "load_dataset(path) returns exactly 200 QAExample rows without raising.",
+          "Every row has a non-empty gold_chunk_ids list and a gold_answer of at least 10 characters.",
+          "The difficulty distribution is approximately 40% easy / 40% med / 20% hard (±5pp tolerance).",
+        ],
       }),
       expectedOutputs: { rows: 200, distributionOk: true },
       datasetRefs: ["fixtures/qa_dataset_200.jsonl"],
@@ -154,11 +157,14 @@ def eval_retrieval(
         rrs     += reciprocal_rank(retrieved, q.gold_chunk_ids, k)
     return {"recall_at_k": recalls / n, "mrr": rrs / n}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Stubbed retriever: 60 hits at rank 1, 20 at rank 3, 10 across ranks 5-10, 10 misses -> recall@10=0.90, MRR ≈ 0.6 + 0.0667 + 0.0146 ≈ 0.681.", {
-        expected: { recall_at_k: 0.90, mrr: 0.681 },
-        tolerance: 0.005,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "With the stubbed retriever (60 hits at rank 1, 20 at rank 3, 10 across ranks 5-10, 10 misses), eval_retrieval returns recall_at_k ≈ 0.90 and mrr ≈ 0.681 (±0.005).",
+          "recall_at_k counts a question as a hit when at least one gold chunk appears in the top-k.",
+          "mrr assigns rank 0 (not negative) to misses and 1/rank to the first gold-chunk hit.",
+        ],
       }),
       expectedOutputs: { recall_at_10: 0.90, mrr_approx: 0.681 },
       datasetRefs: ["fixtures/stubbed_retriever_scenarios.json"],
@@ -214,11 +220,14 @@ def judge_answer(
     # TODO: validate via pydantic so a malformed judge response can't poison the eval.
     return JudgeVerdict.model_validate_json(raw)
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "20 labeled examples: grounded-classification accuracy ≥ 0.90; span-coverage MAE ≤ 0.10.", {
-        expected: { groundedAccuracy: 0.95, spanCoverageMae: 0.06 },
-        tolerance: 0.05,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "judge_answer is validated via Pydantic (JudgeVerdict.model_validate_json) so a malformed judge response raises a clear error rather than silently poisoning the eval.",
+          "Against the 20 hand-labeled fixture examples, grounded-classification accuracy is ≥ 0.90.",
+          "Against the same fixture, span-coverage MAE is ≤ 0.10.",
+        ],
       }),
       expectedOutputs: { groundedAccuracyGte: 0.90, spanCoverageMaeLte: 0.10 },
       datasetRefs: ["fixtures/judge_labeled_20.jsonl"],
@@ -277,13 +286,14 @@ def regress(baseline: EvalResults, candidate: EvalResults) -> RegressionReport:
             regressions.append(f"{k} {round((c - b) * 100)}pp")
     return RegressionReport(pass_=(len(regressions) == 0), regressions=regressions, deltas=deltas)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Scenario A (baseline vs degraded candidate): pass=False, regressions=['grounded_rate -4pp', 'span_coverage -5pp']. Scenario B: pass=True.", {
-        expected: {
-          scenarioA: { pass: false, regressions: ["grounded_rate -4pp", "span_coverage -5pp"] },
-          scenarioB: { pass: true, regressions: [] },
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Scenario A (baseline recall@10=0.90/mrr=0.65/grounded=0.85/span=0.70, candidate recall@10=0.88/mrr=0.66/grounded=0.81/span=0.65): regress() returns pass_=False with regressions containing 'grounded_rate -4pp' and 'span_coverage -5pp'.",
+          "Scenario B (candidate recall@10=0.89/mrr=0.66/grounded=0.84/span=0.69 against the same baseline): regress() returns pass_=True with an empty regressions list.",
+          "deltas are returned for all metrics (positive and negative) so operators see improvements as well as regressions.",
+        ],
       }),
       expectedOutputs: { scenarioAPass: false, scenarioBPass: true },
       datasetRefs: ["fixtures/regression_scenarios.json"],

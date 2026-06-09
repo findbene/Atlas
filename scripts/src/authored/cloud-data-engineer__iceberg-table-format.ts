@@ -165,15 +165,15 @@ def is_safe_evolution(old, new):
         pass
     return True
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "5 transitions: widen int→long (safe), narrow long→int (unsafe), add column (safe), rename (safe), arbitrary string→int (unsafe).", {
-        cases: [
-          { name: "widen", old: { 1: ["a", "int"] }, new: { 1: ["a", "long"] }, expected: true },
-          { name: "narrow", old: { 1: ["a", "long"] }, new: { 1: ["a", "int"] }, expected: false },
-          { name: "add", old: { 1: ["a", "int"] }, new: { 1: ["a", "int"], 2: ["b", "string"] }, expected: true },
-          { name: "rename", old: { 1: ["a", "string"] }, new: { 1: ["a_renamed", "string"] }, expected: true },
-          { name: "arbitrary", old: { 1: ["a", "string"] }, new: { 1: ["a", "int"] }, expected: false },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "is_safe_evolution({1:['a','int']}, {1:['a','long']}) returns True (int→long widening is safe)",
+          "is_safe_evolution({1:['a','long']}, {1:['a','int']}) returns False (long→int narrowing is unsafe)",
+          "is_safe_evolution({1:['a','int']}, {1:['a','int'],2:['b','string']}) returns True (add column is safe)",
+          "is_safe_evolution({1:['a','string']}, {1:['a_renamed','string']}) returns True (rename via same id is safe)",
+          "is_safe_evolution({1:['a','string']}, {1:['a','int']}) returns False (arbitrary type change is unsafe)",
         ],
       }),
       expectedOutputs: { passedCases: 5, allCorrect: true },
@@ -208,19 +208,14 @@ def is_safe_evolution(old, new):
         pass
     return target
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "4 snapshots at committed_ms [100, 200, 350, 400]. Rollback at 300 → 'b'. Rollback at 50 → None.", {
-        snapshots: [
-          { id: "a", committed_ms: 100 },
-          { id: "b", committed_ms: 200 },
-          { id: "c", committed_ms: 350 },
-          { id: "d", committed_ms: 400 },
-        ],
-        cases: [
-          { bad_after_ts: 300, expected: "b" },
-          { bad_after_ts: 50, expected: null },
-          { bad_after_ts: 400, expected: "d" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "find_rollback_target(snapshots, 300) returns 'b' (latest snapshot committed at or before 300ms is id='b' at 200ms)",
+          "find_rollback_target(snapshots, 50) returns None (no snapshot committed before 50ms)",
+          "find_rollback_target(snapshots, 400) returns 'd' (latest snapshot at boundary 400ms)",
+          "Snapshots input: [{id:'a',committed_ms:100},{id:'b',committed_ms:200},{id:'c',committed_ms:350},{id:'d',committed_ms:400}]",
         ],
       }),
       expectedOutputs: { rollbackTargets: ["b", null, "d"] },
@@ -257,14 +252,14 @@ def needs_compaction(total_files, partition_count):
     # TODO: return avg > MAX_AVG_FILES_PER_PARTITION or total_files > MAX_TOTAL_FILES
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "4 scenarios: healthy small, healthy large but balanced, unhealthy by avg, unhealthy by total.", {
-        cases: [
-          { total: 100, parts: 10, expected: false },
-          { total: 5000, parts: 200, expected: false },
-          { total: 600, parts: 10, expected: true },
-          { total: 12000, parts: 1000, expected: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "needs_compaction(100, 10) returns False (avg=10 per partition, total=100 — both within thresholds)",
+          "needs_compaction(5000, 200) returns False (avg=25 per partition — within threshold)",
+          "needs_compaction(600, 10) returns True (avg=60 per partition — exceeds MAX_AVG_FILES_PER_PARTITION=50)",
+          "needs_compaction(12000, 1000) returns True (total=12000 — exceeds MAX_TOTAL_FILES=10000)",
         ],
       }),
       expectedOutputs: { decisions: [false, false, true, true] },

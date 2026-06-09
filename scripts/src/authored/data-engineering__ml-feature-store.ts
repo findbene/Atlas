@@ -162,10 +162,10 @@ def get_training_set(entity_df: pd.DataFrame, source_parquet: str, feature_cols:
     # the #1 source of "great in dev, terrible in prod" feature stores.
     return con.sql(sql).df()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "1000-row entity_df: rows with ts<10 see spend=$X; rows with ts>=10 see exactly $X (not $2X). Naive (>=) join shows $2X — proves we use strict.", {
-        expected: { strictJoinLeakage: 0, naiveJoinLeakage: "$2X-bleed-into-pre-event-rows", strictRows: 1000, recallGap: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Use a 1000-row entity_df and a feature source where each user's spend doubles at t=10. Run get_training_set() with strict AS-OF (>) and confirm all 1000 rows see the pre-doubling spend value (i.e., rows with event_timestamp>=10 still see $X, not $2X). Then repeat with >= and confirm rows at t>=10 see $2X — demonstrating the leakage that strict > prevents.",
       }),
       expectedOutputs: { leakage: 0, strictRows: 1000 },
       datasetRefs: ["fixtures/leakage_check.parquet"],
@@ -276,11 +276,10 @@ def get_online_features(
         out.append(row)
     return out
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "10k qps load test: p99 latency < 5ms (tolerance ±1ms); missing-entity rows return None; all responses pinned to declared version.", {
-        expected: { p99Ms: 4.0, missingReturnsNone: 1, versionPinned: 1, qps: 10000 },
-        tolerance: 1.0,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run a load test (e.g. Locust) against get_online_features() at 10k qps with batch_size=16 entities and 4 feature refs. Confirm p99 latency is under 5ms. Confirm that requesting a user_id not in Redis returns None (not an exception) for that entity's features. Confirm all responses carry features from the declared version key.",
       }),
       expectedOutputs: { p99: 4.0, errors: 0 },
       datasetRefs: ["fixtures/online_load.json"],
@@ -329,11 +328,10 @@ def flag_drift(p: float) -> str:
     if p < 0.5: return "moderate"
     return "severe"
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "current=1.5x ref → PSI in (0.2, 0.5) ±0.05; current=3x ref → PSI > 0.5.", {
-        expected: { mildPsi: 0.30, severePsiMin: 0.5, classMild: "moderate", classSevere: "severe" },
-        tolerance: 0.10,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Generate a reference distribution and a 'mild' current distribution at 1.5× the reference. Confirm psi() returns a value between 0.2 and 0.5 (moderate drift) and flag_drift() returns 'moderate'. Then generate a 'severe' current distribution at 3× the reference and confirm psi() > 0.5 and flag_drift() returns 'severe'.",
       }),
       expectedOutputs: { mildPsi: 0.3, severeClass: "severe" },
       datasetRefs: ["fixtures/drift_cases.json"],

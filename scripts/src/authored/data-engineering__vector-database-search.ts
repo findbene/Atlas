@@ -74,15 +74,10 @@ def cosine_norm(a, b):
     # TODO: return sum(x*y for x,y in zip(a,b))
     pass
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "cosine([1,0,0], [0,1,0]) ≈ 0.0; cosine([1,1,0],[1,0,0]) ≈ 0.7071; cosine_norm(unit_a, unit_b) matches cosine within 1e-6.", {
-        cases: [
-          { a: [1, 0, 0], b: [0, 1, 0], expected: 0.0 },
-          { a: [1, 1, 0], b: [1, 0, 0], expected: 0.7071067811865475 },
-          { a: [1, 0, 0], b: [1, 0, 0], expected: 1.0 },
-        ],
-        tolerance: 1e-6,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call cosine([1,0,0],[0,1,0]) and confirm the result is 0.0 (±1e-6). Call cosine([1,1,0],[1,0,0]) and confirm the result is ≈0.7071067811865475 (±1e-6). Call cosine([1,0,0],[1,0,0]) and confirm the result is 1.0 (±1e-6). Confirm cosine_norm on the same pre-normalised pairs matches cosine within 1e-6. Verify both functions return 0.0 for a zero-vector input without raising.",
       }),
       expectedOutputs: { passedCases: 3, tolerance: 1e-6 },
       datasetRefs: ["fixtures/cosine_pairs.json"],
@@ -114,17 +109,10 @@ def cosine_norm(a, b):
     # TODO: return 'IVFFlat'
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "6 scenarios spanning low-volume / read-heavy / write-heavy / low-recall produce the documented choices.", {
-        scenarios: [
-          { n: 1000, w: 0, recall: 0.99, expected: "flat_scan" },
-          { n: 100_000, w: 0, recall: 0.99, expected: "HNSW" },
-          { n: 100_000, w: 100, recall: 0.99, expected: "IVFFlat" },
-          { n: 10_000_000, w: 0, recall: 0.99, expected: "HNSW" },
-          { n: 10_000_000, w: 5_000, recall: 0.90, expected: "IVFFlat" },
-          { n: 49_000, w: 0, recall: 0.99, expected: "flat_scan" },
-        ],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call recommend_index for each scenario and confirm: (1000,0,0.99)→'flat_scan'; (100000,0,0.99)→'HNSW'; (100000,100,0.99)→'IVFFlat'; (10000000,0,0.99)→'HNSW'; (10000000,5000,0.90)→'IVFFlat'; (49000,0,0.99)→'flat_scan'. All 6 must match.",
       }),
       expectedOutputs: { decisions: 6, allCorrect: true },
       datasetRefs: ["fixtures/index_scenarios.json"],
@@ -157,19 +145,10 @@ def cosine_norm(a, b):
     # TODO: return [id for id, _ in sorted(scored, key=lambda t: t[1], reverse=True)]
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Same 3 candidates at alpha=0, 0.5, 1.0 produce the BM25-only, blended, and vector-only orderings.", {
-        candidates: [
-          { id: "a", bm25: 0.9, vec_sim: 0.1 },
-          { id: "b", bm25: 0.5, vec_sim: 0.5 },
-          { id: "c", bm25: 0.1, vec_sim: 0.9 },
-        ],
-        expected: {
-          "0":   ["a", "b", "c"],
-          "0.5": ["b", "a", "c"],
-          "1":   ["c", "b", "a"],
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Using candidates [{id:'a',bm25:0.9,vec_sim:0.1},{id:'b',bm25:0.5,vec_sim:0.5},{id:'c',bm25:0.1,vec_sim:0.9}], call hybrid_rank at alpha=0 and confirm order ['a','b','c']; at alpha=0.5 confirm ['b','a','c']; at alpha=1.0 confirm ['c','b','a']. Verify alpha outside [0,1] raises ValueError.",
       }),
       expectedOutputs: { alphaSweepRankings: 3, allCorrect: true },
       datasetRefs: ["fixtures/hybrid_candidates.json"],
@@ -204,15 +183,10 @@ def cosine_norm(a, b):
     # TODO: return hits / len(ground_truth_ids)
     pass
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "3 cases: full recall, partial recall, zero recall return expected fractions.", {
-        cases: [
-          { predicted: ["a", "b", "c", "d"], truth: ["a", "b"], k: 4, expected: 1.0 },
-          { predicted: ["a", "x", "y", "z"], truth: ["a", "b"], k: 4, expected: 0.5 },
-          { predicted: ["x", "y", "z", "w"], truth: ["a", "b"], k: 4, expected: 0.0 },
-        ],
-        tolerance: 1e-9,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call recall_at_k(['a','b','c','d'],['a','b'],4) and confirm 1.0. Call recall_at_k(['a','x','y','z'],['a','b'],4) and confirm 0.5. Call recall_at_k(['x','y','z','w'],['a','b'],4) and confirm 0.0. Confirm recall_at_k with empty ground_truth returns 1.0. Confirm k≤0 raises ValueError.",
       }),
       expectedOutputs: { evaluatedCases: 3, allCorrect: true },
       datasetRefs: ["fixtures/recall_cases.json"],
@@ -249,17 +223,10 @@ def cosine_norm(a, b):
         pass
     raise ValueError(f'unknown index: {index_kind}')
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "IVFFlat at recall 0.5/0.9/0.99 → 25/45/49; HNSW at the same → 200/360/396.", {
-        cases: [
-          { index: "IVFFlat", recall: 0.5, expected: 25 },
-          { index: "IVFFlat", recall: 0.9, expected: 45 },
-          { index: "IVFFlat", recall: 0.99, expected: 49 },
-          { index: "HNSW", recall: 0.5, expected: 200 },
-          { index: "HNSW", recall: 0.9, expected: 360 },
-          { index: "HNSW", recall: 0.99, expected: 396 },
-        ],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call recommend_query_param for each case and confirm: IVFFlat at recall 0.5→25, 0.9→45, 0.99→49; HNSW at recall 0.5→200, 0.9→360, 0.99→396. Confirm an unknown index_kind raises ValueError. Confirm target_recall outside (0,1] raises ValueError.",
       }),
       expectedOutputs: { ivfflatRecommendations: 3, hnswRecommendations: 3, allCorrect: true },
       datasetRefs: ["fixtures/index_param_cases.json"],

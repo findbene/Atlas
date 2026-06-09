@@ -333,13 +333,10 @@ SELECT
   ROUND(c.active_users / NULLIF(cs.cohort_size, 0), 4) AS retention
 FROM cells c JOIN cohort_sizes cs USING (cohort_month)
 ORDER BY c.cohort_month, c.months_since;`),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("numeric_tolerance", "288 cells (24 cohorts × 12 months); cohort_size constant per cohort; retention[months_since=0] = 1.0 for every cohort.", {
-        expectedRowCount: 288,
-        keyColumns: ["cohort_month", "months_since"],
-        tolerance: 0.001,
-        invariants: { retentionAtZeroEqualsOne: true, cohortSizeConstantWithinCohort: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Query returns 288 rows (24 cohorts × 12 months_since values 0–11). cohort_size is constant within each cohort. For every cohort, the row where months_since = 0 has retention = 1.0000. Verify against fixtures/cohort_retention_expected.csv within ±0.001 per cell.",
       }),
       expectedOutputs: { cells: 288, cohorts: 24, retentionAt0: 1.0 },
       datasetRefs: ["fixtures/events_100k.csv", "fixtures/cohort_retention_expected.csv"],

@@ -180,7 +180,125 @@ export function gradeSubmission(
     }
   }
 
+  if (step.validationType === "json_equal" && step.validationConfig) {
+    // Phase 61J — commit-path structural JSON equality. Reads the canonical
+    // authored `spec.expected` (NOT the `expected_output` text column the
+    // Phase-48/52 ENVELOPE comparator `gradeEnvelopeCapture` reads — that path
+    // stays byte-frozen and operator-pending). Parses the learner submission as
+    // JSON and deep-compares (object key order insignificant; array order
+    // significant). Fails CLOSED when `spec.expected` is absent or the submission
+    // is not valid JSON — pre-61J, json_equal had NO commit-path branch and fell
+    // through to the generic auto-pass below (a dead gate). The 61J sweep left as
+    // json_equal only steps whose `expected` is a literal value the learner
+    // prints verbatim; semantic/approx/multi-scenario intents became self_attest.
+    const cfg = step.validationConfig as { spec?: unknown };
+    const spec = (cfg.spec && typeof cfg.spec === "object" ? cfg.spec : step.validationConfig) as {
+      expected?: unknown;
+    };
+    if (!("expected" in spec) || spec.expected === undefined) {
+      return {
+        passed: false,
+        feedback:
+          "This step has no expected JSON configured, so it cannot be graded (authoring defect — json_equal requires a spec.expected).",
+      };
+    }
+    const sub = submission?.trim();
+    if (!sub) {
+      return { passed: false, feedback: "Your output was empty. Print the expected JSON value." };
+    }
+    let actual: unknown;
+    try {
+      actual = JSON.parse(sub);
+    } catch (err) {
+      return { passed: false, feedback: `Your output isn't valid JSON: ${(err as Error).message}` };
+    }
+    if (deepEqualJson(spec.expected, actual)) {
+      return { passed: true, feedback: "Correct!" };
+    }
+    return {
+      passed: false,
+      feedback: `Output didn't match the expected JSON. Expected ${JSON.stringify(spec.expected)}.`,
+    };
+  }
+
+  if (step.validationType === "numeric_tolerance" && step.validationConfig) {
+    // Phase 61J — commit-path numeric tolerance. Reads the canonical authored
+    // `spec.expected` (number) + `spec.tolerance` (number ≥ 0); parses the learner
+    // submission as a single number and passes iff |submission − expected| ≤
+    // tolerance. Fails CLOSED when expected/tolerance are missing/non-numeric or
+    // the submission is not a finite number (pre-61J dead gate: numeric_tolerance
+    // had no branch → generic auto-pass). SCALAR only — multi-field / threshold
+    // (≥/≤) intents were converted to self_attest in the 61J sweep, since a
+    // symmetric ± band cannot honestly express them.
+    const cfg = step.validationConfig as { spec?: unknown };
+    const spec = (cfg.spec && typeof cfg.spec === "object" ? cfg.spec : step.validationConfig) as {
+      expected?: unknown;
+      tolerance?: unknown;
+    };
+    if (typeof spec.expected !== "number" || !Number.isFinite(spec.expected)) {
+      return {
+        passed: false,
+        feedback:
+          "This step has no numeric expected value configured, so it cannot be graded (authoring defect — numeric_tolerance requires a numeric spec.expected).",
+      };
+    }
+    if (typeof spec.tolerance !== "number" || !Number.isFinite(spec.tolerance) || spec.tolerance < 0) {
+      return {
+        passed: false,
+        feedback:
+          "This step has no valid tolerance configured, so it cannot be graded (authoring defect — numeric_tolerance requires a non-negative numeric spec.tolerance).",
+      };
+    }
+    const sub = submission?.trim();
+    const n = sub === undefined || sub === "" ? NaN : Number(sub);
+    if (!Number.isFinite(n)) {
+      return { passed: false, feedback: "Your output is not a numeric value." };
+    }
+    const passed = Math.abs(n - spec.expected) <= spec.tolerance;
+    return {
+      passed,
+      feedback: passed
+        ? "Correct!"
+        : `Your value ${n} is outside the allowed tolerance (expected ${spec.expected} ± ${spec.tolerance}).`,
+    };
+  }
+
   return { passed: true, feedback: "Step completed." };
+}
+
+/** Phase 61J — structural deep-equality for JSON values, used by the commit-path
+ *  `json_equal` grader. Object key order is insignificant; array order IS
+ *  significant (JSON semantics). Numbers compare with `===` (exact). This is an
+ *  intentional independent copy of the same-named helper in `envelopeGrade.ts`
+ *  (the Phase-48/52 envelope canary): keeping a separate copy lets the commit
+ *  path enforce json_equal without editing the operator-pending envelope module.
+ *  `grading.test.ts` pins the two implementations agree on sample inputs. */
+function deepEqualJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === "number") return false; // a===b already handled exact equality
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqualJson(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (typeof a === "object") {
+    if (Array.isArray(b)) return false;
+    const ao = a as Record<string, unknown>;
+    const bo = b as Record<string, unknown>;
+    const ak = Object.keys(ao).sort();
+    const bk = Object.keys(bo).sort();
+    if (ak.length !== bk.length) return false;
+    for (let i = 0; i < ak.length; i++) {
+      if (ak[i] !== bk[i]) return false;
+      if (!deepEqualJson(ao[ak[i]!], bo[bk[i]!])) return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 /**

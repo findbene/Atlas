@@ -68,9 +68,7 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
 `),
       validationType: "json_equal",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Events [0, 999, 1000, 1500] at window_ms=1000 produce window starts [0, 0, 1000, 1000].", {
-        events: [0, 999, 1000, 1500],
-        windowMs: 1000,
+      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
         expected: [0, 0, 1000, 1000],
       }),
       expectedOutputs: { windows: [0, 0, 1000, 1000] },
@@ -107,13 +105,10 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
     # return [start for start in range(first_start, event_ms+1, slide_ms)]
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "event=1500, window=1000, slide=200 → [600, 800, 1000, 1200, 1400]. event=0, window=1000, slide=500 → [0].", {
-        cases: [
-          { event: 1500, window: 1000, slide: 200, expected: [600, 800, 1000, 1200, 1400] },
-          { event: 0, window: 1000, slide: 500, expected: [0] },
-        ],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call sliding_windows(1500, 1000, 200) and confirm the result is [600, 800, 1000, 1200, 1400]. Call sliding_windows(0, 1000, 500) and confirm the result is [0]. Verify that a non-divisible (window_ms % slide_ms != 0) call raises ValueError.",
       }),
       expectedOutputs: { case1: [600, 800, 1000, 1200, 1400], case2: [0] },
       datasetRefs: ["fixtures/sliding_window_events.json"],
@@ -152,13 +147,10 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
         # TODO: return None if self.max_ts is None else self.max_ts - self.allowed_lateness_ms
         pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Observe [1_000_000, 900_000 (late), 1_005_000] with allowed_lateness=5_000 → watermarks [995_000, 995_000, 1_000_000].", {
-        allowedLatenessMs: 5000,
-        events: [1000000, 900000, 1005000],
-        expectedWatermarks: [995000, 995000, 1000000],
-        initialBeforeObserveIsNone: true,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Construct BoundedOutOfOrdernessTracker(allowed_lateness_ms=5000). Confirm watermark() returns None before any observations. Call observe(1000000), observe(900000), observe(1005000) in sequence and confirm watermark() returns 995000, 995000, 1000000 respectively (monotonic — late event does not move the watermark backward).",
       }),
       expectedOutputs: { watermarks: [995000, 995000, 1000000] },
       datasetRefs: ["fixtures/watermark_events.json"],
@@ -205,21 +197,10 @@ def stream_aggregate(events, window_ms, allowed_lateness_ms):
     for wk in sorted(pending):
         yield wk, pending[wk]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "12-event sequence (10 on-time at second boundaries, 2 late after window closed) with window_ms=1000, allowed_lateness=500 emits the correct (window_start, count) sequence and drops the late events.", {
-        events: [
-          [100, "a"], [200, "b"], [950, "c"],
-          [1100, "d"], [1200, "e"],
-          [2100, "f"], [2300, "g"],
-          [3100, "h"], [3200, "i"], [3300, "j"],
-          [50, "lateA"],  // window 0 already closed, dropped
-          [1050, "lateB"], // window 1000 still in slack at this point, but past closed_through
-        ],
-        windowMs: 1000,
-        allowedLatenessMs: 500,
-        expectedDroppedCount: 2,
-        expectedEmissionCount: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run stream_aggregate with the 12-event sequence ([100,'a'],[200,'b'],[950,'c'],[1100,'d'],[1200,'e'],[2100,'f'],[2300,'g'],[3100,'h'],[3200,'i'],[3300,'j'],[50,'lateA'],[1050,'lateB']), window_ms=1000, allowed_lateness_ms=500. Confirm exactly 3 windows are emitted in window-start order and exactly 2 late events are dropped (not counted into any window). Verify the emitted (window_start, count) tuples match your manual trace.",
       }),
       expectedOutputs: { emittedWindows: 3, droppedEvents: 2 },
       datasetRefs: ["fixtures/stream_agg_sequence.json"],

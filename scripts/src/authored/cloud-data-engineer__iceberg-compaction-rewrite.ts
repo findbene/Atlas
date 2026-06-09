@@ -83,10 +83,14 @@ cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 #   )
 # """)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "1000 files of 1MB each in partition p0 → after compact, ≤8 files remain (3.7GB/256MB ≈ 4 files plus headroom).", {
-        beforeFiles: 1000, expectedMaxAfter: 8,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After rewrite_data_files with strategy='binpack' and target-file-size-bytes=268435456, the partition containing 1000 × 1MB files has ≤8 files remaining",
+          "The where clause filters to partitions older than now - 1 day (the active partition is not compacted)",
+          "The CALL uses strategy='binpack' and options map with target-file-size-bytes=268435456 and min-input-files=5",
+        ],
       }),
       expectedOutputs: { filesAfter: 8 },
       datasetRefs: ["fixtures/iceberg_table_before_compact.snapshot"],
@@ -128,10 +132,15 @@ cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 #   )
 # """)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Table starts with 10 snapshots (all >7d old except newest 5) + 5 orphan files in /data. After expire+remove: 5 snapshots, 0 orphans.", {
-        beforeSnapshots: 10, beforeOrphans: 5, expectedAfterSnapshots: 5, expectedAfterOrphans: 0,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After expire_snapshots with older_than = now - 7 days and retain_last = 5, the table has ≤5 snapshots remaining",
+          "After remove_orphan_files with older_than = now - 3 days, 0 orphan files remain in the table location",
+          "expire_snapshots runs before remove_orphan_files (correct ordering)",
+          "retain_last = 5 is set so at least 5 recent snapshots are preserved regardless of age",
+        ],
       }),
       expectedOutputs: { snapshotsAfter: 5, orphansAfter: 0 },
       datasetRefs: ["fixtures/iceberg_with_orphans.snapshot"],
@@ -252,10 +261,15 @@ def run_and_measure(q: str) -> dict:
     # TODO: return {"ms": stats["EngineExecutionTimeInMillis"], "bytes": stats["DataScannedInBytes"]}
     raise NotImplementedError
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "post-compact engine_ms ≤ 0.25 * pre-compact for ≥2 of 3 queries.", {
-        speedupRatio: 0.25, minQueriesImproved: 2,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "run_and_measure returns a dict with 'ms' (EngineExecutionTimeInMillis) and 'bytes' (DataScannedInBytes) from Athena Statistics",
+          "Post-compaction EngineExecutionTimeInMillis is ≤25% of pre-compaction for at least 2 of the 3 benchmark queries (4x speedup)",
+          "ResultReuseConfiguration is disabled so cached results don't fake a speedup",
+          "Benchmark results are recorded (printed or written to CSV) showing before/after ms and bytes scanned",
+        ],
       }),
       expectedOutputs: { speedupQueries: 2, ratio: 0.25 },
       datasetRefs: ["fixtures/athena_benchmark_results.json"],
@@ -299,10 +313,15 @@ duration_hist = meter.create_histogram("athena.query.duration_ms", unit="ms")
 # )
 # count_files reads spark.sql("SELECT count(*) FROM lake.db.events.files").collect()[0][0]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After compaction + benchmark: gauge iceberg.table.files appears with value ≤8, histogram athena.query.duration_ms has ≥3 observations.", {
-        expectedFileCountLE: 8, expectedHistogramObs: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "iceberg.table.files observable gauge emits a value ≤8 after compaction (read from lake.db.events.files metadata table)",
+          "athena.query.duration_ms histogram has ≥3 recorded observations after the benchmark run",
+          "Both metrics include the 'table' dimension attribute (e.g. {'table': 'db.events'})",
+          "Metrics are exported via OTLPMetricExporter to the configured endpoint",
+        ],
       }),
       expectedOutputs: { files: 8, histogramObs: 3 },
       datasetRefs: ["fixtures/otel_iceberg_dump.json"],

@@ -140,11 +140,10 @@ def null_and_dupe_audit(df: pd.DataFrame, natural_key: str = "txn_id") -> dict:
     #       duplicate_rows_on_natural_key = int(df.duplicated(subset=[natural_key], keep=False).sum())
     return {}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Audit matches fixtures/eda_expected.json: nulls_per_col per column int counts, total_nulls equal to fixture value, duplicate_rows_on_natural_key equal to fixture value.", {
-        expectedFile: "fixtures/eda_expected.json",
-        expectedKeys: ["nulls_per_col", "total_nulls", "duplicate_rows_on_natural_key"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "null_and_dupe_audit(df) returns a dict with keys nulls_per_col (int count per column), total_nulls (total missing values across all columns), and duplicate_rows_on_natural_key (count of rows that share a txn_id with at least one other row). Counts must match fixtures/eda_expected.json.",
       }),
       expectedOutputs: { hasNullsBreakdown: true, hasDupeCount: true },
       datasetRefs: ["fixtures/transactions.csv", "fixtures/eda_expected.json"],
@@ -182,13 +181,10 @@ def summary_stats(df: pd.DataFrame, cols: list[str]) -> dict:
     # TODO: for each col, return {'mean': round(..., 2), 'median': round(..., 2), 'std': round(df[col].std(ddof=1), 2)}
     return {}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "summary_stats(df, ['amount_cents']) matches fixtures/eda_expected.json values within ±0.01 absolute tolerance per (mean, median, std).", {
-        expectedFile: "fixtures/eda_expected.json",
-        expectedKey: "summary_stats.amount_cents",
-        tolerance: 0.01,
-        keys: ["mean", "median", "std"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "summary_stats(df, ['amount_cents']) returns {'amount_cents': {'mean': <float>, 'median': <float>, 'std': <float>}} rounded to 2 decimal places. Values must match fixtures/eda_expected.json summary_stats.amount_cents within ±0.01 for mean, median, and std.",
       }),
       expectedOutputs: { hasMean: true, hasMedian: true, hasStd: true },
       datasetRefs: ["fixtures/transactions.csv", "fixtures/eda_expected.json"],
@@ -226,12 +222,10 @@ def groupwise_mean(df: pd.DataFrame, group_col: str, value_col: str) -> dict:
     # TODO: return df.groupby(group_col)[value_col].mean().round(2).to_dict()
     return {}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "groupwise_mean(df, 'category', 'amount_cents') equals fixtures/eda_expected.json:groupwise_mean.amount_by_category within ±0.01 per group.", {
-        expectedFile: "fixtures/eda_expected.json",
-        expectedKey: "groupwise_mean.amount_by_category",
-        tolerance: 0.01,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "groupwise_mean(df, 'category', 'amount_cents') returns a dict {category_value: mean_amount} rounded to 2 decimal places. Each per-category mean must match fixtures/eda_expected.json groupwise_mean.amount_by_category within ±0.01.",
       }),
       expectedOutputs: { hasPerCategoryMean: true },
       datasetRefs: ["fixtures/transactions.csv", "fixtures/eda_expected.json"],
@@ -274,12 +268,10 @@ def top_correlation(df: pd.DataFrame, numeric_cols: list[str]) -> dict:
     #       return {"matrix": matrix, "top_pair": {"a": a, "b": b, "r": float(corr.loc[a, b])}}
     return {}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "top_correlation(df, ['amount_cents','hour_of_day']) matrix matches expected within ±0.01 per cell; top_pair.r matches within ±0.01.", {
-        expectedFile: "fixtures/eda_expected.json",
-        expectedKey: "top_correlation",
-        tolerance: 0.01,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "top_correlation(df, ['amount_cents', 'hour_of_day']) returns a dict with 'matrix' (symmetric Pearson correlation rounded to 2 dp) and 'top_pair' ({a, b, r} for the strongest off-diagonal pair by absolute value). Matrix entries and top_pair.r must match fixtures/eda_expected.json top_correlation within ±0.01.",
       }),
       expectedOutputs: { hasMatrix: true, hasTopPair: true, pearsonRounded: true },
       datasetRefs: ["fixtures/transactions.csv", "fixtures/eda_expected.json"],

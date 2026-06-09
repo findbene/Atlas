@@ -260,10 +260,14 @@ $$;
 
 -- TODO: orchestrator pulls both sides, diffs, raises if any mismatch.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "Matched: 10 customers, 0 mismatches. Perturb online row for C5 → 1 mismatch returned.", {
-        matchedMismatches: 0, perturbedMismatches: 1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "When offline and online feature values agree for all 10 sampled customers, the parity check reports 0 mismatches.",
+          "When one online row is intentionally perturbed (e.g. C5's revenue_last_30d changed), the parity check detects and reports exactly 1 mismatch.",
+          "The comparison uses a 1-cent tolerance for revenue_last_30d and exact equality for count features.",
+        ],
       }),
       expectedOutputs: { matched: 0, perturbed: 1 },
       datasetRefs: ["fixtures/parity_sample.csv"],

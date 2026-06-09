@@ -93,14 +93,14 @@ def load_orders() -> pd.DataFrame:
     #       3) unit_price (dollars float) -> unit_price_cents (Int64): * 100, round, then 'Int64'
     return df
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Returned df has snake_case columns + correct dtypes; unit_price_cents is Int64 and equals round(unit_price * 100).", {
-        expected: {
-          columns: ["order_id", "customer_name", "customer_email", "ordered_at", "qty", "unit_price_cents"],
-          dtypes: { unit_price_cents: "Int64", qty: "Int64", ordered_at: "datetime64[ns]" },
-          unitPriceConverted: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "The returned DataFrame has columns renamed to snake_case: order_id, customer_name, customer_email, ordered_at, qty, unit_price_cents.",
+          "ordered_at dtype is datetime64[ns]; qty and unit_price_cents dtypes are Int64 (nullable).",
+          "unit_price_cents equals round(original unit_price * 100) cast to Int64 — money stored as integer cents, not float dollars.",
+        ],
       }),
       expectedOutputs: { columnsRenamed: true, dtypesCoerced: true, moneyInCents: true },
       datasetRefs: ["fixtures/orders.xlsx"],
@@ -153,14 +153,14 @@ CREATE TABLE IF NOT EXISTS stg_orders (
 --         )
 --     conn.commit()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "After write_stg(): SELECT COUNT(*) FROM stg_orders == df row count; SELECT MIN(ordered_at), MAX(ordered_at) matches input; re-running write_stg yields the same state (idempotent).", {
-        expected: {
-          stgRowCountMatches: true,
-          idempotent: true,
-          ts_min_max_matches: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After write_stg(), SELECT COUNT(*) FROM stg_orders returns the same row count as the loaded DataFrame.",
+          "SELECT MIN(ordered_at), MAX(ordered_at) FROM stg_orders matches the input DataFrame's date range.",
+          "Re-running write_stg() a second time produces the same state (TRUNCATE + INSERT is idempotent — no row doubling).",
+        ],
       }),
       expectedOutputs: { tableCreated: true, rowsInserted: true, idempotent: true },
       datasetRefs: ["fixtures/orders.xlsx"],

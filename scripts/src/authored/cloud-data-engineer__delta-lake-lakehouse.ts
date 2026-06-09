@@ -140,10 +140,15 @@ async def main():
     final = DeltaTable(TABLE_URI, storage_options=STORAGE_OPTIONS)
     print(f"version={final.version()}  rows={final.to_pyarrow_dataset().count_rows()}")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Non-overlapping MERGE concurrent writers: both succeed, version increases by 2, row count = 2000. Overlapping writers: one raises CommitFailedError.", {
-        expected: { nonOverlappingBothSucceeded: true, versionDelta: 2, totalRows: 2000, overlappingConflict: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Non-overlapping concurrent writers (partition 2026-05-20 and 2026-05-21) both commit successfully",
+          "Table version increases by exactly 2 after both writers complete",
+          "Total row count equals 2000 after both merges",
+          "A third writer targeting partition 2026-05-20 concurrently with writer A raises CommitFailedError",
+        ],
       }),
       expectedOutputs: { versionDelta: 2, rows: 2000, conflict: true },
       datasetRefs: ["fixtures/merge_seed.json"],
@@ -190,10 +195,15 @@ def read_at_timestamp(table_uri: str, ts: datetime) -> pl.DataFrame:
 def history(table_uri: str) -> list[dict]:
     return DeltaTable(table_uri, storage_options=STORAGE_OPTIONS).history()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "100-row table with 5 commits (25 rows each from v1..v4): row count at v=0 is 0, v=2 is 50, v=4 is 100. Timestamp lookup at v2 ts returns 50 rows.", {
-        expected: { v0Rows: 0, v2Rows: 50, v4Rows: 100, tsAtV2Rows: 50 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "read_at_version(uri, 0) returns 0 rows (initial empty table)",
+          "read_at_version(uri, 2) returns 50 rows (after 2 batches of 25 rows each)",
+          "read_at_version(uri, 4) returns 100 rows (after 4 batches of 25 rows each)",
+          "read_at_timestamp(uri, ts_of_v2_commit) returns 50 rows",
+        ],
       }),
       expectedOutputs: { v0: 0, v2: 50, v4: 100 },
       datasetRefs: ["fixtures/history.json"],
@@ -238,11 +248,14 @@ def run_optimize_zorder(uri: str) -> dict:
     files_before = len(dt.files())
     return {'files_before': files_before, 'files_after': 0}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "50M row / 5000 file table: post-OPTIMIZE file count ≤50; filter `user_id='u_42'` latency improves ≥8x vs pre-OPTIMIZE. Tolerance ±10% on speedup.", {
-        expected: { speedup: 8.0, filesAfter: 50 },
-        tolerance: 0.8,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "File count after dt.optimize.compact() + dt.optimize.z_order(['user_id']) is ≤50 (from 5000 small files)",
+          "Benchmark filter WHERE user_id='u_42' shows ≥8x latency improvement after OPTIMIZE+ZORDER vs before",
+          "Data file pruning skips ≥95% of files for the filtered scan",
+        ],
       }),
       expectedOutputs: { speedup: 8.0, filesAfter: 50 },
       datasetRefs: ["fixtures/optimize_bench.json"],
@@ -293,10 +306,14 @@ def list_shares():
     client = delta_sharing.SharingClient(PROFILE)
     return [(s.name, t.name) for s in client.list_shares() for sc in client.list_schemas(s) for t in client.list_tables(sc)]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "multi_file",
-      validation: validationConfig("json_equal", "Server up + profile generated: load_as_pandas returns same row count as direct read; after revoke (remove from share.yaml + reload), same call raises a 403/'forbidden' error.", {
-        expected: { sharedReadOk: true, rowCountMatches: true, postRevokeForbidden: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Delta Sharing server starts and serves the share defined in share.yaml",
+          "delta_sharing.load_as_pandas(profile + '#lakehouse_share.events.events_table') returns the same row count as a direct DeltaTable read",
+          "After removing the table from share.yaml and reloading the server, the same load_as_pandas call raises a 403 or 'forbidden' error",
+        ],
       }),
       expectedOutputs: { sharedReadOk: true, postRevokeForbidden: true },
       datasetRefs: ["fixtures/share.yaml"],

@@ -140,11 +140,14 @@ def main():
 if __name__ == "__main__":
     main()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After main() runs, 8 yaml files exist; each has runtime=mlserver-mlflow + modelFormat.name=mlflow.", {
-        expectedFileCount: 8,
-        eachAsserts: { runtime: "mlserver-mlflow", "modelFormat.name": "mlflow" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After main() runs, exactly 8 YAML files exist in k8s/inferenceservices/ (acct-001.yaml through acct-008.yaml).",
+          "Each file contains runtime: mlserver-mlflow and modelFormat.name: mlflow.",
+          "The files are generated from a Jinja2 template loop, not hand-written.",
+        ],
       }),
       expectedOutputs: { fileCount: 8 },
       datasetRefs: ["fixtures/expected_inferenceservices.tar"],
@@ -242,11 +245,14 @@ class CustomerModel(MLModel):
         # then observe REQ_HIST.labels(model_name=self.name) with elapsed seconds.
         raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "predict() emits one sample on REQ_HIST with label model_name=self.name.", {
-        assertHistogramLabel: "model_name",
-        assertSampleCount: 1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "predict() calls REQ_HIST.labels(model_name=self.name).observe(elapsed_seconds) after every inference.",
+          "elapsed_seconds is measured with time.perf_counter() and reported in seconds (not milliseconds).",
+          "After one predict() call, the histogram has exactly 1 sample in the bucket matching that model's latency.",
+        ],
       }),
       expectedOutputs: { histogramLabel: "model_name", samples: 1 },
       datasetRefs: ["fixtures/predictor_smoke.json"],

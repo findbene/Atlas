@@ -87,10 +87,10 @@ class ColumnTable:
     def memory_bytes(self) -> int:
         return sum(arr.nbytes for arr in self.columns.values())
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "10k mixed-dtype rows round-trip identically. dtypes inferred: id=int64, price=float64, name=object. Column-store memory ≤60% of list-of-dicts baseline.", {
-        expected: { roundTrip: true, dtypes: { id: "int64", price: "float64", name: "object" }, memoryRatioMax: 0.6 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that 10k mixed-dtype rows round-trip identically through from_rows/to_rows, that dtypes are correctly inferred (id=int64, price=float64, name=object), and that column-store memory footprint is ≤60% of the list-of-dicts baseline.",
       }),
       expectedOutputs: { round_trip: true, mem_ratio: 0.42 },
       datasetRefs: ["fixtures/sales_10k.json"],
@@ -141,11 +141,10 @@ def encode(arr: np.ndarray, max_cardinality_ratio: float = 0.5) -> 'np.ndarray |
     # TODO: build a DictColumn with dict_=unique, codes=inverse.astype(int32)
     return arr
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "10k-row 'country' column (12 distinct values, object dtype): encoded.nbytes ≤ 0.16 * raw.nbytes; for each i, encoded.get(i) == raw[i] (lossless round-trip).", {
-        expected: { compressionRatioMax: 0.16, losslessRoundTrip: true },
-        tolerance: 0.05,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that a 10k-row 'country' column with 12 distinct values compresses to ≤16% of raw object-array bytes after dictionary encoding, and that encoded.get(i) == raw[i] for every index (lossless round-trip).",
       }),
       expectedOutputs: { compression_ratio: 0.12, lossless: true },
       datasetRefs: ["fixtures/country_10k.json"],
@@ -241,10 +240,10 @@ def scan(table, project: list[str], where: tuple | None = None, batch_size: int 
             continue
         yield {k: batch[k] for k in project}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "1M rows, project=['id','revenue'], where=('region', '==', 'EU'): total matching rows ∈ [240k, 260k] (~25% EU by construction); every yielded batch has only EU rows.", {
-        expected: { matchedRowsMin: 240000, matchedRowsMax: 260000, allEU: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that scanning 1M rows with project=['id','revenue'] and where=('region', '==', 'EU') yields approximately 240k–260k matching rows, and that every row in every yielded batch has region='EU' (no false positives slip through).",
       }),
       expectedOutputs: { matched: 250000, all_eu: true },
       datasetRefs: ["fixtures/sales_1M_shape.json"],
@@ -294,11 +293,10 @@ def benchmark(table, project, where_clauses, repeats=3) -> dict[str, float]:
     # TODO: time naive_rowstore vs columnar_pushdown vs late_materialize over 'repeats' runs each.
     return {'naive_rowstore_ms': 0, 'columnar_pushdown_ms': 0, 'late_materialize_ms': 0}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "10M-row benchmark, selectivity ~1%: late_materialize ≤30% of naive_rowstore (≥3.3x speedup); late_materialize ≤70% of columnar_pushdown (added late-mat win >30%).", {
-        expected: { lateMatVsNaiveRatio: 0.30, lateMatVsPushdownRatio: 0.70 },
-        tolerance: 0.10,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that on a 10M-row benchmark with ~1% selectivity: late_materialize runs in ≤30% of naive_rowstore time (≥3.3x speedup), and late_materialize runs in ≤70% of columnar_pushdown time (additional late-materialization win >30%).",
       }),
       expectedOutputs: { late_vs_naive: 0.18, late_vs_pushdown: 0.55 },
       datasetRefs: ["fixtures/sales_10M_shape.json"],

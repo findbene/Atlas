@@ -71,7 +71,7 @@ export const aiEngineerFoundationsClassifyAndExplainLocally: AuthoredProject = {
       stepNumber: 1,
       title: "Load + stratified split with fixed seed",
       instructionMd:
-        "Write `src/load.py` exposing `load_split(csv_path: str, test_size: float = 0.25) -> tuple[list[str], list[str], list[str], list[str]]` returning `(X_train, X_test, y_train, y_test)`. Read the CSV with `pandas.read_csv` (columns: `text`, `label` where label ∈ {'spam', 'ham'}), then `from sklearn.model_selection import train_test_split` and split with `random_state=42, stratify=y`. Why stratify: with a class-imbalanced corpus, a random split can leave you with 90% ham in train and 60% ham in test — stratification preserves the class ratio in BOTH splits. Why a fixed `random_state`: a reviewer running `make all` must get the same metrics. Reproducibility is the trust contract.",
+        "Write `src/load.py` exposing `load_split(csv_path: str, test_size: float = 0.25) -> tuple[list[str], list[str], list[str], list[str]]` returning `(X_train, X_test, y_train, y_test)`. Read the CSV with `pandas.read_csv` (columns: `text`, `label` where label ∈ {'spam', 'ham'}), then `from sklearn.model_selection import train_test_split` and split with `random_state=42, stratify=y`. Why stratify: with a class-imbalanced corpus, a random split can leave you with 90% ham in train and 60% ham in test — stratification preserves the class ratio in BOTH splits. Why a fixed `random_state`: a reviewer running `make all` must get the same metrics. Reproducibility is the trust contract. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Stratified + seeded split is the single boundary between 'I trained a model' and 'I trained a model whose metrics any reviewer can reproduce on the first try'.",
       requiredSkill: "pandas.read_csv + sklearn.model_selection.train_test_split with stratify + random_state",
@@ -86,15 +86,16 @@ def load_split(csv_path: str, test_size: float = 0.25):
     # TODO: train_test_split(X, y, test_size=test_size, stratify=y, random_state=42)
     return [], [], [], []
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "load_split returns 4 lists; the 75/25 split preserves class ratio (stratified); a re-run with random_state=42 produces an identical split (byte-reproducible).", {
-        expected: {
-          returnsFourLists: true,
-          stratifiedClassRatioPreserved: true,
-          seedFortyTwoReproducesSplit: true,
-          trainTestDisjoint: true,
-        },
+      validation: validationConfig("self_attest", "Learner attests the split is correct.", {
+        attestationCriteria: [
+          "load_split returns exactly 4 lists: (X_train, X_test, y_train, y_test).",
+          "The split uses stratify=y and random_state=42.",
+          "Running load_split twice with the same csv_path produces identical splits (byte-reproducible).",
+          "X_train and X_test are disjoint (no overlap between train and test examples).",
+          "The class ratio of 'spam'/'ham' is approximately preserved in both train and test sets.",
+        ],
       }),
       expectedOutputs: { splitReproducible: true, stratified: true },
       datasetRefs: ["fixtures/messages.csv"],
@@ -122,7 +123,7 @@ def load_split(csv_path: str, test_size: float = 0.25):
       stepNumber: 2,
       title: "Vectorize text — TfidfVectorizer, fit on TRAIN ONLY",
       instructionMd:
-        "Write `src/vectorize.py` exposing `vectorize(X_train: list[str], X_test: list[str]) -> tuple[Any, Any, TfidfVectorizer]` returning `(X_train_vec, X_test_vec, vectorizer)`. Use `from sklearn.feature_extraction.text import TfidfVectorizer` with `min_df=2, max_df=0.95, ngram_range=(1, 2), lowercase=True`. CRITICAL: `vectorizer.fit_transform(X_train)` then `vectorizer.transform(X_test)` — NEVER `fit_transform(X_test)`. Fitting the vectorizer on test data is the single most-common leak in beginner ML repos; it secretly tells your model what vocabulary exists in the held-out set.",
+        "Write `src/vectorize.py` exposing `vectorize(X_train: list[str], X_test: list[str]) -> tuple[Any, Any, TfidfVectorizer]` returning `(X_train_vec, X_test_vec, vectorizer)`. Use `from sklearn.feature_extraction.text import TfidfVectorizer` with `min_df=2, max_df=0.95, ngram_range=(1, 2), lowercase=True`. CRITICAL: `vectorizer.fit_transform(X_train)` then `vectorizer.transform(X_test)` — NEVER `fit_transform(X_test)`. Fitting the vectorizer on test data is the single most-common leak in beginner ML repos; it secretly tells your model what vocabulary exists in the held-out set. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Fit-on-train-only is the canonical anti-leakage discipline. The vectorizer (and any future preprocessing) sees TRAIN, then APPLIES to test.",
       requiredSkill: "sklearn TfidfVectorizer with min_df/max_df/ngram_range + fit_transform/transform split",
@@ -137,16 +138,15 @@ def vectorize(X_train, X_test):
     # TODO: X_test_vec  = vec.transform(X_test)   # NOT fit_transform!
     return None, None, vec
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "vectorize fits on X_train then transforms X_test; X_train_vec.shape[0] equals len(X_train); X_test_vec uses the SAME vocabulary as training; ngram_range and min_df pinned as declared.", {
-        expected: {
-          fittedOnTrainOnly: true,
-          testUsesTrainVocabulary: true,
-          ngramRangeOneTwo: true,
-          minDfTwo: true,
-          shapesAlign: true,
-        },
+      validation: validationConfig("self_attest", "Learner attests the vectorizer is correct.", {
+        attestationCriteria: [
+          "vectorize calls vec.fit_transform(X_train) and vec.transform(X_test) — never fit_transform on test data.",
+          "The vectorizer is constructed with min_df=2, max_df=0.95, ngram_range=(1, 2), lowercase=True.",
+          "X_train_vec.shape[0] equals len(X_train) and X_test_vec.shape[0] equals len(X_test).",
+          "X_test_vec uses exactly the same vocabulary as X_train_vec (same column count).",
+        ],
       }),
       expectedOutputs: { vectorizerFittedTrainOnly: true, leakFree: true },
       datasetRefs: [],
@@ -174,7 +174,7 @@ def vectorize(X_train, X_test):
       stepNumber: 3,
       title: "Train LogisticRegression + predict_proba",
       instructionMd:
-        "Write `src/train.py` exposing `train(X_train_vec, y_train) -> LogisticRegression` and `predict(model, X_test_vec) -> tuple[list[str], list[float]]` returning `(y_pred, y_prob_spam)` where `y_prob_spam` is the probability of the positive class for each test row. Train with `LogisticRegression(class_weight='balanced', random_state=42, max_iter=1000)`. Why `class_weight='balanced'`: with an imbalanced corpus, the default loss is dominated by the majority class — balanced weighting upweights the minority class proportional to inverse frequency. Why `predict_proba` not just `predict`: a probability lets you tune the decision threshold downstream; a hard label discards that information.",
+        "Write `src/train.py` exposing `train(X_train_vec, y_train) -> LogisticRegression` and `predict(model, X_test_vec) -> tuple[list[str], list[float]]` returning `(y_pred, y_prob_spam)` where `y_prob_spam` is the probability of the positive class for each test row. Train with `LogisticRegression(class_weight='balanced', random_state=42, max_iter=1000)`. Why `class_weight='balanced'`: with an imbalanced corpus, the default loss is dominated by the majority class — balanced weighting upweights the minority class proportional to inverse frequency. Why `predict_proba` not just `predict`: a probability lets you tune the decision threshold downstream; a hard label discards that information. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "LogisticRegression with balanced class weights + predict_proba is the boring-correct supervised baseline. Probabilities > labels.",
       requiredSkill: "sklearn LogisticRegression + class_weight='balanced' + predict + predict_proba",
@@ -194,16 +194,15 @@ def predict(model, X_test_vec):
     # TODO: y_prob_spam = model.predict_proba(X_test_vec)[:, spam_col].tolist()
     return [], []
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "train returns a fitted LogisticRegression with class_weight='balanced' and random_state=42; predict returns (y_pred, y_prob_spam) where y_prob_spam values are in [0,1] and align with classes_.", {
-        expected: {
-          modelFitted: true,
-          classWeightBalanced: true,
-          randomStateFortyTwo: true,
-          probSpamInUnitInterval: true,
-          probAlignsWithSpamClass: true,
-        },
+      validation: validationConfig("self_attest", "Learner attests the model is trained correctly.", {
+        attestationCriteria: [
+          "train returns a fitted LogisticRegression with class_weight='balanced', random_state=42, max_iter=1000.",
+          "predict returns (y_pred, y_prob_spam) where y_prob_spam is the probability of the 'spam' class for each test row.",
+          "All values in y_prob_spam are in [0, 1].",
+          "y_prob_spam is indexed using model.classes_ to locate the 'spam' column (not hardcoded [:, 1]).",
+        ],
       }),
       expectedOutputs: { modelTrained: true, probsAvailable: true },
       datasetRefs: [],
@@ -231,7 +230,7 @@ def predict(model, X_test_vec):
       stepNumber: 4,
       title: "Evaluate — accuracy + confusion matrix + per-class report → metrics.json",
       instructionMd:
-        "Write `src/evaluate.py` exposing `evaluate(y_true: list[str], y_pred: list[str]) -> dict` that computes `accuracy_score`, `confusion_matrix` (as a 2x2 list-of-lists with row=true, col=pred), and `classification_report(..., output_dict=True)` and returns a single dict with `{accuracy, confusion_matrix, per_class}`. Then write a thin CLI that loads the CSV, splits, vectorizes, trains, predicts, evaluates, and writes the dict to `metrics.json` (sorted keys, `indent=2`). Why three metrics: accuracy is the headline but it lies on imbalanced data; the confusion matrix shows you WHERE the errors are (false positives vs false negatives); the per-class precision/recall is what you actually report when a stakeholder asks 'how good is it'.",
+        "Write `src/evaluate.py` exposing `evaluate(y_true: list[str], y_pred: list[str]) -> dict` that computes `accuracy_score`, `confusion_matrix` (as a 2x2 list-of-lists with row=true, col=pred), and `classification_report(..., output_dict=True)` and returns a single dict with `{accuracy, confusion_matrix, per_class}`. Then write a thin CLI that loads the CSV, splits, vectorizes, trains, predicts, evaluates, and writes the dict to `metrics.json` (sorted keys, `indent=2`). Why three metrics: accuracy is the headline but it lies on imbalanced data; the confusion matrix shows you WHERE the errors are (false positives vs false negatives); the per-class precision/recall is what you actually report when a stakeholder asks 'how good is it'. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Three evaluation views (headline number, confusion structure, per-class breakdown) are how a senior engineer talks about model performance — never the headline alone.",
       requiredSkill: "sklearn.metrics: accuracy_score + confusion_matrix + classification_report + JSON serialization",
@@ -251,16 +250,15 @@ def write_metrics(metrics: dict, out_path: str = "metrics.json") -> None:
     # TODO: write json.dumps(metrics, sort_keys=True, indent=2) to out_path
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "evaluate returns {accuracy, confusion_matrix (2x2 list, rows=true, cols=pred, labels=['ham','spam']), per_class (dict)}; write_metrics produces sort_keys-stable JSON so a re-run is byte-identical.", {
-        expected: {
-          accuracyFloat: true,
-          confusionMatrixIsTwoByTwo: true,
-          labelsOrderedHamSpam: true,
-          perClassHasBothClasses: true,
-          jsonSortKeysStable: true,
-        },
+      validation: validationConfig("self_attest", "Learner attests the evaluator is correct.", {
+        attestationCriteria: [
+          "evaluate returns a dict with keys: accuracy (float), confusion_matrix (2x2 list-of-lists, rows=true label, cols=predicted label, labels=['ham','spam']), per_class (dict with per-class precision/recall/f1).",
+          "confusion_matrix is computed with labels=['ham','spam'] explicitly so row/column order is deterministic.",
+          "write_metrics writes JSON with sort_keys=True and indent=2, producing byte-identical output on every run.",
+          "Running make all twice produces identical metrics.json files.",
+        ],
       }),
       expectedOutputs: { metricsJsonWritten: true, reproducible: true },
       datasetRefs: [],
@@ -288,7 +286,7 @@ def write_metrics(metrics: dict, out_path: str = "metrics.json") -> None:
       stepNumber: 5,
       title: "Local explainability — top-k coefficients per class → report.md",
       instructionMd:
-        "Write `src/explain.py` exposing `explain(model: LogisticRegression, vectorizer: TfidfVectorizer, k: int = 10) -> dict` that returns `{class_name: {top_positive: [(token, weight), ...], top_negative: [(token, weight), ...]}}`. For a binary `LogisticRegression`, `model.coef_` is shape `(1, n_features)` and `vectorizer.get_feature_names_out()` is the vocabulary in the same column order. The most-POSITIVE coefficients are the strongest signals for `model.classes_[1]`; the most-NEGATIVE are the strongest for `model.classes_[0]`. Sort `coef_[0]` ascending, take the first k (most-negative) and last k (most-positive), pair with token names, write to `report.md` as two markdown tables. Why this matters: a linear model is auditable BY DEFINITION. Anyone can read the report and see 'top spam signal: \"free money\" (+2.3); top ham signal: \"meeting at\" (-1.8)'.",
+        "Write `src/explain.py` exposing `explain(model: LogisticRegression, vectorizer: TfidfVectorizer, k: int = 10) -> dict` that returns `{class_name: {top_positive: [(token, weight), ...], top_negative: [(token, weight), ...]}}`. For a binary `LogisticRegression`, `model.coef_` is shape `(1, n_features)` and `vectorizer.get_feature_names_out()` is the vocabulary in the same column order. The most-POSITIVE coefficients are the strongest signals for `model.classes_[1]`; the most-NEGATIVE are the strongest for `model.classes_[0]`. Sort `coef_[0]` ascending, take the first k (most-negative) and last k (most-positive), pair with token names, write to `report.md` as two markdown tables. Why this matters: a linear model is auditable BY DEFINITION. Anyone can read the report and see 'top spam signal: \"free money\" (+2.3); top ham signal: \"meeting at\" (-1.8)'. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Local explainability for linear models = `coef_` + `get_feature_names_out()` + sort. The most-readable model audit in supervised ML, free and built-in.",
       requiredSkill: "sklearn coef_ inspection + get_feature_names_out + numpy argsort + markdown table writer",
@@ -309,16 +307,15 @@ def write_report(explanation: dict, model, out_path: str = "report.md") -> None:
     #       and a header line naming the positive class (model.classes_[1]).
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "explain returns a dict with exactly `k` top_positive and `k` top_negative pairs; top_positive sorted by coef DESC, top_negative sorted by coef ASC; write_report produces a markdown file with two tables labelled by the positive class name from model.classes_.", {
-        expected: {
-          topPositiveCount: 10,
-          topNegativeCount: 10,
-          positiveSortedDesc: true,
-          negativeSortedAsc: true,
-          reportMentionsPositiveClass: true,
-        },
+      validation: validationConfig("self_attest", "Learner attests the explainability report is correct.", {
+        attestationCriteria: [
+          "explain returns exactly k top_positive pairs sorted by coefficient descending and k top_negative pairs sorted by coefficient ascending.",
+          "Token-weight pairs are derived from vectorizer.get_feature_names_out() indexed by np.argsort(model.coef_[0]).",
+          "write_report produces a report.md with two markdown tables (top positive / top negative) labelled with the positive class name from model.classes_[1].",
+          "The report is human-readable in 30 seconds — a reviewer can scan the top spam-indicator tokens and their weights.",
+        ],
       }),
       expectedOutputs: { reportWritten: true, modelAudited: true },
       datasetRefs: [],

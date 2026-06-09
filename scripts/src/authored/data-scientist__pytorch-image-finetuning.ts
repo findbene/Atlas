@@ -78,10 +78,10 @@ def build_model():
     # return model, processor
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "build_model() returns (model, processor); model.classifier.out_features == 8; processor.image_mean is a length-3 list.", {
-        expectedOutFeatures: 8, expectedMeanLen: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "build_model() returns (model, processor) without error. model.classifier.out_features == 8 (one output per LABELS entry). processor.image_mean is a list of 3 floats (the ViT normalisation constants).",
       }),
       expectedOutputs: { outFeatures: 8, meanLen: 3 },
       datasetRefs: ["fixtures/model_config_expected.json"],
@@ -132,10 +132,10 @@ def loaders(data_dir: str, processor, batch_size: int = 32):
     # TODO: val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "next(iter(train_loader)) returns (images, labels) with images.shape == (32, 3, 224, 224) and labels.dtype == int64.", {
-        expectedBatchShape: [32, 3, 224, 224], expectedLabelDtype: "torch.int64",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "next(iter(train_loader)) returns (images, labels) where images.shape == (32, 3, 224, 224) and labels.dtype == torch.int64. Val loader uses deterministic CenterCrop (no random augmentation).",
       }),
       expectedOutputs: { batchShape: [32, 3, 224, 224] },
       datasetRefs: ["fixtures/imagefolder_sample"],
@@ -183,10 +183,10 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
         total_loss += loss.item()
     return total_loss / len(loader)
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "After 1 epoch on fixture (32 images, 4 classes), train loss < initial loss (decreased). No NaN in any param.", {
-        expectLossDecreased: true, expectNoNaN: true,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "After 1 epoch on the tiny fixture (32 images, 4 classes), train_one_epoch returns a loss that is lower than the initial loss before any gradient steps. No parameter in the model contains NaN after training.",
       }),
       expectedOutputs: { lossDecreased: true, noNaN: true },
       datasetRefs: ["fixtures/tiny_train_set"],
@@ -228,10 +228,10 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, epochs,
             # TODO: if val_acc > best_acc: best_acc = val_acc; mlflow.pytorch.log_model(model, "best")
     return best_acc
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After 2 epochs (val_acc: 0.7, 0.65), MLflow run has params logged, 2 metric steps each, and exactly 1 'best' model artifact (from epoch 1, the better one).", {
-        expectedMetricSteps: 2, expectedModelArtifacts: 1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "After training for 2 epochs (fixture val_acc: epoch 1 = 0.70, epoch 2 = 0.65): MLflow run has lr/batch_size/epochs/model params logged, train_loss and val_acc metrics logged at step 0 and step 1, and exactly 1 'best' model artifact corresponding to epoch 1 (the higher val_acc).",
       }),
       expectedOutputs: { metricSteps: 2, artifacts: 1 },
       datasetRefs: ["fixtures/mlflow_run_expected.json"],
@@ -276,10 +276,10 @@ def per_class_report(model, val_loader, device, labels: list[str]) -> dict:
     # TODO: mlflow.log_dict(report, 'classification_report.json')
     return report
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Report on fixture preds has 8 class entries (each with precision/recall/f1-score/support), an 'accuracy' float, and a 'weighted avg' entry.", {
-        expectedClassEntries: 8, expectedKeys: ["accuracy", "macro avg", "weighted avg"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "per_class_report returns a dict with 8 class entries (one per LABELS item, each containing precision, recall, f1-score, support), an 'accuracy' float, a 'macro avg' entry, and a 'weighted avg' entry. The report is also logged to MLflow as 'classification_report.json'.",
       }),
       expectedOutputs: { classes: 8, hasAccuracy: true },
       datasetRefs: ["fixtures/val_preds_for_report.json"],

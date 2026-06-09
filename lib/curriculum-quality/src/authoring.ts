@@ -266,6 +266,64 @@ function assertValidRegexSpec(spec: Record<string, unknown>): void {
   }
 }
 
+// ── Phase 61J — `json_equal` structured-spec validator ─────────────────────
+//
+// The commit-path json_equal grader (`gradeSubmission`) deep-compares the learner
+// submission against `spec.expected`. Require `expected` present (any JSON value)
+// and reject every other key — bespoke assertion keys (`assert*`, `mocked*`,
+// `expect*`, `cases`, …) the runtime never reads would ship a dead gate. The 61J
+// sweep converted semantic / approximate / multi-scenario json_equal steps to
+// `self_attest`, so this strict allowlist no longer breaks the authored-index
+// import. (NOTE: the Phase-48/52 ENVELOPE comparator reads the separate
+// `expected_output` column; this guard governs only the authored `spec` shape.)
+function assertValidJsonEqualSpec(spec: Record<string, unknown>): void {
+  for (const k of Object.keys(spec)) {
+    if (k !== "expected") {
+      throw new Error(
+        `json_equal spec: '${k}' is not read by the json_equal runtime (it deep-compares the ` +
+        `submission against 'expected'). Only 'expected' is allowed; for a check Atlas cannot ` +
+        `perform (running your program, approximate/threshold values) use self_attest.`,
+      );
+    }
+  }
+  if (!("expected" in spec) || spec.expected === undefined) {
+    throw new Error(
+      `json_equal spec: an 'expected' JSON value is required — the runtime deep-compares the ` +
+      `submission against it; a missing expected would fail closed (a dead gate).`,
+    );
+  }
+}
+
+// ── Phase 61J — `numeric_tolerance` structured-spec validator ──────────────
+//
+// The runtime parses the submission as a single number and passes iff
+// |submission − expected| ≤ tolerance. Require a finite numeric `expected` + a
+// finite non-negative numeric `tolerance`; reject every other key (multi-field
+// objects, `floors`, bespoke `*Ratio`/`*Fraction`/`*Min`/`*Max` threshold keys).
+// The 61J sweep converted multi-field / threshold (≥/≤) intents to `self_attest`
+// (a symmetric ± band cannot honestly express them), so this allowlist is
+// import-safe.
+function assertValidNumericToleranceSpec(spec: Record<string, unknown>): void {
+  for (const k of Object.keys(spec)) {
+    if (k !== "expected" && k !== "tolerance") {
+      throw new Error(
+        `numeric_tolerance spec: '${k}' is not read by the runtime. Only 'expected' (number) and ` +
+        `'tolerance' (number) are allowed; for a multi-field or threshold (≥/≤) check use self_attest.`,
+      );
+    }
+  }
+  if (typeof spec.expected !== "number" || !Number.isFinite(spec.expected)) {
+    throw new Error(
+      `numeric_tolerance spec: a finite numeric 'expected' is required (got ${typeof spec.expected}).`,
+    );
+  }
+  if (typeof spec.tolerance !== "number" || !Number.isFinite(spec.tolerance) || spec.tolerance < 0) {
+    throw new Error(
+      `numeric_tolerance spec: a finite non-negative numeric 'tolerance' is required (got ${JSON.stringify(spec.tolerance)}).`,
+    );
+  }
+}
+
 // ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────
 //
 // Authoring-time guard. Mirrors the runtime semantics in

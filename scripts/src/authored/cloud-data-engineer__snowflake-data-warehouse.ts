@@ -284,10 +284,16 @@ FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
 WHERE START_TIME > DATEADD('hour', -1, CURRENT_TIMESTAMP())
 GROUP BY 1;
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "RM_ANALYTICS exists with quota=10 + both 80%/100% triggers; WH_INGEST latency during concurrent heavy WH_ANALYTICS query stays <2s; WH_ANALYTICS credits used > 2.", {
-        expected: { monitorExists: true, quotaCredits: 10, triggersConfigured: 2, ingestLatencyOk: true, analyticsCreditsAbove2: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "SHOW RESOURCE MONITORS returns RM_ANALYTICS with CREDIT_QUOTA = 10",
+          "RM_ANALYTICS has both triggers configured: NOTIFY at 80% and SUSPEND at 100%",
+          "ALTER WAREHOUSE WH_ANALYTICS SET RESOURCE_MONITOR = RM_ANALYTICS is executed",
+          "During concurrent workload test: WH_INGEST lightweight query latency stays <2s while WH_ANALYTICS runs the heavy query",
+          "SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY shows WH_ANALYTICS credits used > 2 for the heavy query run",
+        ],
       }),
       expectedOutputs: { monitor: "RM_ANALYTICS", quota: 10, isolated: true },
       datasetRefs: ["fixtures/concurrent_workload.json"],

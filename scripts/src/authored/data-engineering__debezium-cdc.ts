@@ -73,12 +73,10 @@ export const dataEngineeringDebeziumCdc: AuthoredProject = {
     # TODO: new rows in after only → not lost; we WILL see them next poll
     return lost
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "before=[{id:1,update_count:0},{id:2,update_count:0}], after=[{id:1,update_count:3},{id:3,update_count:2}] → 4 lost (row1 2 updates missed, row2 deleted, row3 1 update missed).", {
-        before: [{ id: 1, update_count: 0 }, { id: 2, update_count: 0 }],
-        after: [{ id: 1, update_count: 3 }, { id: 3, update_count: 2 }],
-        expectedLost: 4,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call lost_events(before=[{id:1,update_count:0},{id:2,update_count:0}], after=[{id:1,update_count:3},{id:3,update_count:2}]) and confirm the result is 4 (row2 deleted = 1 loss; row1 had 3 updates, you saw only the final = 2 lost intermediates; row3 is new with 2 updates but you first see it at update_count=2, so 1 intermediate missed = 1 loss; total = 4).",
       }),
       expectedOutputs: { lost: 4 },
       datasetRefs: ["fixtures/polling_loss_scenario.json"],
@@ -146,14 +144,10 @@ export const dataEngineeringDebeziumCdc: AuthoredProject = {
     # return {'op': op, 'pk': pk, 'lsn': p['source']['lsn'], 'ts_ms': p['source']['ts_ms'], 'data': data}
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Update event produces correct flat row; delete event still has pk and data populated from `before`.", {
-        update: { payload: { before: { id: 7, status: "pending" }, after: { id: 7, status: "paid" }, op: "u", source: { lsn: 999, ts_ms: 1000, table: "orders" } } },
-        delete: { payload: { before: { id: 7, status: "paid" }, after: null, op: "d", source: { lsn: 1000, ts_ms: 2000, table: "orders" } } },
-        expectedUpdate: { op: "u", pk: 7, lsn: 999, ts_ms: 1000, data: { id: 7, status: "paid" } },
-        expectedDeletePk: 7,
-        expectedDeleteData: { id: 7, status: "paid" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call flatten() on an update event (op='u', before={id:7,status:'pending'}, after={id:7,status:'paid'}, source.lsn=999, source.ts_ms=1000) and verify the result is {op:'u', pk:7, lsn:999, ts_ms:1000, data:{id:7,status:'paid'}}. Then call flatten() on a delete event (op='d', before={id:7,status:'paid'}, after=null) and verify pk=7 and data={id:7,status:'paid'} (sourced from before, not after).",
       }),
       expectedOutputs: { updateOk: true, deleteOk: true },
       datasetRefs: ["fixtures/debezium_envelopes.json"],
@@ -192,18 +186,10 @@ export const dataEngineeringDebeziumCdc: AuthoredProject = {
     def snapshot(self):
         return dict(self.state)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Sequence: create(lsn=10), duplicate create(lsn=10), update(lsn=20), stale update(lsn=15), delete(lsn=30). Final state empty; apply returns [True, False, True, False, True].", {
-        events: [
-          { op: "c", pk: 1, lsn: 10, data: { v: "a" } },
-          { op: "c", pk: 1, lsn: 10, data: { v: "a" } },
-          { op: "u", pk: 1, lsn: 20, data: { v: "b" } },
-          { op: "u", pk: 1, lsn: 15, data: { v: "stale" } },
-          { op: "d", pk: 1, lsn: 30, data: { v: "b" } },
-        ],
-        expectedApplied: [true, false, true, false, true],
-        expectedFinalState: {},
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Drive a Sink instance with this sequence: create(pk=1,lsn=10), duplicate create(pk=1,lsn=10), update(pk=1,lsn=20), stale update(pk=1,lsn=15), delete(pk=1,lsn=30). Confirm apply() returns [True,False,True,False,True] in order. Confirm snapshot() after all events returns {} (empty — the delete cleared the row).",
       }),
       expectedOutputs: { applied: [true, false, true, false, true], finalEmpty: true },
       datasetRefs: ["fixtures/debezium_sink_sequence.json"],
@@ -238,14 +224,10 @@ def is_slot_unhealthy(slot, current_lsn_int, now_ms):
     # TODO: return lag > LAG_THRESHOLD_BYTES or stale_ms > STALENESS_THRESHOLD_MS
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Healthy slot → False; 2GB-behind slot → True; 10-minute-stale slot → True.", {
-        cases: [
-          { name: "healthy", slot: { confirmed_flush_lsn_int: 1000, last_advance_ms: 1000000 }, current: 2000, now: 1000100, expected: false },
-          { name: "lag",     slot: { confirmed_flush_lsn_int: 0,    last_advance_ms: 1000000 }, current: 2000000000, now: 1000100, expected: true },
-          { name: "stale",   slot: { confirmed_flush_lsn_int: 1000, last_advance_ms: 0 },       current: 1001, now: 700000,        expected: true },
-        ],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Test is_slot_unhealthy() against three cases: (1) healthy slot — confirmed_flush_lsn_int=1000, last_advance_ms=1000000, current_lsn=2000, now=1000100 → expect False; (2) lag case — confirmed_flush_lsn_int=0, current_lsn=2000000000 (>1GB) → expect True; (3) stale case — last_advance_ms=0, now=700000 (>600000ms gap) → expect True.",
       }),
       expectedOutputs: { healthyCase: false, lagCase: true, staleCase: true },
       datasetRefs: ["fixtures/slot_health_cases.json"],

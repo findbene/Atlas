@@ -88,11 +88,14 @@ def detect_skew(
             mismatched.append(f"{row['entity_id']}::{row['feature_name']}")
     return {"skew_rate": len(mismatched) / n, "mismatched_keys": mismatched}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "1000 serving logs, 23 deliberate skew cases (12 numeric drift, 11 categorical mismatch): skew_rate ≈ 0.023, mismatched_keys length 23.", {
-        expected: { skew_rate: 0.023, mismatched_count: 23 },
-        tolerance: 0.001,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Against the 1000-row fixture (23 deliberate skew cases: 12 numeric drift, 11 categorical mismatch), detect_skew returns skew_rate ≈ 0.023 and len(mismatched_keys) == 23.",
+          "Numeric comparisons use abs(offline - served) ≤ 1e-6 rather than strict equality to absorb floating-point noise.",
+          "The materializer is called with the point-in-time timestamp (served_at), not the current time.",
+        ],
       }),
       expectedOutputs: { skew_rate: 0.023, mismatched_count: 23 },
       datasetRefs: ["fixtures/serving_logs_1000.jsonl", "fixtures/skew_expected.json"],
@@ -153,13 +156,14 @@ def scrape_freshness(
             breaches.append(f"{group}: lag {int(max_lag)}s > slo {slo}s")
     return {"breaches": breaches}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "4 groups with lags (30/120/600/3600): txn_5min_features breaches (120 > 300? no, 600 > 300 yes); session breaches if > 900? no; device breaches if 3600 > 3600? no. Test with bumped lags to confirm exactly 1 breach.", {
-        expected: { breachCount: 1, breachContains: "txn_5min_features" },
-        scenario: {
-          lagsSec: { account_features: 30, txn_5min_features: 600, session_features: 800, device_features: 3500 },
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "With lags {account_features: 30s, txn_5min_features: 600s, session_features: 800s, device_features: 3500s}, scrape_freshness returns exactly 1 breach for 'txn_5min_features' (600 > SLO of 300s).",
+          "feature_max_lag.labels(group=group).set(max_lag) is called for all 4 groups so the Prometheus gauge reflects the current max lag.",
+          "Lag is computed with (now - ts).total_seconds(), not .seconds, to avoid wrapping at 24 hours.",
+        ],
       }),
       expectedOutputs: { breachCount: 1, gaugesEmitted: 4 },
       datasetRefs: ["fixtures/freshness_scenarios.json"],
@@ -208,11 +212,15 @@ def psi(reference: np.ndarray, current: np.ndarray, bins: int = 10, eps: float =
 
     return float(np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct)))
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Identical → PSI ≈ 0.0; small shift (mean +0.3σ) → 0.02-0.10; major shift (mean +1σ + variance 2x) → > 0.25.", {
-        expected: { identical: 0.0, smallShift: 0.05, majorShift: 0.50 },
-        tolerance: { identical: 0.01, smallShift: 0.04, majorShift: 0.30 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "psi(reference, reference) ≈ 0.0 (identical distributions produce PSI < 0.01).",
+          "psi(reference, small_shift) produces a value in the range 0.02–0.10 (slight shift).",
+          "psi(reference, major_shift) > 0.25 (major distributional shift triggers the alert threshold).",
+          "Bin edges are computed from the REFERENCE distribution (np.quantile on reference), not on the current distribution.",
+        ],
       }),
       expectedOutputs: { identicalPsiLt: 0.01, majorPsiGt: 0.25 },
       datasetRefs: ["fixtures/psi_identical.npz", "fixtures/psi_small_shift.npz", "fixtures/psi_major_shift.npz"],
@@ -280,10 +288,14 @@ def null_rate_alert(
             })
     return {"alerts": alerts}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "10 features, 1 deliberate spike (0.001→0.045). 1 alert in spike window for that feature; 0 alerts for the other 9.", {
-        expected: { alertCount: 1, alertFeature: "feature_3", alertCurrentGte: 0.04 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "With the 24-hour fixture stream (10 features, feature_3 spiking from 0.001 to 0.045 over a 2-hour window), null_rate_alert emits exactly 1 alert for feature_3.",
+          "No alerts are emitted for the other 9 features (zero false positives).",
+          "The alert fires because |current - ewma_mean| > 3 * ewma_std AND current > floor (0.005) — both conditions must be true simultaneously.",
+        ],
       }),
       expectedOutputs: { alertCount: 1, falsePositives: 0 },
       datasetRefs: ["fixtures/null_rate_streams_24h.json"],

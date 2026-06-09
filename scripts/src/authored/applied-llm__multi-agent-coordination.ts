@@ -72,11 +72,13 @@ def initial_state(question: str) -> State:
     # TODO: return State with question set and the rest at their empty defaults.
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "initial_state('q') returns the right shape; researcher writes to research_notes + appends 'researcher' to handoffs.", {
-        expectedShape: ["question", "research_notes", "draft", "critique", "revisions", "handoffs"],
-        afterResearcher: { research_notes_min: 1, handoffs: ["researcher"] },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "initial_state('q') returns a TypedDict with exactly 6 keys: question, research_notes (empty list), draft (None), critique (None), revisions (0), handoffs (empty list).",
+          "After the researcher node runs on a mocked LLM, the returned partial state has research_notes non-empty and handoffs=['researcher'].",
+        ],
       }),
       expectedOutputs: { stateKeys: 6, initialHandoffs: [] },
       datasetRefs: ["fixtures/state_smoke.json"],
@@ -125,12 +127,14 @@ async def critic(s: State) -> State:
     # TODO: prompt with s['draft']; LLM returns critique text.
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Each specialist mutates the right slot + appends its name to handoffs.", {
-        researcherWritesField: "research_notes",
-        writerWritesField: "draft",
-        criticWritesField: "critique",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "researcher node writes to research_notes and appends 'researcher' to handoffs; returns a partial state diff (not the full state).",
+          "writer node writes to draft and appends 'writer' to handoffs.",
+          "critic node writes to critique and appends 'critic' to handoffs.",
+        ],
       }),
       expectedOutputs: { mutatedFields: ["research_notes", "draft", "critique"] },
       datasetRefs: ["fixtures/specialists_smoke.json"],
@@ -187,13 +191,14 @@ async def supervisor(state: State) -> Routing:
     # Parse with Routing.model_validate(json.loads(...)).
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Supervisor returns the right next for three crafted states (empty/notes-only/approved).", {
-        scenarios: [
-          { state: "empty", expectedNext: "researcher" },
-          { state: "notes_only", expectedNext: "writer" },
-          { state: "critique_approved", expectedNext: "END" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "supervisor(empty_state) returns Routing with next='researcher'.",
+          "supervisor(state_with_notes_but_no_draft) returns Routing with next='writer'.",
+          "supervisor(state_where_critique_contains_'approved.') returns Routing with next='END'.",
+          "The supervisor NEVER mutates the blackboard — it only returns a Routing decision.",
         ],
       }),
       expectedOutputs: { routes: ["researcher", "writer", "END"] },
@@ -253,11 +258,14 @@ def build():
         g.add_edge(n, "supervisor")
     return g.compile()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "When critic never approves, graph ends at revisions==3 (or iterations==12, whichever first).", {
-        scenarioCriticNeverApproves: true,
-        expectMaxRevisions: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "When the critic never returns 'approved.', the graph terminates at revisions == MAX_REVISIONS (3) without requiring human intervention.",
+          "The graph also terminates if total handoffs reach MAX_ITERATIONS (12), whichever cap fires first.",
+          "The route() function enforces both caps deterministically — it does NOT rely on the supervisor to decide to stop.",
+        ],
       }),
       expectedOutputs: { terminatedAt: "MAX_REVISIONS" },
       datasetRefs: ["fixtures/never_approve.json"],
@@ -293,11 +301,14 @@ from .specialists import researcher as _r, writer as _w, critic as _c
 
 # TODO: wrap each with traceable(name=...) and re-export.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Running the graph emits >=5 LangSmith spans including supervisor + 3 specialist names.", {
-        minSpanCount: 5,
-        requiredSpanNames: ["supervisor_node", "researcher", "writer", "critic"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Each node (supervisor_node, researcher, writer, critic) is wrapped with traceable(name=...) and the traced versions are used in the graph builder.",
+          "Running the graph end-to-end produces at least 5 LangSmith spans (≥2 supervisor calls + 3 specialists at minimum for a single full cycle).",
+          "Span names in LangSmith include 'supervisor_node', 'researcher', 'writer', and 'critic'.",
+        ],
       }),
       expectedOutputs: { spans: ">=5" },
       datasetRefs: ["fixtures/multi_agent_trace.json"],

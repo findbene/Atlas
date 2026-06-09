@@ -72,11 +72,10 @@ def sample_size(p_baseline: float, mde_rel: float, alpha: float = 0.05, power: f
     # TODO: n_per_arm = ceil( (z_alpha + z_beta)^2 * (p1*(1-p1) + p2*(1-p2)) / (p2 - p1)^2 )
     return 0
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "sample_size(p_baseline=0.10, mde_rel=0.10, alpha=0.05, power=0.80) ∈ [14500, 16000] per arm. Doubling mde_rel halves required n (approximately).", {
-        expected: { nPerArmMin: 14500, nPerArmMax: 16000 },
-        tolerance: 200,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "sample_size(p_baseline=0.10, mde_rel=0.10, alpha=0.05, power=0.80) returns an integer in [14500, 16000]. Doubling mde_rel approximately halves required n.",
       }),
       expectedOutputs: { n_per_arm: 15235 },
       datasetRefs: ["fixtures/power_expected.json"],
@@ -111,11 +110,10 @@ def assign(user_id: str, experiment_id: str, split: float = 0.5) -> str:
     # TODO: return 'treatment' if bucket < split else 'control'
     return 'control'
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "100k users with split=0.5: treatment count ∈ [49500, 50500] (chi² p>0.05). Same (user, exp) → same bucket on repeat. Different experiment_id re-randomizes (correlation < 0.05).", {
-        expected: { treatmentCountMin: 49500, treatmentCountMax: 50500, deterministic: true, crossExperimentCorrMax: 0.05 },
-        tolerance: 200,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Over 100k users with split=0.5: treatment count ∈ [49500, 50500]. Same (user_id, experiment_id) inputs always return the same bucket (deterministic). Different experiment_ids re-randomize (assignment correlation < 0.05 between experiments).",
       }),
       expectedOutputs: { treatment_count: 50118, deterministic: true },
       datasetRefs: ["fixtures/users_100k.csv"],
@@ -165,11 +163,10 @@ def analyze(treatment: np.ndarray, control: np.ndarray, n_boot: int = 10000, alp
     ci_low, ci_high = 0.0, 0.0
     return AnalysisReport(diff, float(p), float(t_stat), ci_low, ci_high, len(treatment), len(control))
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "n=8000/arm, treated mean=10.5, control mean=10.0, σ=2: p<0.001, diff ∈ [0.45, 0.55], CI width <0.12, CI excludes 0.", {
-        expected: { pMax: 0.001, diffMin: 0.45, diffMax: 0.55, ciWidthMax: 0.12, ciExcludesZero: true },
-        tolerance: 0.03,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "On fixture (n=8000/arm, treated mean=10.5, control mean=10.0, σ=2): p < 0.001, point diff ∈ [0.45, 0.55], 95% bootstrap CI width < 0.12, and the CI excludes 0.",
       }),
       expectedOutputs: { diff: 0.50, p: 0.0001, ci_width: 0.09 },
       datasetRefs: ["fixtures/ab_experiment_main.csv"],
@@ -210,11 +207,10 @@ def check_early_stop(z_stat: float, t_fraction: float, alpha: float = 0.05) -> b
     boundary = obf_boundary(t_fraction, alpha)
     return abs(z_stat) > boundary
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "obf_boundary at t=0.25 ≈ 3.92; at t=0.5 ≈ 2.77; at t=1.0 ≈ 1.96. Simulated 4-look type-1 error across 10k null experiments ≤0.052 (vs ~0.14 with naive z=1.96 at every look).", {
-        expected: { boundaryT025: 3.92, boundaryT100: 1.96, type1ErrorMax: 0.052, naiveType1: 0.14 },
-        tolerance: 0.05,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "obf_boundary(t=0.25) ≈ 3.92, obf_boundary(t=0.5) ≈ 2.77, obf_boundary(t=1.0) ≈ 1.96. Simulated 4-look type-1 error across 10k null experiments ≤ 0.052 (vs ~0.14 with naive z=1.96 at every look).",
       }),
       expectedOutputs: { boundary_t025: 3.92, type1: 0.049 },
       datasetRefs: ["fixtures/seq_sim_expected.json"],
@@ -252,11 +248,10 @@ def cuped_adjust(y: np.ndarray, x_pre: np.ndarray) -> np.ndarray:
     # TODO: y_adj = y - theta * (x_pre - x_pre.mean())
     return y.copy()
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "On a fixture experiment with x_pre ρ=0.7 to y: CI width after CUPED ≤0.75 * CI width before; point estimate within ±5% of unadjusted (i.e. unbiased).", {
-        expected: { ciShrinkRatio: 0.75, pointEstimateRelDrift: 0.05 },
-        tolerance: 0.05,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "On a fixture experiment with x_pre correlation ρ=0.7 to y: CI width after CUPED ≤ 0.75 × CI width before CUPED; point estimate stays within ±5% of the unadjusted estimate (CUPED is unbiased).",
       }),
       expectedOutputs: { ci_shrink: 0.68, estimate_drift: 0.02 },
       datasetRefs: ["fixtures/ab_experiment_main.csv"],

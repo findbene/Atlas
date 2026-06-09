@@ -83,11 +83,14 @@ async def plan(question: str) -> Plan:
     # parse content as JSON, validate with Plan.model_validate.
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "plan(question) returns a Plan with the 3 expected tasks (mocked LLM).", {
-        mockedLlmJson: '{"tasks":[{"id":"a","tool":"crm","args":{"account_name":"ACME"},"depends_on":[]},{"id":"b","tool":"billing","args":{"account_id":"$a.id","last_n_months":3},"depends_on":["a"]},{"id":"c","tool":"product","args":{"account_id":"$a.id","days":30},"depends_on":["a"]}]}',
-        expectedTaskCount: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "plan(question) calls OpenAI with response_format={'type':'json_object'} and validates the response with Plan.model_validate(json.loads(...)).",
+          "Against the mocked LLM response (3 tasks: crm/billing/product), plan() returns a Plan with exactly 3 Task objects.",
+          "A Pydantic ValidationError is raised (not a silent None) if the LLM response has a malformed task.",
+        ],
       }),
       expectedOutputs: { taskCount: 3, tools: ["crm", "billing", "product"] },
       datasetRefs: ["fixtures/planner_mock_response.json"],
@@ -136,10 +139,14 @@ async def executor(task: Task, context: dict) -> str:
         raise NotImplementedError
     raise RuntimeError("executor exceeded MAX_ITERS")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Mocked LLM: first turn calls crm.lookup, second turn returns 'ACME account_id=42'. executor() returns that string + tool was called once.", {
-        toolCallCount: 1, expectedReturn: "ACME account_id=42",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "With a mocked LLM that first returns a tool_call to crm.lookup and then returns 'ACME account_id=42', executor() calls the tool once and returns the final content string.",
+          "The tool result is appended as a 'tool' message with the matching tool_call_id before the next LLM turn.",
+          "The loop terminates without raising RuntimeError when the model returns content with no tool_calls.",
+        ],
       }),
       expectedOutputs: { toolCalls: 1, finalContent: "ACME account_id=42" },
       datasetRefs: ["fixtures/executor_mock_trace.json"],
@@ -204,10 +211,14 @@ def build_graph():
     g.add_edge("synthesizer", END)
     return g.compile()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "graph.ainvoke({'question':...}) returns a State where answer is non-empty and outputs has 3 task ids.", {
-        expectAnswerNonEmpty: true, expectOutputsKeys: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "graph.ainvoke({'question': ...}) returns a State with a non-empty answer string.",
+          "The outputs dict in the final state has exactly 3 entries (one per task: a, b, c).",
+          "Tasks are dispatched in dependency order — task b and c only run after task a's output is available in outputs.",
+        ],
       }),
       expectedOutputs: { outputsCount: 3, answerNonEmpty: true },
       datasetRefs: ["fixtures/graph_smoke.json"],
@@ -258,10 +269,14 @@ def cost_ceiling(usd_max: float):
         return inner
     return deco
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Wrapped function raises BudgetExceeded on the 3rd $0.0005 charge when usd_max=0.001.", {
-        usdMax: 0.001, perCallCost: 0.0005, expectFailOnCallIndex: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "With usd_max=0.001 and each mocked call costing $0.0005, BudgetExceeded is raised on the 3rd call (cumulative spend exceeds the cap).",
+          "The spend tally lives in a ContextVar so concurrent async runs do not interfere with each other's budgets.",
+          "The ContextVar token is reset (via .reset()) in a finally block so the tally does not leak across sequential top-level calls.",
+        ],
       }),
       expectedOutputs: { raisedAtCall: 3 },
       datasetRefs: ["fixtures/pricing.json"],
@@ -298,10 +313,14 @@ from langsmith import traceable  # pip install langsmith
 # planner_node = traceable(name='planner_node')(_planner_node)
 # ...
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Running graph emits 3 LangSmith spans with names {planner_node, executor_node, synthesizer_node}.", {
-        expectedSpanNames: ["planner_node", "executor_node", "synthesizer_node"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Each node (planner_node, executor_node, synthesizer_node) is wrapped with traceable(name=...) and those traced versions are imported in the graph.",
+          "Running the graph produces exactly 3 top-level LangSmith spans with names 'planner_node', 'executor_node', and 'synthesizer_node'.",
+          "LANGCHAIN_TRACING_V2 and LANGCHAIN_PROJECT env vars are set before any langsmith import.",
+        ],
       }),
       expectedOutputs: { spans: ["planner_node", "executor_node", "synthesizer_node"] },
       datasetRefs: ["fixtures/langsmith_spans.json"],

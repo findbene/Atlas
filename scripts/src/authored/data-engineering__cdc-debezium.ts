@@ -81,10 +81,10 @@ export const dataEngineeringCdcDebezium: AuthoredProject = {
 # submit.sh
 # TODO: curl -X POST -H 'Content-Type: application/json' http://connect:8083/connectors -d @connectors/orders-cdc.json
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "GET /connectors/orders-cdc/status returns state=RUNNING and pg_replication_slots contains debezium_orders.", {
-        expectedConnectorState: "RUNNING", expectedSlotName: "debezium_orders",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that GET /connectors/orders-cdc/status returns state=RUNNING and that pg_replication_slots contains a slot named debezium_orders.",
       }),
       expectedOutputs: { connectorState: "RUNNING", slot: "debezium_orders" },
       datasetRefs: ["fixtures/connect_status_running.json"],
@@ -236,10 +236,10 @@ def reconcile(pg, sf) -> None:
     # if a != b: raise DriftAlert(f"pg={a} sf={b}")
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Stubbed pg and sf return identical snapshots → no exception. Mutate sf checksum by 1 → DriftAlert raised.", {
-        matchedCase: { rows: 100, checksum: 12345 }, mismatchedCase: true,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that reconcile() raises no exception when Postgres and Snowflake snapshots match, and raises DriftAlert when the checksums differ by even one.",
       }),
       expectedOutputs: { matched: true, drifted: true },
       datasetRefs: ["fixtures/reconcile_snapshots.json"],
@@ -279,10 +279,10 @@ drift_counter = meter.create_counter("cdc.drift.count")
 # TODO: create_observable_gauge('cdc.connector.lag_seconds', callbacks=[lag_cb])
 # lag_cb: GET http://connect:8083/connectors/orders-cdc/status, compute now - last_committed_ts.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After one DriftAlert, drift counter = 1. After scrape, lag gauge present (any float).", {
-        expectedDriftCount: 1, expectLagPresent: true,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that after one DriftAlert is raised the cdc.drift.count counter increments to 1, and that the cdc.connector.lag_seconds gauge emits a float value when scraped via OTLP.",
       }),
       expectedOutputs: { drift: 1, lagPresent: true },
       datasetRefs: ["fixtures/otel_cdc_dump.json"],

@@ -958,6 +958,68 @@ describe("gradeSubmission", () => {
     expect(r.passed).toBe(true);
   });
 
+  describe("json_equal (Phase 61J — commit-path deep-equality)", () => {
+    const jeq = (expected: unknown) => ({
+      validationType: "json_equal",
+      validationConfig: { kind: "json_equal", description: "d", spec: { expected } },
+    });
+    it("matching JSON passes (object key order insignificant)", () => {
+      const r = gradeSubmission(step(jeq({ a: 1, b: [2, 3] })), '{"b":[2,3],"a":1}');
+      expect(r.passed).toBe(true);
+    });
+    it("wrong value fails", () => {
+      expect(gradeSubmission(step(jeq({ a: 1 })), '{"a":2}').passed).toBe(false);
+    });
+    it("array order IS significant (fails on reorder)", () => {
+      expect(gradeSubmission(step(jeq([1, 2])), "[2,1]").passed).toBe(false);
+    });
+    it("non-JSON submission fails closed", () => {
+      expect(gradeSubmission(step(jeq({ a: 1 })), "not json").passed).toBe(false);
+    });
+    it("empty submission fails closed", () => {
+      expect(gradeSubmission(step(jeq({ a: 1 })), "").passed).toBe(false);
+    });
+    it("missing spec.expected fails closed (no silent auto-pass)", () => {
+      const s = { validationType: "json_equal", validationConfig: { kind: "json_equal", description: "d", spec: {} } };
+      expect(gradeSubmission(step(s), '{"a":1}').passed).toBe(false);
+    });
+    it("legacy top-level { expected } (no spec wrapper) works", () => {
+      const s = { validationType: "json_equal", validationConfig: { expected: { a: 1 } } };
+      expect(gradeSubmission(step(s), '{"a":1}').passed).toBe(true);
+    });
+  });
+
+  describe("numeric_tolerance (Phase 61J — commit-path scalar tolerance)", () => {
+    const nt = (expected: unknown, tolerance: unknown) => ({
+      validationType: "numeric_tolerance",
+      validationConfig: { kind: "numeric_tolerance", description: "d", spec: { expected, tolerance } },
+    });
+    it("in-tolerance value passes", () => {
+      expect(gradeSubmission(step(nt(4.0, 0.1)), "4.05").passed).toBe(true);
+    });
+    it("boundary value passes (|Δ| == tolerance)", () => {
+      expect(gradeSubmission(step(nt(4.0, 0.1)), "4.1").passed).toBe(true);
+    });
+    it("out-of-tolerance value fails", () => {
+      expect(gradeSubmission(step(nt(4.0, 0.1)), "4.2").passed).toBe(false);
+    });
+    it("non-numeric submission fails", () => {
+      expect(gradeSubmission(step(nt(4.0, 0.1)), "abc").passed).toBe(false);
+    });
+    it("empty submission fails", () => {
+      expect(gradeSubmission(step(nt(4.0, 0.1)), "").passed).toBe(false);
+    });
+    it("missing expected fails closed", () => {
+      expect(gradeSubmission(step(nt(undefined, 0.1)), "4.0").passed).toBe(false);
+    });
+    it("missing tolerance fails closed", () => {
+      expect(gradeSubmission(step(nt(4.0, undefined)), "4.0").passed).toBe(false);
+    });
+    it("negative tolerance fails closed (invalid config)", () => {
+      expect(gradeSubmission(step(nt(4.0, -1)), "4.0").passed).toBe(false);
+    });
+  });
+
   it("unknown / null validationType passes with generic feedback (legacy default)", () => {
     expect(gradeSubmission(step({ validationType: null }), "anything").passed).toBe(true);
     expect(gradeSubmission(step({ validationType: "mystery" }), "x").feedback).toBe("Step completed.");

@@ -98,15 +98,15 @@ def manifest(csv_path: str) -> dict:
 def write_manifest(m: dict, out_path: str) -> None:
     Path(out_path).write_text(json.dumps(m, sort_keys=True, indent=2))
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "manifest returns {path, sha256 (64-char hex), n_rows, n_bytes, captured_at_utc (ISO-8601 UTC)}; the same input file produces the same sha256 across runs; write_manifest output is sort_keys-stable.", {
-        expected: {
-          sha256SixtyFourHex: true,
-          sameInputSameHash: true,
-          manifestHasFiveFields: true,
-          jsonSortKeysStable: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "manifest(csv_path) returns a dict with exactly 5 keys: path, sha256, n_rows, n_bytes, captured_at_utc.",
+          "sha256 is a 64-character hexadecimal string computed over the raw file bytes (not a parsed DataFrame).",
+          "Calling manifest twice on the same unmodified file produces the identical sha256 value.",
+          "write_manifest writes deterministic JSON (sort_keys=True, indent=2) so byte-level diffs are stable across runs.",
+        ],
       }),
       expectedOutputs: { manifestWritten: true, hashStable: true },
       datasetRefs: ["fixtures/training.csv"],
@@ -164,15 +164,14 @@ def write_run_config(
     }
     Path(out_path).write_text(json.dumps(cfg, sort_keys=True, indent=2))
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "pin_seeds sets all 4 randomness sources (random, numpy, PYTHONHASHSEED, sklearn record); same seed→same numpy.random.rand() output; run_config.json has seeds, model_params, data_sha256 with sort_keys-stable JSON.", {
-        expected: {
-          allFourSeedsPinned: true,
-          numpyRandomReproducible: true,
-          runConfigHasThreeSections: true,
-          envHashSeedSet: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "pin_seeds(42) calls random.seed(42), np.random.seed(42), and sets os.environ['PYTHONHASHSEED']='42'.",
+          "Calling np.random.rand() immediately after pin_seeds(42) in two separate processes produces the same value.",
+          "write_run_config writes deterministic JSON with keys: seeds, model_params, data_sha256.",
+        ],
       }),
       expectedOutputs: { seedsBundled: true, configWritten: true },
       datasetRefs: [],
@@ -226,16 +225,15 @@ def train_and_save(csv_path: str, runs_root: str = "runs") -> str:
     # TODO: also write run_config.json + data_manifest.json into the run dir
     return ""
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "train_and_save creates runs/<utc_iso>__<short_hash>/ with all 5 files (model.joblib, metrics.json, features.json, run_config.json, data_manifest.json); never overwrites an existing dir; short_hash derived from manifest+config bytes.", {
-        expected: {
-          fiveArtifactsWritten: true,
-          dirNameHasTimestampAndHash: true,
-          neverOverwritesExistingDir: true,
-          shortHashDerivedFromContent: true,
-          modelLoadableWithJoblib: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "train_and_save creates a directory named runs/<utc_iso>__<short_hash>/ containing all 5 files: model.joblib, metrics.json, features.json, run_config.json, data_manifest.json.",
+          "Calling train_and_save twice on the same data creates two distinct directories (never overwrites).",
+          "The short_hash is derived from the manifest + run_config bytes (content-addressed), not from a random value.",
+          "model.joblib is loadable with joblib.load() and produces identical predictions as when first saved.",
+        ],
       }),
       expectedOutputs: { runDirCreated: true, allArtifactsPresent: true },
       datasetRefs: ["fixtures/training.csv"],
@@ -295,11 +293,14 @@ def replay(run_dir: str) -> dict:
     # TODO: compute max_abs_diff(orig, replayed); passed = diff <= 1e-9
     return {"passed": False, "original_metrics": orig_metrics, "replayed_metrics": {}, "max_abs_diff": float("inf")}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "replay(run_dir) on an unmodified run returns passed=True and max_abs_diff ≤ 1e-9; replay on a run whose source CSV was modified raises ReplayError starting with 'data_drift:'.", {
-        expected: { max_abs_diff: 0.0, passed: 1 },
-        tolerance: 0.000000001,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "replay(run_dir) on an unmodified run returns {'passed': True, 'max_abs_diff': ≤ 1e-9, 'original_metrics': {...}, 'replayed_metrics': {...}}.",
+          "If the source CSV at man['path'] has been modified (sha256 mismatch), replay raises ReplayError with a message starting with 'data_drift:'.",
+          "The comparison tolerates machine-epsilon floating-point noise (1e-9) without hiding actual non-determinism.",
+        ],
       }),
       expectedOutputs: { replayPasses: true, driftDetected: true },
       datasetRefs: ["fixtures/training.csv"],
@@ -357,16 +358,15 @@ def build_catalog(runs_root: str = "runs", out_path: str = "runs/index.md") -> d
     # TODO: render markdown table, write to out_path, return summary dict
     return {"n_runs": len(rows), "headline_metric": "accuracy", "runs": rows}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "build_catalog walks runs_root, sorts DESC by dir name, tolerates incomplete runs (status='incomplete'), writes runs/index.md as a markdown table, and returns {n_runs, headline_metric, runs}.", {
-        expected: {
-          walksRunsRoot: true,
-          sortedDescByDirName: true,
-          tolerantToIncompleteRuns: true,
-          markdownTableWritten: true,
-          summaryHasNRuns: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "build_catalog walks runs_root, reads run_config.json + metrics.json per run dir, and writes a markdown table to runs/index.md.",
+          "Runs are sorted DESC by directory name (newest first, because dir names start with a sortable UTC timestamp).",
+          "Run dirs missing run_config.json or metrics.json are included with status='incomplete' rather than crashing the catalog.",
+          "The returned dict contains n_runs, headline_metric, and runs list.",
+        ],
       }),
       expectedOutputs: { catalogBuilt: true, indexWritten: true },
       datasetRefs: [],

@@ -94,15 +94,14 @@ def output_json_schema() -> dict:
     # TODO: return ReviewExtract.model_json_schema()
     return {}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "ReviewExtract has the 4 required fields with correct types; rating_out_of_5 has ge=0/le=5 constraints; sentiment is a Literal of {positive, neutral, negative}; model_json_schema() returns a dict with 'properties' for all 4 fields.", {
-        expected: {
-          requiredFields: ["name", "brand", "rating_out_of_5", "sentiment"],
-          ratingRangeEnforced: true,
-          sentimentIsEnum: true,
-          schemaHasAllProperties: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "ReviewExtract has exactly 4 fields: name (str), brand (str), rating_out_of_5 (float with ge=0, le=5), sentiment (Literal['positive','neutral','negative']).",
+          "model_json_schema() returns a dict with a 'properties' key containing all 4 fields.",
+          "The emitted schema includes the range constraints for rating_out_of_5 and an enum for sentiment.",
+        ],
       }),
       expectedOutputs: { schemaDefined: true, constraintsPresent: true },
       datasetRefs: [],
@@ -216,15 +215,14 @@ def parse_response(raw: str) -> tuple[dict | None, str | None]:
     #       json.loads; return (dict, None) or (None, "bad_json: <msg>")
     return None, "not_implemented"
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "parse_response strips code fences and whitespace; valid JSON returns (dict, None); invalid JSON returns (None, 'bad_json: ...'); NEVER raises.", {
-        expected: {
-          parsesPlainJson: true,
-          parsesFencedJson: true,
-          returnsErrorOnBadJson: true,
-          neverRaises: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "parse_response('{ \"name\": \"x\" }') returns a dict and None (no error).",
+          "parse_response('```json\\n{ \"name\": \"x\" }\\n```') strips the fences and returns the parsed dict.",
+          "parse_response('not json') returns (None, a string starting with 'bad_json:') and never raises.",
+        ],
       }),
       expectedOutputs: { mockCallable: true, parseTolerant: true },
       datasetRefs: ["fixtures/mock_responses.json"],
@@ -281,15 +279,14 @@ def run_batch(reviews: list[str]) -> tuple[list[dict], list[dict]]:
             results.append(out)
     return results, rejects
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "extract returns (model_dump, None) on success; returns (None, 'schema_invalid: ...') on a parsed-but-invalid response (e.g. rating=7.5); run_batch partitions a list exhaustively into results + rejects with reasons.", {
-        expected: {
-          extractReturnsModelDump: true,
-          extractReturnsSchemaInvalidOnBadField: true,
-          runBatchPartitionExhaustive: true,
-          rejectHasReason: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "extract(review) returns (model_dump_dict, None) when the mock LLM produces a valid JSON that passes schema validation.",
+          "extract(review) returns (None, 'schema_invalid: ...') when the parsed JSON fails Pydantic validation (e.g. rating_out_of_5=7.5).",
+          "run_batch partitions exhaustively: every review ends in either results (valid) or rejects (with reason), with no reviews silently dropped.",
+        ],
       }),
       expectedOutputs: { validatorWired: true, rejectRoutingWorks: true },
       datasetRefs: ["fixtures/reviews_gold.jsonl"],

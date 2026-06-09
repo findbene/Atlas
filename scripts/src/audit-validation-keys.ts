@@ -34,6 +34,10 @@ const ALLOWED: Record<string, Set<string>> = {
   contains: new Set(["needle", "needles", "match", "caseInsensitive"]),
   exact: new Set(["expected"]),
   regex: new Set(["pattern", "flags"]),
+  // Phase 61J — json_equal deep-compares the submission against `expected`;
+  // numeric_tolerance compares a single number against `expected` ± `tolerance`.
+  json_equal: new Set(["expected"]),
+  numeric_tolerance: new Set(["expected", "tolerance"]),
 };
 
 const failures: string[] = [];
@@ -73,6 +77,26 @@ for (const p of AUTHORED_PROJECTS) {
           `${tag}: 'regex' requires a non-empty string 'pattern' (an empty pattern matches ` +
             `everything = a dead gate).`,
         );
+      }
+    }
+
+    if (kind === "json_equal") {
+      if (!("expected" in spec) || (spec as { expected?: unknown }).expected === undefined) {
+        failures.push(
+          `${tag}: 'json_equal' requires an 'expected' JSON value (the runtime deep-compares ` +
+            `the submission against it; a missing expected fails closed = a dead gate).`,
+        );
+      }
+    }
+
+    if (kind === "numeric_tolerance") {
+      const e = (spec as { expected?: unknown }).expected;
+      const t = (spec as { tolerance?: unknown }).tolerance;
+      if (typeof e !== "number" || !Number.isFinite(e)) {
+        failures.push(`${tag}: 'numeric_tolerance' requires a finite numeric 'expected'.`);
+      }
+      if (typeof t !== "number" || !Number.isFinite(t) || t < 0) {
+        failures.push(`${tag}: 'numeric_tolerance' requires a finite non-negative numeric 'tolerance'.`);
       }
     }
   }

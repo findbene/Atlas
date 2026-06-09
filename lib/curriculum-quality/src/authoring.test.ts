@@ -265,6 +265,45 @@ describe("validationConfig(regex) — Phase 61I structured-spec validator", () =
     badRe({ pattern: "(" }, /does not compile/));
 });
 
+// ── Phase 61J — `json_equal` structured-spec validator ─────────────────────
+describe("validationConfig(json_equal) — Phase 61J expected contract", () => {
+  const okJe = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("json_equal", "desc", spec)).not.toThrow();
+  const badJe = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("json_equal", "desc", spec)).toThrow(match);
+
+  it("accepts { expected: <object> }", () => okJe({ expected: { count: 150, ok: true } }));
+  it("accepts { expected: <array> }", () => okJe({ expected: [1, 2, 3] }));
+  it("accepts { expected: <scalar> }", () => okJe({ expected: 42 }));
+  it("rejects a missing expected ({}) — would fail closed", () =>
+    badJe({}, /an 'expected' JSON value is required/));
+  it("rejects a bespoke key alongside expected", () =>
+    badJe({ expected: { a: 1 }, assertLength: 5 }, /not read by the json_equal runtime/));
+  it("rejects bespoke-only specs (the dead-gate pattern)", () =>
+    badJe({ mockedScores: [0.1], expectedIndices: [0] }, /not read by the json_equal runtime/));
+});
+
+// ── Phase 61J — `numeric_tolerance` structured-spec validator ──────────────
+describe("validationConfig(numeric_tolerance) — Phase 61J scalar contract", () => {
+  const okNt = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("numeric_tolerance", "desc", spec)).not.toThrow();
+  const badNt = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("numeric_tolerance", "desc", spec)).toThrow(match);
+
+  it("accepts { expected:<number>, tolerance:<number> }", () => okNt({ expected: 0.692, tolerance: 0.01 }));
+  it("accepts a zero tolerance (exact numeric match)", () => okNt({ expected: 4, tolerance: 0 }));
+  it("rejects a missing expected", () =>
+    badNt({ tolerance: 0.1 }, /finite numeric 'expected' is required/));
+  it("rejects a missing tolerance", () =>
+    badNt({ expected: 4.0 }, /finite non-negative numeric 'tolerance' is required/));
+  it("rejects a multi-field object expected (use self_attest)", () =>
+    badNt({ expected: { recall: 0.78, mrr: 0.62 }, tolerance: 0.02 }, /finite numeric 'expected' is required/));
+  it("rejects a bespoke key (e.g. floors)", () =>
+    badNt({ expected: 4, tolerance: 0.1, floors: { a: 1 } }, /not read by the runtime/));
+  it("rejects a negative tolerance", () =>
+    badNt({ expected: 4, tolerance: -1 }, /non-negative/));
+});
+
 
 // ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────
 describe("validationConfig(csv_set_equal) — Phase 57A structured-spec validator", () => {

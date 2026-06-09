@@ -58,7 +58,7 @@ export const aiEngineerLlmEvalHarness: AuthoredProject = {
       stepNumber: 1,
       title: "Design the golden dataset schema",
       instructionMd:
-        "Define `GoldenExample` (id, prompt, expected, kind, tags). Load 150 examples from `golden_set.jsonl`. Validator parses the file and asserts: 150 rows, 4 distinct `kind` values (exact/contains/numeric/judge), every row has non-empty `tags`, and `id` is unique.",
+        "Define `GoldenExample` (id, prompt, expected, kind, tags). Load 150 examples from `golden_set.jsonl`. Verify manually: parse the file and confirm 150 rows, 4 distinct `kind` values (exact/contains/numeric/judge), every row has non-empty `tags`, and all `id` values are unique. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "A golden set survives prompt iteration only if its schema is precise + tagged.",
       requiredSkill: "Dataset schema design + JSONL parsing + uniqueness + tag taxonomy",
       starterCode: SRC(`# golden.py
@@ -82,10 +82,15 @@ def load_golden(path: str) -> list[GoldenExample]:
             examples.append(GoldenExample(**row))
     return examples
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Loads 150 examples; 4 distinct kinds; all tags non-empty; ids unique.", {
-        expected: { count: 150, distinctKinds: 4, allTagged: true, uniqueIds: true },
+      validation: validationConfig("self_attest", "Learner attests the golden set loader is correct.", {
+        attestationCriteria: [
+          "load_golden parses golden_set.jsonl and returns exactly 150 GoldenExample instances.",
+          "The loaded examples cover exactly 4 distinct kind values: exact, contains, numeric, judge.",
+          "Every example has a non-empty tags list.",
+          "All id values are unique (no duplicates across the 150 examples).",
+        ],
       }),
       expectedOutputs: { count: 150, distinctKinds: 4, allTagged: true, uniqueIds: true },
       datasetRefs: ["fixtures/golden_set.jsonl"],
@@ -108,7 +113,7 @@ def load_golden(path: str) -> list[GoldenExample]:
       stepNumber: 2,
       title: "Implement 4 scoring kinds",
       instructionMd:
-        "Implement `score(example, response) -> ScoreResult` dispatched by `example.kind`: `exact` (==), `contains` (substring, case-insensitive), `numeric` (parse number, ±tolerance from example.expected['tolerance']), `judge` (defer to step 3 — return placeholder). Validator runs the 4 kinds on 8 fixture responses and asserts the expected pass/fail matrix.",
+        "Implement `score(example, response) -> ScoreResult` dispatched by `example.kind`: `exact` (==), `contains` (substring, case-insensitive), `numeric` (parse number, ±tolerance from example.expected['tolerance']), `judge` (defer to step 3 — return placeholder). Verify manually: run the scorer on 8 fixture (example, response) pairs and confirm the pass/fail matrix matches what you expect. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "A handful of scoring kinds covers ~90% of real LLM evals.",
       requiredSkill: "Dispatch + numeric tolerance + case-insensitive matching",
       starterCode: SRC(`# scoring.py
@@ -135,10 +140,15 @@ def score(example, response: str) -> ScoreResult:
         return ScoreResult(False, 'judge: deferred')
     raise ValueError(f"unknown kind {example.kind}")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "8 fixture (example, response) pairs — pass/fail matrix matches expected.", {
-        expected: { passes: 5, fails: 3, byKind: { exact: 2, contains: 2, numeric: 1, judge: 0 } },
+      validation: validationConfig("self_attest", "Learner attests the scorer is correct.", {
+        attestationCriteria: [
+          "score dispatches correctly on all 4 kinds: exact (string equality after strip), contains (case-insensitive substring), numeric (±tolerance from example.expected['tolerance']), judge (placeholder).",
+          "Running score on 8 fixture (example, response) pairs produces the expected pass/fail matrix.",
+          "The numeric scorer parses the first number from the response string and compares within the configured tolerance.",
+          "score raises ValueError for unknown kind values.",
+        ],
       }),
       expectedOutputs: { passes: 5, fails: 3, byKind: { exact: 2, contains: 2, numeric: 1, judge: 0 } },
       datasetRefs: ["fixtures/scoring_cases.json"],
@@ -161,7 +171,7 @@ def score(example, response: str) -> ScoreResult:
       stepNumber: 3,
       title: "Multi-judge consensus (GPT-4o + Claude + Haiku)",
       instructionMd:
-        "Implement `judge(example, response, judges=['gpt-4o','claude-sonnet-4','claude-haiku-4']) -> JudgeResult` that runs all 3 judges in parallel (asyncio.gather), each returning a 1-5 score with reasoning, then computes consensus = median. Validator mocks the 3 API clients with fixed scores [4, 5, 3] for a fixture pair and asserts consensus=4.",
+        "Implement `judge(example, response, judges=['gpt-4o','claude-sonnet-4','claude-haiku-4']) -> JudgeResult` that runs all 3 judges in parallel (asyncio.gather), each returning a 1-5 score with reasoning, then computes consensus = median. Atlas checks that the submitted numeric consensus value is within the configured tolerance.",
       learningObjective: "Single-judge scores have ~15% variance across runs; median of 3 cuts it to ~4%.",
       requiredSkill: "asyncio.gather + multi-provider abstractions + consensus voting",
       starterCode: SRC(`# judges.py
@@ -194,8 +204,8 @@ async def judge(example, response: str, clients: dict) -> JudgeResult:
 `),
       validationType: "numeric_tolerance",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Mocked 3 judges return [4, 5, 3]; consensus = median = 4. Tolerance ±0.1.", {
-        expected: { consensus: 4.0 },
+      validation: validationConfig("numeric_tolerance", "Mocked 3 judges return [4, 5, 3]; consensus = median = 4. Submit the consensus value. Atlas checks that the submitted numeric value is within the configured tolerance.", {
+        expected: 4.0,
         tolerance: 0.1,
       }),
       expectedOutputs: { consensus: 4.0, perJudge: { "gpt-4o": 4, "claude-sonnet-4": 5, "claude-haiku-4": 3 } },
@@ -219,7 +229,7 @@ async def judge(example, response: str, clients: dict) -> JudgeResult:
       stepNumber: 4,
       title: "Regression detection vs last green baseline",
       instructionMd:
-        "Implement `compare_to_baseline(current_results, baseline_path) -> RegressionReport` that loads baseline win-rates per tag from a JSON file and returns deltas. `RegressionReport.failed = True` if any tag drops more than 0.02 (2pts) OR overall drops more than 0.01. Validator feeds current=0.85/baseline=0.88 overall (3pt drop) and asserts failed=True with the offending tag identified.",
+        "Implement `compare_to_baseline(current_results, baseline_path) -> RegressionReport` that loads baseline win-rates per tag from a JSON file and returns deltas. `RegressionReport.failed = True` if any tag drops more than 0.02 (2pts) OR overall drops more than 0.01. Verify manually: feed current=0.85/baseline=0.88 overall (3pt drop) and confirm failed=True with the offending tag identified. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Per-tag deltas catch regressions that overall win-rate hides.",
       requiredSkill: "Versioned baseline comparison + tag-level slicing + threshold gates",
       starterCode: SRC(`# regression.py
@@ -252,10 +262,16 @@ def compare_to_baseline(current: list[dict], baseline_path: str) -> RegressionRe
     # TODO: find tags whose delta < -PER_TAG_THRESHOLD; failed if any OR overall_delta < -OVERALL_THRESHOLD
     return RegressionReport(failed=False, overall_delta=overall_delta, offending_tags=[], detail='stub')
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Current overall=0.85 vs baseline overall=0.88 (-3pts > 1pt threshold): report.failed=True; offending_tags lists the regressed tag(s) with their negative deltas.", {
-        expected: { failed: true, overallDelta: -0.03, offendingTagCount: 1 },
+      validation: validationConfig("self_attest", "Learner attests the regression detector is correct.", {
+        attestationCriteria: [
+          "compare_to_baseline loads the baseline JSON and computes overall_delta = current_overall - baseline['overall'].",
+          "report.failed is True when overall_delta < -0.01 (1pt overall drop threshold).",
+          "report.failed is True when any per-tag delta < -0.02 (2pt per-tag threshold).",
+          "offending_tags lists the specific tags that regressed beyond the threshold with their negative deltas.",
+          "Feeding current=0.85, baseline=0.88 (−3pt drop) produces failed=True with the regressing tag identified.",
+        ],
       }),
       expectedOutputs: { failed: true, overallDelta: -0.03, offendingTagCount: 1 },
       datasetRefs: ["fixtures/baseline.json", "fixtures/current_run.json"],
@@ -278,7 +294,7 @@ def compare_to_baseline(current: list[dict], baseline_path: str) -> RegressionRe
       stepNumber: 5,
       title: "FastAPI endpoint + GitHub Actions gate",
       instructionMd:
-        "Build `POST /evals/run` in FastAPI that loads the golden set, runs all examples, calls regression detection, and returns 200 with the report OR 422 with the regression details. Validator hits the endpoint against the fixture set and asserts: 200 when current matches baseline; 422 with offending tags in body when current regresses.",
+        "Build `POST /evals/run` in FastAPI that loads the golden set, runs all examples, calls regression detection, and returns 200 with the report OR 422 with the regression details. Verify manually: hit the endpoint against the fixture set and confirm 200 when current matches baseline and 422 with offending tags in the response body when current regresses. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Expose evals as an HTTP endpoint so CI workflows can gate on a single call.",
       requiredSkill: "FastAPI + status-code semantics + CI integration",
       starterCode: SRC(`# main.py
@@ -302,10 +318,15 @@ async def run_evals(req: EvalRequest) -> EvalReport:
     # compute regression, return 200 with report OR raise 422 with report in detail.
     raise HTTPException(status_code=500, detail='not implemented')
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "POST /evals/run against fixture: matching baseline -> 200 with overall ≥0.85; regressing baseline -> 422 with offending_tags populated.", {
-        expected: { matchingStatus: 200, regressingStatus: 422, regressingHasOffendingTags: true },
+      validation: validationConfig("self_attest", "Learner attests the FastAPI endpoint is correct.", {
+        attestationCriteria: [
+          "POST /evals/run returns HTTP 200 with the eval report when the current run meets or exceeds the baseline.",
+          "POST /evals/run returns HTTP 422 with regression detail (including offending_tags) when the current run drops below the baseline threshold.",
+          "The endpoint uses mock generators for fixture mode (no real LLM calls in CI).",
+          "The 422 response body contains enough detail for CI logs to show which tags regressed.",
+        ],
       }),
       expectedOutputs: { matching: 200, regressing: 422 },
       datasetRefs: ["fixtures/golden_set.jsonl", "fixtures/baseline.json"],

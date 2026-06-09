@@ -73,10 +73,10 @@ def build_features(df: pl.DataFrame) -> pl.DataFrame:
     # ).select(FEATURE_COLUMNS + ["customer_id", "churned"])
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "build_features(fixture_df) returns frame with FEATURE_COLUMNS + customer_id + churned, exactly matching expected values.", {
-        expectedColumns: ["tenure_months", "avg_monthly_charges", "is_high_value", "customer_id", "churned"],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "build_features(fixture_df) returns a Polars DataFrame with exactly the columns ['tenure_months', 'avg_monthly_charges', 'is_high_value', 'customer_id', 'churned']. Same input always produces the same output (pure function, no globals or I/O). Values match fixtures/features_expected.csv.",
       }),
       expectedOutputs: { columns: 5, deterministic: true },
       datasetRefs: ["fixtures/customers_input.csv", "fixtures/features_expected.csv"],
@@ -127,10 +127,10 @@ with mlflow.start_run() as run:
     # TODO: mlflow.sklearn.log_model(pipe, "model", signature=sig, input_example=X_train[:3])
     # TODO: result = mlflow.register_model(model_uri=f"runs:/{run.info.run_id}/model", name="ChurnModel")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After train.py runs against fixture data: MLflow has ChurnModel/version-1 with signature.inputs (3 features) + input_example present.", {
-        expectedModelName: "ChurnModel", expectedSignatureInputs: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "After running train.py: MLflow Model Registry has a 'ChurnModel' entry at version 1. The registered model has a signature with 3 input columns (matching FEATURE_COLUMNS) and an input_example artifact present.",
       }),
       expectedOutputs: { modelRegistered: true, signatureInputs: 3 },
       datasetRefs: ["fixtures/customers.csv"],
@@ -185,10 +185,10 @@ async def predict(req: PredictRequest) -> PredictResponse:
     # TODO: probs = model["obj"].predict(X)[:, 1] if predict_proba shape else model["obj"].predict(X)
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "POST /predict with 3 rows returns {probabilities: [p1, p2, p3]} all in [0, 1].", {
-        expectedFieldName: "probabilities", expectedLen: 3, expectedRange: [0, 1],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "POST /predict with 3 valid rows returns HTTP 200 with body {probabilities: [p1, p2, p3]}. All three probabilities are floats in [0, 1].",
       }),
       expectedOutputs: { field: "probabilities", len: 3 },
       datasetRefs: ["fixtures/predict_request.json"],
@@ -229,10 +229,10 @@ class PredictResponse(BaseModel):
     probabilities: list[float]
 # TODO: import these in service.py and replace the loose list[dict] request shape.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "POST {rows:[{tenure_months:1.0, avg_monthly_charges:50.0, is_high_value:'yes'}]} → 422 with msg mentioning is_high_value.", {
-        expectedStatus: 422, expectedField: "is_high_value",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "POST /predict with {rows: [{tenure_months: 1.0, avg_monthly_charges: 50.0, is_high_value: 'yes'}]} returns HTTP 422. The error response body mentions 'is_high_value' as the invalid field.",
       }),
       expectedOutputs: { status: 422, field: "is_high_value" },
       datasetRefs: ["fixtures/bad_predict_request.json"],
@@ -279,10 +279,10 @@ async def test_service_matches_notebook():
     api_preds = np.array(r.json()["probabilities"])
     # TODO: np.testing.assert_allclose(nb_preds, api_preds, atol=1e-6)
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "service.predict matches mlflow.pyfunc on the same X within atol=1e-6 for 100 rows.", {
-        atol: 0.000001, expectedRowCount: 100,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "test_service_matches_notebook passes: for all 100 rows in the holdout set, probabilities returned by POST /predict match mlflow.pyfunc predictions on the same features within atol=1e-6 elementwise (np.testing.assert_allclose).",
       }),
       expectedOutputs: { atol: 1e-6, rows: 100 },
       datasetRefs: ["fixtures/holdout.csv"],

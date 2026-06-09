@@ -102,11 +102,10 @@ def fetch_all_pages(base_url: str, since: str) -> tuple[list[dict], dict]:
     print(json.dumps(meta))
     return rows, meta
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Pipeline emits a JSON metadata line; pages=10, rows=1000, retries_observed=2 against the fixture.", {
-        expected: { pages: 10, rows: 1000, retries_observed: 2 },
-        emittedAs: "json-line-on-stdout",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run fetch_all_pages against the fixture API and confirm the printed run_metadata JSON shows pages=10, rows=1000, retries_observed=2. Verify tenacity retries fire on the two injected 503s and do not exceed the attempt limit.",
       }),
       expectedOutputs: { pages: 10, rows: 1000, retries_observed: 2 },
       datasetRefs: ["fixtures/api_pages/page_*.json"],
@@ -154,13 +153,10 @@ def stage_rows(rows: list[dict], conn) -> dict:
     # TODO: execute_values with fetch=True, then count inserted vs updated from the RETURNING flags
     return {"staged": 0, "updated_existing": 0}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "First run on 1000 fresh rows → {staged: 1000, updated_existing: 0}. Second run on same rows → {staged: 0, updated_existing: 1000}.", {
-        expected: {
-          firstRun: { staged: 1000, updated_existing: 0 },
-          secondRun: { staged: 0, updated_existing: 1000 },
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run stage_rows against a live Postgres instance with 1000 fresh rows and confirm the returned dict shows {staged: 1000, updated_existing: 0}. Re-run with the same rows and confirm {staged: 0, updated_existing: 1000}. Verify the xmax=0 split is correct by checking both counts sum to 1000 on each run.",
       }),
       expectedOutputs: {
         firstRun: { staged: 1000, updated_existing: 0 },
@@ -286,13 +282,10 @@ class RowCountBounds:
 def run_checks(checks: list, conn) -> list[dict]:
     return [f for c in checks if (f := c.check(conn)) is not None]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Given the rigged fixture: NotNull('stg_sales','region') fires (3 violations); AcceptedValues('mart_sales_by_region','region', {'NA','EMEA','APAC','LATAM'}) does NOT fire (LATAM is allowed even if it appears twice); Unique('mart_sales_by_region','region') fires (5 rows vs 4 distinct); RowCountBounds('mart_sales_by_region', 4, 4) fires (5 rows). Total failures = 3.", {
-        expected: {
-          failureCount: 3,
-          failureCheckNames: ["not_null", "unique", "row_count_bounds"],
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run run_checks against the rigged fixture database and confirm the returned failure list contains exactly 3 entries: not_null on stg_sales.region (3 violations), unique on mart_sales_by_region.region, and row_count_bounds on mart_sales_by_region. Confirm AcceptedValues does NOT fire (LATAM is in the allowed set). Check that each failure dict has a check_name key.",
       }),
       expectedOutputs: { failureCount: 3, distinctCheckNames: 3 },
       datasetRefs: ["fixtures/dq_rigged_seed.csv"],

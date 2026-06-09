@@ -84,15 +84,10 @@ def assert_pushdown(df) -> dict:
         "readSchemaColumns": [f.name for f in df.schema.fields],
     }
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Plan shows PartitionFilters [year=2026, month=5]; schema = exactly 4 cols; bytesScanned ≈ 5% of full bytes.", {
-        expected: {
-          partitionFiltersFired: true,
-          columnCount: 4,
-          columns: ["user_id", "event_type", "amount", "event_date"],
-          bytesRatioMax: 0.10,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run read_may_2026 against the fixture and call assert_pushdown. Confirm partitionFiltersFired=True, readSchemaColumns has exactly 4 columns (user_id, event_type, amount, event_date), and the bytes-scanned metric from the Spark UI is ≤10% of the full-corpus size. Show df.explain('formatted') output containing PartitionFilters and ReadSchema lines.",
       }),
       expectedOutputs: { partitionFiltersFired: true, columns: 4 },
       datasetRefs: ["fixtures/partitioned_events.json"],
@@ -145,10 +140,10 @@ def salt_skewed_join(events: DataFrame, users: DataFrame, skewed_keys: list[str]
     # still under the broadcast threshold (default 10MB; can raise to ~256MB).
     return salted_events.join(broadcast(exploded_users), on="join_key", how="inner")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Post-salt: slowest task < 1.5× median (was 50×); join row-count equals naive join exactly.", {
-        expected: { slowestTaskRatioMax: 1.5, rowCountEqualsNaive: true, broadcastUsed: true },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run salt_skewed_join against the fixture and verify in the Spark UI that the slowest task is under 1.5× the median task duration (vs ~50× before salting). Confirm the salted join row-count matches the naive join row-count exactly. Confirm the query plan shows a BroadcastHashJoin node.",
       }),
       expectedOutputs: { slowestRatio: 1.4, rowsMatch: true },
       datasetRefs: ["fixtures/skewed_join.json"],
@@ -196,15 +191,10 @@ def assert_aqe_fired(df) -> dict:
         "coalesceApplied": "CoalesceShufflePartitions" in plan,
     }
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "AQE on: AdaptiveSparkPlan in plan; OptimizeSkewedJoin auto-splits the 2GB partition; CoalesceShufflePartitions reduces 200→~50.", {
-        expected: {
-          adaptiveFired: true,
-          skewSplitApplied: true,
-          coalesceApplied: true,
-          finalPartitionCountMax: 60,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call configure_aqe and assert_aqe_fired on the fixture job. Confirm adaptiveFired=True (AdaptiveSparkPlan in plan), skewSplitApplied=True (OptimizeSkewedJoin or isSkew in plan), coalesceApplied=True (CoalesceShufflePartitions in plan), and final post-shuffle partition count ≤60.",
       }),
       expectedOutputs: { aqeFired: true, skewSplit: true },
       datasetRefs: ["fixtures/aqe_imbalance.json"],
@@ -253,15 +243,10 @@ def write_sized(df: DataFrame, out_path: str, est_bytes_per_row: int = 256) -> N
           .parquet(out_path)
     )
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "10GB out: avg file size 100-150MB; no file > 256MB; no file < 32MB.", {
-        expected: {
-          avgFileBytesMin: 100 * 1024 * 1024,
-          avgFileBytesMax: 150 * 1024 * 1024,
-          maxFileBytes: 256 * 1024 * 1024,
-          minFileBytes: 32 * 1024 * 1024,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run write_sized against the 10GB fixture and inspect the output files. Confirm the average file size is between 100MB and 150MB, no individual file exceeds 256MB, and no file is smaller than 32MB. Show the file-size histogram or a per-file listing in your README.",
       }),
       expectedOutputs: { avgFile: "120MB", oversized: 0, undersized: 0 },
       datasetRefs: ["fixtures/output_sizing.json"],

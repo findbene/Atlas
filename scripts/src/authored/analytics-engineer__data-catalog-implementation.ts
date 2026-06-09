@@ -88,10 +88,14 @@ def persist(conn, entities: list[Entity]) -> dict:
     # Upsert into catalog_entities + catalog_columns. Return {tables: N, columns: M}.
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Crawler returns 9 entities + 47 columns total across analytics/staging/marts schemas.", {
-        expected: { tables: 9, columns: 47 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "crawl_schemas() returns exactly 9 entities across the analytics, staging, and marts schemas.",
+          "Total column count across all 9 entities is 47.",
+          "persist() upserts all entities into catalog_entities + catalog_columns without duplicating on rerun.",
+        ],
       }),
       expectedOutputs: { tables: 9, columns: 47 },
       datasetRefs: ["fixtures/warehouse_seed.sql", "fixtures/expected_catalog.json"],
@@ -139,10 +143,14 @@ def parse_manifest(path: str) -> list[LineageEdge]:
         # TODO: column-level edges from node['columns'][col]['meta']['lineage']
     return edges
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Parsed 23 model-level edges and 41 column-level edges from the fixture manifest.json.", {
-        expected: { model_edges: 23, column_edges: 41 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "parse_manifest() extracts exactly 23 model-level LineageEdge records from the fixture manifest.json.",
+          "parse_manifest() extracts exactly 41 column-level LineageEdge records from the fixture manifest.json.",
+          "Missing column-level meta is treated as no edge (not an error).",
+        ],
       }),
       expectedOutputs: { model_edges: 23, column_edges: 41 },
       datasetRefs: ["fixtures/manifest.json", "fixtures/expected_lineage.json"],
@@ -182,10 +190,14 @@ def downstream_of(graph: nx.DiGraph, fqn: str) -> set[str]:
     # NetworkX: nx.descendants(graph, fqn).
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "downstream_of(g, 'analytics.dim_user.email') returns 3 entities: fct_signup.user_email, dashboard_signups.user_email, mart_export.email_hash.", {
-        expected: { count: 3, expected_set: ["marts.fct_signup.user_email", "marts.dashboard_signups.user_email", "marts.mart_export.email_hash"] },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "downstream_of(g, 'analytics.dim_user.email') returns exactly 3 downstream entities.",
+          "The returned set contains: 'marts.fct_signup.user_email', 'marts.dashboard_signups.user_email', 'marts.mart_export.email_hash'.",
+          "The function uses nx.descendants() (transitive closure), not just direct successors.",
+        ],
       }),
       expectedOutputs: { count: 3 },
       datasetRefs: ["fixtures/expected_lineage.json"],
@@ -228,7 +240,7 @@ def apply_overlay(entities, overlay_path: str):
 `),
       validationType: "json_equal",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After overlay, analytics.dim_user.email has owner='data-platform@', pii=True, slo_hours=24.", {
+      validation: validationConfig("json_equal", "Atlas checks that the submitted JSON matches the expected JSON contract.", {
         expected: { owner: "data-platform@", pii: true, slo_hours: 24 },
       }),
       expectedOutputs: { owner: "data-platform@", pii: true, slo_hours: 24 },

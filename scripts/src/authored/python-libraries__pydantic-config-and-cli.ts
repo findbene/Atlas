@@ -93,14 +93,15 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_nested_delimiter="__")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Settings() with explicit kwargs round-trips through model_dump(); types are coerced (port=str -> int; endpoint_url=str -> HttpUrl).", {
-        expected: {
-          shape: { database: ["host", "port", "name", "user"], s3: ["bucket", "region", "endpoint_url"], notify: ["slack_webhook", "default_channel"], env_name: "string" },
-          portIsInt: true,
-          endpointIsUrl: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Settings() instantiated with explicit kwargs round-trips through model_dump() without data loss.",
+          "port field is coerced to int even when provided as a string.",
+          "endpoint_url field is coerced to an HttpUrl instance when provided as a string.",
+          "Nested sub-models are present: database, s3, notify, env_name all accessible as attributes.",
+        ],
       }),
       expectedOutputs: { shapeOk: true, typesCoerced: true, roundTrip: true },
       datasetRefs: ["fixtures/settings_kwargs.json"],
@@ -150,10 +151,14 @@ class Settings(BaseSettings):
         # TODO: order = init_settings > env_settings > dotenv_settings > file_secret_settings
         return (init_settings, env_settings, dotenv_settings, file_secret_settings)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "3 precedence scenarios: cli-set port=8000, env-set port=6000, dotenv-set port=7000. Each yields the right value.", {
-        expected: { cliWinsPort: 8000, envWinsPort: 6000, dotenvWinsPort: 7000 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "When database.port is set via constructor kwargs (CLI), the resolved value is 8000 even if env and .env also set it to lower values.",
+          "When no constructor kwargs are passed but DATABASE__PORT=6000 is in os.environ, the resolved value is 6000.",
+          "When only the .env file sets port=7000 (and no env var or CLI override), the resolved value is 7000.",
+        ],
       }),
       expectedOutputs: { cliWins: 8000, envWins: 6000, dotenvWins: 7000 },
       datasetRefs: ["fixtures/precedence_scenarios.json", "fixtures/dotenv_sample.env"],

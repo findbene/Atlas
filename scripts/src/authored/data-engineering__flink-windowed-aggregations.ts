@@ -85,10 +85,10 @@ watermark_strategy = None  # TODO
 
 events = env.from_source(source, watermark_strategy, "user_events")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "MiniCluster: 10 events spanning 90s with 3 out-of-order by 25s arrive; watermark advances monotonically and all 10 are delivered.", {
-        eventCount: 10, maxOutOfOrderSec: 25, expectAllDelivered: true,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Using a Flink MiniCluster or local job, emit 10 events spanning 90 seconds with 3 events out-of-order by up to 25 seconds. Confirm all 10 events are delivered to the downstream operator and that watermark values advance monotonically (never decrease).",
       }),
       expectedOutputs: { delivered: 10, watermarkMonotonic: true },
       datasetRefs: ["fixtures/kafka_events_with_late.jsonl"],
@@ -126,10 +126,10 @@ late_output = OutputTag("late", Types.STRING())
 # TODO: counts = windowed.apply(WindowFn()) where WindowFn returns (user_id, window_start_ms, count)
 # Then: late = counts.get_side_output(late_output)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "11 events arrive (10 on-time, 1 late by 90s). Main output has 10 aggregated; side output has the 1 late event.", {
-        onTimeCount: 10, lateCount: 1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Push 11 events (10 on-time, 1 arriving 90 seconds after its window's watermark has passed). Confirm the main output aggregation contains only the 10 on-time events, and the side output tagged 'late' contains exactly the 1 late event.",
       }),
       expectedOutputs: { mainEvents: 10, lateEvents: 1 },
       datasetRefs: ["fixtures/late_event_stream.jsonl"],
@@ -162,10 +162,10 @@ from pyflink.datastream.window import EventTimeSessionWindows
 #                       .apply(SessionWindowFn())
 # SessionWindowFn outputs (user_id, window.start, window.end, count(elements))
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "User U1: 3 events at t={0,60,120}, 1 event at t={420}, 1 event at t={480}. Expect 2 sessions: [0..120 count 3] and [420..480 count 2].", {
-        userId: "U1", expectedSessions: [{ count: 3 }, { count: 2 }],
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Emit events for user U1 at t=0s, 60s, 120s (first burst), then t=420s and 480s (second burst, >5min gap). Confirm the session window produces exactly 2 sessions for U1: first session spanning t=0–120 with event_count=3, second session spanning t=420–480 with event_count=2.",
       }),
       expectedOutputs: { sessions: 2, counts: [3, 2] },
       datasetRefs: ["fixtures/session_test_stream.jsonl"],
@@ -209,10 +209,10 @@ CREATE TABLE IF NOT EXISTS iceberg.analytics.user_minute_counts (
 # TODO: convert counts DataStream -> Table via t_env.from_data_stream(counts, ...)
 # then table.execute_insert("iceberg.analytics.user_minute_counts")
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After 2-min run with 120 minute-windows across 3 partition days, Iceberg table contains 120 rows in 3 partitions.", {
-        expectedRows: 120, expectedPartitions: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run the Flink job for 2 minutes with input data spanning 3 calendar days and 120 distinct minute windows. Query the Iceberg table via pyiceberg and confirm row count = 120 and partition count = 3 (one per day).",
       }),
       expectedOutputs: { rows: 120, partitions: 3 },
       datasetRefs: ["fixtures/iceberg_table_snapshot.json"],
@@ -253,11 +253,10 @@ meter = metrics.get_meter("flink-windowed-agg")
 # TODO: meter.create_observable_gauge('flink.late.events.ratio', callbacks=[late_callback])
 # late_callback reads two AtomicLong counters you maintained in step 2.
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After 30s with 10% synthetic late events, OTLP collector receives both metric names with late.ratio≈0.1.", {
-        expectedMetrics: ["flink.backpressure.ratio", "flink.late.events.ratio"],
-        approxLateRatio: 0.1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Run the job for 30 seconds with a synthetic stream that has ~10% late events. Query the OTLP collector and confirm both metric names appear: 'flink.backpressure.ratio' and 'flink.late.events.ratio'. Confirm the late.events.ratio value is approximately 0.1 (within ±0.05).",
       }),
       expectedOutputs: { metrics: 2, lateRatio: 0.1 },
       datasetRefs: ["fixtures/otel_scrape_dump.json"],

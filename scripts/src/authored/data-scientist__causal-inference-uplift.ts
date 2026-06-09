@@ -76,10 +76,10 @@ def confounders(edges: list[Edge], treatment: str = 'T', outcome: str = 'Y') -> 
     # TODO: return parents_of_t ∩ parents_of_y, minus any descendants of T.
     return set()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "confounders(fixture_dag) == {'age', 'prior_orders'}. Must exclude gender (T-only), seasonality (Y-only), loyalty_segment (mediator on T→Y path).", {
-        expected: { confounderSet: ["age", "prior_orders"], excludeSet: ["gender", "seasonality", "loyalty_segment"] },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "confounders(fixture_dag) returns {'age', 'prior_orders'} (or a list/set equivalent). Must exclude 'gender' (influences T only), 'seasonality' (influences Y only), and 'loyalty_segment' (mediator on the T→Y path).",
       }),
       expectedOutputs: { confounders: ["age", "prior_orders"] },
       datasetRefs: ["fixtures/causal_dag.json"],
@@ -126,11 +126,10 @@ def fit_propensity(df_train, df_test):
     slope = 1.0
     return {'auc': float(auc), 'brier': float(brier), 'slope': float(slope), 'model': model}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "On held-out test: AUC ≥0.74, Brier ≤0.18, calibration slope ∈ [0.85, 1.15].", {
-        expected: { aucMin: 0.74, brierMax: 0.18, slopeRange: [0.85, 1.15] },
-        tolerance: 0.02,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "On the held-out test set (2000 rows): ROC-AUC ≥ 0.74, Brier score ≤ 0.18, calibration slope ∈ [0.85, 1.15] (computed by logit-regressing t_te on logit(p_te)).",
       }),
       expectedOutputs: { auc: 0.77, brier: 0.16, slope: 1.02 },
       datasetRefs: ["fixtures/causal_marketing.csv"],
@@ -165,11 +164,10 @@ def ate_ipw(y: np.ndarray, t: np.ndarray, e: np.ndarray, trim: tuple = (0.05, 0.
     # TODO: ATE = mean(Y * T/e) - mean(Y * (1-T)/(1-e)).
     return 0.0
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "ATE_IPW on fixture ∈ [0.070, 0.090]; ground-truth ATE = 0.080 by construction. Without IPW the naive diff-in-means biases to ~0.13.", {
-        expected: { ateMin: 0.07, ateMax: 0.09, naiveBiased: 0.13 },
-        tolerance: 0.01,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "ate_ipw(y, t, e) on the fixture returns a value ∈ [0.070, 0.090] (ground-truth ATE = 0.080 by construction). The naive diff-in-means (without IPW) should bias to ~0.13, demonstrating the confounding correction.",
       }),
       expectedOutputs: { ate_ipw: 0.082, ate_naive: 0.131 },
       datasetRefs: ["fixtures/causal_marketing.csv"],
@@ -212,11 +210,10 @@ def predict_uplift(mu1, mu0, df) -> np.ndarray:
     # TODO: return mu1.predict(df[FEATURES]) - mu0.predict(df[FEATURES])
     return np.zeros(len(df))
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Mean predicted uplift ∈ [0.06, 0.10]. Top-decile uplift ≥0.18; bottom-decile uplift ≤0.02 (heterogeneity present).", {
-        expected: { meanUpliftRange: [0.06, 0.10], topDecileMin: 0.18, bottomDecileMax: 0.02 },
-        tolerance: 0.02,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "predict_uplift on the held-out 2000 rows: mean predicted uplift ∈ [0.06, 0.10] (near the true ATE of 0.08). Top-decile mean uplift ≥ 0.18; bottom-decile mean uplift ≤ 0.02 (demonstrates heterogeneity in treatment response).",
       }),
       expectedOutputs: { mean_uplift: 0.083, top_decile: 0.21, bottom_decile: 0.01 },
       datasetRefs: ["fixtures/causal_marketing.csv"],
@@ -262,11 +259,10 @@ def qini_curve(uplift_scores: np.ndarray, y: np.ndarray, t: np.ndarray):
     auuc = float(np.trapz(qini - random_line, x))
     return x, qini, auuc
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "AUUC ≥0.04 (uplift model beats random targeting); random-baseline AUUC = 0.0 (computed against shuffled uplift_scores).", {
-        expected: { auucMin: 0.04, randomAuucMax: 0.005 },
-        tolerance: 0.01,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "qini_curve on the held-out set with T-learner uplift scores: AUUC ≥ 0.04 (model meaningfully beats random targeting). When called with shuffled uplift_scores, AUUC ≤ 0.005 (random baseline ≈ 0).",
       }),
       expectedOutputs: { auuc: 0.052, random_auuc: 0.002 },
       datasetRefs: ["fixtures/causal_marketing.csv"],

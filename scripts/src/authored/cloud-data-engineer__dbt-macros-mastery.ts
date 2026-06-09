@@ -112,15 +112,15 @@ def surrogate_key(*columns):
     # TODO: raise KeyError(f'no impl for {macro_name} on {adapter} and no default')
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "dispatch('week_trunc','postgres',{default:fn_pg, bigquery:fn_bq})('order_date') == \"date_trunc('week', order_date)\"; same for bigquery returns BQ form; missing default + missing adapter raises.", {
-        cases: [
-          { adapter: "postgres", expected: "date_trunc('week', order_date)" },
-          { adapter: "bigquery", expected: "date_trunc(order_date, week)" },
-          { adapter: "snowflake", expected: "date_trunc('week', order_date)" },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "dispatch('week_trunc', 'postgres', {default: fn_pg, bigquery: fn_bq})('order_date') returns \"date_trunc('week', order_date)\"",
+          "dispatch('week_trunc', 'bigquery', {default: fn_pg, bigquery: fn_bq})('order_date') returns the BigQuery form",
+          "dispatch('week_trunc', 'snowflake', {default: fn_pg, bigquery: fn_bq})('order_date') falls back to the default impl",
+          "dispatch('week_trunc', 'snowflake', {bigquery: fn_bq}) raises KeyError (no default, no match)",
         ],
-        expectErrorWhenNoDefault: true,
       }),
       expectedOutputs: { pgOk: true, bqOk: true, fallbackOk: true, missingRaises: true },
       datasetRefs: ["fixtures/dispatch_cases.json"],

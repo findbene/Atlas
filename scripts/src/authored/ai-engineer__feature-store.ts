@@ -56,7 +56,7 @@ export const aiEngineerFeatureStore: AuthoredProject = {
       stepNumber: 1,
       title: "Declarative feature definitions",
       instructionMd:
-        "Define a Pydantic `FeatureDef` model with `name`, `entity` (e.g. 'user_id'), `dtype`, `compute_fn` (callable returning a DataFrame), `source_table`, `freshness_minutes` (max staleness before serving alerts). Register 4 features (`user_txn_count_7d`, `user_txn_amount_7d_sum`, `user_account_age_days`, `user_failed_login_24h`). Validator imports the registry and asserts all 4 exist with correct dtypes + freshness ≤60min.",
+        "Define a Pydantic `FeatureDef` model with `name`, `entity` (e.g. 'user_id'), `dtype`, `compute_fn` (callable returning a DataFrame), `source_table`, `freshness_minutes` (max staleness before serving alerts). Register 4 features (`user_txn_count_7d`, `user_txn_amount_7d_sum`, `user_account_age_days`, `user_failed_login_24h`). Verify manually: import the registry and confirm all 4 features exist with correct dtypes and freshness_minutes ≤60. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Treat features as version-controlled, contract-bound artifacts — not ad-hoc Pandas code.",
       requiredSkill: "Pydantic + decorator-based registries + freshness SLA modeling",
       starterCode: SRC(`# defs.py
@@ -89,13 +89,14 @@ def feature(name: str, **kw):
 # def user_txn_count_7d(df: pd.DataFrame) -> pd.Series:
 #     return df.groupby('user_id')['txn_id'].transform('count')
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "REGISTRY contains exactly 4 features: user_txn_count_7d (int), user_txn_amount_7d_sum (float), user_account_age_days (int), user_failed_login_24h (int). All freshness_minutes ≤60.", {
-        expected: {
-          features: ["user_txn_count_7d", "user_txn_amount_7d_sum", "user_account_age_days", "user_failed_login_24h"],
-          maxFreshness: 60,
-        },
+      validation: validationConfig("self_attest", "Learner attests the registry is correct.", {
+        attestationCriteria: [
+          "REGISTRY contains exactly 4 features: user_txn_count_7d, user_txn_amount_7d_sum, user_account_age_days, user_failed_login_24h.",
+          "user_txn_count_7d has dtype='int', user_txn_amount_7d_sum has dtype='float', user_account_age_days has dtype='int', user_failed_login_24h has dtype='int'.",
+          "All 4 features have freshness_minutes ≤ 60.",
+        ],
       }),
       expectedOutputs: { count: 4, freshness_max: 60 },
       datasetRefs: ["fixtures/feature_registry_expected.json"],
@@ -118,7 +119,7 @@ def feature(name: str, **kw):
       stepNumber: 2,
       title: "Offline materialize → partitioned Parquet",
       instructionMd:
-        "Implement `materialize(feature_name, start_ts, end_ts)` that runs the registered compute function against the source table, then writes `offline_store/<feature>/event_ts=<YYYY-MM-DD>/part-00000.parquet`. Use pyarrow for snappy compression. Validator materializes `user_txn_count_7d` over 2026-04-01..2026-04-08 and expects 8 daily partitions, each with `user_id, event_ts, value` columns, total ~12,400 rows.",
+        "Implement `materialize(feature_name, start_ts, end_ts)` that runs the registered compute function against the source table, then writes `offline_store/<feature>/event_ts=<YYYY-MM-DD>/part-00000.parquet`. Use pyarrow for snappy compression. Verify manually: materialize `user_txn_count_7d` over 2026-04-01..2026-04-08 and confirm 8 daily partitions are written, each with `user_id, event_ts, value` columns. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Persist feature history as partitioned columnar files so training can pull any point-in-time slice.",
       requiredSkill: "PyArrow Parquet + Hive-style partitioning + idempotent writes",
       starterCode: SRC(`# materialize.py
@@ -140,11 +141,15 @@ def materialize(feature_name: str, start_ts: str, end_ts: str, source_df: pd.Dat
     # TODO: For each partition, write to OFFLINE_ROOT/feature_name/event_ts=<date>/part-00000.parquet
     return out
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "materialize('user_txn_count_7d', '2026-04-01', '2026-04-08'): writes 8 partitions, ~12,400 total rows, schema=[user_id, event_ts, value].", {
-        expected: { partitionsWritten: 8, totalRows: 12400, schema: ["user_id", "event_ts", "value"] },
-        rowTolerance: 100,
+      validation: validationConfig("self_attest", "Learner attests the materializer is correct.", {
+        attestationCriteria: [
+          "Calling materialize('user_txn_count_7d', '2026-04-01', '2026-04-08') writes exactly 8 daily partitions under offline_store/user_txn_count_7d/event_ts=YYYY-MM-DD/.",
+          "Each partition file is a valid Parquet file with columns: user_id, event_ts, value.",
+          "Partitions use Hive-style directory naming (event_ts=YYYY-MM-DD) and snappy compression.",
+          "Re-running materialize overwrites existing partitions cleanly (idempotent).",
+        ],
       }),
       expectedOutputs: { partitions: 8, total_rows: 12400 },
       datasetRefs: ["fixtures/transactions_seed.csv"],
@@ -167,7 +172,7 @@ def materialize(feature_name: str, start_ts: str, end_ts: str, source_df: pd.Dat
       stepNumber: 3,
       title: "Online write → Redis latest-per-entity",
       instructionMd:
-        "Implement `update_online(feature_name, df)` that takes the latest row per entity from a DataFrame and writes to Redis keys `feat:{feature}:{entity_id}` with a TTL of `freshness_minutes * 60`. Implement `online_get(feature, entity_id)` that reads back + returns the value (or None if missing/expired). Validator writes 500 entities + reads back 50 with 1ms p99.",
+        "Implement `update_online(feature_name, df)` that takes the latest row per entity from a DataFrame and writes to Redis keys `feat:{feature}:{entity_id}` with a TTL of `freshness_minutes * 60`. Implement `online_get(feature, entity_id)` that reads back + returns the value (or None if missing/expired). Verify manually: write 500 entities and read back several to confirm correct values and TTL. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Mirror latest-per-entity feature values to a low-latency store for serving.",
       requiredSkill: "Redis SET with EX (TTL) + DataFrame → batch writes + cache-aware key naming",
       starterCode: SRC(`# online.py
@@ -195,11 +200,15 @@ def online_get(feature_name: str, entity_id):
     if raw is None: return None
     return json.loads(raw)['value']
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Write 500 entities via update_online; read 50 random via online_get with p99 latency <1ms (tol ±0.3ms). Verify TTL set ≤ freshness_minutes*60.", {
-        expected: { entitiesWritten: 500, readP99Ms: 1.0, ttlSecondsMax: 3600 },
-        tolerance: 0.3,
+      validation: validationConfig("self_attest", "Learner attests the online store is correct.", {
+        attestationCriteria: [
+          "update_online writes the latest-per-entity row to Redis using key pattern feat:{feature}:{entity_id}.",
+          "Each key has a TTL equal to freshness_minutes * 60 seconds (verified with Redis TTL command).",
+          "online_get reads back the correct value for a written entity and returns None for an unknown or expired key.",
+          "Pipeline batching is used (not individual SET calls per entity).",
+        ],
       }),
       expectedOutputs: { written: 500, p99_ms: 0.8 },
       datasetRefs: ["fixtures/latest_per_user.json"],
@@ -222,7 +231,7 @@ def online_get(feature_name: str, entity_id):
       stepNumber: 4,
       title: "Point-in-time join (training, no label leakage)",
       instructionMd:
-        "Implement `pit_join(labels_df, feature_name) -> labels_df'` that for each label row picks the LATEST feature value STRICTLY BEFORE `labels.event_ts`. Use Pandas `merge_asof` with `direction='backward'` + `allow_exact_matches=False`. Validator runs against fixture labels (50 rows) + materialized features; expects every joined feature row's event_ts < its label's event_ts.",
+        "Implement `pit_join(labels_df, feature_name) -> labels_df'` that for each label row picks the LATEST feature value STRICTLY BEFORE `labels.event_ts`. Use Pandas `merge_asof` with `direction='backward'` + `allow_exact_matches=False`. Verify manually: run against fixture labels and confirm that for every row the joined feature event_ts is strictly before the label event_ts (no leakage). This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Prevent label leakage by joining features at the label's point-in-time, never after.",
       requiredSkill: "Pandas merge_asof + temporal join semantics + leakage detection",
       starterCode: SRC(`# pit.py
@@ -244,10 +253,15 @@ def pit_join(labels_df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
     #                     direction='backward', allow_exact_matches=False)
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "pit_join over 50 labels: 100% rows joined; for every row the feature event_ts is STRICTLY BEFORE the label event_ts; no row has a feature event_ts ≥ label event_ts.", {
-        expected: { joinedCount: 50, leakageCount: 0, strictlyBeforeRatio: 1.0 },
+      validation: validationConfig("self_attest", "Learner attests the PIT join is correct.", {
+        attestationCriteria: [
+          "pit_join uses pd.merge_asof with direction='backward' and allow_exact_matches=False.",
+          "For every row in the joined output, the feature event_ts is strictly before the label event_ts (no leakage).",
+          "All 50 fixture label rows are joined (no NaN feature values from rows missing a prior feature observation).",
+          "No row has a feature event_ts >= its label event_ts.",
+        ],
       }),
       expectedOutputs: { joined: 50, leakage: 0 },
       datasetRefs: ["fixtures/labels.csv"],
@@ -270,7 +284,7 @@ def pit_join(labels_df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
       stepNumber: 5,
       title: "Training-serving skew monitor",
       instructionMd:
-        "Implement `detect_skew(feature_name, train_window, serve_window) -> SkewReport` that pulls feature values from the offline store for both windows + runs `scipy.stats.ks_2samp`. Returns p-value + decision (`skewed = p < 0.01`). Validator runs on matched windows → not skewed; runs on a perturbed serve window (mean shifted by 0.5σ) → skewed=True with p<0.001.",
+        "Implement `detect_skew(feature_name, train_window, serve_window) -> SkewReport` that pulls feature values from the offline store for both windows + runs `scipy.stats.ks_2samp`. Returns p-value + decision (`skewed = p < 0.01`). Verify manually: run on matched windows (should return skewed=False, p ≥ 0.05) and on a perturbed serve window with mean shifted by 0.5σ (should return skewed=True, p < 0.001). This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Statistical-test feature distributions across training + serving windows to catch silent drift.",
       requiredSkill: "Kolmogorov-Smirnov 2-sample test + p-value thresholds + skew interpretation",
       starterCode: SRC(`# skew.py
@@ -293,11 +307,15 @@ def detect_skew(feature_name: str, train_start: str, train_end: str, serve_start
     # TODO: return SkewReport(feature_name, stat, p, skewed = p < alpha)
     return SkewReport(feature_name, 0.0, 1.0, False)
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Matched windows: p ≥0.05, skewed=False. Perturbed serve window (mean shifted 0.5σ): p <0.001, skewed=True. KS stat ≥0.15 on perturbed case.", {
-        expected: { matchedPMin: 0.05, perturbedPMax: 0.001, perturbedKsMin: 0.15 },
-        tolerance: 0.02,
+      validation: validationConfig("self_attest", "Learner attests the skew monitor is correct.", {
+        attestationCriteria: [
+          "detect_skew uses scipy.stats.ks_2samp on the two feature-value arrays from the offline store.",
+          "On matched windows (same distribution), the report returns skewed=False with p-value ≥ 0.05.",
+          "On a perturbed serve window (mean shifted ~0.5σ), the report returns skewed=True with p-value < 0.001 and KS statistic ≥ 0.15.",
+          "The skew decision threshold is alpha=0.01 (p < 0.01 → skewed=True).",
+        ],
       }),
       expectedOutputs: { matched_skewed: false, perturbed_skewed: true, perturbed_ks: 0.18 },
       datasetRefs: ["fixtures/skew_windows.json"],

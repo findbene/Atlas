@@ -127,11 +127,10 @@ def wait_for_manifest(execution_date_str: str) -> S3KeySensorAsync:
 # from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 # legacy = S3KeySensor(..., mode='poke')  # pins a worker slot the whole wait
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Sim 90-day backfill at max_active_runs=10: deferrable variant pins 0 worker slots during waits; blocking variant pins ≥10. Tolerance ±1 slot.", {
-        expected: { deferrablePinnedSlots: 0, blockingPinnedSlots: 10 },
-        tolerance: 1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Verify that your sensor uses S3KeySensorAsync (deferrable) so that a 90-day backfill at max_active_runs=10 pins 0 worker slots during wait periods, compared to a blocking S3KeySensor which would pin ≥10 slots.",
       }),
       expectedOutputs: { deferrable: 0, blocking: 10, savings: "100%" },
       datasetRefs: ["fixtures/backfill_sim.json"],

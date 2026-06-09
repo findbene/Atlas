@@ -91,15 +91,15 @@ export const cloudDataEngineerFoundationsDuckdbLocalWarehouse: AuthoredProject =
 SELECT COUNT(*) AS order_rows FROM raw_orders;
 SELECT COUNT(*) AS customer_rows FROM raw_customers;
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "raw_orders + raw_customers views resolve; raw_orders row count > 0 and raw_customers.customer_id resolves as BIGINT (not VARCHAR).", {
-        expected: {
-          rawOrdersExists: true,
-          rawCustomersExists: true,
-          customerIdTypeIsBigint: true,
-          rawCustomersSignupDateIsDate: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "CREATE OR REPLACE VIEW raw_orders uses read_parquet('fixtures/orders.parquet') and resolves with row count > 0",
+          "CREATE OR REPLACE VIEW raw_customers uses read_csv_auto with types={'customer_id':'BIGINT','signup_date':'DATE'} and resolves",
+          "DESCRIBE raw_customers shows customer_id as BIGINT (not VARCHAR)",
+          "DESCRIBE raw_customers shows signup_date as DATE",
+        ],
       }),
       expectedOutputs: { rawViewsCreated: true, explicitTypesPinned: true },
       datasetRefs: ["fixtures/orders.parquet", "fixtures/customers.csv"],
@@ -154,16 +154,15 @@ SELECT COUNT(*) AS customer_rows FROM raw_customers;
 SELECT 'stg_orders' AS tbl, COUNT(*) AS rows FROM stg_orders
 UNION ALL SELECT 'stg_customers', COUNT(*) FROM stg_customers;
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "stg_orders + stg_customers exist as TABLEs (not views); columns renamed to convention (ordered_at, amount_cents); types are BIGINT/TIMESTAMP/VARCHAR/DATE as declared; email is lowercased + trimmed.", {
-        expected: {
-          stgOrdersIsTable: true,
-          stgCustomersIsTable: true,
-          orderedAtColumnExists: true,
-          emailLowercased: true,
-          amountCentsTypeBigint: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "stg_orders is a TABLE (not a VIEW) with column ordered_at (TIMESTAMP) renamed from order_ts",
+          "stg_orders has amount_cents as BIGINT",
+          "stg_customers is a TABLE (not a VIEW) with email lowercased + trimmed via LOWER(TRIM(email))",
+          "SELECT information_schema for both tables confirms TABLE_TYPE = 'BASE TABLE'",
+        ],
       }),
       expectedOutputs: { stagingMaterialised: true, columnsRenamed: true },
       datasetRefs: ["fixtures/orders.parquet", "fixtures/customers.csv"],
@@ -219,15 +218,15 @@ UNION ALL SELECT 'stg_customers', COUNT(*) FROM stg_customers;
 SELECT 'dim_customer' AS tbl, COUNT(*) AS rows FROM dim_customer
 UNION ALL SELECT 'fact_orders', COUNT(*) FROM fact_orders;
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "dim_customer has one row per customer_id (unique); email_domain is the part-after-@; fact_orders.customer_id is FK-shaped (every value exists in dim_customer.customer_id).", {
-        expected: {
-          dimCustomerIdUnique: true,
-          emailDomainDerived: true,
-          factOrdersForeignKeyResolves: true,
-          factOrdersGrainIsOrderId: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "dim_customer has one row per customer_id: SELECT COUNT(*) = COUNT(DISTINCT customer_id) FROM dim_customer",
+          "dim_customer.email_domain equals the part after '@' in email: SELECT email_domain FROM dim_customer WHERE email_domain NOT LIKE '%@%' LIMIT 5 returns non-empty strings",
+          "fact_orders.customer_id FK integrity: SELECT COUNT(*) FROM fact_orders WHERE customer_id NOT IN (SELECT customer_id FROM dim_customer) returns 0",
+          "fact_orders grain is order_id: SELECT COUNT(*) = COUNT(DISTINCT order_id) FROM fact_orders",
+        ],
       }),
       expectedOutputs: { starSchemaBuilt: true, dimUnique: true, factGrainCorrect: true },
       datasetRefs: ["fixtures/orders.parquet", "fixtures/customers.csv"],
@@ -282,15 +281,15 @@ UNION ALL SELECT 'fact_orders', COUNT(*) FROM fact_orders;
 
 SELECT * FROM agg_daily_revenue LIMIT 5;
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "agg_customer_running_revenue has a monotonically-non-decreasing running_revenue per customer; order_rank starts at 1 per customer; agg_daily_revenue has one row per order_date with daily_revenue_cents and active_customers populated.", {
-        expected: {
-          runningRevenueMonotonic: true,
-          orderRankStartsAtOne: true,
-          dailyRevenueOneRowPerDay: true,
-          activeCustomersDistinctCount: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "agg_customer_running_revenue exists as a TABLE with running_revenue_cents column that is non-decreasing per customer",
+          "order_rank starts at 1 for the first order per customer: SELECT MIN(order_rank) FROM agg_customer_running_revenue returns 1",
+          "agg_daily_revenue exists as a TABLE with one row per order_date: SELECT COUNT(*) = COUNT(DISTINCT order_date) FROM agg_daily_revenue",
+          "agg_daily_revenue.active_customers reflects distinct count: SELECT active_customers FROM agg_daily_revenue where the value is > 0 for non-empty days",
+        ],
       }),
       expectedOutputs: { windowAggsBuilt: true, dailyRollupBuilt: true },
       datasetRefs: ["fixtures/orders.parquet"],
@@ -343,15 +342,15 @@ SELECT * FROM agg_daily_revenue LIMIT 5;
 SELECT COUNT(*) AS published_rows
 FROM read_parquet('gold/**/*.parquet');
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_sql",
-      validation: validationConfig("json_equal", "gold/ directory exists with Hive-style partition layout (year=YYYY/month=MM/*.parquet); round-trip SELECT COUNT(*) FROM read_parquet('gold/**/*.parquet') equals the source agg_daily_revenue row count.", {
-        expected: {
-          goldDirExists: true,
-          hiveStylePartitions: true,
-          roundTripRowCountMatches: true,
-          publishedRowsAtLeastOne: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "gold/ directory exists with Hive-style layout: tree gold/ shows year=YYYY/month=MM/data_*.parquet",
+          "Round-trip row count matches: SELECT COUNT(*) FROM read_parquet('gold/**/*.parquet') equals SELECT COUNT(*) FROM agg_daily_revenue",
+          "At least one partition file exists: read_parquet('gold/**/*.parquet') returns > 0 rows",
+          "PARTITION_BY (year, month) produces separate directories per year-month combination",
+        ],
       }),
       expectedOutputs: { goldPublished: true, partitionedHiveStyle: true, roundTripVerified: true },
       datasetRefs: ["fixtures/orders.parquet"],

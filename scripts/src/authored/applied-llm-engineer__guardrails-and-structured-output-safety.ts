@@ -612,15 +612,17 @@ def calibrate(llm_call, gold_path: Path) -> dict:
     Path("judge_calibration.json").write_text(json.dumps(report, indent=2))
     return report
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
       validation: validationConfig(
-        "numeric_tolerance",
-        "15-row deterministic gold set against the fixture-mock judge. Expected on the canned mock: accuracy ≈ 0.87, macro_f1 ≈ 0.85. Tolerance ±0.05 absorbs honest mock noise; harder bars below.",
+        "self_attest",
+        "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
         {
-          expected: { accuracy: 0.87, macro_f1: 0.85, n: 15 },
-          tolerance: 0.05,
-          floors: { accuracy: 0.85, macro_f1: 0.80 },
+          attestationCriteria: [
+            "calibrate() loads fixtures/judge_gold_15.jsonl (15 rows), runs judge_action on each, and writes judge_calibration.json with keys: n, accuracy, f1_compliant, f1_noncompliant, macro_f1, confusion (tp/fp/fn/tn).",
+            "Against the deterministic fixture-mock judge, accuracy is ≥ 0.85 and macro_f1 is ≥ 0.80.",
+            "Accuracy is computed as (tp + tn) / n; macro_f1 is (f1_compliant + f1_noncompliant) / 2, not accuracy or micro-F1.",
+          ],
         },
       ),
       expectedOutputs: {

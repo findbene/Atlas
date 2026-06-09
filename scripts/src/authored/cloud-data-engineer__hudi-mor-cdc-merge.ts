@@ -75,10 +75,15 @@ def hudi_options(table_name: str) -> dict:
         # TODO: add Glue sync options for hoodie.datasource.hive_sync.*
     }
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "hudi_options('orders') returns dict with type=MERGE_ON_READ, recordkey=id, precombine=updated_at.", {
-        expectedTableType: "MERGE_ON_READ", expectedRecordKey: "id", expectedPrecombine: "updated_at",
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "hudi_options('orders')['hoodie.table.type'] == 'MERGE_ON_READ'",
+          "hudi_options('orders')['hoodie.datasource.write.recordkey.field'] == 'id'",
+          "hudi_options('orders')['hoodie.datasource.write.precombine.field'] == 'updated_at'",
+          "hudi_options('orders')['hoodie.compact.inline'] == 'false' (no inline compaction on streaming writer)",
+        ],
       }),
       expectedOutputs: { tableType: "MERGE_ON_READ", recordKey: "id" },
       datasetRefs: ["fixtures/hudi_options_expected.json"],
@@ -125,10 +130,15 @@ parsed = raw.select(from_json(col("value").cast("string"), schema).alias("e")).s
 # TODO: add column _hoodie_is_deleted = (op == 'd')
 # TODO: writeStream to Hudi with hudi_options('orders') + checkpointLocation
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "5 INSERTs + 1 UPDATE (id=2) + 1 DELETE (id=3) → final Hudi snapshot has 4 distinct ids with the updated values for id=2 and no id=3.", {
-        expectedFinalIds: [1, 2, 4, 5], expectedUpdatedId: 2, expectedDeletedId: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After 5 INSERTs + 1 UPDATE (id=2) + 1 DELETE (id=3), the Hudi snapshot contains exactly 4 rows",
+          "The final snapshot contains ids [1, 2, 4, 5] — id=3 is absent (soft-deleted via _hoodie_is_deleted)",
+          "id=2 row reflects the updated values from the UPDATE event",
+          "DELETE op='d' rows set _hoodie_is_deleted=True (not silently ignored)",
+        ],
       }),
       expectedOutputs: { rows: 4, deleted: 1 },
       datasetRefs: ["fixtures/cdc_stream_batch.jsonl"],
@@ -169,10 +179,15 @@ spark = (SparkSession.builder.appName("hudi-compact")
 # ).mode("append").save("s3a://lake/orders/")
 # Then run executor: HoodieCompactor.main(["--base-path", "s3a://lake/orders/", "--table-name","orders"])
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Fixture: 12 delta commits, 3 partitions. After compaction: 3 new base files, log files <= 10% of pre-compact size per partition.", {
-        expectedBaseFiles: 3, expectedLogShrinkRatio: 0.1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "After compaction on a table with 12 delta commits across 3 partitions, 3 new base files are written (one per partition)",
+          "Log file size per partition is ≤10% of pre-compaction size after the compaction run",
+          "hoodie.compact.inline.max.delta.commits=10 is set so compaction triggers after 10 accumulated delta commits",
+          "Compaction job runs as a separate Spark job (not inline on the streaming writer)",
+        ],
       }),
       expectedOutputs: { baseFiles: 3, shrinkRatio: 0.1 },
       datasetRefs: ["fixtures/hudi_pre_compaction.snapshot"],
@@ -289,10 +304,15 @@ def reconcile(pg, spark, hudi_path) -> None:
     # if a != b: raise DriftAlert(f"pg={a} hudi={b}")
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Matched: 100 rows w/ checksum X — no exception. Mismatched: hudi checksum X+1 — DriftAlert raised.", {
-        matchedCase: { rows: 100 }, mismatchedCase: true,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "reconcile(pg, spark, hudi_path) raises no exception when Postgres and Hudi snapshots match (same row count + checksum)",
+          "reconcile(pg, spark, hudi_path) raises DriftAlert when checksums differ (e.g., one row updated in Hudi but not Postgres)",
+          "The DriftAlert message includes both pg= and hudi= snapshots for debugging",
+          "pg_snapshot and hudi_snapshot use the same stable_hash_bigint function so engine-native hash differences don't cause false alerts",
+        ],
       }),
       expectedOutputs: { matched: true, drifted: true },
       datasetRefs: ["fixtures/reconcile_snapshots.json"],

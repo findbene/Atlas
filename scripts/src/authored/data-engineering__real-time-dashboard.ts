@@ -70,10 +70,10 @@ def last_n_minutes(redis_client, metric, n, now_seconds):
     # TODO: vals = redis_client.mget(keys); sum int(v) for v in vals if v is not None
     pass
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Record 5 events at minute=100 and 3 at minute=160; last_n_minutes(metric,3,160) == 8.", {
-        events: [[100, 5], [160, 3]], window: 3, expectedSum: 8,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call record_event() 5 times with ts_seconds in minute=100 and 3 times in minute=160. Then call last_n_minutes(metric, n=3, now_seconds=160*60) and confirm the result is 8 (5+3). Confirm the Redis key for each minute has TTL set to 90000 seconds.",
       }),
       expectedOutputs: { sum: 8, ttlSeconds: 90000 },
       datasetRefs: ["fixtures/realtime_events.json"],
@@ -113,10 +113,10 @@ def last_n_minutes(redis_client, metric, n, now_seconds):
         pass
     return pipe.execute()
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "1000 events across 3 distinct (metric,minute) buckets → 1 pipeline.execute() invocation, INCR called 1000 times, EXPIRE called 3 times.", {
-        eventCount: 1000, distinctKeys: 3, expectedIncrCalls: 1000, expectedExpireCalls: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call consume_batch() with 1000 events distributed across 3 distinct (metric, minute) buckets. Using a mock or spy on the Redis pipeline, confirm: pipeline.execute() is called exactly once, INCR is queued 1000 times (once per event), and EXPIRE is queued exactly 3 times (once per distinct key, not once per event).",
       }),
       expectedOutputs: { pipelineExecutions: 1, incrCalls: 1000, expireCalls: 3 },
       datasetRefs: ["fixtures/realtime_batch.json"],
@@ -151,10 +151,10 @@ def last_n_minutes(redis_client, metric, n, now_seconds):
     # TODO: zip(minutes, vals); cast None → 0, bytes/str → int
     return out
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Events at minutes [60,120,180] with counts [2,5,3]; range_query(3, now=180) == {60:2, 120:5, 180:3}.", {
-        events: { "60": 2, "120": 5, "180": 3 }, window: 3,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Seed Redis with counts: minute=60 → 2, minute=120 → 5, minute=180 → 3. Call range_query(metric, n_minutes=3, now_seconds=180*60) and confirm the return value is {60*60: 2, 120*60: 5, 180*60: 3} (epoch-second bucket keys, zero-filled for any missing minutes).",
       }),
       expectedOutputs: { rangeKeys: 3, missingMinutesFilled: true },
       datasetRefs: ["fixtures/realtime_range.json"],
@@ -192,10 +192,10 @@ def unique_last_n_minutes(redis_client, metric, n, now_seconds):
     # TODO: return redis_client.pfcount(*keys)
     pass
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Insert 10000 unique users across 3 minute buckets; PFCOUNT across all 3 returns 10000 ± 2%.", {
-        expectedUniques: 10000, toleranceFraction: 0.02,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Call record_unique() with 10000 distinct user IDs spread across 3 different minute buckets. Call unique_last_n_minutes(metric, n=3, now_seconds=...) and confirm the returned PFCOUNT estimate is within ±2% of 10000 (i.e., between 9800 and 10200).",
       }),
       expectedOutputs: { uniques: 10000, errorBound: 0.02 },
       datasetRefs: ["fixtures/realtime_uniques.json"],
@@ -244,13 +244,10 @@ def healthz(r = Depends(get_redis)):
         raise HTTPException(503, "redis down")
     return {"ok": True}
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "GET /metrics/clicks?minutes=5 with stubbed Redis (counts={60:2,120:5,180:3,240:0,300:0}, uniques=42) returns {count:10, uniques:42, minutes:5} and opens exactly 1 pipeline.", {
-        params: { metric: "clicks", minutes: 5 },
-        stubbedCount: 10, stubbedUniques: 42,
-        expectedResponse: { count: 10, uniques: 42, minutes: 5 },
-        expectedPipelines: 1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: "Using FastAPI TestClient with a stubbed Redis returning counts={60:2,120:5,180:3,240:0,300:0} and PFCOUNT=42, call GET /metrics/clicks?minutes=5. Confirm the response is {count:10, uniques:42, minutes:5} with HTTP 200. Confirm only 1 Redis pipeline round-trip is opened per request (not 2 sequential calls).",
       }),
       expectedOutputs: { responseStatus: 200, pipelinesOpened: 1 },
       datasetRefs: ["fixtures/realtime_api_request.json"],
