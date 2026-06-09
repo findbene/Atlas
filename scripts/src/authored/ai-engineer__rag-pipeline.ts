@@ -56,7 +56,7 @@ export const aiEngineerRagPipeline: AuthoredProject = {
       stepNumber: 1,
       title: "Token-aware chunking with overlap",
       instructionMd:
-        "Implement `chunk_document(text, max_tokens=512, overlap=64) -> list[Chunk]`. Use `tiktoken.encoding_for_model('gpt-4o')` to count tokens; chunk at sentence boundaries (regex `(?<=[.!?])\\s+`) but never exceed max_tokens; carry `overlap` tokens forward between chunks. Validator runs against a 4200-token fixture document and expects 10 chunks, each ≤512 tokens, each pair overlapping by ≥60 and ≤68 tokens.",
+        "Implement `chunk_document(text, max_tokens=512, overlap=64) -> list[Chunk]`. Use `tiktoken.encoding_for_model('gpt-4o')` to count tokens; chunk at sentence boundaries (regex `(?<=[.!?])\\s+`) but never exceed max_tokens; carry `overlap` tokens forward between chunks. Verify manually against a 4200-token fixture document: expect 10 chunks, each ≤512 tokens, with adjacent overlap between 60 and 68 tokens. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Preserve semantic continuity by chunking on sentence boundaries with token-budgeted overlap.",
       requiredSkill: "tiktoken + sliding-window chunking + boundary preservation",
       starterCode: SRC(`# chunking.py
@@ -91,10 +91,15 @@ def chunk_document(text: str, max_tokens: int = 512, overlap: int = 64) -> list[
         chunks.append(Chunk(' '.join(cur), cur_tokens, start_idx))
     return chunks
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Fixture doc (4200 tokens) chunks into exactly 10 chunks; each ≤512 tokens; adjacent overlap ∈ [60, 68] tokens.", {
-        expected: { count: 10, maxTokens: 512, overlapMin: 60, overlapMax: 68 },
+      validation: validationConfig("self_attest", "Learner attests the chunker is correct.", {
+        attestationCriteria: [
+          "chunk_document splits at sentence boundaries using regex (?<=[.!?])\\s+ (not at arbitrary character positions).",
+          "No chunk exceeds max_tokens (512) as measured by tiktoken.encoding_for_model('gpt-4o').",
+          "Adjacent chunks overlap by [overlap±4] tokens (between 60 and 68 tokens for default overlap=64).",
+          "Against a 4200-token fixture document, the result is exactly 10 chunks.",
+        ],
       }),
       expectedOutputs: { count: 10, max: 512, overlap_range: [60, 68] },
       datasetRefs: ["fixtures/doc_4200tok.txt", "fixtures/expected_chunks.json"],
@@ -117,7 +122,7 @@ def chunk_document(text: str, max_tokens: int = 512, overlap: int = 64) -> list[
       stepNumber: 2,
       title: "Index into pgvector + BM25 in one pass",
       instructionMd:
-        "Implement `ingest(chunks)` that embeds each chunk with `sentence-transformers/all-MiniLM-L6-v2` (384-d) and writes to `passages(id, text, embedding, bm25_tokens)`. Also build an in-memory `BM25Okapi` index over `bm25_tokens` (lowercase, punctuation-stripped). Validator ingests 100 chunks, asserts 100 rows in DB with 384-d non-null embeddings, and asserts BM25.get_scores('feature store') returns a non-zero array of length 100.",
+        "Implement `ingest(chunks)` that embeds each chunk with `sentence-transformers/all-MiniLM-L6-v2` (384-d) and writes to `passages(id, text, embedding, bm25_tokens)`. Also build an in-memory `BM25Okapi` index over `bm25_tokens` (lowercase, punctuation-stripped). Verify manually: ingest 100 chunks and confirm 100 rows in DB with 384-d non-null embeddings and that BM25.get_scores(['feature', 'store']) returns an array of length 100 with at least one score > 0. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Maintain a single source of chunks indexed in both dense + sparse stores.",
       requiredSkill: "sentence-transformers + pgvector + rank_bm25 + batched embedding",
       starterCode: SRC(`# ingest.py
@@ -141,10 +146,15 @@ def ingest(chunks, conn) -> BM25Okapi:
     conn.commit()
     return BM25Okapi(bm25_tokens)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After ingest of 100 fixture chunks: SELECT COUNT(*) FROM passages == 100; embeddings non-null + dim 384; BM25.get_scores('feature store') returns array of length 100 with at least one >0.", {
-        expected: { rowsInserted: 100, embeddingDim: 384, bm25Scored: 100, nonZeroBm25: true },
+      validation: validationConfig("self_attest", "Learner attests the ingest pipeline is correct.", {
+        attestationCriteria: [
+          "ingest batch-encodes all chunks with SentenceTransformer in one .encode() call (batch_size=64).",
+          "Each passage is inserted into the DB with embedding cast as ::vector (384-dimensional).",
+          "After ingesting 100 chunks, SELECT COUNT(*) FROM passages returns 100.",
+          "BM25Okapi is built over the bm25_tokens list and get_scores(['feature', 'store']) returns an array of length 100 with at least one score > 0.",
+        ],
       }),
       expectedOutputs: { rowsInserted: 100, embeddingDim: 384, bm25Scored: 100 },
       datasetRefs: ["fixtures/sample_chunks.json"],
@@ -167,7 +177,7 @@ def ingest(chunks, conn) -> BM25Okapi:
       stepNumber: 3,
       title: "Reciprocal rank fusion (RRF) of dense + BM25",
       instructionMd:
-        "Implement `hybrid_search(query, k=50) -> list[(passage_id, rrf_score)]` that runs both a pgvector top-50 (cosine) and a BM25 top-50, then fuses via RRF: `score(p) = Σ 1/(60 + rank_in_list(p))`. Validator runs the query 'how do feature stores prevent label leakage' against the 100-passage fixture and asserts the gold passage (id=42) ranks in top-5 after fusion (it ranks 18 in pure-dense and 24 in pure-BM25).",
+        "Implement `hybrid_search(query, k=50) -> list[(passage_id, rrf_score)]` that runs both a pgvector top-50 (cosine) and a BM25 top-50, then fuses via RRF: `score(p) = Σ 1/(60 + rank_in_list(p))`. Verify manually: run the query 'how do feature stores prevent label leakage' against the 100-passage fixture and confirm the gold passage (id=42) ranks in top-5 after fusion (it ranks 18 in pure-dense and 24 in pure-BM25). This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Combine retrievers without normalizing scores by using rank-based fusion.",
       requiredSkill: "Reciprocal rank fusion (Cormack et al. 2009) + pgvector cosine query + BM25 top-k",
       starterCode: SRC(`# hybrid.py
@@ -193,10 +203,15 @@ def hybrid_search(query: str, k: int, conn, bm25, model) -> list[tuple[int, floa
     fused: dict[int, float] = defaultdict(float)
     return sorted(fused.items(), key=lambda kv: -kv[1])[:k]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Query 'how do feature stores prevent label leakage' against the fixture: gold passage id=42 must be in the top-5 after RRF fusion (raw ranks: dense=18, BM25=24).", {
-        expected: { goldPassageId: 42, goldRankInTop5: true, maxRankPosition: 5 },
+      validation: validationConfig("self_attest", "Learner attests the RRF hybrid search is correct.", {
+        attestationCriteria: [
+          "hybrid_search runs both pgvector cosine top-k and BM25 top-k.",
+          "RRF fusion: for each passage in either list, score += 1 / (60 + rank), where rank is 1-based position.",
+          "Results are sorted by fused score descending.",
+          "Against the 100-passage fixture, the gold passage (id=42) appears in the top-5 after RRF fusion, even though it ranks 18 in pure-dense and 24 in pure-BM25.",
+        ],
       }),
       expectedOutputs: { goldPassageId: 42, goldRank: 3 },
       datasetRefs: ["fixtures/eval_queries.json"],
@@ -219,7 +234,7 @@ def hybrid_search(query: str, k: int, conn, bm25, model) -> list[tuple[int, floa
       stepNumber: 4,
       title: "Cross-encoder rerank on top-50",
       instructionMd:
-        "Implement `rerank(query, candidates) -> list[(passage_id, ce_score)]` using `cross-encoder/ms-marco-MiniLM-L-6-v2`. Score each (query, passage) pair, sort descending, return top-10. Validator runs the same query against the fixture's top-50 hybrid candidates and asserts the gold passage (id=42) rises to top-1 after reranking.",
+        "Implement `rerank(query, candidates) -> list[(passage_id, ce_score)]` using `cross-encoder/ms-marco-MiniLM-L-6-v2`. Score each (query, passage) pair, sort descending, return top-10. Verify manually: run against the fixture's top-50 hybrid candidates and confirm the gold passage (id=42) rises to top-1 after reranking (it was rank 3 post-RRF). This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Use a cross-encoder to refine the top-50 with per-pair attention — expensive but worth it post-fusion.",
       requiredSkill: "Sentence-transformers CrossEncoder + batch scoring + reranking budget tradeoffs",
       starterCode: SRC(`# rerank.py
@@ -234,10 +249,15 @@ def rerank(query: str, candidates: list[tuple[int, str]], top_k: int = 10) -> li
     # TODO: zip back to passage_ids, sort by score desc, return top_k.
     return []
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Reranking the top-50 hybrid candidates: gold passage id=42 ranks #1 after CE rerank (was rank 3 post-RRF).", {
-        expected: { goldPassageId: 42, goldRankAfterRerank: 1 },
+      validation: validationConfig("self_attest", "Learner attests the cross-encoder reranker is correct.", {
+        attestationCriteria: [
+          "rerank calls CE.predict([(query, text) for _, text in candidates]) with batch_size=32.",
+          "Results are zipped back to passage_ids and sorted by score descending.",
+          "Returns the top_k (default 10) (passage_id, ce_score) tuples.",
+          "Against the fixture's top-50 hybrid candidates, gold passage id=42 rises to rank #1 after CE reranking.",
+        ],
       }),
       expectedOutputs: { goldPassageId: 42, rankAfterRerank: 1 },
       datasetRefs: ["fixtures/eval_queries.json"],
@@ -260,7 +280,7 @@ def rerank(query: str, candidates: list[tuple[int, str]], top_k: int = 10) -> li
       stepNumber: 5,
       title: "Eval harness — recall@k, MRR, hit-rate",
       instructionMd:
-        "Implement `evaluate(queries, retriever_fn) -> EvalReport` over a 200-query labeled set. Compute recall@10, MRR (reciprocal rank of first gold passage), and hit-rate (% queries with ≥1 gold in top-10). Run it for each of the 4 retrieval modes (dense / BM25 / hybrid / hybrid+rerank). Validator asserts hybrid+rerank achieves recall@10 ≥0.78 and MRR ≥0.62; raw dense ≤0.55.",
+        "Implement `evaluate(queries, retriever_fn) -> EvalReport` over a 200-query labeled set. Compute recall@10, MRR (reciprocal rank of first gold passage), and hit-rate (% queries with ≥1 gold in top-10). Run it for each of the 4 retrieval modes (dense / BM25 / hybrid / hybrid+rerank). Verify manually: hybrid+rerank should achieve recall@10 ≥0.78 and MRR ≥0.62; raw dense should be ≤0.55. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Build a calibrated eval harness that turns 'feels better' into a measured lift.",
       requiredSkill: "Information-retrieval metrics (recall@k, MRR) + harness design + ablation comparison",
       starterCode: SRC(`# eval.py
@@ -291,11 +311,15 @@ def evaluate(queries: list[dict], retriever_fn) -> EvalReport:
         n_queries=len(queries),
     )
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "200-query labeled eval: hybrid+rerank recall@10 ≥0.78, MRR ≥0.62; dense-only recall@10 ≤0.55. Tolerance ±0.02.", {
-        expected: { hybridRerankRecall: 0.78, hybridRerankMRR: 0.62, denseOnlyRecall: 0.55 },
-        tolerance: 0.02,
+      validation: validationConfig("self_attest", "Learner attests the eval harness is correct.", {
+        attestationCriteria: [
+          "recall@10 = |retrieved ∩ gold| / |gold| for each query, averaged across all queries.",
+          "MRR = mean of 1/rank(first gold in retrieved), or 0 if no gold appears in top-10.",
+          "hit_rate = fraction of queries with at least one gold passage in the top-10.",
+          "Running all 4 ablations (dense, BM25, hybrid, hybrid+rerank): hybrid+rerank achieves recall@10 ≥ 0.78 and MRR ≥ 0.62; dense-only achieves recall@10 ≤ 0.55.",
+        ],
       }),
       expectedOutputs: { recall: 0.78, mrr: 0.62, hitRate: 0.94 },
       datasetRefs: ["fixtures/eval_queries.json", "fixtures/gold_passages.json"],

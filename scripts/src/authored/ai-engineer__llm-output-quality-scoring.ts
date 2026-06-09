@@ -294,7 +294,7 @@ def classify_failure(per_dim: dict[str, float], expected_refusal: bool, output_t
       stepNumber: 5,
       title: "Corpus rollup — score_corpus → reports/quality.json",
       instructionMd:
-        "Write `scoring/corpus.py` exposing `score_corpus(fixtures_path: str, rubric: Rubric, schema: dict, out_path: str) -> dict`. Read `fixtures/outputs.jsonl` (each line has `prompt_id`, `output`, `source_doc_id`, `expected_refusal`, `expected_schema_id`). For each row: score every dimension, compute overall, classify failure mode. Write `out_path` with `{prompts: [...], summary: {count, mean_overall, p10_overall, failure_histogram: {clean: N, hallucination: N, ...}}}`. Return the summary dict. Validator runs on the 20-row fixture and asserts `count=20, mean_overall=0.72, p10_overall=0.31` and the failure_histogram has all 6 keys with the expected per-class counts.",
+        "Write `scoring/corpus.py` exposing `score_corpus(fixtures_path: str, rubric: Rubric, schema: dict, out_path: str) -> dict`. Read `fixtures/outputs.jsonl` (each line has `prompt_id`, `output`, `source_doc_id`, `expected_refusal`, `expected_schema_id`). For each row: score every dimension, compute overall, classify failure mode. Write `out_path` with `{prompts: [...], summary: {count, mean_overall, p10_overall, failure_histogram: {clean: N, hallucination: N, ...}}}`. Return the summary dict. Verify manually on the 20-row fixture: confirm count=20 and the failure_histogram has all 6 keys. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective:
         "Corpus rollup turns per-prompt scores into a one-glance report. Mean is the headline; p10 catches the tail; failure histogram says what to fix. Three numbers + a histogram is a complete signal.",
       requiredSkill: "jsonl iteration + per-row dispatch through the rubric + statistics.quantiles + collections.Counter + structured JSON write",
@@ -346,17 +346,16 @@ def score_corpus(fixtures_path: str, rubric: Rubric, schema: dict, out_path: str
         json.dump({"prompts": rows, "summary": summary}, out, indent=2)
     return summary
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "score_corpus on the 20-row fixture produces summary {count: 20, mean_overall: 0.72, p10_overall: 0.31, failure_histogram: {clean: 12, hallucination: 3, off_format: 2, refused_correctly: 1, over_refusal: 1, instruction_violation: 1}}.", {
-        expected: {
-          count: 20,
-          mean_overall_approx: 0.72,
-          mean_overall_tolerance: 0.02,
-          p10_overall_approx: 0.31,
-          p10_overall_tolerance: 0.05,
-          failure_histogram_keys: ["clean", "hallucination", "off_format", "refused_correctly", "over_refusal", "instruction_violation"],
-        },
+      validation: validationConfig("self_attest", "Learner attests the corpus rollup is correct.", {
+        attestationCriteria: [
+          "score_corpus reads fixtures/outputs.jsonl and scores every row through the rubric, faithfulness, format, and taxonomy modules.",
+          "The summary dict contains: count (total rows), mean_overall (mean of all overall scores), p10_overall (10th percentile), failure_histogram (Counter by failure class).",
+          "The failure_histogram contains all 6 keys: clean, hallucination, off_format, refused_correctly, over_refusal, instruction_violation.",
+          "The output JSON is written with indent=2 and contains both 'prompts' (per-row detail) and 'summary' (rollup).",
+          "Running score_corpus on the 20-row fixture produces count=20 and a complete failure histogram.",
+        ],
       }),
       expectedOutputs: {
         corpusCount: 20,

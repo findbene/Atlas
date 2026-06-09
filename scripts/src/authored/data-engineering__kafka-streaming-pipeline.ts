@@ -85,10 +85,15 @@ def emit_orders(producer: Producer, topic: str, n: int) -> list[str]:
     producer.flush(30)
     return ids
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "After leader-restart chaos: topic 'orders.raw' p0 contains exactly the 1000 emitted order_ids, no duplicates, no missing.", {
-        expected: { distinctOrderIds: 1000, duplicates: 0, missing: 0 },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "Producer is configured with enable.idempotence=True, acks='all', max.in.flight.requests.per.connection=5, and retries=2_147_483_647.",
+          "After writing 1000 orders and injecting a broker leader restart mid-write, consuming the topic yields exactly 1000 distinct order_ids.",
+          "No duplicate order_id appears in the topic (producer retries did not create duplicate records).",
+          "No order_id is missing (acks=all ensured no silent loss on leader failover).",
+        ],
       }),
       expectedOutputs: { ids: 1000, duplicates: 0, missing: 0 },
       datasetRefs: ["fixtures/orders_1000.json"],

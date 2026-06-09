@@ -55,7 +55,7 @@ export const aiEngineerMultiStageRagReranker: AuthoredProject = {
       stepNumber: 1,
       title: "Wide async candidate retrieval",
       instructionMd:
-        "Build `retrieve_candidates(question, k=50)` returning the top-50 chunks from pgvector. This is intentionally WIDER than what you'd send to the LLM — the reranker's job is to pick the true top-5 from these 50. Use the async OpenAI client to embed the query, then SELECT ... ORDER BY embedding <-> %s LIMIT 50 from pgvector. Each row should be a dict {doc_id, chunk_index, content, distance}. The validator seeds 200 chunks and asserts the result is length 50, ordered by distance ASC.",
+        "Build `retrieve_candidates(question, k=50)` returning the top-50 chunks from pgvector. This is intentionally WIDER than what you'd send to the LLM — the reranker's job is to pick the true top-5 from these 50. Use the async OpenAI client to embed the query, then SELECT ... ORDER BY embedding <-> %s LIMIT 50 from pgvector. Each row should be a dict {doc_id, chunk_index, content, distance}. Verify manually: seed 200 chunks, call retrieve_candidates and confirm the result is length 50 and ordered by distance ASC. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Pull a wide candidate set from pgvector with async embedding + parameterized k-NN.",
       requiredSkill: "psycopg + pgvector + AsyncOpenAI",
       starterCode: SRC(`# wide-retrieve.py
@@ -71,10 +71,15 @@ async def retrieve_candidates(question: str, k: int = CANDIDATES_K) -> list[dict
     # ordered by embedding <-> query_vec ASC. Return list of dicts.
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "len(retrieve_candidates(q,50)) == 50 and rows are distance-sorted ASC.", {
-        assertLength: 50, assertSortedAsc: "distance",
+      validation: validationConfig("self_attest", "Learner attests the wide retrieval is correct.", {
+        attestationCriteria: [
+          "retrieve_candidates embeds the question with text-embedding-3-small via AsyncOpenAI.",
+          "The SQL query uses ORDER BY embedding <-> %s ASC LIMIT k to retrieve the top-k nearest neighbors.",
+          "Each returned dict has keys: doc_id, chunk_index, content, distance.",
+          "With 200 seeded chunks and k=50, the result has exactly 50 rows sorted by distance ascending.",
+        ],
       }),
       expectedOutputs: { length: 50, sortedAsc: "distance" },
       datasetRefs: ["fixtures/corpus_200_chunks.json"],
@@ -97,7 +102,7 @@ async def retrieve_candidates(question: str, k: int = CANDIDATES_K) -> list[dict
       stepNumber: 2,
       title: "Cross-encoder reranker call",
       instructionMd:
-        "Implement `rerank(question, candidates, top_n=5)` calling Cohere Rerank-v3 (or the open-source BAAI/bge-reranker-v2-m3 via HuggingFace inference). Pass the question + the candidate `content` strings; receive a score per candidate; return the top_n candidates sorted by score DESC. Use async I/O. Why a cross-encoder and not just another embedding? Cross-encoders see (query, doc) jointly and produce a calibrated relevance score — strictly more accurate than cosine distance between independently-embedded vectors. Validator mocks the rerank API to return scores [0.9, 0.8, 0.2, 0.7, 0.1, ...] for the input order, and asserts the returned top-3 has the original indices [0, 1, 3].",
+        "Implement `rerank(question, candidates, top_n=5)` calling Cohere Rerank-v3 (or the open-source BAAI/bge-reranker-v2-m3 via HuggingFace inference). Pass the question + the candidate `content` strings; receive a score per candidate; return the top_n candidates sorted by score DESC. Use async I/O. Why a cross-encoder and not just another embedding? Cross-encoders see (query, doc) jointly and produce a calibrated relevance score — strictly more accurate than cosine distance between independently-embedded vectors. Verify manually with mocked scores [0.9, 0.8, 0.2, 0.7, 0.1]: rerank with top_n=3 should return candidates at original indices [0, 1, 3] in that order. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Score (query, doc) pairs with a cross-encoder reranker and surface the true top-N.",
       requiredSkill: "Cohere SDK / HuggingFace inference + async + score-sorting",
       starterCode: SRC(`# rerank.py
@@ -111,10 +116,15 @@ async def rerank(question: str, candidates: list[dict], top_n: int = 5) -> list[
     # Map back: response.results[i].index -> candidates[index], attach relevance_score.
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Given mocked scores [0.9,0.8,0.2,0.7,0.1], rerank(...,top_n=3) returns candidates at original indices [0,1,3] in that order.", {
-        mockedScores: [0.9, 0.8, 0.2, 0.7, 0.1], expectedIndices: [0, 1, 3],
+      validation: validationConfig("self_attest", "Learner attests the reranker is correct.", {
+        attestationCriteria: [
+          "rerank calls the Cohere rerank API (or equivalent) with the question and candidate content strings.",
+          "Results are mapped back to the original candidate dicts using response.results[i].index.",
+          "The returned list is sorted by relevance_score descending and contains top_n candidates.",
+          "With mocked scores [0.9, 0.8, 0.2, 0.7, 0.1] and top_n=3, the returned candidates correspond to original indices [0, 1, 3] in that order.",
+        ],
       }),
       expectedOutputs: { topIndices: [0, 1, 3] },
       datasetRefs: ["fixtures/rerank_mock_response.json"],
@@ -137,7 +147,7 @@ async def rerank(question: str, candidates: list[dict], top_n: int = 5) -> list[
       stepNumber: 3,
       title: "Compose the pipeline with bounded concurrency",
       instructionMd:
-        "Wire `retrieve_candidates` → `rerank` → return top-5. Add an `asyncio.Semaphore(8)` around the rerank call so a sudden burst of /ask traffic doesn't fan out 100 concurrent rerank requests and blow your Cohere rate limit (or your latency SLO). Also record per-stage latency: retrieve_ms, rerank_ms, total_ms. Use the @asynccontextmanager pattern for the per-stage timer. The validator asserts the pipeline returns 5 dicts each with keys {doc_id, chunk_index, content, distance, rerank_score} and that telemetry contains all three latency fields > 0.",
+        "Wire `retrieve_candidates` → `rerank` → return top-5. Add an `asyncio.Semaphore(8)` around the rerank call so a sudden burst of /ask traffic doesn't fan out 100 concurrent rerank requests and blow your Cohere rate limit (or your latency SLO). Also record per-stage latency: retrieve_ms, rerank_ms, total_ms. Use the @asynccontextmanager pattern for the per-stage timer. Verify manually: call two_stage_retrieve and confirm 5 result dicts each with keys {doc_id, chunk_index, content, distance, rerank_score} and telemetry with all three latency fields > 0. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Compose async stages with bounded concurrency + per-stage telemetry.",
       requiredSkill: "asyncio.Semaphore + asynccontextmanager + dataclass for telemetry",
       starterCode: SRC(`# pipeline.py
@@ -168,11 +178,15 @@ async def two_stage_retrieve(question: str, top_n: int = 5):
         raise NotImplementedError
     return ..., tele
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Pipeline returns (list[5], Telemetry) with all latency fields > 0.", {
-        assertResultLength: 5,
-        assertTelemetryKeys: ["retrieve_ms", "rerank_ms", "total_ms"],
+      validation: validationConfig("self_attest", "Learner attests the composed pipeline is correct.", {
+        attestationCriteria: [
+          "two_stage_retrieve calls retrieve_candidates (timed) then rerank under RERANK_SEM (timed).",
+          "The return value is (list_of_5_dicts, Telemetry) where each dict has: doc_id, chunk_index, content, distance, rerank_score.",
+          "telemetry.retrieve_ms, telemetry.rerank_ms, and telemetry.total_ms are all > 0 after a call.",
+          "The RERANK_SEM semaphore limits concurrent rerank calls to 8 to protect against rate-limit bursts.",
+        ],
       }),
       expectedOutputs: { resultLength: 5, telemetryNonZero: true },
       datasetRefs: ["fixtures/pipeline_smoke.json"],
@@ -195,7 +209,7 @@ async def two_stage_retrieve(question: str, top_n: int = 5):
       stepNumber: 4,
       title: "A/B eval: NDCG@10 + hit@k vs baseline",
       instructionMd:
-        "Build the eval harness. For each ground-truth (question, gold_chunk_ids: list) pair, run BOTH retrieve_candidates(top-10) AND two_stage_retrieve(top-10). For each, compute hit@10 (any gold present) and NDCG@10 (rank-discounted relevance). Print the lift (rerank - baseline). The validator seeds a 5-question eval set + a corpus where reranker SHOULD win and asserts NDCG@10 lift > 0.05. NDCG@10 = DCG@10 / IDCG@10 where DCG@10 = sum_{i=1..10} rel_i / log2(i+1), rel_i = 1 if doc i is gold else 0. Use math.log2.",
+        "Build the eval harness. For each ground-truth (question, gold_chunk_ids: list) pair, run BOTH retrieve_candidates(top-10) AND two_stage_retrieve(top-10). For each, compute hit@10 (any gold present) and NDCG@10 (rank-discounted relevance). Print the lift (rerank - baseline). Verify manually: seed a 5-question eval set where the reranker should win and confirm NDCG@10 lift > 0.05. NDCG@10 = DCG@10 / IDCG@10 where DCG@10 = sum_{i=1..10} rel_i / log2(i+1). This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Compute NDCG@k + hit@k and prove the reranker delivers a meaningful lift.",
       requiredSkill: "Information retrieval metrics (NDCG, hit@k) + offline eval harness",
       starterCode: SRC(`# eval.py
@@ -224,10 +238,15 @@ async def eval_one(item):
         "rerank_ndcg": ndcg_at_k(top_ids, item["gold_ids"]),
     }
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "mean(rerank_ndcg - baseline_ndcg) >= 0.05 on the seeded eval set.", {
-        assertNdcgLift: 0.05,
+      validation: validationConfig("self_attest", "Learner attests the eval harness is correct.", {
+        attestationCriteria: [
+          "ndcg_at_k correctly computes DCG = sum(rel_i / log2(i+1) for i in 1..k) and normalizes by IDCG.",
+          "hit_at_k returns 1 if any gold chunk id appears in the top-k retrieved ids, else 0.",
+          "The harness runs both baseline (single-stage) and two-stage retrieval for each query.",
+          "On a 5-question eval set where the reranker has better recall, mean(rerank_ndcg - baseline_ndcg) > 0.05.",
+        ],
       }),
       expectedOutputs: { ndcgLiftMin: 0.05 },
       datasetRefs: ["fixtures/eval_5_questions.json", "fixtures/eval_corpus_with_gold.json"],
@@ -250,7 +269,7 @@ async def eval_one(item):
       stepNumber: 5,
       title: "FastAPI surface with per-stage telemetry",
       instructionMd:
-        "Expose POST /ask returning AskResponse {answer: str, citations: list[Citation], telemetry: {retrieve_ms, rerank_ms, total_ms}}. The handler awaits two_stage_retrieve, builds the LLM context from the top-5, calls gpt-4o-mini with the same citation-required system prompt as baseline RAG, then returns. The telemetry block in the response body is what powers the frontend's 'powered by rerank-v3.5, P50 latency 240ms' chip. Validator asserts 200 status + telemetry block present + citations list length 5.",
+        "Expose POST /ask returning AskResponse {answer: str, citations: list[Citation], telemetry: {retrieve_ms, rerank_ms, total_ms}}. The handler awaits two_stage_retrieve, builds the LLM context from the top-5, calls gpt-4o-mini with the same citation-required system prompt as baseline RAG, then returns. The telemetry block in the response body is what powers the frontend's 'powered by rerank-v3.5, P50 latency 240ms' chip. Verify manually: POST to /ask and confirm a 200 response with 5 citations and a non-zero telemetry block. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Expose the two-stage pipeline with Pydantic typing and per-stage observability surfaced to the client.",
       requiredSkill: "FastAPI + Pydantic nested response models + async composition",
       starterCode: SRC(`# app.py
@@ -287,10 +306,15 @@ async def ask(req: AskRequest) -> AskResponse:
     # return AskResponse(answer=..., citations=[Citation(**c) for c in top], telemetry=Telemetry(**asdict(tele)))
     raise NotImplementedError
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "POST /ask returns 200 with citations.length == 5 and telemetry has all three keys > 0.", {
-        expectStatus: 200, expectCitationsLength: 5,
+      validation: validationConfig("self_attest", "Learner attests the FastAPI endpoint is correct.", {
+        attestationCriteria: [
+          "POST /ask returns HTTP 200 with a valid AskResponse containing answer, citations, and telemetry.",
+          "citations is a list of exactly 5 Citation objects (doc_id, chunk_index, rerank_score).",
+          "telemetry has retrieve_ms, rerank_ms, and total_ms all > 0.",
+          "Returns HTTP 404 when two_stage_retrieve returns an empty list.",
+        ],
       }),
       expectedOutputs: { status: 200, citations: 5 },
       datasetRefs: ["fixtures/pipeline_smoke.json"],

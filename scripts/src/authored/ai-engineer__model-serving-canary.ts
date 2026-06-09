@@ -60,7 +60,7 @@ export const aiEngineerModelServingCanary: AuthoredProject = {
       stepNumber: 1,
       title: "Deterministic user-bucketing for canary splits",
       instructionMd:
-        "Implement `assign_bucket(user_id, candidate_weight) -> 'baseline' | 'candidate'` using `int(sha256(user_id).hexdigest(), 16) % 100 < candidate_weight * 100`. Validator runs 10000 user_ids through with weight=0.05 and asserts: exactly the same assignment on re-call (deterministic), and 4.5% ≤ candidate share ≤ 5.5%.",
+        "Implement `assign_bucket(user_id, candidate_weight) -> 'baseline' | 'candidate'` using `int(sha256(user_id).hexdigest(), 16) % 100 < candidate_weight * 100`. Verify manually: run 10000 user_ids through with weight=0.05 and confirm the same assignment on re-call (deterministic) and that the candidate share is between 4.5% and 5.5%. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Sticky bucketing means a user sees the same variant on every request — required for honest evals.",
       requiredSkill: "Deterministic hashing + uniform distribution + weight semantics",
       starterCode: SRC(`# routing.py
@@ -74,10 +74,15 @@ def assign_bucket(user_id: str, candidate_weight: float) -> str:
     # TODO: return 'candidate' if bucket_value < candidate_weight * 10000 else 'baseline'
     return 'baseline'
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "10000 random user_ids at weight=0.05: deterministic on re-call AND candidate share in [0.045, 0.055].", {
-        expected: { deterministic: true, candidateShareInRange: true, minShare: 0.045, maxShare: 0.055 },
+      validation: validationConfig("self_attest", "Learner attests the bucketing is correct.", {
+        attestationCriteria: [
+          "assign_bucket uses sha256(user_id) % 10000 and returns 'candidate' when bucket_value < candidate_weight * 10000.",
+          "The same user_id always returns the same bucket (deterministic — verified by calling twice and comparing).",
+          "With weight=0.05 and 10000 user_ids, the candidate share is between 4.5% and 5.5%.",
+          "assign_bucket raises ValueError when candidate_weight is outside [0, 1].",
+        ],
       }),
       expectedOutputs: { deterministic: true, share: 0.05, tolerance: 0.005 },
       datasetRefs: ["fixtures/user_ids.txt"],
@@ -100,7 +105,7 @@ def assign_bucket(user_id: str, candidate_weight: float) -> str:
       stepNumber: 2,
       title: "Async traffic mirror to candidate model",
       instructionMd:
-        "In FastAPI, implement `POST /chat` that always returns the BASELINE response to the user, and ALSO fires the same prompt at the candidate model via `asyncio.create_task` so user latency is unaffected. Persist `(request_id, baseline_response, candidate_response)` to an in-memory store. Validator hits the endpoint 50 times with weight=1.0 (everyone mirrored) and asserts: 50 user-facing responses returned in <50ms p95 AND 50 candidate responses captured asynchronously.",
+        "In FastAPI, implement `POST /chat` that always returns the BASELINE response to the user, and ALSO fires the same prompt at the candidate model via `asyncio.create_task` so user latency is unaffected. Persist `(request_id, baseline_response, candidate_response)` to an in-memory store. Verify manually: hit the endpoint 50 times with weight=1.0 and confirm user-facing responses return quickly and all 50 candidate responses are captured asynchronously. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Mirror traffic without coupling user latency to candidate latency.",
       requiredSkill: "asyncio.create_task fire-and-forget + FastAPI + non-blocking observation",
       starterCode: SRC(`# server.py
@@ -133,11 +138,15 @@ async def chat(req: ChatRequest) -> dict:
     # TODO: fire-and-forget the candidate call so user latency stays at baseline.
     return {'request_id': request_id, 'response': baseline_response}
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "50 requests at weight=1.0: user p95 latency <50ms; 50 candidate responses captured. Tolerance ±5ms.", {
-        expected: { userP95Ms: 35, candidateCapturedCount: 50 },
-        tolerance: 5,
+      validation: validationConfig("self_attest", "Learner attests the async mirror is correct.", {
+        attestationCriteria: [
+          "POST /chat always returns the baseline response immediately without awaiting the candidate call.",
+          "The candidate call is fired with asyncio.create_task (not await) so user-facing latency equals baseline latency only.",
+          "All mirrored responses are captured in MIRROR_STORE keyed by request_id.",
+          "After sending 50 requests, all 50 MIRROR_STORE entries eventually contain non-None candidate_response values.",
+        ],
       }),
       expectedOutputs: { userP95Ms: 35, candidatesCaptured: 50 },
       datasetRefs: ["fixtures/load_50.json"],
@@ -160,7 +169,7 @@ async def chat(req: ChatRequest) -> dict:
       stepNumber: 3,
       title: "Live judging on mirrored traffic",
       instructionMd:
-        "Implement `score_pair(prompt, baseline, candidate, judge_client) -> JudgeVerdict` that asks a cheap judge model 'which response is better?' returning `'baseline' | 'candidate' | 'tie'` + reasoning. Run it over the store; compute the **candidate win-rate** = wins / (wins + losses), excluding ties. Validator runs 30 mocked pairs (18 wins, 8 losses, 4 ties) and asserts win_rate ≈ 0.692.",
+        "Implement `score_pair(prompt, baseline, candidate, judge_client) -> JudgeVerdict` that asks a cheap judge model 'which response is better?' returning `'baseline' | 'candidate' | 'tie'` + reasoning. Run it over the store; compute the **candidate win-rate** = wins / (wins + losses), excluding ties. Atlas checks that the submitted numeric win-rate value is within the configured tolerance.",
       learningObjective: "Pairwise judging on live traffic gives a continuous signal — no need to wait for offline evals.",
       requiredSkill: "Pairwise LLM judging + win-rate math + tie handling",
       starterCode: SRC(`# judging.py
@@ -189,11 +198,16 @@ def candidate_win_rate(verdicts: list[JudgeVerdict]) -> float:
         return 0.5  # all ties — no signal.
     return wins / decisive
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "30 mocked verdicts (18 candidate, 8 baseline, 4 tie): win_rate = 18 / (18+8) ≈ 0.692. Tolerance ±0.01.", {
-        expected: { winRate: 0.692 },
-        tolerance: 0.01,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "score_pair() calls the judge client and returns a JudgeVerdict with winner in {'baseline','candidate','tie'} and non-empty reasoning.",
+          "candidate_win_rate() counts only decisive verdicts (wins + losses), excluding ties from the denominator.",
+          "For 30 mocked verdicts (18 candidate wins, 8 baseline wins, 4 ties): decisive=26, win_rate = 18/26 ≈ 0.692.",
+          "When decisive=0 (all ties), candidate_win_rate returns 0.5 (no-signal fallback).",
+          "win_rate is computed as wins / max(wins + losses, 1) to avoid division by zero.",
+        ],
       }),
       expectedOutputs: { winRate: 0.692, decisive: 26, ties: 4 },
       datasetRefs: ["fixtures/judge_verdicts.json"],
@@ -216,7 +230,7 @@ def candidate_win_rate(verdicts: list[JudgeVerdict]) -> float:
       stepNumber: 4,
       title: "SLO definition — win-rate floor + latency ceiling",
       instructionMd:
-        "Define `CanarySLO(win_rate_floor=0.55, p95_latency_ceiling_ms=120)` and `evaluate_slo(metrics) -> SLOResult` returning `'pass' | 'fail'` + which SLO breached. Validator passes (win_rate=0.62, p95=95ms) → pass; (win_rate=0.48, p95=95ms) → fail [win_rate]; (win_rate=0.62, p95=140ms) → fail [latency]; (win_rate=0.48, p95=140ms) → fail [both].",
+        "Define `CanarySLO(win_rate_floor=0.55, p95_latency_ceiling_ms=120)` and `evaluate_slo(metrics) -> SLOResult` returning `'pass' | 'fail'` + which SLO breached. Verify manually on 4 cases: (win_rate=0.62, p95=95ms) → pass; (win_rate=0.48, p95=95ms) → fail [win_rate]; (win_rate=0.62, p95=140ms) → fail [latency]; (win_rate=0.48, p95=140ms) → fail [both]. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Explicit SLOs convert 'gut feel' into a deploy gate.",
       requiredSkill: "SLO definition + multi-dimensional thresholds + clear breach reporting",
       starterCode: SRC(`# slo.py
@@ -240,15 +254,16 @@ def evaluate_slo(metrics: dict, slo: CanarySLO = CanarySLO()) -> SLOResult:
     status = 'pass' if not breached else 'fail'
     return SLOResult(status=status, breached=breached, detail=metrics)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "4 metric tuples evaluated against default SLO: pass, fail[win_rate], fail[latency], fail[win_rate,latency].", {
-        expected: {
-          case1: { status: "pass", breached: [] },
-          case2: { status: "fail", breached: ["win_rate"] },
-          case3: { status: "fail", breached: ["latency"] },
-          case4: { status: "fail", breached: ["win_rate", "latency"] },
-        },
+      validation: validationConfig("self_attest", "Learner attests the SLO evaluator is correct.", {
+        attestationCriteria: [
+          "evaluate_slo returns status='pass' and breached=[] when win_rate ≥ win_rate_floor AND p95_latency_ms ≤ p95_latency_ceiling_ms.",
+          "evaluate_slo appends 'win_rate' to breached when metrics['win_rate'] < slo.win_rate_floor.",
+          "evaluate_slo appends 'latency' to breached when metrics['p95_latency_ms'] > slo.p95_latency_ceiling_ms.",
+          "All breaches are reported — both 'win_rate' and 'latency' can appear together in the same result.",
+          "Tested on 4 cases: pass, fail[win_rate], fail[latency], fail[win_rate,latency].",
+        ],
       }),
       expectedOutputs: { case1: "pass", case2: "fail[win_rate]", case3: "fail[latency]", case4: "fail[win_rate,latency]" },
       datasetRefs: ["fixtures/slo_cases.json"],
@@ -271,7 +286,7 @@ def evaluate_slo(metrics: dict, slo: CanarySLO = CanarySLO()) -> SLOResult:
       stepNumber: 5,
       title: "Promote/rollback control loop",
       instructionMd:
-        "Implement `control_loop(state, metrics_history, slo)` that steps the canary weight: pass for 3 consecutive 5-minute windows → next stage (5% → 25% → 100%); fail any single window → rollback to 0% and emit alert. Validator simulates 5 windows: 3 green → state='25%'; then 1 red → state='0%', alert='rollback'. ",
+        "Implement `control_loop(state, metrics_history, slo)` that steps the canary weight: pass for 3 consecutive 5-minute windows → next stage (5% → 25% → 100%); fail any single window → rollback to 0% and emit alert. Verify manually: simulate 5 windows (3 green, then 1 red) and confirm state.stage_idx=1 (25%) after 3 passes, then rolled_back=True and weight=0.0 after the fail. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.",
       learningObjective: "Wrap the SLO + bucketing + judging in an automatic state machine.",
       requiredSkill: "State machine + multi-window confirmation + rollback semantics",
       starterCode: SRC(`# control.py
@@ -303,10 +318,15 @@ def current_weight(state: CanaryState) -> float:
         return 0.0
     return STAGES[state.stage_idx]
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "Simulate 3 PASS windows then 1 FAIL: after 3 passes state.stage_idx=1 (25%); after the fail rolled_back=True, weight=0.0, alert contains 'rollback'.", {
-        expected: { stageAfterPasses: 1, rolledBack: true, weightAfterRollback: 0.0, alertContainsRollback: true },
+      validation: validationConfig("self_attest", "Learner attests the control loop is correct.", {
+        attestationCriteria: [
+          "After 3 consecutive PASS windows, state.stage_idx advances from 0 to 1 (from 5% to 25%).",
+          "After any single FAIL window, rolled_back is set to True and current_weight returns 0.0.",
+          "state.alert is set to a string containing 'rollback' after a FAIL.",
+          "Once rolled_back=True, further control_step calls do not change state.",
+        ],
       }),
       expectedOutputs: { stageAfterPasses: 1, rolledBack: true, weight: 0.0 },
       datasetRefs: ["fixtures/control_windows.json"],

@@ -80,14 +80,16 @@ def read_raw() -> pd.DataFrame:
     # TODO: encoding='utf-8-sig', dtype=str, keep_default_na=False, na_values=['']
     return pd.read_csv(RAW)
 `),
-      validationType: "json_equal",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("json_equal", "df.columns == ['customer_id','name','email','signup_date','source'] (BOM stripped); every dtype is object/str; rows where source was literal 'NA' string preserve 'NA' (not NaN).", {
-        expected: {
-          columns: ["customer_id", "name", "email", "signup_date", "source"],
-          allColumnsAreString: true,
-          literalNaPreserved: true,
-        },
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "df.columns equals ['customer_id','name','email','signup_date','source'] with no leading BOM character on the first column name.",
+          "Every column's dtype is object (string), confirmed by df.dtypes — no int64 or float64 columns yet.",
+          "Rows where the source CRM exported the literal string 'NA' retain that string value and are not converted to NaN.",
+          "Reading the raw file WITHOUT encoding='utf-8-sig' produces a first column named '\\ufeffcustomer_id' — confirm your read strips this.",
+          "Passing na_values=[''] means only empty strings become NaN, not the string 'NA'.",
+        ],
       }),
       expectedOutputs: { bomStripped: true, naLiteralPreserved: true },
       datasetRefs: ["fixtures/customers_raw.csv"],

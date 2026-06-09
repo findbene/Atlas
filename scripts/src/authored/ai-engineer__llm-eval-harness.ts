@@ -202,11 +202,16 @@ async def judge(example, response: str, clients: dict) -> JudgeResult:
     # TODO: consensus = statistics.median(per_judge.values())
     return JudgeResult(consensus=0.0, per_judge=per_judge, reasonings=reasonings)
 `),
-      validationType: "numeric_tolerance",
+      validationType: "self_attest",
       stepType: "code_python",
-      validation: validationConfig("numeric_tolerance", "Mocked 3 judges return [4, 5, 3]; consensus = median = 4. Submit the consensus value. Atlas checks that the submitted numeric value is within the configured tolerance.", {
-        expected: 4.0,
-        tolerance: 0.1,
+      validation: validationConfig("self_attest", "This is a learner attestation — Atlas does not run your code or grade this; verify it yourself against the criteria.", {
+        attestationCriteria: [
+          "judge() runs all 3 model calls in parallel using asyncio.gather (not sequentially).",
+          "Each call_judge returns a numeric score and reasoning string; the 3 scores are stored in per_judge dict.",
+          "consensus = statistics.median(per_judge.values()) — for mocked scores [4, 5, 3] the result is 4.0.",
+          "The returned JudgeResult contains consensus=4.0, per_judge={'gpt-4o':4,'claude-sonnet-4':5,'claude-haiku-4':3}, and non-empty reasonings.",
+          "Re-running with the same mock inputs always produces the same consensus (deterministic median).",
+        ],
       }),
       expectedOutputs: { consensus: 4.0, perJudge: { "gpt-4o": 4, "claude-sonnet-4": 5, "claude-haiku-4": 3 } },
       datasetRefs: ["fixtures/judge_mocks.json"],

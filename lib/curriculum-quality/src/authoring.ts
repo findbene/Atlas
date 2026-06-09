@@ -115,6 +115,12 @@ export function validationConfig(
   if (kind === "regex") {
     assertValidRegexSpec(spec);
   }
+  if (kind === "json_equal") {
+    assertValidJsonEqualSpec(spec);
+  }
+  if (kind === "numeric_tolerance") {
+    assertValidNumericToleranceSpec(spec);
+  }
   return { kind, description, spec };
 }
 
