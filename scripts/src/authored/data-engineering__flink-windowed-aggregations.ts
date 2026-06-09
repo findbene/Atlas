@@ -55,7 +55,7 @@ export const dataEngineeringFlinkWindowedAggregations: AuthoredProject = {
       stepNumber: 1,
       title: "KafkaSource with exactly-once + watermarks",
       instructionMd:
-        "Configure a `KafkaSource` reading from topic `user_events` with `OffsetsInitializer.earliest()`, exactly-once delivery (`setProperty('isolation.level','read_committed')`), and a `WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(30))` that extracts `event.event_ts` as the event timestamp. Why 30s? Real producers (mobile clients) commonly lag 5-20s; 30s gives headroom without making windows wait forever. Validator drives a fixed list of records (some out of order by up to 25s) and asserts the source emits them all with monotonic watermarks.",
+        "Configure a `KafkaSource` reading from topic `user_events` with `OffsetsInitializer.earliest()`, exactly-once delivery (`setProperty('isolation.level','read_committed')`), and a `WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(30))` that extracts `event.event_ts` as the event timestamp. Why 30s? Real producers (mobile clients) commonly lag 5-20s; 30s gives headroom without making windows wait forever. Self-check: using a Flink MiniCluster or local job, emit 10 events spanning 90 seconds with 3 events out of order by up to 25 seconds, and confirm all 10 events are delivered to the downstream operator with watermark values that advance monotonically.",
       learningObjective: "Wire Flink's exactly-once Kafka source with an event-time watermark strategy.",
       requiredSkill: "Flink WatermarkStrategy + KafkaSource + event-time semantics",
       starterCode: SRC(`# job.py — PyFlink 1.18
@@ -111,7 +111,7 @@ events = env.from_source(source, watermark_strategy, "user_events")
       stepNumber: 2,
       title: "Tumbling 1-minute count window with side output",
       instructionMd:
-        "Apply `.key_by(lambda e: json.loads(e)['user_id']).window(TumblingEventTimeWindows.of(Time.minutes(1)))` and aggregate to `(user_id, window_start, count)`. Use `OutputTag('late')` to redirect late events. The validator pushes a stream where 1 event arrives 90s after its window's watermark and asserts that event appears in the side output, not the main aggregation.",
+        "Apply `.key_by(lambda e: json.loads(e)['user_id']).window(TumblingEventTimeWindows.of(Time.minutes(1)))` and aggregate to `(user_id, window_start, count)`. Use `OutputTag('late')` to redirect late events. Self-check: push 11 events (10 on-time, 1 arriving 90 seconds after its window's watermark has passed) and confirm the main output aggregation contains only the 10 on-time events while the side output tagged 'late' contains exactly the 1 late event.",
       learningObjective: "Implement event-time tumbling windows with explicit late-data side outputs.",
       requiredSkill: "Flink Window API + OutputTag + KeyedProcessFunction or AggregateFunction",
       starterCode: SRC(`# windows.py
@@ -152,7 +152,7 @@ late_output = OutputTag("late", Types.STRING())
       stepNumber: 3,
       title: "Session window with 5-min inactivity gap",
       instructionMd:
-        "On the same keyed stream apply `EventTimeSessionWindows.with_gap(Time.minutes(5))` and aggregate to `(user_id, session_start, session_end, event_count)`. Session windows close after `gap` seconds of inactivity for that key. Validator pushes a user with 3 events 1min apart then a 6min pause then 2 more events — expects 2 sessions for that user.",
+        "On the same keyed stream apply `EventTimeSessionWindows.with_gap(Time.minutes(5))` and aggregate to `(user_id, session_start, session_end, event_count)`. Session windows close after `gap` seconds of inactivity for that key. Self-check: emit events for user U1 at t=0s, 60s, 120s (first burst), then t=420s and 480s (second burst, >5min gap), and confirm the session window produces exactly 2 sessions for U1: the first spanning t=0–120 with event_count=3, the second spanning t=420–480 with event_count=2.",
       learningObjective: "Use event-time session windows and explain how they differ from tumbling windows.",
       requiredSkill: "Flink session windows + per-key state",
       starterCode: SRC(`# sessions.py
@@ -188,7 +188,7 @@ from pyflink.datastream.window import EventTimeSessionWindows
       stepNumber: 4,
       title: "Iceberg sink partitioned by event date",
       instructionMd:
-        "Wire a `FlinkSink` writing the tumbling-count stream to Iceberg table `analytics.user_minute_counts` partitioned by `days(window_start)`. Use Iceberg REST catalog. Validator runs a 2-min job, then queries the Iceberg table from pyiceberg and asserts row count + partition count match the input.",
+        "Wire a `FlinkSink` writing the tumbling-count stream to Iceberg table `analytics.user_minute_counts` partitioned by `days(window_start)`. Use Iceberg REST catalog. Self-check: run the Flink job for 2 minutes with input data spanning 3 calendar days and 120 distinct minute windows, then query the Iceberg table via pyiceberg and confirm row count = 120 and partition count = 3 (one per day).",
       learningObjective: "Sink Flink output to a partitioned Iceberg table with exactly-once semantics.",
       requiredSkill: "Flink Iceberg connector + Iceberg partition spec",
       starterCode: SRC(`# sink.py — depends on iceberg-flink-runtime-1.18 jar
@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS iceberg.analytics.user_minute_counts (
       stepNumber: 5,
       title: "OpenTelemetry metrics: back-pressure + late ratio",
       instructionMd:
-        "Add OTel meter that emits two gauges every 10s: `flink.backpressure.ratio` (per operator, scraped from Flink's REST metrics) and `flink.late.events.ratio` (late_count / total_count from step 2's side output). Wire to OTLP exporter pointing at a local collector. Validator scrapes the meter after a synthetic late-event burst and asserts both metrics appear with non-zero values.",
+        "Add OTel meter that emits two gauges every 10s: `flink.backpressure.ratio` (per operator, scraped from Flink's REST metrics) and `flink.late.events.ratio` (late_count / total_count from step 2's side output). Wire to OTLP exporter pointing at a local collector. Self-check: run the job for 30 seconds with a synthetic stream that has ~10% late events, then query the OTLP collector and confirm both metric names appear (`flink.backpressure.ratio` and `flink.late.events.ratio`) with `flink.late.events.ratio` approximately 0.1 (within ±0.05).",
       learningObjective: "Export operational metrics to OpenTelemetry so on-call sees lag before SLA breaches.",
       requiredSkill: "OpenTelemetry Metrics API + Flink REST metrics scraping + OTLP exporter",
       starterCode: SRC(`# otel_metrics.py

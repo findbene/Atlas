@@ -137,7 +137,7 @@ REGISTRY: dict = {"entities": {user.name: user}, "views": {user_7d_spend.name: u
       stepNumber: 2,
       title: "Point-in-time-correct training join (AS-OF, no leakage)",
       instructionMd:
-        "Implement `get_training_set(entity_df, feature_views)` where `entity_df` has `(user_id, event_timestamp)` rows. For each row, fetch the feature value AS OF `event_timestamp - epsilon` (strictly less than, never equal/greater — that would leak). Use DuckDB ASOF JOIN with `<=` flipped to `<` for strict past-only. Validator: against a 1000-row entity_df + a feature source where each user's spend doubles at t=10, assert: rows with event_timestamp<10 see spend=$X, rows with event_timestamp>=10 see $X (not $2X) — proving the join uses past-only.",
+        "Implement `get_training_set(entity_df, feature_views)` where `entity_df` has `(user_id, event_timestamp)` rows. For each row, fetch the feature value AS OF `event_timestamp - epsilon` (strictly less than, never equal/greater — that would leak). Use DuckDB ASOF JOIN with `<=` flipped to `<` for strict past-only. Self-check: use a 1000-row entity_df and a feature source where each user's spend doubles at t=10; run `get_training_set()` with strict AS-OF (`>`) and confirm all 1000 rows see the pre-doubling spend value (rows with event_timestamp>=10 still see $X, not $2X). Then repeat with `>=` and confirm rows at t>=10 see $2X — demonstrating the leakage that strict `>` prevents.",
       learningObjective: "Strict past-only AS-OF joins eliminate temporal leakage. Use `<` not `<=`.",
       requiredSkill: "AS-OF join semantics + DuckDB ASOF + the strict-less-than discipline",
       starterCode: SRC(`# training.py
@@ -247,7 +247,7 @@ def materialize(view_name: str, source_parquet: str, feature_cols: list[str], en
       stepNumber: 4,
       title: "Online serving — <5ms p99 with multi-get + version pinning",
       instructionMd:
-        "Implement `get_online_features(entity_ids: list[str], feature_refs: list[str], version: str)` returning a dict per entity. Use Redis MGET in a single round-trip (NOT per-key GET). Validator runs a 10k-qps load test against the populated Redis from step 3 with batch_size=16 entities × 4 features; asserts: p99 latency < 5ms, no version drift (all responses come from declared version), missing entity returns None (not error).",
+        "Implement `get_online_features(entity_ids: list[str], feature_refs: list[str], version: str)` returning a dict per entity. Use Redis MGET in a single round-trip (NOT per-key GET). Self-check: run a load test (e.g. Locust) against `get_online_features()` at 10k qps with batch_size=16 entities and 4 feature refs, and confirm p99 latency is under 5ms. Also confirm that requesting a user_id not in Redis returns None (not an exception) for that entity's features, and that all responses carry features from the declared version key.",
       learningObjective: "Online serving is bound by network round-trips — one MGET beats 16 GETs by 16x.",
       requiredSkill: "Redis MGET pipelining + latency profiling + missing-key handling + version pinning",
       starterCode: SRC(`# serving.py
@@ -306,7 +306,7 @@ def get_online_features(
       stepNumber: 5,
       title: "PSI drift monitoring — flag P(SI) > 0.2 per feature",
       instructionMd:
-        "Implement `psi(reference: np.array, current: np.array, bins=10) -> float` using the standard PSI formula: `sum((p_curr - p_ref) * ln(p_curr / p_ref))` over `bins` equal-frequency buckets. Run on `user_7d_spend.spend_7d` for ref=last-week vs current=today. Validator: with a fixture where current = 1.5× reference, assert `0.2 < psi < 0.5` (moderate drift) within ±0.05. Then a fixture with current = 3× reference asserts psi > 0.5 (severe).",
+        "Implement `psi(reference: np.array, current: np.array, bins=10) -> float` using the standard PSI formula: `sum((p_curr - p_ref) * ln(p_curr / p_ref))` over `bins` equal-frequency buckets. Run on `user_7d_spend.spend_7d` for ref=last-week vs current=today. Self-check: generate a reference distribution and a 'mild' current at 1.5× the reference and confirm `psi()` returns a value between 0.2 and 0.5 with `flag_drift()` returning `'moderate'`. Then generate a 'severe' current at 3× the reference and confirm `psi()` > 0.5 with `flag_drift()` returning `'severe'`.",
       learningObjective: "PSI is the industry-standard drift metric — 0.1 small, 0.2 moderate, 0.5 severe. Monitor it per feature.",
       requiredSkill: "Population Stability Index + equal-frequency binning + numerical-stability epsilon",
       starterCode: SRC(`# drift.py

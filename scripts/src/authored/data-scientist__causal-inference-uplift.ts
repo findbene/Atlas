@@ -190,7 +190,7 @@ def ate_ipw(y: np.ndarray, t: np.ndarray, e: np.ndarray, trim: tuple = (0.05, 0.
       stepNumber: 4,
       title: "T-learner for heterogeneous uplift",
       instructionMd:
-        "Fit two separate models: `mu1(x) = E[Y|T=1, X]` on treated, `mu0(x) = E[Y|T=0, X]` on control. Per-user uplift = `mu1(x) - mu0(x)`. Use `GradientBoostingRegressor` for each. Validator: trains on 8k, scores on 2k held-out; expects mean predicted uplift in [0.06, 0.10] (close to true ATE 0.080) AND a clear monotone uplift gradient across the top-vs-bottom decile (top-decile uplift ≥0.18, bottom-decile uplift ≤0.02).",
+        "Fit two separate models: `mu1(x) = E[Y|T=1, X]` on treated, `mu0(x) = E[Y|T=0, X]` on control. Per-user uplift = `mu1(x) - mu0(x)`. Use `GradientBoostingRegressor` for each. Self-check: train on the 8k training set, score on the 2k held-out set, and confirm mean predicted uplift ∈ [0.06, 0.10] (near the true ATE of 0.080); also confirm a clear heterogeneity gradient — top-decile mean uplift ≥ 0.18 and bottom-decile mean uplift ≤ 0.02.",
       learningObjective: "Estimate per-user (heterogeneous) treatment effects via two-model decomposition.",
       requiredSkill: "T-learner architecture + gradient boosting + decile-based heterogeneity inspection",
       starterCode: SRC(`# uplift.py
@@ -236,7 +236,7 @@ def predict_uplift(mu1, mu0, df) -> np.ndarray:
       stepNumber: 5,
       title: "Qini curve + AUUC evaluation",
       instructionMd:
-        "Implement `qini_curve(uplift_scores, y, t) -> (x, y_curve, auuc)`. Sort users by predicted uplift desc, then at each prefix compute `cumulative(treated Y) - cumulative(control Y) * (n_treated_in_prefix / n_control_in_prefix)`. AUUC = trapezoidal area under the curve normalized by random-targeting line. Validator runs against T-learner predictions on held-out 2k; expects AUUC ≥0.04 (uplift model meaningfully beats random) AND the random-targeting baseline = 0.0.",
+        "Implement `qini_curve(uplift_scores, y, t) -> (x, y_curve, auuc)`. Sort users by predicted uplift desc, then at each prefix compute `cumulative(treated Y) - cumulative(control Y) * (n_treated_in_prefix / n_control_in_prefix)`. AUUC = trapezoidal area under the curve normalized by random-targeting line. Self-check: run on the T-learner predictions from the held-out 2k set and confirm AUUC ≥ 0.04 (model meaningfully beats random targeting); also run with shuffled uplift_scores and confirm AUUC ≤ 0.005 (random baseline ≈ 0).",
       learningObjective: "Evaluate uplift models with the Qini curve, the canonical heterogeneous-effect metric.",
       requiredSkill: "Qini curve construction + AUUC normalization + uplift evaluation",
       starterCode: SRC(`# qini.py

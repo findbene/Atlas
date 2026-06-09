@@ -106,7 +106,7 @@ spec:
       stepNumber: 2,
       title: "Register 8 InferenceServices",
       instructionMd:
-        "Generate 8 `InferenceService` CRs, one per customer (acct-001..acct-008). Each references `storageUri: s3://models/acct-XXX/v1/` and `modelFormat.name: mlflow`. Use a small Jinja2 template + Python loop to generate them — manual copy-paste is the antipattern. ModelMesh sees these and starts pulling/loading them across the runtime pool. Validator runs the generator and asserts 8 files written + each binds to the runtime via `runtime: mlserver-mlflow`.",
+        "Generate 8 `InferenceService` CRs, one per customer (acct-001..acct-008). Each references `storageUri: s3://models/acct-XXX/v1/` and `modelFormat.name: mlflow`. Use a small Jinja2 template + Python loop to generate them — manual copy-paste is the antipattern. ModelMesh sees these and starts pulling/loading them across the runtime pool. Self-check: run `main()` and confirm exactly 8 YAML files exist in `k8s/inferenceservices/` (acct-001.yaml through acct-008.yaml), each containing `runtime: mlserver-mlflow` and `modelFormat.name: mlflow`.",
       learningObjective: "Generate many InferenceService CRs from a template instead of hand-maintaining each one.",
       requiredSkill: "Jinja2 + Python loop + Kubernetes manifest generation",
       starterCode: SRC(`# scripts/gen_inferenceservices.py
@@ -217,7 +217,7 @@ spec:
       stepNumber: 4,
       title: "Predictor with prom_client per-model labels",
       instructionMd:
-        "Subclass `mlserver.MLModel`. In `predict()`, time the inference and observe a Prometheus `Histogram('model_request_seconds', labelnames=['model_name'])`. The histogram is what KEDA scrapes for autoscaling AND what powers the latency dashboard. The model_name label lets you split per-model in Grafana without recompiling. Validator runs the predictor against a smoke input + asserts the histogram has a sample with the right label.",
+        "Subclass `mlserver.MLModel`. In `predict()`, time the inference and observe a Prometheus `Histogram('model_request_seconds', labelnames=['model_name'])`. The histogram is what KEDA scrapes for autoscaling AND what powers the latency dashboard. The model_name label lets you split per-model in Grafana without recompiling. Self-check: call `predict()` with a smoke input and confirm the histogram has exactly 1 sample in the appropriate latency bucket with `model_name` set to `self.name`.",
       learningObjective: "Instrument the predictor with prom_client and a per-model label dimension.",
       requiredSkill: "prom_client Histogram + mlserver.MLModel async predict + label dimensioning",
       starterCode: SRC(`# predictor.py

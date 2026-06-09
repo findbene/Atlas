@@ -97,7 +97,7 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
       stepNumber: 2,
       title: "Sliding windows",
       instructionMd:
-        "Implement `sliding_windows(event_ms, window_ms, slide_ms)` returning the list of window-start epochs the event belongs to. (A 10s window sliding every 1s puts each event in 10 overlapping windows.) Validator: event_ms=1500, window=1000, slide=200 → starts [600, 800, 1000, 1200, 1400].",
+        "Implement `sliding_windows(event_ms, window_ms, slide_ms)` returning the list of window-start epochs the event belongs to. (A 10s window sliding every 1s puts each event in 10 overlapping windows.) Self-check: call sliding_windows(1500, 1000, 200) and confirm the result is [600, 800, 1000, 1200, 1400].",
       learningObjective: "Build overlapping windows so per-event metrics can be reported at sub-window cadence.",
       requiredSkill: "Sliding-window enumeration without leaks",
       starterCode: SRC(`def sliding_windows(event_ms, window_ms, slide_ms):
@@ -136,7 +136,7 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
       stepNumber: 3,
       title: "Watermarks for late data",
       instructionMd:
-        "Implement `BoundedOutOfOrdernessTracker(allowed_lateness_ms)` with `observe(event_ms)` and `watermark()` (returns max_seen - allowed_lateness, or None before any observations). The watermark advances monotonically (never goes backward, even on a late observation). Validator drives a sequence including late events.",
+        "Implement `BoundedOutOfOrdernessTracker(allowed_lateness_ms)` with `observe(event_ms)` and `watermark()` (returns max_seen - allowed_lateness, or None before any observations). The watermark advances monotonically (never goes backward, even on a late observation). Self-check: drive your tracker through a sequence including late events — confirm the watermark never moves backward when a late observation arrives.",
       learningObjective: "Implement the standard watermark contract: bounded-out-of-orderness with monotonic advance.",
       requiredSkill: "Streaming watermark semantics + monotonic state",
       starterCode: SRC(`class BoundedOutOfOrdernessTracker:
@@ -178,7 +178,7 @@ export const dataEngineeringStreamProcessingFlink: AuthoredProject = {
       stepNumber: 4,
       title: "Stateful windowed aggregation",
       instructionMd:
-        "Compose the primitives: `stream_aggregate(events, window_ms, allowed_lateness_ms)` accepts an iterable of `(event_ms, key)` tuples and yields `(window_start, count)` for each window as the watermark passes its end. Events past the closed-window watermark are dropped. Validator drives a 12-event sequence including 2 late events and verifies emission order + counts.",
+        "Compose the primitives: `stream_aggregate(events, window_ms, allowed_lateness_ms)` accepts an iterable of `(event_ms, key)` tuples and yields `(window_start, count)` for each window as the watermark passes its end. Events past the closed-window watermark are dropped. Self-check: drive your function through the 12-event sequence including 2 late events and confirm the emission order, window counts, and late-event drop count match your manual trace.",
       learningObjective: "Wire windows + watermarks + state into one operator that matches Flink's semantics.",
       requiredSkill: "Stateful streaming operator + emission ordering + late-event drop policy",
       starterCode: SRC(`from collections import defaultdict

@@ -56,7 +56,7 @@ export const dataScientistPytorchImageFinetuning: AuthoredProject = {
       stepNumber: 1,
       title: "Load pretrained ViT + adapt classification head",
       instructionMd:
-        "Load `google/vit-base-patch16-224` via `AutoModelForImageClassification.from_pretrained(name, num_labels=8, ignore_mismatched_sizes=True)`. The `ignore_mismatched_sizes=True` lets you replace the 1000-way ImageNet head with an 8-way head for our categories. Get the matching `AutoImageProcessor` for input normalization. Validator asserts model.classifier.out_features == 8 + processor.image_mean is set.",
+        "Load `google/vit-base-patch16-224` via `AutoModelForImageClassification.from_pretrained(name, num_labels=8, ignore_mismatched_sizes=True)`. The `ignore_mismatched_sizes=True` lets you replace the 1000-way ImageNet head with an 8-way head for our categories. Get the matching `AutoImageProcessor` for input normalization. Self-check: confirm model.classifier.out_features == 8 (one output per LABELS entry) and that processor.image_mean is a list of 3 floats (the ViT normalisation constants).",
       learningObjective: "Configure a pretrained HuggingFace vision model with a custom classification head.",
       requiredSkill: "HuggingFace AutoModel + classification head adaptation + AutoImageProcessor",
       starterCode: SRC(`# model.py
@@ -104,7 +104,7 @@ def build_model():
       stepNumber: 2,
       title: "DataLoader with train/val transforms",
       instructionMd:
-        "Build `train_loader` + `val_loader` from torchvision.datasets.ImageFolder. Train transforms: RandomResizedCrop(224), RandomHorizontalFlip, ColorJitter, Normalize(processor.image_mean, processor.image_std). Val transforms: Resize(256), CenterCrop(224), Normalize. Use num_workers=4, pin_memory=True. Validator builds both loaders against a fixture dir + asserts batch shape (B, 3, 224, 224) + label dtype int64.",
+        "Build `train_loader` + `val_loader` from torchvision.datasets.ImageFolder. Train transforms: RandomResizedCrop(224), RandomHorizontalFlip, ColorJitter, Normalize(processor.image_mean, processor.image_std). Val transforms: Resize(256), CenterCrop(224), Normalize. Use num_workers=4, pin_memory=True. Self-check: call next(iter(train_loader)) and confirm images.shape == (32, 3, 224, 224) and labels.dtype == torch.int64; also confirm the val loader applies CenterCrop (no random augmentation) by inspecting its transforms.",
       learningObjective: "Build a PyTorch DataLoader with appropriate train vs val transforms.",
       requiredSkill: "torchvision transforms + ImageFolder + DataLoader num_workers/pin_memory tuning",
       starterCode: SRC(`# data.py
@@ -158,7 +158,7 @@ def loaders(data_dir: str, processor, batch_size: int = 32):
       stepNumber: 3,
       title: "AMP mixed-precision training loop",
       instructionMd:
-        "Implement the train loop using `torch.amp.autocast(device_type='cuda', dtype=torch.float16)` + `torch.amp.GradScaler()`. The pattern: with autocast, forward + loss; scaler.scale(loss).backward(); scaler.step(optimizer); scaler.update(). This is 2-3x faster on GPU with no accuracy loss. Validator runs 1 epoch on a tiny fixture dataset + asserts loss decreased + no NaN.",
+        "Implement the train loop using `torch.amp.autocast(device_type='cuda', dtype=torch.float16)` + `torch.amp.GradScaler()`. The pattern: with autocast, forward + loss; scaler.scale(loss).backward(); scaler.step(optimizer); scaler.update(). This is 2-3x faster on GPU with no accuracy loss. Self-check: run 1 epoch on the tiny fixture dataset (32 images, 4 classes) and confirm the returned loss is lower than the loss before any gradient steps, and that no model parameter contains NaN after training.",
       learningObjective: "Train with AMP mixed precision for 2-3x throughput without accuracy degradation.",
       requiredSkill: "torch.amp.autocast + GradScaler + scaler.scale/step/update protocol",
       starterCode: SRC(`# train.py
@@ -209,7 +209,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
       stepNumber: 4,
       title: "MLflow tracking + best-checkpoint artifact",
       instructionMd:
-        "Wrap the training loop in `mlflow.start_run()`. Log `mlflow.log_params({lr, batch_size, epochs})` once, `mlflow.log_metrics({'train_loss': l, 'val_acc': a}, step=epoch)` per epoch. Save the model only when val_acc improves: `mlflow.pytorch.log_model(model, 'best')`. Validator runs 2 epochs (artificially: epoch 1 has higher val_acc) + asserts only ONE artifact is logged (the better one).",
+        "Wrap the training loop in `mlflow.start_run()`. Log `mlflow.log_params({lr, batch_size, epochs})` once, `mlflow.log_metrics({'train_loss': l, 'val_acc': a}, step=epoch)` per epoch. Save the model only when val_acc improves: `mlflow.pytorch.log_model(model, 'best')`. Self-check: run 2 epochs with a fixture where epoch 1 val_acc = 0.70 and epoch 2 val_acc = 0.65; open the MLflow UI and confirm lr/batch_size/epochs/model params are logged, train_loss and val_acc metrics appear at steps 0 and 1, and exactly 1 'best' model artifact is present (corresponding to epoch 1, the higher val_acc).",
       learningObjective: "Track training runs in MLflow + save only the best checkpoint by val accuracy.",
       requiredSkill: "mlflow.start_run + log_params + log_metrics + log_model + best-checkpoint pattern",
       starterCode: SRC(`# trainer.py
@@ -254,7 +254,7 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, epochs,
       stepNumber: 5,
       title: "Per-class precision/recall report",
       instructionMd:
-        "On the validation set, compute per-class precision + recall + F1 + support via `sklearn.metrics.classification_report(y_true, y_pred, target_names=LABELS, output_dict=True)`. Log it as JSON via `mlflow.log_dict(report, 'classification_report.json')`. Validator runs the report against fixture predictions + asserts 8 class entries + 'accuracy' key + 'weighted avg' key.",
+        "On the validation set, compute per-class precision + recall + F1 + support via `sklearn.metrics.classification_report(y_true, y_pred, target_names=LABELS, output_dict=True)`. Log it as JSON via `mlflow.log_dict(report, 'classification_report.json')`. Self-check: run per_class_report on the fixture predictions and confirm the returned dict has 8 class entries (one per LABELS item, each with precision, recall, f1-score, support), an 'accuracy' float, a 'macro avg' entry, and a 'weighted avg' entry; also confirm 'classification_report.json' appears as an MLflow artifact.",
       learningObjective: "Produce + log a per-class metrics report so model weaknesses are visible.",
       requiredSkill: "sklearn.metrics.classification_report + per-class metrics interpretation + mlflow.log_dict",
       starterCode: SRC(`# evaluate.py

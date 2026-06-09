@@ -61,7 +61,7 @@ export const appliedLlmEngineerRagEvaluationHarness: AuthoredProject = {
       stepNumber: 1,
       title: "Labeled QA dataset — 200 questions with gold chunk ids + gold answers",
       instructionMd:
-        "Build `eval/dataset.jsonl` with 200 records of `{question: str, gold_chunk_ids: list[str], gold_answer: str, difficulty: 'easy'|'med'|'hard'}`. Use a pydantic v2 model to validate every line. Validator loads the file, asserts: 200 rows, every `gold_chunk_ids` is non-empty, every `gold_answer` is ≥10 chars, difficulty distribution is 40% easy / 40% med / 20% hard (±5pp).",
+        "Build `eval/dataset.jsonl` with 200 records of `{question: str, gold_chunk_ids: list[str], gold_answer: str, difficulty: 'easy'|'med'|'hard'}`. Use a pydantic v2 model to validate every line. Self-check: load the file and confirm 200 rows, every `gold_chunk_ids` is non-empty, every `gold_answer` is ≥10 chars, and the difficulty distribution is approximately 40% easy / 40% med / 20% hard (±5pp).",
       learningObjective: "A retrieval eval is only as good as its gold labels. Spend the time labeling 200 questions — it'll catch 20+ retriever bugs over the project's life.",
       requiredSkill: "Pydantic v2 model + JSONL validation + dataset distribution sanity",
       starterCode: SRC(`# eval/dataset.py
@@ -123,7 +123,7 @@ def distribution(rows: list[QAExample]) -> dict[str, float]:
       stepNumber: 2,
       title: "Retrieval metrics — recall@k and MRR over the gold chunk ids",
       instructionMd:
-        "Implement `eval_retrieval(dataset, retriever, k=10) -> {recall_at_k: float, mrr: float}`. Recall@k = fraction of questions where ≥1 gold chunk appears in the top-k. MRR = mean of 1/rank of the FIRST gold chunk (0 if not in top-k). Validator runs against a stubbed retriever with known ranks: 100 questions, 60 hit position 1, 20 hit position 3, 10 hit positions 5-10, 10 miss → expect recall@10 = 0.90, MRR ≈ 0.6 + 0.20/3 + (0.10 mean of 1/5..1/10).",
+        "Implement `eval_retrieval(dataset, retriever, k=10) -> {recall_at_k: float, mrr: float}`. Recall@k = fraction of questions where ≥1 gold chunk appears in the top-k. MRR = mean of 1/rank of the FIRST gold chunk (0 if not in top-k). Self-check: run against a stubbed retriever with known ranks (100 questions: 60 hit position 1, 20 hit position 3, 10 hit positions 5-10, 10 miss) and confirm recall@10 = 0.90 and MRR ≈ 0.681.",
       learningObjective: "Recall@k and MRR ARE retrieval evaluation — implementing them once correctly is the single highest-leverage metric work in RAG.",
       requiredSkill: "Recall@k + MRR computation + boundary cases (empty result, miss=0)",
       starterCode: SRC(`# eval/retrieval.py
@@ -250,7 +250,7 @@ def judge_answer(
       stepNumber: 4,
       title: "Baseline-vs-candidate regression diff with hard pass/fail gates",
       instructionMd:
-        "Build `regress(baseline_results, candidate_results) -> {pass: bool, regressions: list[str], deltas: {...}}`. Pass iff: candidate recall@10 ≥ baseline - 0.03 AND candidate MRR ≥ baseline - 0.03 AND candidate grounded-rate ≥ baseline - 0.03 AND candidate span-coverage ≥ baseline - 0.05. Validator: feeds (baseline=0.90/0.65/0.85/0.70) vs (candidate=0.88/0.66/0.81/0.65) → expect pass=False, regressions list = ['grounded_rate -4pp', 'span_coverage -5pp']. Then with candidate=(0.89/0.66/0.84/0.69) → pass=True.",
+        "Build `regress(baseline_results, candidate_results) -> {pass: bool, regressions: list[str], deltas: {...}}`. Pass iff: candidate recall@10 ≥ baseline - 0.03 AND candidate MRR ≥ baseline - 0.03 AND candidate grounded-rate ≥ baseline - 0.03 AND candidate span-coverage ≥ baseline - 0.05. Self-check: call regress with (baseline=0.90/0.65/0.85/0.70) vs (candidate=0.88/0.66/0.81/0.65) and confirm pass=False with regressions ['grounded_rate -4pp', 'span_coverage -5pp']. Then with candidate=(0.89/0.66/0.84/0.69) confirm pass=True.",
       learningObjective: "Regression gates ARE the value of an eval harness. Without a hard pass/fail, every metric is decoration — engineers ship anyway.",
       requiredSkill: "Threshold logic + structured regression report + diff-to-baseline pattern",
       starterCode: SRC(`# eval/regress.py

@@ -103,7 +103,7 @@ def surrogate_key(*columns):
       stepNumber: 2,
       title: "dispatch — warehouse-portable week_trunc",
       instructionMd:
-        "Implement `dispatch(macro_name, adapter, implementations)` returning the right impl: prefer `implementations[adapter]`, fall back to `implementations['default']`, raise KeyError if neither. Validator drives Postgres (default) and BigQuery (override) for a `week_trunc` macro.",
+        "Implement `dispatch(macro_name, adapter, implementations)` returning the right impl: prefer `implementations[adapter]`, fall back to `implementations['default']`, raise KeyError if neither. Self-check: call dispatch with Postgres (should use default) and BigQuery (should use override) for a `week_trunc` macro, and confirm each returns the correct SQL string.",
       learningObjective: "Use dbt's dispatch pattern to write macros that compile correctly on every warehouse.",
       requiredSkill: "Adapter-aware macro resolution + safe fallback",
       starterCode: SRC(`def dispatch(macro_name, adapter, implementations):

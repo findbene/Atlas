@@ -62,7 +62,7 @@ export const cloudDataEngineerIcebergTableFormat: AuthoredProject = {
       stepNumber: 1,
       title: "Snapshot summary: count files and rows",
       instructionMd:
-        "Given a snapshot's manifest list `[{manifest_path, added_files, deleted_files, added_rows, deleted_rows}, ...]`, implement `snapshot_summary(manifests)` returning `{total_files, total_rows}` (deltas summed across manifests, never going negative). Validator: 3 manifests with mixed adds/deletes produce the expected totals.",
+        "Given a snapshot's manifest list `[{manifest_path, added_files, deleted_files, added_rows, deleted_rows}, ...]`, implement `snapshot_summary(manifests)` returning `{total_files, total_rows}` (deltas summed across manifests, never going negative). Self-check: run your function with 3 manifests containing mixed adds/deletes and confirm the totals match the expected values — for manifests (+5/+1000), (+2-1/+500-100), (0-1/0-50): total_files = 5, total_rows = 1350.",
       learningObjective: "Read the Iceberg manifest-list aggregate and derive a snapshot's row/file count.",
       requiredSkill: "Manifest-list literacy + non-negative aggregate math",
       starterCode: SRC(`def snapshot_summary(manifests):
@@ -108,7 +108,7 @@ export const cloudDataEngineerIcebergTableFormat: AuthoredProject = {
       stepNumber: 2,
       title: "Hidden partition transforms",
       instructionMd:
-        "Implement `partition_value(ts_ms, transform)` for transforms `'hour'`, `'day'`, `'month'`, `'year'`. Returns ISO-style strings: day → `'YYYY-MM-DD'`, hour → `'YYYY-MM-DDTHH'`, month → `'YYYY-MM'`, year → `'YYYY'`. Use UTC. Validator drives 4 timestamps with 4 transforms.",
+        "Implement `partition_value(ts_ms, transform)` for transforms `'hour'`, `'day'`, `'month'`, `'year'`. Returns ISO-style strings: day → `'YYYY-MM-DD'`, hour → `'YYYY-MM-DDTHH'`, month → `'YYYY-MM'`, year → `'YYYY'`. Use UTC. Self-check: call your function with 4 known timestamps (one per transform) and confirm each result matches the expected ISO string — for ts_ms=1747315200000 (2025-05-15T12:00:00Z): year='2025', month='2025-05', day='2025-05-15', hour='2025-05-15T12'.",
       learningObjective: "Derive partition values from event-time so queries on the source column get pruned automatically.",
       requiredSkill: "Iceberg partition-transform contract + datetime UTC arithmetic",
       starterCode: SRC(`from datetime import datetime, timezone
@@ -152,7 +152,7 @@ def partition_value(ts_ms, transform):
       stepNumber: 3,
       title: "Safe schema evolution by field id",
       instructionMd:
-        "Implement `is_safe_evolution(old, new)` where each schema is `{field_id: (name, type)}`. Allowed transitions: add (id only in new), drop (id only in old), rename (same id, type unchanged), widen (`int→long`, `float→double`). Anything else is unsafe. Validator drives 5 transitions.",
+        "Implement `is_safe_evolution(old, new)` where each schema is `{field_id: (name, type)}`. Allowed transitions: add (id only in new), drop (id only in old), rename (same id, type unchanged), widen (`int→long`, `float→double`). Anything else is unsafe. Self-check: drive your function through all 5 transitions — int→long widening (True), long→int narrowing (False), add column (True), rename via same field id (True), arbitrary type change (False) — and confirm each result.",
       learningObjective: "Classify schema changes by safety so production migrations can run without rewriting historical files.",
       requiredSkill: "Iceberg field-id semantics + allowed type widening",
       starterCode: SRC(`ALLOWED_WIDENING = {('int', 'long'), ('float', 'double')}
@@ -201,7 +201,7 @@ def is_safe_evolution(old, new):
       stepNumber: 4,
       title: "Time travel: find the rollback target",
       instructionMd:
-        "Given snapshots `[{id, committed_ms}, ...]` (oldest-first), implement `find_rollback_target(snapshots, bad_after_ts)` returning the snapshot id of the latest snapshot committed at or before `bad_after_ts` — or `None` if none qualifies. Validator: 4 snapshots, 2 reference timestamps.",
+        "Given snapshots `[{id, committed_ms}, ...]` (oldest-first), implement `find_rollback_target(snapshots, bad_after_ts)` returning the snapshot id of the latest snapshot committed at or before `bad_after_ts` — or `None` if none qualifies. Self-check: run your function with 4 snapshots at timestamps [100, 200, 350, 400] ms and 2 reference timestamps — confirm `bad_after_ts=300` returns id 'b' (committed at 200ms) and `bad_after_ts=50` returns None.",
       learningObjective: "Use the snapshot timeline to recover from a bad write with a single metadata op.",
       requiredSkill: "Snapshot timeline traversal + rollback semantics",
       starterCode: SRC(`def find_rollback_target(snapshots, bad_after_ts):
@@ -243,7 +243,7 @@ def is_safe_evolution(old, new):
       stepNumber: 5,
       title: "File-count health probe",
       instructionMd:
-        "High file counts in object storage kill query planning latency. Implement `needs_compaction(total_files, partition_count)` returning True when avg files per partition > 50 OR total files > 10_000. Validator drives 4 scenarios.",
+        "High file counts in object storage kill query planning latency. Implement `needs_compaction(total_files, partition_count)` returning True when avg files per partition > 50 OR total files > 10_000. Self-check: drive your function through all 4 scenarios — (100, 10) → False, (5000, 200) → False, (600, 10) → True (avg exceeds 50), (12000, 1000) → True (total exceeds 10,000) — and confirm each result.",
       learningObjective: "Build the operational signal that triggers Iceberg compaction before query latency degrades.",
       requiredSkill: "File-count thresholds + ratio-based health checks",
       starterCode: SRC(`MAX_AVG_FILES_PER_PARTITION = 50

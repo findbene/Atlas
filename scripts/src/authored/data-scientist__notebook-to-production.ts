@@ -56,7 +56,7 @@ export const dataScientistNotebookToProduction: AuthoredProject = {
       stepNumber: 1,
       title: "Preprocessing module — deterministic + testable",
       instructionMd:
-        "Refactor the notebook's preprocessing into `features.py`: a single `build_features(df: pl.DataFrame) -> pl.DataFrame` function that computes feature engineering with Polars (e.g. tenure_months, avg_monthly_charges, is_high_value). Make it pure: same input → same output, no notebook globals. Validator runs it against a fixture input + asserts exact output frame.",
+        "Refactor the notebook's preprocessing into `features.py`: a single `build_features(df: pl.DataFrame) -> pl.DataFrame` function that computes feature engineering with Polars (e.g. tenure_months, avg_monthly_charges, is_high_value). Make it pure: same input → same output, no notebook globals. Self-check: call build_features(fixture_df) and confirm the output DataFrame has exactly the columns ['tenure_months', 'avg_monthly_charges', 'is_high_value', 'customer_id', 'churned'], that values match fixtures/features_expected.csv, and that calling it twice with the same input produces identical output.",
       learningObjective: "Convert notebook cell sequences into a deterministic preprocessing function.",
       requiredSkill: "Polars expressions + pure functions + testable feature engineering",
       starterCode: SRC(`# features.py
@@ -99,7 +99,7 @@ def build_features(df: pl.DataFrame) -> pl.DataFrame:
       stepNumber: 2,
       title: "sklearn pipeline + MLflow registration with signature",
       instructionMd:
-        "Train a `Pipeline([('clf', LogisticRegression())])` on the Polars-derived features (call `.to_numpy()` after build_features). Log to MLflow with `mlflow.sklearn.log_model(model, 'churn-model', signature=infer_signature(X_train, y_train), input_example=X_train.head(3))`. Register as 'ChurnModel' version. Validator asserts the registered model has signature + input_example + correct stage.",
+        "Train a `Pipeline([('clf', LogisticRegression())])` on the Polars-derived features (call `.to_numpy()` after build_features). Log to MLflow with `mlflow.sklearn.log_model(model, 'churn-model', signature=infer_signature(X_train, y_train), input_example=X_train.head(3))`. Register as 'ChurnModel' version. Self-check: after running train.py, open the MLflow UI and confirm a 'ChurnModel' entry exists at version 1 with a signature showing 3 input columns (matching FEATURE_COLUMNS) and an input_example artifact present.",
       learningObjective: "Train + log + register a sklearn model in MLflow with a typed signature.",
       requiredSkill: "sklearn Pipeline + mlflow.sklearn.log_model + infer_signature + Model Registry",
       starterCode: SRC(`# train.py
@@ -153,7 +153,7 @@ with mlflow.start_run() as run:
       stepNumber: 3,
       title: "FastAPI prediction service",
       instructionMd:
-        "Write `service.py`: load `models:/ChurnModel/latest` once at startup via lifespan, expose `POST /predict` that takes a list of customer feature dicts and returns probabilities. Use Pydantic models for request + response. Validator boots the app + posts 3 rows + asserts response shape + probabilities in [0,1].",
+        "Write `service.py`: load `models:/ChurnModel/latest` once at startup via lifespan, expose `POST /predict` that takes a list of customer feature dicts and returns probabilities. Use Pydantic models for request + response. Self-check: start the app locally and POST 3 valid rows to /predict; confirm the response is HTTP 200 with body `{probabilities: [p1, p2, p3]}` and all three values are floats in [0, 1].",
       learningObjective: "Serve a registered MLflow model via FastAPI with Pydantic-typed I/O.",
       requiredSkill: "FastAPI lifespan + mlflow.pyfunc.load_model + Pydantic request/response",
       starterCode: SRC(`# service.py
@@ -211,7 +211,7 @@ async def predict(req: PredictRequest) -> PredictResponse:
       stepNumber: 4,
       title: "Pydantic schemas matching MLflow signature",
       instructionMd:
-        "Refine `PredictRequest` to type each row explicitly: `class CustomerFeatures(BaseModel) { tenure_months: float; avg_monthly_charges: float; is_high_value: bool }` and `PredictRequest.rows: list[CustomerFeatures]`. Now invalid types fail at the FastAPI 422 boundary. Validator posts row with `is_high_value: 'yes'` and asserts 422.",
+        "Refine `PredictRequest` to type each row explicitly: `class CustomerFeatures(BaseModel) { tenure_months: float; avg_monthly_charges: float; is_high_value: bool }` and `PredictRequest.rows: list[CustomerFeatures]`. Now invalid types fail at the FastAPI 422 boundary. Self-check: POST a row with `is_high_value: 'yes'` (a string instead of a bool) and confirm the response is HTTP 422 with an error body mentioning 'is_high_value' as the invalid field.",
       learningObjective: "Enforce the model's input contract at the API boundary via Pydantic typing.",
       requiredSkill: "Pydantic typed nested models + FastAPI 422 boundary",
       starterCode: SRC(`# schemas.py
@@ -255,7 +255,7 @@ class PredictResponse(BaseModel):
       stepNumber: 5,
       title: "Integration test: notebook ↔ service parity",
       instructionMd:
-        "Write `test_parity.py` that loads the same holdout set the notebook used, calls `service.predict()` via httpx AsyncClient, and asserts probabilities match notebook predictions to within 1e-6 elementwise. Validator runs the test + asserts pass.",
+        "Write `test_parity.py` that loads the same holdout set the notebook used, calls `service.predict()` via httpx AsyncClient, and asserts probabilities match notebook predictions to within 1e-6 elementwise. Self-check: run the test with `pytest tests/test_parity.py` and confirm it passes — all 100 holdout rows match within atol=1e-6.",
       learningObjective: "Prove the service produces the same predictions as the notebook — close the notebook-to-prod gap with evidence.",
       requiredSkill: "pytest + httpx AsyncClient + numerical parity testing",
       starterCode: SRC(`# tests/test_parity.py

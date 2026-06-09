@@ -295,7 +295,7 @@ SELECT id, name, manager_id, path, depth FROM org ORDER BY depth, id;`),
       stepNumber: 5,
       title: "Cohort retention — CTEs + window aggregates + lateral join combined",
       instructionMd:
-        "Compute monthly cohort retention: for each signup cohort (month), what fraction of users were active in month 0, 1, 2, ..., 11? Build it as: (a) `signups` CTE assigning each user to their cohort month; (b) `active_months` CTE flagging the months each user had ≥1 event; (c) `cohort_grid` CTE cross-joining cohort × months_since with `LATERAL`; (d) final SELECT counting active users per cell and dividing by cohort size with a window. Validator: 24 cohorts × 12 months = 288 cells; cohort-size column constant within a cohort; retention[0]=1.0 for every cohort.",
+        "Compute monthly cohort retention: for each signup cohort (month), what fraction of users were active in month 0, 1, 2, ..., 11? Build it as: (a) `signups` CTE assigning each user to their cohort month; (b) `active_months` CTE flagging the months each user had ≥1 event; (c) `cohort_grid` CTE cross-joining cohort × months_since with `LATERAL`; (d) final SELECT counting active users per cell and dividing by cohort size with a window. Self-check: run the query and verify 24 cohorts × 12 months = 288 cells are returned, the cohort-size column is constant within each cohort, and retention is 1.0 for every cohort at months_since = 0.",
       learningObjective: "Real analytics queries compose 3-4 layers — CTEs for staging, window for normalization, lateral for the cross-product. Each piece is simple; the composition is the skill.",
       requiredSkill: "Compose CTEs + LATERAL join + window normalization",
       starterCode: SRC(`-- queries/05_cohort_retention.sql

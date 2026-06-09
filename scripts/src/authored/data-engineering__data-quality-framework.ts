@@ -115,7 +115,7 @@ models:
       stepNumber: 2,
       title: "Great Expectations statistical suite",
       instructionMd:
-        "Create a GE suite `orders_distribution` with: `expect_column_values_to_not_be_null('amount')`, `expect_column_value_lengths_to_be_between('order_id', 8, 64)`, `expect_column_mean_to_be_between('amount', 10, 500)`, `expect_column_values_to_match_regex('email', r'@')`, `expect_column_proportion_of_unique_values_to_be_between('user_id', 0.3, 1.0)`. Validator runs the suite against a 10k-row fixture and asserts 5/5 pass; then runs against a corrupted fixture (mean drops to 3.2) and asserts the mean-range expectation fails with the actual value reported.",
+        "Create a GE suite `orders_distribution` with: `expect_column_values_to_not_be_null('amount')`, `expect_column_value_lengths_to_be_between('order_id', 8, 64)`, `expect_column_mean_to_be_between('amount', 10, 500)`, `expect_column_values_to_match_regex('email', r'@')`, `expect_column_proportion_of_unique_values_to_be_between('user_id', 0.3, 1.0)`. Self-check: run the suite against a clean 10k-row fixture and confirm 5/5 expectations pass; then run against a corrupted fixture (mean amount ≈ 3.2, below the 10–500 floor) and confirm the mean-range expectation fails with the observed mean reported in the GE result.",
       learningObjective: "Statistical/distribution checks catch the regressions that pass relational tests.",
       requiredSkill: "Great Expectations 0.18+ suite + per-expectation semantics + result interpretation",
       starterCode: SRC(`# ge_setup.py

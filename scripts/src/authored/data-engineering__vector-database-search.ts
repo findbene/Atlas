@@ -56,7 +56,7 @@ export const dataEngineeringVectorDatabaseSearch: AuthoredProject = {
       stepNumber: 1,
       title: "Cosine similarity from scratch",
       instructionMd:
-        "Implement `cosine(a, b)` for two equal-length float vectors WITHOUT numpy (you'll know what pgvector is computing under the hood). Then `cosine_norm(a, b)` that assumes both are pre-normalised (skip the divide). Validator drives both with known vector pairs.",
+        "Implement `cosine(a, b)` for two equal-length float vectors WITHOUT numpy (you'll know what pgvector is computing under the hood). Then `cosine_norm(a, b)` that assumes both are pre-normalised (skip the divide). Self-check: drive both functions with known vector pairs and confirm the results match the expected values within 1e-6 tolerance.",
       learningObjective: "Master the math before reaching for a library — pre-normalisation is the production speed win.",
       requiredSkill: "Vector arithmetic + invariants of normalised embeddings",
       starterCode: SRC(`import math
@@ -100,7 +100,7 @@ def cosine_norm(a, b):
       stepNumber: 2,
       title: "HNSW vs IVFFlat — pick the right index",
       instructionMd:
-        "pgvector ships two ANN indexes with opposite trade-offs. Implement `recommend_index(n_vectors, writes_per_min, target_recall)` returning `'HNSW'`, `'IVFFlat'`, or `'flat_scan'`. Rules: < 50k vectors → flat (no index needed); ≥ 50k AND writes ≤ 10/min AND target_recall ≥ 0.95 → HNSW; otherwise IVFFlat. Validator drives 6 representative scenarios.",
+        "pgvector ships two ANN indexes with opposite trade-offs. Implement `recommend_index(n_vectors, writes_per_min, target_recall)` returning `'HNSW'`, `'IVFFlat'`, or `'flat_scan'`. Rules: < 50k vectors → flat (no index needed); ≥ 50k AND writes ≤ 10/min AND target_recall ≥ 0.95 → HNSW; otherwise IVFFlat. Self-check: drive your function through the 6 representative scenarios and confirm each result matches the expected index choice.",
       learningObjective: "Translate workload characteristics into the right ANN index choice with explicit trade-off math.",
       requiredSkill: "Index-trade-off matrices + workload sizing",
       starterCode: SRC(`def recommend_index(n_vectors, writes_per_min, target_recall):
@@ -135,7 +135,7 @@ def cosine_norm(a, b):
       stepNumber: 3,
       title: "Hybrid ranker: BM25 + vector",
       instructionMd:
-        "Implement `hybrid_rank(candidates, alpha=0.5)` where each candidate is `{id, bm25, vec_sim}` (both signals pre-normalised to [0,1]). Return ids sorted by `alpha*vec_sim + (1-alpha)*bm25` descending. Validator drives with controlled candidates across 3 alpha values.",
+        "Implement `hybrid_rank(candidates, alpha=0.5)` where each candidate is `{id, bm25, vec_sim}` (both signals pre-normalised to [0,1]). Return ids sorted by `alpha*vec_sim + (1-alpha)*bm25` descending. Self-check: drive your function with controlled candidates across 3 alpha values (0, 0.5, 1.0) and confirm the returned ranking order matches expectations for each.",
       learningObjective: "Compose lexical and semantic signals with explicit weighting — the production search standard.",
       requiredSkill: "Score fusion + min-max normalisation + ranked output",
       starterCode: SRC(`def hybrid_rank(candidates, alpha=0.5):
@@ -171,7 +171,7 @@ def cosine_norm(a, b):
       stepNumber: 4,
       title: "Recall@k evaluator",
       instructionMd:
-        "Implement `recall_at_k(predicted_ids, ground_truth_ids, k)` returning the fraction of `ground_truth_ids` that appear in `predicted_ids[:k]`. Validator drives with 3 (predicted, truth, k) tuples.",
+        "Implement `recall_at_k(predicted_ids, ground_truth_ids, k)` returning the fraction of `ground_truth_ids` that appear in `predicted_ids[:k]`. Self-check: drive your function through 3 (predicted, truth, k) test cases and confirm each result (1.0, 0.5, 0.0) is correct.",
       learningObjective: "Measure search quality changes against a fixed golden set — the only way to compare variants without bias.",
       requiredSkill: "Set-based recall computation + golden-set discipline",
       starterCode: SRC(`def recall_at_k(predicted_ids, ground_truth_ids, k):

@@ -59,7 +59,7 @@ export const dataEngineeringSparkBatchProcessing: AuthoredProject = {
       stepNumber: 1,
       title: "Partitioned Parquet read — predicate + projection pushdown",
       instructionMd:
-        "Read `s3://events/year=2026/month=*/day=*/*.parquet` for a single month (`2026-05`), selecting only `(user_id, event_type, amount, event_date)` from a 20-column source. Validator runs against a fixture and asserts: only May 2026 partitions scanned (Spark plan shows `PartitionFilters [year=2026, month=5]`), only the 4 columns are in the read schema, the bytes-scanned metric is ~5% of the full-file size (proving pushdown actually fired).",
+        "Read `s3://events/year=2026/month=*/day=*/*.parquet` for a single month (`2026-05`), selecting only `(user_id, event_type, amount, event_date)` from a 20-column source. Self-check: run read_may_2026 against the fixture and call assert_pushdown — confirm partitionFiltersFired=True (Spark plan shows `PartitionFilters [year=2026, month=5]`), readSchemaColumns has exactly 4 columns, and the bytes-scanned metric is ≤10% of the full-corpus size.",
       learningObjective: "Partition pruning + column projection are free wins — the planner does them only if you write the filter the right way.",
       requiredSkill: "Spark partitioned-read semantics + when pushdown fires + reading the physical plan",
       starterCode: SRC(`# read.py
@@ -110,7 +110,7 @@ def assert_pushdown(df) -> dict:
       stepNumber: 2,
       title: "Skew handling — diagnose, salt, broadcast",
       instructionMd:
-        "Join `events` (1B rows) with `users` (10M rows) where 0.1% of user_ids account for 90% of events (the 'whales'). Step 2a: profile with `events.groupBy('user_id').count().orderBy(F.desc('count')).show(20)` — confirm top-20 skew. Step 2b: salt the skewed keys by adding a random suffix (`user_id || '_' || (rand()*N).cast('int')`) on the events side, and explode the matching rows N times on the users side. Step 2c: add `broadcast(small_dim)` hint where applicable. Validator runs against a fixture with engineered skew; asserts: post-salt, the slowest task < 1.5× median (was 50×); join result row-count matches the un-salted join exactly.",
+        "Join `events` (1B rows) with `users` (10M rows) where 0.1% of user_ids account for 90% of events (the 'whales'). Step 2a: profile with `events.groupBy('user_id').count().orderBy(F.desc('count')).show(20)` — confirm top-20 skew. Step 2b: salt the skewed keys by adding a random suffix (`user_id || '_' || (rand()*N).cast('int')`) on the events side, and explode the matching rows N times on the users side. Step 2c: add `broadcast(small_dim)` hint where applicable. Self-check: run salt_skewed_join against the fixture with engineered skew — verify in the Spark UI that the slowest task is under 1.5× the median task duration (vs ~50× before salting), and confirm the salted join row-count matches the naive join row-count exactly.",
       learningObjective: "Skew is the #1 cause of slow Spark jobs. Salting + broadcast are the two main tools.",
       requiredSkill: "Skew diagnosis from Spark UI + salting strategy + broadcast-join hints + result-equivalence proof",
       starterCode: SRC(`# skew.py
@@ -166,7 +166,7 @@ def salt_skewed_join(events: DataFrame, users: DataFrame, skewed_keys: list[str]
       stepNumber: 3,
       title: "Adaptive Query Execution — skew, coalesce, dynamic join switch",
       instructionMd:
-        "Enable AQE with `spark.sql.adaptive.enabled=true` + `spark.sql.adaptive.skewJoin.enabled=true` + `spark.sql.adaptive.coalescePartitions.enabled=true`. Re-run a join that has post-shuffle partition imbalance (some 5MB, one 2GB). Validator asserts: AQE auto-splits the 2GB skewed partition into N sub-partitions (visible in plan as `OptimizeSkewedJoin`); post-shuffle partition count coalesces from 200 → ~50; if a sort-merge join becomes broadcast-able after the first stage, AQE switches to broadcast (visible in plan as `BroadcastHashJoin` replacing `SortMergeJoin`).",
+        "Enable AQE with `spark.sql.adaptive.enabled=true` + `spark.sql.adaptive.skewJoin.enabled=true` + `spark.sql.adaptive.coalescePartitions.enabled=true`. Re-run a join that has post-shuffle partition imbalance (some 5MB, one 2GB). Self-check: call configure_aqe and assert_aqe_fired on the fixture job — confirm adaptiveFired=True (AdaptiveSparkPlan in plan), skewSplitApplied=True (OptimizeSkewedJoin or isSkew in plan), coalesceApplied=True (CoalesceShufflePartitions in plan), and post-shuffle partition count coalesces from 200 → ~50.",
       learningObjective: "AQE auto-applies most of the manual optimizations from step 2 — if you turn it on.",
       requiredSkill: "AQE configuration + reading the AQE-rewritten plan + skewJoin threshold tuning",
       starterCode: SRC(`# aqe.py
@@ -217,7 +217,7 @@ def assert_aqe_fired(df) -> dict:
       stepNumber: 4,
       title: "Output file sizing — `coalesce` + `maxRecordsPerFile`",
       instructionMd:
-        "Write the joined output to `s3://output/normalized/` partitioned by `event_date`. Configure so the average output file size is ~128MB (typical sweet spot for downstream readers: not too small to swamp metadata, not too large to hurt parallelism). Use `coalesce(n)` AFTER the last shuffle and `.option('maxRecordsPerFile', N)` for hard cap. Validator: against a 10GB fixture, assert: per-partition file count means 100-150MB avg file size (±25%); no file > 256MB; no file < 32MB.",
+        "Write the joined output to `s3://output/normalized/` partitioned by `event_date`. Configure so the average output file size is ~128MB (typical sweet spot for downstream readers: not too small to swamp metadata, not too large to hurt parallelism). Use `coalesce(n)` AFTER the last shuffle and `.option('maxRecordsPerFile', N)` for hard cap. Self-check: run write_sized against the 10GB fixture — inspect the output files and confirm the average file size is between 100MB and 150MB, no individual file exceeds 256MB, and no file is smaller than 32MB.",
       learningObjective: "Output file sizing is downstream's problem until it's yours — Iceberg/Delta compaction + query planners both punish small + huge files.",
       requiredSkill: "coalesce vs repartition + maxRecordsPerFile + partition-by-write semantics",
       starterCode: SRC(`# write.py

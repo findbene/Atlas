@@ -262,7 +262,7 @@ def reconcile(pg, sf) -> None:
       stepNumber: 5,
       title: "OpenTelemetry: connector lag + drift counter",
       instructionMd:
-        "Emit two OTel metrics: `cdc.connector.lag_seconds` (gauge — read from Connect REST `/connectors/orders-cdc/status` and the LSN), and `cdc.drift.count` (counter — incremented when reconcile() raises DriftAlert). Wire to OTLP. Validator scrapes after one synthetic drift and asserts both metrics appear with expected values.",
+        "Emit two OTel metrics: `cdc.connector.lag_seconds` (gauge — read from Connect REST `/connectors/orders-cdc/status` and the LSN), and `cdc.drift.count` (counter — incremented when reconcile() raises DriftAlert). Wire to OTLP. Self-check: trigger one synthetic drift, then query the OTLP collector and confirm `cdc.drift.count` has incremented to 1 and `cdc.connector.lag_seconds` emits a float value.",
       learningObjective: "Emit structured operational metrics so CDC failures are visible before stakeholders notice.",
       requiredSkill: "OpenTelemetry + Connect REST scraping + counter vs gauge semantics",
       starterCode: SRC(`# metrics.py

@@ -171,7 +171,7 @@ class OrderCreated(_Base):
       stepNumber: 3,
       title: "Polars LazyFrame batch transform",
       instructionMd:
-        "Add a `/ingest/batch` route that accepts `list[OrderEvent]` (up to 10k). Convert to a Polars LazyFrame, group by `customer_id`, compute `total_orders`, `lifetime_value_cents`. Use `scan_csv`-style lazy chain + `.collect()` at the end for memory efficiency. Validator posts 100 events for 3 customers + asserts 3 rows out with correct sums.",
+        "Add a `/ingest/batch` route that accepts `list[OrderEvent]` (up to 10k). Convert to a Polars LazyFrame, group by `customer_id`, compute `total_orders`, `lifetime_value_cents`. Use `scan_csv`-style lazy chain + `.collect()` at the end for memory efficiency. Self-check: run `summarize_customers()` against 100 events for 3 customers and verify 3 rows are returned with the correct sums.",
       learningObjective: "Use Polars LazyFrame for memory-efficient batch transforms inside a service.",
       requiredSkill: "Polars LazyFrame + group_by + aggregate + Pydantic model dump",
       starterCode: SRC(`# transforms.py
@@ -221,7 +221,7 @@ def summarize_customers(events: list[OrderEvent]) -> pl.DataFrame:
       stepNumber: 4,
       title: "SQLAlchemy persist with explicit transactions",
       instructionMd:
-        "Define `Order` SQLAlchemy model. In the route handler, open a session via `with Session(engine) as session`, use `session.execute(insert(Order), [...])` for bulk insert, `session.commit()` on success, `session.rollback()` on Pydantic ValidationError. Validator posts a batch with one bad row + asserts the WHOLE batch was rolled back.",
+        "Define `Order` SQLAlchemy model. In the route handler, open a session via `with Session(engine) as session`, use `session.execute(insert(Order), [...])` for bulk insert, `session.commit()` on success, `session.rollback()` on Pydantic ValidationError. Self-check: post a batch with one bad row (e.g. a duplicate primary key) and confirm the WHOLE batch was rolled back atomically.",
       learningObjective: "Persist validated data with explicit SQLAlchemy session boundaries.",
       requiredSkill: "SQLAlchemy 2.0 Session + bulk insert + transaction semantics",
       starterCode: SRC(`# db.py
@@ -281,7 +281,7 @@ def persist_orders(rows: list[dict]) -> int:
       stepNumber: 5,
       title: "OpenAPI + integration test with httpx",
       instructionMd:
-        "Confirm `GET /openapi.json` reflects the Pydantic schemas — including the discriminated union. Write a pytest test using `httpx.AsyncClient` that boots the FastAPI app via `lifespan`, posts a valid batch, and asserts the OpenAPI schema includes `OrderEvent` with discriminator. Validator runs the test + asserts pass.",
+        "Confirm `GET /openapi.json` reflects the Pydantic schemas — including the discriminated union. Write a pytest test using `httpx.AsyncClient` that boots the FastAPI app via `lifespan`, posts a valid batch, and asserts the OpenAPI schema includes `OrderEvent` with discriminator. Self-check: run the test yourself and confirm it passes.",
       learningObjective: "Verify the service exposes correct, navigable OpenAPI for downstream consumers.",
       requiredSkill: "FastAPI OpenAPI + httpx AsyncClient + pytest integration test",
       starterCode: SRC(`# tests/test_openapi.py

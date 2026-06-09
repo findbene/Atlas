@@ -169,7 +169,7 @@ async def executor(task: Task, context: dict) -> str:
       stepNumber: 3,
       title: "Wire it all on LangGraph",
       instructionMd:
-        "Build the LangGraph: nodes = planner, executor (fan-out over Plan.tasks respecting depends_on), synthesizer. State = TypedDict {question, plan, outputs: dict[str,str], answer}. Use `StateGraph(State).add_node(...).add_edge(...).compile()`. Execute the plan in topological order — task A is ready when all its `depends_on` are in `outputs`. Validator runs the full graph against the mocked trio of tools and asserts the final state.answer is non-empty + outputs has 3 entries.",
+        "Build the LangGraph: nodes = planner, executor (fan-out over Plan.tasks respecting depends_on), synthesizer. State = TypedDict {question, plan, outputs: dict[str,str], answer}. Use `StateGraph(State).add_node(...).add_edge(...).compile()`. Execute the plan in topological order — task A is ready when all its `depends_on` are in `outputs`. Self-check: run the full graph against the mocked trio of tools and confirm the final state.answer is non-empty and outputs has exactly 3 entries.",
       learningObjective: "Compose planner+executor+synthesizer into a stateful LangGraph with proper dependency ordering.",
       requiredSkill: "LangGraph StateGraph + TypedDict state + topological dispatch",
       starterCode: SRC(`# graph.py
@@ -241,7 +241,7 @@ def build_graph():
       stepNumber: 4,
       title: "Cost ceiling that short-circuits at $X",
       instructionMd:
-        "Add `@cost_ceiling(usd_max=0.50)` decorator that tallies token usage across all LLM calls in a run and raises `BudgetExceeded` once the running total exceeds the cap. Use OpenAI's usage object from each response (.usage.prompt_tokens, .completion_tokens) + a model-pricing table to compute USD. Persist the tally in a contextvar so it follows the asyncio task tree. Validator wraps a graph run with cost_ceiling(usd_max=0.001), mocks 3 calls that each cost $0.0005, and asserts BudgetExceeded is raised on call 3.",
+        "Add `@cost_ceiling(usd_max=0.50)` decorator that tallies token usage across all LLM calls in a run and raises `BudgetExceeded` once the running total exceeds the cap. Use OpenAI's usage object from each response (.usage.prompt_tokens, .completion_tokens) + a model-pricing table to compute USD. Persist the tally in a contextvar so it follows the asyncio task tree. Self-check: wrap a run with cost_ceiling(usd_max=0.001), mock 3 calls each costing $0.0005, and confirm BudgetExceeded is raised on call 3.",
       learningObjective: "Enforce a per-run cost ceiling using contextvars + OpenAI usage telemetry.",
       requiredSkill: "Python contextvars + decorators + per-model pricing tables + asyncio task-local state",
       starterCode: SRC(`# cost.py
@@ -299,7 +299,7 @@ def cost_ceiling(usd_max: float):
       stepNumber: 5,
       title: "LangSmith tracing for every node",
       instructionMd:
-        "Wrap every node with LangSmith's `@traceable` so each invocation appears in the LangSmith UI with inputs, outputs, and latency. Set `os.environ['LANGCHAIN_TRACING_V2']='true'`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`. Then add `@traceable(name='planner_node')` etc. The validator boots the graph with a fake LangSmith client + asserts 3 spans are emitted (planner, executor, synthesizer) with non-null start_time/end_time.",
+        "Wrap every node with LangSmith's `@traceable` so each invocation appears in the LangSmith UI with inputs, outputs, and latency. Set `os.environ['LANGCHAIN_TRACING_V2']='true'`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`. Then add `@traceable(name='planner_node')` etc. Self-check: run the graph and confirm exactly 3 spans appear in LangSmith (planner_node, executor_node, synthesizer_node) with non-null start_time/end_time.",
       learningObjective: "Add structured tracing to every agent node so production failures are debuggable.",
       requiredSkill: "LangSmith @traceable + observability + env-driven config",
       starterCode: SRC(`# tracing.py

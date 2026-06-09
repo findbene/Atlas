@@ -113,7 +113,7 @@ cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
       stepNumber: 2,
       title: "expire_snapshots + remove_orphan_files",
       instructionMd:
-        "Append to the same job: `CALL system.expire_snapshots(table => 'db.events', older_than => current_timestamp() - INTERVAL 7 DAYS, retain_last => 5)` then `CALL system.remove_orphan_files(table => 'db.events', older_than => current_timestamp() - INTERVAL 3 DAYS)`. Why both? expire_snapshots removes metadata pointers (allows physical cleanup); remove_orphan_files deletes files that aren't referenced (e.g. half-written aborts). Validator runs both procedures against a table with 10 snapshots + 5 orphan files and asserts post-state: ≤5 snapshots, 0 orphans.",
+        "Append to the same job: `CALL system.expire_snapshots(table => 'db.events', older_than => current_timestamp() - INTERVAL 7 DAYS, retain_last => 5)` then `CALL system.remove_orphan_files(table => 'db.events', older_than => current_timestamp() - INTERVAL 3 DAYS)`. Why both? expire_snapshots removes metadata pointers (allows physical cleanup); remove_orphan_files deletes files that aren't referenced (e.g. half-written aborts). Self-check: run both procedures against a fixture table with 10 snapshots and 5 orphan files, then confirm the table has ≤5 snapshots remaining and 0 orphan files — and that expire_snapshots ran before remove_orphan_files.",
       learningObjective: "Combine snapshot expiry + orphan cleanup to bound storage cost without breaking time-travel.",
       requiredSkill: "Iceberg snapshot lifecycle + orphan-file detection + procedure ordering",
       starterCode: SRC(`# maintenance.py (append to compact.py)
@@ -232,7 +232,7 @@ with DAG("iceberg_maintenance", schedule="0 3 * * *",
       stepNumber: 4,
       title: "Athena benchmark — prove the speedup",
       instructionMd:
-        "Write `benchmark.py` that issues 3 representative queries against `db.events` via Athena, before and after a manual compaction run. Capture `QueryExecution.Statistics.{DataScannedInBytes, EngineExecutionTimeInMillis}`. Validator asserts post-compact EngineExecutionTimeInMillis ≤ 25% of pre-compact (4x speedup target) for at least 2 of 3 queries.",
+        "Write `benchmark.py` that issues 3 representative queries against `db.events` via Athena, before and after a manual compaction run. Capture `QueryExecution.Statistics.{DataScannedInBytes, EngineExecutionTimeInMillis}`. Self-check: confirm that post-compaction `EngineExecutionTimeInMillis` is ≤25% of the pre-compaction value (4x speedup target) for at least 2 of the 3 queries, and record the before/after results as evidence.",
       learningObjective: "Quantify the impact of compaction with an Athena benchmark — turn 'felt faster' into a measurable artifact.",
       requiredSkill: "boto3 Athena start_query_execution + result polling + statistics extraction",
       starterCode: SRC(`# benchmark.py
@@ -292,7 +292,7 @@ def run_and_measure(q: str) -> dict:
       stepNumber: 5,
       title: "OTel: file count + p99 query latency",
       instructionMd:
-        "Emit two OTel metrics: (a) `iceberg.table.files` gauge — read from `db.events.files` metadata table after each compaction run; (b) `athena.query.duration_ms` histogram — record from benchmark.py for ongoing visibility. Wire to OTLP. Validator asserts both metrics are exported with expected dimensions {table, query_id}.",
+        "Emit two OTel metrics: (a) `iceberg.table.files` gauge — read from `db.events.files` metadata table after each compaction run; (b) `athena.query.duration_ms` histogram — record from benchmark.py for ongoing visibility. Wire to OTLP. Self-check: confirm the `iceberg.table.files` gauge emits a value ≤8 after compaction, the histogram has ≥3 recorded observations after the benchmark run, and both metrics include a `table` dimension attribute.",
       learningObjective: "Make compaction effectiveness visible long-term with structured metrics.",
       requiredSkill: "OTel histogram + gauge + Iceberg metadata tables",
       starterCode: SRC(`# metrics.py
