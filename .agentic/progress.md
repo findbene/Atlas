@@ -4,6 +4,27 @@
 > Live engineering state of the *Replit-era code* remains in `HANDOFF.md` (Phase 57A). This file
 > tracks the *Claude Code continuation* (the build-to-finish).
 
+## 2026-06-08 — Phase 61I SHIPPED (exact contract + catalog-wide bespoke-key sweep)
+
+Closed the authoring/promotion trust gap from 61H. Close-out:
+`docs/phases/phase-61i-exact-contract-and-bespoke-key-sweep.md`.
+- **Exact contract:** `promote` now maps `spec.expected` → `expected_output` (`exactExpected()`);
+  `assertValidExactSpec` requires non-empty `expected` + strict allowlist. 0 authored exact remain.
+- **Strict guards:** `contains` allowlist {needle,needles,match,caseInsensitive}; new `assertValidRegexSpec`.
+- **Regex runtime:** branch now reads inner `spec` (latent wrapper dead-gate fixed; mirrors 61G). 0 live regex.
+- **Sweep:** 21 authored files' bespoke `contains`/`exact` keys → canonical `needles` or honest
+  `self_attest` (forbidden/exit-code/count/multi-scenario → self_attest, owner-approved). Honest copy.
+  Dispatched 7 parallel Sonnet workers + an allowlist-audit-caught straggler (guardrails); Opus-reviewed every diff.
+- **dbt-macros step 2 reverted** to original `json_equal` (out of 61I exact+contains scope → 61J).
+- **New gate `audit:validation-keys`** (catalog-wide: contains/exact/regex use only runtime-read keys).
+- **Reviews:** atlas-architect-reviewer **PASS** + code-reviewer **SHIP** (0 P0/P1; P2 housekeeping only).
+- **Gates green:** api-server 662/662 · atlas 170/170 · integration 4/4 · curriculum-quality 177/178
+  (1 pre-existing env-only `.local/course-skill-maps.md` failure) · validation-keys 0 · contains-bc 6/6 ·
+  exact-bc PASS · sql/csv-bc no drift · serverGrade **= 10** · C2 set [1,2,3,5] · authoring/pedagogy exit 0.
+- **DB census:** 0 visible `json_equal`/`numeric_tolerance`/`exact`/`regex` steps → deferred dead-gate kinds
+  all un-promoted; **no live auto-pass dead gate**. Commits: wip bulk `0d08b2b`/`8cad9df`; clean `e9515d8`; close-out next.
+- **Next (61J, owner-gated):** catalog-wide `json_equal` + `numeric_tolerance` sweep (json_equal overlaps Phase-52 canary).
+
 ## Current state — 2026-05-29
 
 - **Phase:** Phase 0 (Foundation) in progress. Owner approved plan + decisions 100%.

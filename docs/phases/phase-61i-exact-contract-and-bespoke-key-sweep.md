@@ -193,9 +193,23 @@ Sweep bulk (17 files + the promote map) in pushed session wips `0d08b2b` /
   not a regression); (P2-2) the regex `""` fallback is the latent dead-gate class
   but double-blocked by `assertValidRegexSpec` + `audit:validation-keys` (0 live
   regex). Neither blocking.
-- **code-reviewer → _pending_** (SHIP/NO-SHIP to be recorded).
+- **code-reviewer → SHIP** (0 P0/P1). Re-ran all gates on Node 24; verified the
+  regex fix mirrors 61G and its pin genuinely fails on pre-61I code; guards run at
+  `validationConfig()` construction (proven by the whole-index import exiting 0);
+  `exactExpected` is BC-safe (null for all non-exact → byte-identical write);
+  `validationType` ↔ `validation.kind` agree on all 310 authored steps (so the
+  `validationType`-keyed promote map and the `kind`-keyed audit can't diverge);
+  needles byte-preserved; honesty copy accurate; all 9 self_attest specs non-empty.
+  P2 housekeeping: remove the hook-committed `.tmp_guardrails_old.ts` (done, §15);
+  after any future `promote` of a swept project, run `audit:contains-bc` to confirm
+  the now-live needles enforce (→ §17).
 
 ## 17. Tracked follow-ups (NOT in 61I)
+- **Operational (both reviewers):** the sweep is LATENT — conversions change DB
+  grading only on the next `author:project promote <slug>`. When any swept project
+  is (re-)promoted, run `audit:contains-bc` immediately after to confirm the
+  now-live `needles` enforce as intended (and eyeball a reference solution per the
+  §5 marker-tightening note).
 - **Phase 61J:** catalog-wide `json_equal` + `numeric_tolerance` dead-gate sweep
   (no runtime branch → auto-pass). `json_equal` overlaps the Phase-52 canary kind —
   coordinate. Confirm/triage any VISIBLE json_equal/numeric_tolerance dead gate.
