@@ -22,8 +22,9 @@
  * Validation discipline (updated Phase 61I): 5 of 8 steps use the canonical
  * `contains` needle-marker check; 2 steps whose core intent is multi-scenario
  * CLI / parse behavior (the parse-and-repair outcome triplet, the safety-eval
- * exit-code regression gate) use honest `self_attest`; 1 uses numeric_tolerance
- * (LLM-judge calibration — still a dead-gate kind, pending the Phase-61J sweep).
+ * exit-code regression gate) use honest `self_attest`; the LLM-judge calibration
+ * step (formerly a dead-gate numeric_tolerance) was converted to `self_attest` in
+ * the Phase-61J sweep (a single scalar tolerance cannot honestly grade editor code).
  * This matches the established catalog convention shared by 14 prior
  * authored modules (Phase 7 → 41) and SHIFTS the catalog enforcement-
  * kind ratio in the right direction rather than piling more

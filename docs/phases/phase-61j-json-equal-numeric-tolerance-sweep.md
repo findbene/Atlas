@@ -81,7 +81,9 @@ closed; missing/negative tolerance fails closed. All fail on pre-61J code.
 
 ## 10. Catalog sweep result (§21)
 **ALL authored json_equal + numeric_tolerance steps → `self_attest`. 0 remain**
-(grep-verified). Two passes: (a) an initial discipline-by-shape sweep (8 parallel
+(grep-verified). Across both passes, **211 steps converted (174 json_equal + 37
+numeric_tolerance)** — the ONLY two validationType transitions in the phase (no
+other kind moved). Two passes: (a) an initial discipline-by-shape sweep (8 parallel
 Sonnet workers across 52 files) downgraded the bespoke/multi-field/approx/threshold
 majority; (b) a correction pass (3 workers, 16 files, 38 steps) downgraded the
 remainder — including the ~30 steps an early pass had "kept" as integer-exact
@@ -112,15 +114,33 @@ Workers additionally repaired false prose ("verified via numeric_tolerance",
 server-enforced / verified / tamper-proof / cheat-proof / job-ready / certified
 claim introduced. `check:authored-c2`/`-saas`/`-finops` green.
 
+**P1 fix (both reviewers, H3):** two steps a correction worker downgraded
+numeric_tolerance→self_attest initially retained an instructionMd clause "Atlas
+checks that the submitted numeric … value is within the configured tolerance" —
+a false grading claim on a now-ungraded step (`ai-engineer__llm-eval-harness`
+s3, `ai-engineer__model-serving-canary` s3). Both rewritten to honest
+self-verification copy. To prevent recurrence, `audit:validation-keys` gained a
+**self_attest honesty lint**: any self_attest step whose instructionMd matches
+`Atlas (checks|verifies|grades)` fails the audit (narrow — the honest "Atlas does
+not grade" line and the contains "Atlas checks that the required markers…" copy,
+which lives on contains steps, do not trip it). Audit green after the fix.
+
 ## 13. Phase 52 / canary non-drift verification (§24)
-`envelopeGrade.ts` is **byte-unchanged** (git diff shows no edit);
-`PILOT_RUNTIME_KINDS = {json_equal}` and `ATLAS_ENVELOPE_REQUIRED_KINDS` (empty)
-untouched; `expected_output` is NOT populated for json_equal (so the canary's
-authoring-gap → fallback posture, when activated, is unchanged). The only
-interaction: envelopeGrade's authoring-gap fallback delegates to `gradeSubmission`,
-which now has a json_equal branch — but the envelope path is gated OFF and
-operator-pending, so production behavior is unchanged today. Documented for the
-operator; flagged for the architect.
+`envelopeGrade.ts` is **byte-unchanged** (architect-confirmed: zero diff since
+Phase 58A `6ee7b65`); `PILOT_RUNTIME_KINDS = {json_equal}` and
+`ATLAS_ENVELOPE_REQUIRED_KINDS` (empty) untouched; `expected_output` is NOT
+populated for json_equal. The one interaction (pinned by 2 new
+`envelopeGrade.test.ts` cases): envelopeGrade's json_equal authoring-gap fallback
+delegates to `gradeSubmission`, which now has a json_equal branch. Behavior split:
+the **realistic** authoring gap (`validationConfig` null + null `expectedOutput`)
+STILL default-passes — preserved by `gradeSubmission`'s `&& step.validationConfig`
+guard short-circuiting to the generic auto-pass; the **superseded** case (a
+populated `validationConfig` lacking `spec.expected` + null `expectedOutput`) now
+FAILS CLOSED instead of default-passing — the correct 61H/61I/61J fail-closed
+philosophy replacing the old dead-gate-tolerant default-pass. **Moot today:** the
+canary is OFF + operator-pending and there are 0 authored json_equal steps, so
+production behavior is unchanged. (Architect P2, accept-with-note; wording
+corrected from the pre-review draft's "posture unchanged".)
 
 ## 14. ServerGrade count before/after (§25)
 Unchanged: `sql_resultset` 8 + `csv_set_equal` 2 = **10** (DB-confirmed). json_equal
@@ -154,10 +174,28 @@ runtime/guards residual + audit message in `21626ff`. Close-out + mini-report
 archive follow.
 
 ## 19. Independent reviews (§28)
-- **atlas-architect-reviewer → _pending_**.
-- **code-reviewer → _pending_**.
+- **atlas-architect-reviewer → initial FAIL (1 P1: H3 false-grading claim on the 2
+  converted steps) → FIXED (§12), re-verified PASS.** Verified sound: root cause +
+  fail-closed branches; `envelopeGrade.ts` byte-frozen; sweep complete + honest (0
+  remain; all-downgrade justified by the editor-code submission model);
+  serverGrade=10; no sql/csv/schema/envelope/GitHub drift; scope = the declared
+  source files + catalog sweep. P2s addressed: canary-fallback wording (§13) + the
+  new regression test; honesty lint added; stale guardrails comment + audit message
+  fixed.
+- **code-reviewer → NO-SHIP (same 1 P1) → SHIP after the P1 fix.** Verified runtime
+  purely additive (no fail-open path across 22 edge cases incl. NaN/Infinity/`1`-vs-`"1"`);
+  `deepEqualJson` logic-identical to the envelope copy; guards narrow-but-complete;
+  tests genuinely pin the fix; serverGrade=10; the 211 conversions are the only
+  validationType transitions in the phase.
 
 ## 20. Tracked follow-ups / remaining risk (§29)
+- **Phase 61K (code-review P2-1):** ~48 PRE-EXISTING `self_attest` steps (across
+  ~25 files — e.g. `spark-batch-processing` 1-3, `pytorch-image-finetuning` 1/3/4/5,
+  `delta-lake-lakehouse` 2-4, `planner-executor` 1/3) retain stale "Validator
+  runs/asserts/hits…" instructionMd copy implying automated grading. NOT
+  61J-introduced (claim count identical at `89a38c5` and HEAD) and not caught by the
+  new honesty lint (which targets only the "Atlas checks/verifies/grades" H3 class,
+  not "Validator runs"). A soft-honesty cleanup for a follow-up phase.
 - The json_equal/numeric_tolerance contracts are **unexercised** — a future
   writeup step that genuinely asks the learner to paste a JSON value or a single
   number can use them (and would enforce). The audit + guards prevent a bespoke

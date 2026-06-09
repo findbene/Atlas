@@ -171,7 +171,7 @@ def score(example, response: str) -> ScoreResult:
       stepNumber: 3,
       title: "Multi-judge consensus (GPT-4o + Claude + Haiku)",
       instructionMd:
-        "Implement `judge(example, response, judges=['gpt-4o','claude-sonnet-4','claude-haiku-4']) -> JudgeResult` that runs all 3 judges in parallel (asyncio.gather), each returning a 1-5 score with reasoning, then computes consensus = median. Atlas checks that the submitted numeric consensus value is within the configured tolerance.",
+        "Implement `judge(example, response, judges=['gpt-4o','claude-sonnet-4','claude-haiku-4']) -> JudgeResult` that runs all 3 judges in parallel (asyncio.gather), each returning a 1-5 score with reasoning, then computes consensus = median. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself that consensus equals the median of the 3 judge scores.",
       learningObjective: "Single-judge scores have ~15% variance across runs; median of 3 cuts it to ~4%.",
       requiredSkill: "asyncio.gather + multi-provider abstractions + consensus voting",
       starterCode: SRC(`# judges.py

@@ -46,7 +46,23 @@ let checked = 0;
 for (const p of AUTHORED_PROJECTS) {
   for (const s of p.steps) {
     const kind = s.validation?.kind;
-    if (!kind || !(kind in ALLOWED)) continue; // only police contains/exact/regex
+
+    // Phase 61J — honesty lint (all kinds): a `self_attest` step must not claim
+    // Atlas grades it. self_attest performs no check, so "Atlas checks/verifies/
+    // grades …" in its instruction is a false H3 grading claim (the exact defect
+    // the numeric_tolerance→self_attest conversions risked, caught in review).
+    // Narrow: matches only "Atlas <checks|verifies|grades>" — the honest "Atlas
+    // does NOT run/grade" line and the contains "Atlas checks that the required
+    // markers …" copy (which lives on contains steps, not self_attest) don't trip it.
+    if (kind === "self_attest" && /\bAtlas\s+(checks|verifies|grades)\b/i.test(s.instructionMd ?? "")) {
+      failures.push(
+        `${p.slug} step ${s.stepNumber} (self_attest): instructionMd claims Atlas checks/verifies/` +
+          `grades this step — but self_attest performs no grading (a false H3 claim). Reword to honest ` +
+          `self-verification copy.`,
+      );
+    }
+
+    if (!kind || !(kind in ALLOWED)) continue; // key-allowlist only for the graded kinds
     checked++;
     const tag = `${p.slug} step ${s.stepNumber} (${kind})`;
     const spec = (s.validation.spec ?? {}) as Record<string, unknown>;
@@ -103,7 +119,10 @@ for (const p of AUTHORED_PROJECTS) {
 }
 
 console.log(`\n=== Phase 61I/61J — authored validation-key audit ===`);
-console.log(`Projects: ${AUTHORED_PROJECTS.length}   contains/exact/regex steps checked: ${checked}`);
+console.log(
+  `Projects: ${AUTHORED_PROJECTS.length}   graded (contains/exact/regex/json_equal/numeric_tolerance) ` +
+    `steps key-checked: ${checked}   (+ self_attest honesty lint over all steps)`,
+);
 console.log(`Violations: ${failures.length}`);
 
 if (failures.length > 0) {

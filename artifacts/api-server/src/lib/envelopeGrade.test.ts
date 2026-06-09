@@ -160,6 +160,25 @@ describe("gradeEnvelopeCapture — authoring-gap fallback (never punish learners
     );
     expect(out.passed).toBe(true);
   });
+
+  // Phase 61J interaction (pinned per architect review): the envelope json_equal
+  // authoring-gap fallback delegates to `gradeSubmission`, which now has a
+  // json_equal branch. Document both the preserved case and the superseded case.
+  it("Phase 61J — the realistic authoring gap (validationConfig null + null expectedOutput) STILL default-passes — the canary no-punish contract is preserved (gradeSubmission's `&& validationConfig` guard short-circuits to the generic auto-pass)", () => {
+    const out = gradeEnvelopeCapture(
+      step({ expectedOutput: null, validationConfig: null }),
+      capture("anything"),
+    );
+    expect(out.passed).toBe(true);
+  });
+
+  it("Phase 61J — with a populated validationConfig that LACKS spec.expected (+ null expectedOutput) the fallback now FAILS CLOSED — the commit-path json_equal contract supersedes the old dead-gate-tolerant default-pass (consistent with 61H/61I/61J fail-closed; moot today: envelope canary is off + 0 authored json_equal steps)", () => {
+    const out = gradeEnvelopeCapture(
+      step({ expectedOutput: null, validationConfig: { kind: "json_equal", description: "d", spec: {} } }),
+      capture("anything"),
+    );
+    expect(out.passed).toBe(false);
+  });
 });
 
 describe("gradeEnvelopeCapture — non-pilot kinds delegate to legacy grader", () => {

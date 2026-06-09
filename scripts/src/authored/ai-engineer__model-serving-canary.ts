@@ -169,7 +169,7 @@ async def chat(req: ChatRequest) -> dict:
       stepNumber: 3,
       title: "Live judging on mirrored traffic",
       instructionMd:
-        "Implement `score_pair(prompt, baseline, candidate, judge_client) -> JudgeVerdict` that asks a cheap judge model 'which response is better?' returning `'baseline' | 'candidate' | 'tie'` + reasoning. Run it over the store; compute the **candidate win-rate** = wins / (wins + losses), excluding ties. Atlas checks that the submitted numeric win-rate value is within the configured tolerance.",
+        "Implement `score_pair(prompt, baseline, candidate, judge_client) -> JudgeVerdict` that asks a cheap judge model 'which response is better?' returning `'baseline' | 'candidate' | 'tie'` + reasoning. Run it over the store; compute the **candidate win-rate** = wins / (wins + losses), excluding ties. This is a learner attestation — Atlas does not run your code or grade this; verify it yourself that win-rate = wins/(wins+losses) on the fixture.",
       learningObjective: "Pairwise judging on live traffic gives a continuous signal — no need to wait for offline evals.",
       requiredSkill: "Pairwise LLM judging + win-rate math + tie handling",
       starterCode: SRC(`# judging.py
