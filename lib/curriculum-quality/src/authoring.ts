@@ -330,6 +330,51 @@ function assertValidNumericToleranceSpec(spec: Record<string, unknown>): void {
   }
 }
 
+// ── Phase 61K — self_attest copy honesty lint ──────────────────────────────
+//
+// A `self_attest` step performs NO grading — Atlas records the learner's
+// attestation and does not execute or semantically verify their code/prose. So
+// its learner-facing copy must not imply automated validation. This returns the
+// list of offending phrases in `text` (empty = honest); the catalog audit
+// (`audit:validation-keys`) calls it on every self_attest step's instructionMd
+// and fails on any hit, so the misleading-copy class (which 61G→61J's downgrades
+// surfaced — "Validator runs/asserts X", "server-enforced", "Atlas verifies", …)
+// cannot reappear. Honest negated disclaimers ("Atlas does NOT run/grade…") and
+// learner-owned validators ("your validator runs…") are intentionally NOT flagged.
+const SELF_ATTEST_MISLEADING: RegExp[] = [
+  // Atlas as the grading subject (extends the Phase-61J pattern).
+  /\bAtlas\s+(checks|verifies|grades|validates|confirms|runs|executes)\b/i,
+  // Server / commit-grader / automated grading language.
+  /\bserver[- ](verifies|confirms|enforced|enforces|grades|checks)\b/i,
+  /\bcommit[- ]grader\b/i,
+  /\bautomated\s+(check|validation|grading|grader)\b/i,
+  /\b(graded|validated|verified)\s+by\s+(atlas|the\s+(server|grader|commit|validator))\b/i,
+  // "Validator <verb>" as an automated subject. Capital-V proper-noun subject
+  // only; a learner-owned validator ("your/own/my/a/the/each/learner's validator
+  // runs…") is excluded via lookbehind so legit "build a validator that runs…"
+  // copy is not flagged.
+  /(?<!\b(?:your|own|my|a|the|each|learner'?s)\s)\bValidator\s+(runs|asserts|drives|hits|checks|verifies|evaluates|parses|executes)\b/,
+];
+const HONEST_NEGATION = /\b(does not|doesn't|do not|don't|never|not|no)\s*$/i;
+
+/** Phase 61K — return the misleading-validation phrases in a self_attest step's
+ *  copy (empty array = honest). Suppresses negated/honest forms. */
+export function selfAttestHonestyViolations(text: string): string[] {
+  const hits: string[] = [];
+  if (!text) return hits;
+  for (const re of SELF_ATTEST_MISLEADING) {
+    const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+    let m: RegExpExecArray | null;
+    while ((m = g.exec(text)) !== null) {
+      const before = text.slice(Math.max(0, m.index - 20), m.index);
+      if (HONEST_NEGATION.test(before)) continue; // "Atlas does NOT run/grade…" → honest
+      hits.push(m[0]);
+      if (m.index === g.lastIndex) g.lastIndex++; // avoid zero-width loop
+    }
+  }
+  return hits;
+}
+
 // ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────
 //
 // Authoring-time guard. Mirrors the runtime semantics in

@@ -56,7 +56,7 @@ export const analyticsEngineerDataCatalogImplementation: AuthoredProject = {
       stepNumber: 1,
       title: "Schema crawler — materialize tables + columns",
       instructionMd:
-        "Implement `crawl_schemas(conn) -> List[Entity]` that queries `information_schema.tables` + `information_schema.columns` for every non-system schema and yields one `Entity` per table (with embedded column list). Persist into the `catalog_entities` + `catalog_columns` tables. Validator runs against a 3-schema fixture warehouse and expects exactly 9 tables + 47 columns materialized.",
+        "Implement `crawl_schemas(conn) -> List[Entity]` that queries `information_schema.tables` + `information_schema.columns` for every non-system schema and yields one `Entity` per table (with embedded column list). Persist into the `catalog_entities` + `catalog_columns` tables. Self-check: run against a 3-schema fixture warehouse and confirm exactly 9 tables + 47 columns are materialized.",
       learningObjective: "Use INFORMATION_SCHEMA as the durable contract between any RDBMS and a catalog.",
       requiredSkill: "Postgres information_schema queries + psycopg + upsert idempotency",
       starterCode: SRC(`# crawler.py
@@ -118,7 +118,7 @@ def persist(conn, entities: list[Entity]) -> dict:
       stepNumber: 2,
       title: "dbt manifest → model + column lineage",
       instructionMd:
-        "Parse a dbt `target/manifest.json` and emit `LineageEdge(upstream_fqn, downstream_fqn, kind)` records. Model-level lineage comes from `node.depends_on.nodes`; column-level lineage comes from `node.columns.<col>.meta.lineage` (a dbt-osmosis / dbt-utils convention). Validator runs against a 12-model fixture manifest and expects 23 model edges + 41 column edges.",
+        "Parse a dbt `target/manifest.json` and emit `LineageEdge(upstream_fqn, downstream_fqn, kind)` records. Model-level lineage comes from `node.depends_on.nodes`; column-level lineage comes from `node.columns.<col>.meta.lineage` (a dbt-osmosis / dbt-utils convention). Self-check: run against a 12-model fixture manifest and confirm exactly 23 model edges + 41 column edges are extracted.",
       learningObjective: "Extract lineage from dbt metadata without re-parsing SQL.",
       requiredSkill: "dbt manifest.json structure + nested dict traversal + FQN normalization",
       starterCode: SRC(`# dbt_lineage.py
@@ -173,7 +173,7 @@ def parse_manifest(path: str) -> list[LineageEdge]:
       stepNumber: 3,
       title: "Impact analysis — downstream graph walk",
       instructionMd:
-        "Load all edges into a NetworkX DiGraph. Implement `downstream_of(graph, column_fqn) -> set[str]` returning every downstream column transitively. Validator picks `analytics.dim_user.email` and expects {marts.fct_signup.user_email, marts.dashboard_signups.user_email, mart_export.email_hash} (3 downstream consumers).",
+        "Load all edges into a NetworkX DiGraph. Implement `downstream_of(graph, column_fqn) -> set[str]` returning every downstream column transitively. Self-check: call `downstream_of(g, 'analytics.dim_user.email')` and confirm the returned set is exactly {marts.fct_signup.user_email, marts.dashboard_signups.user_email, mart_export.email_hash} (3 downstream consumers).",
       learningObjective: "Use a directed graph to answer 'what breaks if I change this column?' in O(downstream).",
       requiredSkill: "NetworkX DiGraph + descendants() + graph normalization",
       starterCode: SRC(`# impact.py
@@ -220,7 +220,7 @@ def downstream_of(graph: nx.DiGraph, fqn: str) -> set[str]:
       stepNumber: 4,
       title: "Governance overlay — ownership + PII tags",
       instructionMd:
-        "Implement `apply_overlay(entities, overlay_yaml) -> entities'` that reads a YAML overlay (`schema.table.column: { owner, pii: bool, slo_hours }`) and stamps each entity. Validator loads the fixture overlay and expects `analytics.dim_user.email` to come out with `owner='data-platform@'`, `pii=True`, `slo_hours=24`.",
+        "Implement `apply_overlay(entities, overlay_yaml) -> entities'` that reads a YAML overlay (`schema.table.column: { owner, pii: bool, slo_hours }`) and stamps each entity. Self-check: apply the fixture overlay and confirm `analytics.dim_user.email` comes out with `owner='data-platform@'`, `pii=True`, `slo_hours=24`.",
       learningObjective: "Separate immutable warehouse metadata from mutable governance metadata via overlays.",
       requiredSkill: "YAML parsing + merge semantics + governance modeling",
       starterCode: SRC(`# governance.py

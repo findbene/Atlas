@@ -56,7 +56,7 @@ export const dataScientistCausalInferenceUplift: AuthoredProject = {
       stepNumber: 1,
       title: "Identify confounders from the DAG",
       instructionMd:
-        "Given the domain DAG `(age, prior_orders) → both T and Y`, `gender → T only`, `seasonality → Y only`, `loyalty_segment → T → Y`, return `confounders(dag)` = the set of variables that influence BOTH treatment T and outcome Y (these need adjustment) but excludes mediators on the T→Y path (which would block the effect we want to estimate). Validator passes the fixture DAG and expects {'age', 'prior_orders'} (NOT 'gender' — only affects T; NOT 'seasonality' — only affects Y; NOT 'loyalty_segment' — it's a mediator).",
+        "Given the domain DAG `(age, prior_orders) → both T and Y`, `gender → T only`, `seasonality → Y only`, `loyalty_segment → T → Y`, return `confounders(dag)` = the set of variables that influence BOTH treatment T and outcome Y (these need adjustment) but excludes mediators on the T→Y path (which would block the effect we want to estimate). Self-check: run confounders(fixture_dag) and confirm the result equals {'age', 'prior_orders'} — verify that 'gender' (affects T only), 'seasonality' (affects Y only), and 'loyalty_segment' (mediator on the T→Y path) are all excluded.",
       learningObjective: "Distinguish confounders (adjust for) from mediators (don't), from colliders (never), from instruments.",
       requiredSkill: "Causal DAGs + back-door criterion + mediator identification",
       starterCode: SRC(`# confounders.py
@@ -102,7 +102,7 @@ def confounders(edges: list[Edge], treatment: str = 'T', outcome: str = 'Y') -> 
       stepNumber: 2,
       title: "Propensity-score model + calibration",
       instructionMd:
-        "Fit a calibrated propensity model `e(x) = P(T=1 | confounders)` using `sklearn.LogisticRegression` + `CalibratedClassifierCV`. Validator: trains on fixture (8000 rows, ~30% treated), evaluates on held-out 2000; expects ROC-AUC ≥0.74 AND Brier score ≤0.18 AND calibration slope ∈ [0.85, 1.15] (well-calibrated).",
+        "Fit a calibrated propensity model `e(x) = P(T=1 | confounders)` using `sklearn.LogisticRegression` + `CalibratedClassifierCV`. Self-check: train on the fixture (8000 rows, ~30% treated) and evaluate on the held-out 2000 rows; confirm ROC-AUC ≥ 0.74, Brier score ≤ 0.18, and calibration slope ∈ [0.85, 1.15] (well-calibrated).",
       learningObjective: "Estimate the probability of treatment, calibrated for use as a weight.",
       requiredSkill: "Logistic regression + isotonic/Platt calibration + Brier score + calibration slope",
       starterCode: SRC(`# propensity.py
@@ -152,7 +152,7 @@ def fit_propensity(df_train, df_test):
       stepNumber: 3,
       title: "ATE via inverse-probability weighting",
       instructionMd:
-        "Compute the IPW estimator `ATE_hat = mean( Y * T/e(x) ) - mean( Y * (1-T)/(1-e(x)) )`. Trim propensities to [0.05, 0.95] to bound weights. Validator runs on fixture (true ATE = 0.080 by construction) and expects estimated ATE in [0.070, 0.090] (within 1 percentage point).",
+        "Compute the IPW estimator `ATE_hat = mean( Y * T/e(x) ) - mean( Y * (1-T)/(1-e(x)) )`. Trim propensities to [0.05, 0.95] to bound weights. Self-check: run on the fixture (true ATE = 0.080 by construction) and confirm your estimated ATE is ∈ [0.070, 0.090] (within 1 percentage point of the ground truth).",
       learningObjective: "Use propensity weights to recover an unbiased ATE from observational data.",
       requiredSkill: "Inverse-probability weighting + weight trimming + ATE point estimate",
       starterCode: SRC(`# ate.py

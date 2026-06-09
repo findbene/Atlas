@@ -57,7 +57,7 @@ export const dataScientistAbTestFromScratch: AuthoredProject = {
       stepNumber: 1,
       title: "Sample-size calculator (two-proportion z-test)",
       instructionMd:
-        "Implement `sample_size(p_baseline, mde_rel, alpha=0.05, power=0.80) -> int` for a two-proportion z-test (one-sided). Use `n = ((z_α + z_β)² * (p1(1-p1) + p2(1-p2))) / (p2-p1)²` where p2 = p1*(1+mde_rel). Validator: p_baseline=0.10, mde_rel=0.10 (10% relative lift) → expects n_per_arm ∈ [14500, 16000].",
+        "Implement `sample_size(p_baseline, mde_rel, alpha=0.05, power=0.80) -> int` for a two-proportion z-test (one-sided). Use `n = ((z_α + z_β)² * (p1(1-p1) + p2(1-p2))) / (p2-p1)²` where p2 = p1*(1+mde_rel). Self-check: call sample_size(p_baseline=0.10, mde_rel=0.10, alpha=0.05, power=0.80) and confirm n_per_arm ∈ [14500, 16000].",
       learningObjective: "Compute the sample size required to detect a given lift with prescribed power.",
       requiredSkill: "Power analysis + two-proportion z-test sample-size formula + α/β interpretation",
       starterCode: SRC(`# power.py
@@ -98,7 +98,7 @@ def sample_size(p_baseline: float, mde_rel: float, alpha: float = 0.05, power: f
       stepNumber: 2,
       title: "Deterministic randomization via hashing",
       instructionMd:
-        "Implement `assign(user_id, experiment_id, split=0.5) -> 'control'|'treatment'` using `hashlib.md5(f'{experiment_id}|{user_id}').hexdigest()[:8]` as a 32-bit int, then thresholded at `split * 2^32`. Validator runs over 100k user_ids: expects assignment ∈ [49500, 50500] for split=0.5 (chi² p>0.05), AND every repeat call with same user_id returns the same bucket (deterministic), AND different experiment_ids re-randomize (independent salts).",
+        "Implement `assign(user_id, experiment_id, split=0.5) -> 'control'|'treatment'` using `hashlib.md5(f'{experiment_id}|{user_id}').hexdigest()[:8]` as a 32-bit int, then thresholded at `split * 2^32`. Self-check: run over 100k user_ids and confirm treatment count ∈ [49500, 50500] for split=0.5 (chi² p>0.05); verify every repeat call with the same user_id returns the same bucket (deterministic); verify different experiment_ids re-randomize (independent salts).",
       learningObjective: "Randomize deterministically so assignments are replayable, leak-free, and independent across experiments.",
       requiredSkill: "Hash-based bucketing + experiment-id salting + chi² balance test",
       starterCode: SRC(`# assign.py
@@ -136,7 +136,7 @@ def assign(user_id: str, experiment_id: str, split: float = 0.5) -> str:
       stepNumber: 3,
       title: "Welch t-test + bootstrap CI",
       instructionMd:
-        "Implement `analyze(treatment, control) -> AnalysisReport` returning Welch t-statistic, two-sided p-value (`scipy.stats.ttest_ind(equal_var=False)`), point estimate (mean diff), and 95% bootstrap CI (10k resamples). Validator: treated mean=10.5, control mean=10.0 with σ=2, n=8000 per arm; expects p<0.001 AND CI excludes 0 AND CI width <0.12.",
+        "Implement `analyze(treatment, control) -> AnalysisReport` returning Welch t-statistic, two-sided p-value (`scipy.stats.ttest_ind(equal_var=False)`), point estimate (mean diff), and 95% bootstrap CI (10k resamples). Self-check: run on a fixture with treated mean=10.5, control mean=10.0, σ=2, n=8000 per arm, and confirm p<0.001, point diff ∈ [0.45, 0.55], CI excludes 0, and CI width <0.12.",
       learningObjective: "Run a correct unequal-variance t-test + report uncertainty via a CI.",
       requiredSkill: "Welch's t-test + bootstrap resampling + reporting effect + CI rather than p-value alone",
       starterCode: SRC(`# analyze.py
@@ -189,7 +189,7 @@ def analyze(treatment: np.ndarray, control: np.ndarray, n_boot: int = 10000, alp
       stepNumber: 4,
       title: "Sequential testing — O'Brien-Fleming boundaries",
       instructionMd:
-        "Implement `obf_boundary(t_fraction, alpha=0.05) -> float` returning the O'Brien-Fleming Z-boundary at interim analysis fraction `t_fraction` ∈ (0, 1]: `boundary = z_(1-α/2) / sqrt(t_fraction)`. Implement `check_early_stop(z_stat, t_fraction)` returning True iff |z_stat| > boundary. Validator: at t=0.25 boundary ≈3.92; at t=1.0 boundary ≈1.96; cumulative type-1 error across 4 looks ≤0.052 (conservative vs naive 0.20).",
+        "Implement `obf_boundary(t_fraction, alpha=0.05) -> float` returning the O'Brien-Fleming Z-boundary at interim analysis fraction `t_fraction` ∈ (0, 1]: `boundary = z_(1-α/2) / sqrt(t_fraction)`. Implement `check_early_stop(z_stat, t_fraction)` returning True iff |z_stat| > boundary. Self-check: confirm obf_boundary(0.25) ≈ 3.92 and obf_boundary(1.0) ≈ 1.96; simulate 4-look type-1 error across 10k null experiments and confirm it is ≤ 0.052 (vs ~0.14 with naive z=1.96 at every look).",
       learningObjective: "Gate early stopping with a conservative boundary to preserve overall type-1 error.",
       requiredSkill: "Group-sequential testing + O'Brien-Fleming boundaries + α-spending intuition",
       starterCode: SRC(`# sequential.py
@@ -233,7 +233,7 @@ def check_early_stop(z_stat: float, t_fraction: float, alpha: float = 0.05) -> b
       stepNumber: 5,
       title: "CUPED — variance reduction via pre-experiment covariate",
       instructionMd:
-        "Implement `cuped_adjust(y, x_pre) -> y_adj` where `y_adj = y - θ * (x_pre - x_pre.mean())` and `θ = Cov(y, x_pre) / Var(x_pre)`. Run the analyzer on raw `y` vs adjusted `y_adj`. Validator: with x_pre highly correlated to y (ρ=0.7), expects CI width to shrink ≥25% AND point estimate to stay within ±5% of unadjusted (CUPED reduces variance without biasing the estimate).",
+        "Implement `cuped_adjust(y, x_pre) -> y_adj` where `y_adj = y - θ * (x_pre - x_pre.mean())` and `θ = Cov(y, x_pre) / Var(x_pre)`. Run the analyzer on raw `y` vs adjusted `y_adj`. Self-check: on a fixture experiment with x_pre correlation ρ=0.7 to y, confirm CI width after CUPED is ≤ 0.75 × CI width before CUPED, and that the point estimate stays within ±5% of the unadjusted estimate (CUPED is unbiased).",
       learningObjective: "Reduce experiment variance ~30% by adjusting outcomes by pre-experiment covariates.",
       requiredSkill: "CUPED (Microsoft 2013) + control-variate variance reduction + interpreting the estimate stays unbiased",
       starterCode: SRC(`# cuped.py

@@ -58,7 +58,7 @@ export const dataEngineeringAirflowEtlDag: AuthoredProject = {
       stepNumber: 1,
       title: "Idempotent extract — execution_date pruning + ON CONFLICT",
       instructionMd:
-        "Write `extract_daily_events(execution_date, ti)`: fetch the day's events from a paginated API, write to Postgres `events(event_id PK, event_date, payload, ingested_at)` with `INSERT … ON CONFLICT (event_id) DO UPDATE SET payload=EXCLUDED.payload, ingested_at=NOW()`. Validator runs the task twice for the same execution_date against a 500-row fixture API and asserts: 500 rows after first run, still 500 rows after second run (no duplicates), `ingested_at` updated on second run.",
+        "Write `extract_daily_events(execution_date, ti)`: fetch the day's events from a paginated API, write to Postgres `events(event_id PK, event_date, payload, ingested_at)` with `INSERT … ON CONFLICT (event_id) DO UPDATE SET payload=EXCLUDED.payload, ingested_at=NOW()`. Self-check: run the task twice for the same execution_date against a 500-row fixture API and confirm: 500 rows after the first run, still 500 rows after the second run (no duplicates), and `ingested_at` updated on the second run.",
       learningObjective: "Idempotency means re-running the task is safe — the table state is a function of the inputs only.",
       requiredSkill: "ON CONFLICT upsert + execution_date filter + paginated API consumption",
       starterCode: SRC(`# tasks/extract.py
@@ -111,7 +111,7 @@ def extract_daily_events(execution_date: datetime, ti, api_client, conn_str: str
       stepNumber: 2,
       title: "Deferrable S3KeySensor — backfill-friendly waits",
       instructionMd:
-        "Use `S3KeySensorAsync` (deferrable) to wait on `s3://manifests/dt={{ ds }}/manifest.json` before the extract task. Validator simulates a 90-day backfill scheduled in parallel (`max_active_runs=10`) and asserts: blocking `S3KeySensor` would pin 10 worker slots × 90 days = 900 slot-hours; the deferrable version uses the triggerer and reports 0 worker slots pinned during waits.",
+        "Use `S3KeySensorAsync` (deferrable) to wait on `s3://manifests/dt={{ ds }}/manifest.json` before the extract task. Self-check: simulate a 90-day backfill scheduled in parallel (`max_active_runs=10`) and confirm: a blocking `S3KeySensor` would pin 10 worker slots × 90 days = 900 slot-hours, while the deferrable version hands off to the triggerer and pins 0 worker slots during waits.",
       learningObjective: "Deferrable operators free worker slots while waiting — the only way to backfill at scale.",
       requiredSkill: "Airflow 2.x deferrable operators + triggerer + sensor vs operator semantics",
       starterCode: SRC(`# tasks/sensor.py
@@ -209,7 +209,7 @@ def dbt_build(target_model: str = 'mart_daily_events') -> BashOperator:
       stepNumber: 4,
       title: "Backfill safety — max_active_runs + depends_on_past",
       instructionMd:
-        "Configure the DAG with `max_active_runs=5`, `catchup=True`, and `depends_on_past=True` on the extract task. Validator simulates a 30-day backfill and asserts: never more than 5 DAG runs active simultaneously, day N's extract waits for day N-1's extract to succeed, and a failure on day 10 blocks days 11+ until resolved.",
+        "Configure the DAG with `max_active_runs=5`, `catchup=True`, and `depends_on_past=True` on the extract task. Self-check: simulate a 30-day backfill and confirm: never more than 5 DAG runs are active simultaneously, day N's extract waits for day N-1's extract to succeed, and a failure on day 10 leaves days 11+ in the waiting state until day 10 is resolved.",
       learningObjective: "Backfill discipline = strictly bounded concurrency + ordered execution where needed.",
       requiredSkill: "Airflow DAG-level concurrency + depends_on_past semantics + catchup behavior",
       starterCode: SRC(`# dag.py
@@ -265,7 +265,7 @@ with DAG(
       stepNumber: 5,
       title: "Data-quality gate — fail the DAG before downstream sees bad data",
       instructionMd:
-        "Add a `dq_gate` task after dbt that runs 3 SQL assertions on `mart_daily_events`: (1) row count > 0, (2) no NULL `user_id`, (3) `event_date = {{ ds }}` for all rows. The task raises `AirflowFailException` (no retry) if any assertion fails. Validator runs against (a) a clean fixture → success; (b) a fixture with 10 NULL user_ids → failure with the specific assertion in the log; assertion (1)/(3) tested similarly.",
+        "Add a `dq_gate` task after dbt that runs 3 SQL assertions on `mart_daily_events`: (1) row count > 0, (2) no NULL `user_id`, (3) `event_date = {{ ds }}` for all rows. The task raises `AirflowFailException` (no retry) if any assertion fails. Self-check: run against (a) a clean fixture and confirm no exception is raised; (b) a fixture with 10 NULL user_ids and confirm `AirflowFailException` is raised naming the `no_null_user` assertion; test assertions (1) and (3) similarly with their own bad fixtures.",
       learningObjective: "DQ gates are the cheapest insurance against downstream-broken dashboards.",
       requiredSkill: "AirflowFailException (no retry) + SQL assertions + clear error messages",
       starterCode: SRC(`# tasks/dq.py

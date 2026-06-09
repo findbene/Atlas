@@ -5,6 +5,7 @@ import {
   portfolioArtifact,
   projectMeta,
   assertAuthoredProjectComplete,
+  selfAttestHonestyViolations,
   type AuthoredProject,
   type AuthoredStep,
 } from "./authoring";
@@ -302,6 +303,38 @@ describe("validationConfig(numeric_tolerance) — Phase 61J scalar contract", ()
     badNt({ expected: 4, tolerance: 0.1, floors: { a: 1 } }, /not read by the runtime/));
   it("rejects a negative tolerance", () =>
     badNt({ expected: 4, tolerance: -1 }, /non-negative/));
+});
+
+// ── Phase 61K — self_attest copy honesty lint ──────────────────────────────
+describe("selfAttestHonestyViolations — Phase 61K honesty lint", () => {
+  const bad = (t: string) => expect(selfAttestHonestyViolations(t).length).toBeGreaterThan(0);
+  const ok = (t: string) => expect(selfAttestHonestyViolations(t)).toEqual([]);
+
+  // Misleading automated-validation language is flagged.
+  it("flags 'Validator runs …'", () => bad("Validator runs the task twice for the same execution_date."));
+  it("flags 'Validator asserts …'", () => bad("Validator asserts the file count after OPTIMIZE is ≤ 50."));
+  it("flags 'Validator drives …'", () => bad("Validator drives 4 timestamps with 4 transforms."));
+  it("flags 'server-enforced'", () => bad("This check is server-enforced on submit."));
+  it("flags 'Atlas verifies …'", () => bad("Atlas verifies the output matches the expected JSON."));
+  it("flags 'commit-grader'", () => bad("The commit-grader runs your code against the fixture."));
+  it("flags 'graded by Atlas'", () => bad("Your submission is graded by Atlas automatically."));
+  it("flags 'automated validation'", () => bad("An automated validation step runs on every submit."));
+
+  // Honest copy passes.
+  it("passes the honest attestation line", () =>
+    ok("This is a learner attestation — Atlas does not run your code or grade this; verify it yourself."));
+  it("passes a negated 'Atlas does not verify' disclaimer", () =>
+    ok("Atlas does not verify independent authorship or professional competence."));
+  it("passes 'Atlas does not run/check' negated forms", () =>
+    ok("Atlas does not run, check, or grade this step; record your attestation."));
+  it("passes honest self-check phrasing", () =>
+    ok("Self-check: run the task twice for the same execution_date and confirm idempotency."));
+  it("passes a learner-owned validator ('your validator runs …')", () =>
+    ok("Write a validator function; confirm your validator runs the suite and reports pass/fail."));
+  it("passes empty / plain copy", () => {
+    ok("");
+    ok("Implement the dispatch macro and write three unit tests.");
+  });
 });
 
 

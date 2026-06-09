@@ -187,7 +187,7 @@ def eval_retrieval(
       stepNumber: 3,
       title: "LLM-judge — grounding check + cited-span coverage",
       instructionMd:
-        "Build `judge_answer(question, answer, context_chunks, llm) -> {grounded: bool, ungrounded_claims: list[str], span_coverage: float}`. The judge sends a structured prompt asking Claude to (a) list every factual claim in the answer, (b) for each claim, mark whether it's supported by the context, and (c) return the fraction of answer characters that lie within a cited context span. Validator runs against 20 hand-labeled (answer, context, expected_grounded, expected_coverage) examples; asserts grounded-classification accuracy ≥ 0.90 and span-coverage MAE ≤ 0.10.",
+        "Build `judge_answer(question, answer, context_chunks, llm) -> {grounded: bool, ungrounded_claims: list[str], span_coverage: float}`. The judge sends a structured prompt asking Claude to (a) list every factual claim in the answer, (b) for each claim, mark whether it's supported by the context, and (c) return the fraction of answer characters that lie within a cited context span. Self-check: run against the 20 hand-labeled (answer, context, expected_grounded, expected_coverage) fixture examples and confirm grounded-classification accuracy ≥ 0.90 and span-coverage MAE ≤ 0.10.",
       learningObjective: "LLM-judge is the only practical way to grade open-ended answers at scale — but you must give the judge a STRUCTURED prompt with a typed output, not 'rate this from 1-10'.",
       requiredSkill: "Structured-output LLM judge + grounding decomposition + span-coverage computation",
       starterCode: SRC(`# eval/judge.py

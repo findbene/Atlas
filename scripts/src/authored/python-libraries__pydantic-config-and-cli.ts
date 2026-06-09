@@ -61,7 +61,7 @@ export const pythonLibrariesPydanticConfigAndCli: AuthoredProject = {
       stepNumber: 1,
       title: "Nested BaseSettings model — Database + S3 + Notify, all typed",
       instructionMd:
-        "Define a `Settings(BaseSettings)` with three nested sub-models: `DatabaseSettings(host, port:int, name, user)`, `S3Settings(bucket, region, endpoint_url:HttpUrl|None)`, `NotifySettings(slack_webhook:HttpUrl|None, default_channel)`. Each field has a sensible default OR is required. Validator instantiates `Settings()` with all values provided via constructor; asserts every field has the right type (port is int, endpoint_url is HttpUrl, etc.) and `Settings().model_dump()` round-trips.",
+        "Define a `Settings(BaseSettings)` with three nested sub-models: `DatabaseSettings(host, port:int, name, user)`, `S3Settings(bucket, region, endpoint_url:HttpUrl|None)`, `NotifySettings(slack_webhook:HttpUrl|None, default_channel)`. Each field has a sensible default OR is required. Self-check: instantiate `Settings()` with all values provided via constructor; verify every field has the right type (port is int, endpoint_url is HttpUrl, etc.) and `Settings().model_dump()` round-trips.",
       learningObjective: "`BaseSettings` is `BaseModel` + automatic env loading. Nesting works via sub-models on attributes — no `env_nested_delimiter` ceremony needed in pydantic v2 if you wire it right.",
       requiredSkill: "Pydantic v2 BaseSettings + nested sub-models + field-level types",
       starterCode: SRC(`# settings.py
@@ -124,7 +124,7 @@ class Settings(BaseSettings):
       stepNumber: 2,
       title: "Precedence — CLI flag > env > .env > default, deterministic",
       instructionMd:
-        "Write `Settings.customise_sources` so the lookup order is: (1) `init_settings` (constructor kwargs / CLI), (2) `env_settings` (os.environ), (3) `dotenv_settings` (`.env`), (4) defaults. Validator: with `DATABASE__PORT=6000` in env AND `port=7000` in `.env` AND constructor kwarg `database={port: 8000}`, asserts the final value is 8000 (CLI wins). With env-only, the final value is 6000. With dotenv-only, the final value is 7000.",
+        "Write `Settings.customise_sources` so the lookup order is: (1) `init_settings` (constructor kwargs / CLI), (2) `env_settings` (os.environ), (3) `dotenv_settings` (`.env`), (4) defaults. Self-check: run three scenarios and verify the results yourself — with `DATABASE__PORT=6000` in env AND `port=7000` in `.env` AND constructor kwarg `database={port: 8000}`, the final value should be 8000 (CLI wins). With env-only, the final value should be 6000. With dotenv-only, the final value should be 7000.",
       learningObjective: "Precedence chain MUST be explicit — silent default-resolution at the wrong layer is the #1 source of 'works on my machine' config bugs.",
       requiredSkill: "customise_sources hook + .env loading + deterministic source ordering",
       starterCode: SRC(`# settings.py (extends step 1)

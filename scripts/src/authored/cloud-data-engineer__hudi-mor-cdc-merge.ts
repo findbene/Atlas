@@ -56,7 +56,7 @@ export const cloudDataEngineerHudiMorCdcMerge: AuthoredProject = {
       stepNumber: 1,
       title: "Hudi MoR table options — record_key + precombine",
       instructionMd:
-        "Configure the Hudi write options: `hoodie.table.type=MERGE_ON_READ`, `hoodie.datasource.write.recordkey.field=id`, `hoodie.datasource.write.precombine.field=updated_at`, `hoodie.datasource.write.partitionpath.field=event_date`, `hoodie.datasource.write.operation=upsert`. Why precombine? When two records with the same key arrive in one batch, Hudi keeps the one with the larger precombine value — guaranteeing 'last write wins' deterministically. Validator instantiates these options + asserts `hoodie.table.type=MERGE_ON_READ` and `precombine.field=updated_at`.",
+        "Configure the Hudi write options: `hoodie.table.type=MERGE_ON_READ`, `hoodie.datasource.write.recordkey.field=id`, `hoodie.datasource.write.precombine.field=updated_at`, `hoodie.datasource.write.partitionpath.field=event_date`, `hoodie.datasource.write.operation=upsert`. Why precombine? When two records with the same key arrive in one batch, Hudi keeps the one with the larger precombine value — guaranteeing 'last write wins' deterministically. Self-check: call `hudi_options('orders')` and confirm `hoodie.table.type == 'MERGE_ON_READ'`, `hoodie.datasource.write.precombine.field == 'updated_at'`, and `hoodie.compact.inline == 'false'`.",
       learningObjective: "Choose record-key + precombine + partition-path so Hudi upserts are deterministic.",
       requiredSkill: "Hudi datasource write options + CDC semantics",
       starterCode: SRC(`# hudi_options.py
@@ -106,7 +106,7 @@ def hudi_options(table_name: str) -> dict:
       stepNumber: 2,
       title: "Spark Structured Streaming → Hudi upsert",
       instructionMd:
-        "Write the streaming job: read Kafka topic `orders-cdc`, parse the Debezium envelope, extract `after` (or `before` for deletes), call `df.writeStream.format('hudi').options(**hudi_options('orders')).option('checkpointLocation', 's3a://lake/_chk/orders/').trigger(processingTime='30 seconds').start()`. Handle DELETE: set `_hoodie_is_deleted=true` for op='d' rows. Validator runs the stream against a fixture of 5 INSERTs, 1 UPDATE, 1 DELETE and asserts the Hudi table contains the expected 4 rows.",
+        "Write the streaming job: read Kafka topic `orders-cdc`, parse the Debezium envelope, extract `after` (or `before` for deletes), call `df.writeStream.format('hudi').options(**hudi_options('orders')).option('checkpointLocation', 's3a://lake/_chk/orders/').trigger(processingTime='30 seconds').start()`. Handle DELETE: set `_hoodie_is_deleted=true` for op='d' rows. Self-check: run the stream against a fixture of 5 INSERTs, 1 UPDATE, and 1 DELETE, then confirm the Hudi snapshot contains exactly 4 rows (ids [1, 2, 4, 5]), the updated row reflects its new values, and the deleted row (id=3) is absent.",
       learningObjective: "Wire a Structured Streaming Kafka→Hudi pipeline with proper DELETE handling.",
       requiredSkill: "Spark Structured Streaming + Hudi sink + soft-delete semantics",
       starterCode: SRC(`# stream.py
@@ -161,7 +161,7 @@ parsed = raw.select(from_json(col("value").cast("string"), schema).alias("e")).s
       stepNumber: 3,
       title: "Async compaction scheduler",
       instructionMd:
-        "Author `compaction.py` that runs on Airflow daily: triggers `hoodie.run.compaction.async=true` + executes `org.apache.hudi.utilities.HoodieCompactor`. Configure `hoodie.compact.inline.max.delta.commits=10` (compact after 10 delta commits accumulate). Validator runs the compactor against a fixture MoR table with 12 delta commits and asserts: 1 new base file per partition + delta log files are smaller after.",
+        "Author `compaction.py` that runs on Airflow daily: triggers `hoodie.run.compaction.async=true` + executes `org.apache.hudi.utilities.HoodieCompactor`. Configure `hoodie.compact.inline.max.delta.commits=10` (compact after 10 delta commits accumulate). Self-check: run the compactor against a fixture MoR table with 12 delta commits across 3 partitions and confirm 3 new base files are written (one per partition) and that log file size per partition is ≤10% of its pre-compaction size.",
       learningObjective: "Schedule async compaction to bound read latency without blocking ingest.",
       requiredSkill: "Hudi compaction config + Airflow Spark submit + delta-commit semantics",
       starterCode: SRC(`# compaction.py — run via spark-submit from Airflow
@@ -269,7 +269,7 @@ resource "aws_iam_role" "spark_exec" {
       stepNumber: 5,
       title: "Reconcile: Postgres source vs Hudi current snapshot",
       instructionMd:
-        "Write `reconcile.py` that compares `SELECT count(*), sum(hashtext(status||total_cents)) FROM orders` from Postgres against `SELECT count(*), sum(...) FROM orders` from Hudi via Spark SQL (snapshot read). Raise `DriftAlert` on mismatch. Validator stubs both DBs with controlled data, runs reconciliation, asserts no alert when matched and alert when mismatched.",
+        "Write `reconcile.py` that compares `SELECT count(*), sum(hashtext(status||total_cents)) FROM orders` from Postgres against `SELECT count(*), sum(...) FROM orders` from Hudi via Spark SQL (snapshot read). Raise `DriftAlert` on mismatch. Self-check: run `reconcile()` against matched Postgres and Hudi snapshots and confirm no exception is raised; then run it with a deliberate mismatch (one row updated in only one store) and confirm `DriftAlert` is raised with both snapshots in the message.",
       learningObjective: "Catch CDC drift via cross-engine row-count + checksum reconciliation.",
       requiredSkill: "Spark Hudi snapshot read + Postgres adapter + structured drift detection",
       starterCode: SRC(`# reconcile.py

@@ -56,7 +56,7 @@ export const pythonLibrariesPydanticValidationService: AuthoredProject = {
       stepNumber: 1,
       title: "Discriminated union over event types",
       instructionMd:
-        "Define `OrderCreated`, `OrderShipped`, `OrderRefunded` as separate Pydantic models, each with a `Literal['order.created'|'order.shipped'|'order.refunded']` event_type field. Combine via `Annotated[Union[...], Discriminator('event_type')]` so FastAPI deserializes the right subclass automatically. Validator posts 3 payloads (one per type) + asserts each parses to the expected class.",
+        "Define `OrderCreated`, `OrderShipped`, `OrderRefunded` as separate Pydantic models, each with a `Literal['order.created'|'order.shipped'|'order.refunded']` event_type field. Combine via `Annotated[Union[...], Discriminator('event_type')]` so FastAPI deserializes the right subclass automatically. Self-check: post 3 payloads (one per type) and confirm each parses to the expected class.",
       learningObjective: "Use Pydantic v2 discriminated unions to model polymorphic event payloads.",
       requiredSkill: "Pydantic v2 + Literal + Annotated + Discriminator",
       starterCode: SRC(`# schemas.py
@@ -113,7 +113,7 @@ class OrderRefunded(BaseModel):
       stepNumber: 2,
       title: "AliasGenerator (camelCase ↔ snake_case) + custom validators",
       instructionMd:
-        "Add `model_config = ConfigDict(alias_generator=AliasGenerator(validation_alias=to_camel, serialization_alias=to_camel), populate_by_name=True)` so JSON can use `orderId` but Python uses `order_id`. Add `@field_validator('total_cents')` that asserts > 0 and `@model_validator(mode='after')` that asserts refund_cents <= total_cents for refunds. Validator posts camelCase JSON with negative total → 422 mentioning total_cents.",
+        "Add `model_config = ConfigDict(alias_generator=AliasGenerator(validation_alias=to_camel, serialization_alias=to_camel), populate_by_name=True)` so JSON can use `orderId` but Python uses `order_id`. Add `@field_validator('total_cents')` that asserts > 0 and `@model_validator(mode='after')` that asserts refund_cents <= total_cents for refunds. Self-check: post camelCase JSON with a negative total and confirm it is rejected with a 422 mentioning total_cents.",
       learningObjective: "Bridge JSON casing conventions and Python naming, and enforce business rules with field + model validators.",
       requiredSkill: "Pydantic v2 ConfigDict + AliasGenerator + field_validator + model_validator",
       starterCode: SRC(`# schemas.py (extend)

@@ -55,7 +55,7 @@ export const dataEngineeringCdcDebezium: AuthoredProject = {
       stepNumber: 1,
       title: "Enable Postgres logical replication + Debezium connector",
       instructionMd:
-        "Configure Postgres for logical replication: set `wal_level=logical`, `max_replication_slots=4`, create publication `dbz_orders FOR TABLE orders`. Then submit a Debezium connector to Kafka Connect REST with `plugin.name=pgoutput`, `slot.name=debezium_orders`, `publication.name=dbz_orders`, and `tombstones.on.delete=false` (we want explicit DELETE events). Validator hits Kafka Connect REST, asserts the connector exists + RUNNING, and verifies the slot appears in `pg_replication_slots`.",
+        "Configure Postgres for logical replication: set `wal_level=logical`, `max_replication_slots=4`, create publication `dbz_orders FOR TABLE orders`. Then submit a Debezium connector to Kafka Connect REST with `plugin.name=pgoutput`, `slot.name=debezium_orders`, `publication.name=dbz_orders`, and `tombstones.on.delete=false` (we want explicit DELETE events). Self-check: query Kafka Connect REST and confirm the connector exists with state=RUNNING, and query `pg_replication_slots` to confirm a slot named `debezium_orders` is present.",
       learningObjective: "Configure Postgres WAL + Debezium connector for low-latency CDC.",
       requiredSkill: "Postgres logical replication + Debezium connector config + Kafka Connect REST",
       starterCode: SRC(`# connectors/orders-cdc.json
@@ -205,7 +205,7 @@ FROM {{ source('staging', 'orders_current') }}
       stepNumber: 4,
       title: "Reconciliation: row count + checksum drift alarm",
       instructionMd:
-        "Write `reconcile.py` that every 5min: (a) queries `SELECT count(*), sum(hashtext(status||total_cents)) FROM orders` on Postgres; (b) queries the same on Snowflake (orders_current); (c) raises if either differs. Validator stubs both DBs with controlled data, runs reconciliation, asserts no alert when matched and an alert when mismatched.",
+        "Write `reconcile.py` that every 5min: (a) queries `SELECT count(*), sum(hashtext(status||total_cents)) FROM orders` on Postgres; (b) queries the same on Snowflake (orders_current); (c) raises if either differs. Self-check: stub both DBs with controlled data, run reconciliation, and confirm no exception is raised when the snapshots match and that `DriftAlert` is raised when the checksums differ by even one.",
       learningObjective: "Detect CDC drift with a count+checksum reconciliation job.",
       requiredSkill: "psycopg + snowflake-connector + structured drift detection",
       starterCode: SRC(`# reconcile.py

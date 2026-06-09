@@ -54,7 +54,7 @@ export const appliedLlmMultiAgentCoordination: AuthoredProject = {
       stepNumber: 1,
       title: "Blackboard state + typed handoff messages",
       instructionMd:
-        "Define the shared blackboard as a TypedDict: {question, research_notes: list[str], draft: str|None, critique: str|None, revisions: int, handoffs: list[str]}. Every node reads from state and returns a partial state update — LangGraph reducers merge. Handoffs are explicit strings appended to `handoffs` so traces show the full path. Validator constructs an empty State + runs the researcher node (mocked LLM) and asserts the returned state has research_notes non-empty + handoffs has one entry.",
+        "Define the shared blackboard as a TypedDict: {question, research_notes: list[str], draft: str|None, critique: str|None, revisions: int, handoffs: list[str]}. Every node reads from state and returns a partial state update — LangGraph reducers merge. Handoffs are explicit strings appended to `handoffs` so traces show the full path. Self-check: construct an empty State, run the researcher node with a mocked LLM, and confirm the returned state has research_notes non-empty and handoffs with exactly one entry.",
       learningObjective: "Define a typed blackboard so each specialist's contract is enforced at the type layer.",
       requiredSkill: "TypedDict + Pydantic + LangGraph state reducers",
       starterCode: SRC(`# state.py
@@ -101,7 +101,7 @@ def initial_state(question: str) -> State:
       stepNumber: 2,
       title: "Three specialist nodes (Researcher, Writer, Critic)",
       instructionMd:
-        "Implement three async node functions, each with a focused system prompt + a single tool surface. Researcher uses a `search(query)` tool and writes notes. Writer reads notes + emits a draft (no tools). Critic reads the draft + writes a critique (no tools). Each node appends its name to `state['handoffs']`. Validator runs each in isolation against mocked LLM responses + asserts the expected state mutation.",
+        "Implement three async node functions, each with a focused system prompt + a single tool surface. Researcher uses a `search(query)` tool and writes notes. Writer reads notes + emits a draft (no tools). Critic reads the draft + writes a critique (no tools). Each node appends its name to `state['handoffs']`. Self-check: run each node in isolation against mocked LLM responses and confirm the expected state mutation for each.",
       learningObjective: "Implement focused specialist agents with narrow tool surfaces and explicit handoff tracking.",
       requiredSkill: "Async OpenAI client + focused prompts + LangGraph node contract",
       starterCode: SRC(`# specialists.py
@@ -157,7 +157,7 @@ async def critic(s: State) -> State:
       stepNumber: 3,
       title: "Supervisor router with a typed decision",
       instructionMd:
-        "Implement `supervisor(state)` that returns a `Routing(next: Literal['researcher','writer','critic','END'])` decision. Use OpenAI JSON-mode + a system prompt explaining the state shape + the 4 options. The supervisor NEVER mutates the blackboard — only routes. Validator gives the supervisor three crafted states (empty → research; with notes no draft → write; with critique containing 'approved.' → END) and asserts each routing.",
+        "Implement `supervisor(state)` that returns a `Routing(next: Literal['researcher','writer','critic','END'])` decision. Use OpenAI JSON-mode + a system prompt explaining the state shape + the 4 options. The supervisor NEVER mutates the blackboard — only routes. Self-check: drive your supervisor with three crafted states (empty → research; with notes no draft → write; with critique containing 'approved.' → END) and confirm each routing decision.",
       learningObjective: "Implement a typed-router supervisor whose only job is to pick the next node deterministically.",
       requiredSkill: "OpenAI JSON mode + Literal Pydantic enum + LangGraph conditional edges",
       starterCode: SRC(`# supervisor.py
@@ -222,7 +222,7 @@ async def supervisor(state: State) -> Routing:
       stepNumber: 4,
       title: "Iteration cap + per-specialist quotas",
       instructionMd:
-        "Add safeguards: MAX_ITERATIONS=12 (kill the run if the graph hasn't ended), MAX_REVISIONS=3 (after 3 critic→writer cycles, force END). Wire these into the conditional edge function so the graph terminates even when the supervisor is confused. Validator runs a graph where the critic NEVER approves + asserts the graph ends within MAX_ITERATIONS + revisions == MAX_REVISIONS.",
+        "Add safeguards: MAX_ITERATIONS=12 (kill the run if the graph hasn't ended), MAX_REVISIONS=3 (after 3 critic→writer cycles, force END). Wire these into the conditional edge function so the graph terminates even when the supervisor is confused. Self-check: run the graph with a critic that never returns 'approved.' and confirm the graph ends at revisions == MAX_REVISIONS without exceeding MAX_ITERATIONS.",
       learningObjective: "Prevent infinite agent loops with hard iteration + per-role quotas.",
       requiredSkill: "LangGraph conditional edges + invariant enforcement",
       starterCode: SRC(`# graph.py
@@ -288,7 +288,7 @@ def build():
       stepNumber: 5,
       title: "LangSmith tracing for every hop",
       instructionMd:
-        "Wrap each node with `traceable(name=...)` so every supervisor decision + specialist invocation lands in LangSmith. Also emit a custom 'handoff' event from the supervisor with the chosen `next` and the `reason` so the trace timeline is readable. Validator boots the graph + asserts 5+ spans (supervisor × ≥2 + 3 specialists at minimum).",
+        "Wrap each node with `traceable(name=...)` so every supervisor decision + specialist invocation lands in LangSmith. Also emit a custom 'handoff' event from the supervisor with the chosen `next` and the `reason` so the trace timeline is readable. Self-check: run the graph end-to-end and confirm at least 5 LangSmith spans appear (supervisor × ≥2 + 3 specialists at minimum for a single full cycle).",
       learningObjective: "Trace every hop so multi-agent failures are forensically debuggable.",
       requiredSkill: "LangSmith @traceable + custom span attributes",
       starterCode: SRC(`# tracing.py

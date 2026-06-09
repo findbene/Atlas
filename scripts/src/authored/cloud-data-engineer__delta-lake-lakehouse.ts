@@ -106,7 +106,7 @@ resource "aws_s3_bucket_versioning" "lakehouse" {
       stepNumber: 2,
       title: "Concurrent MERGE INTO with ACID conflict semantics",
       instructionMd:
-        "Use `deltalake` (deltalake-rs Python binding) to run two concurrent MERGE writers against the same Delta table on MinIO. Writer A merges 1k rows targeting `partition='2026-05-20'`; writer B merges 1k rows targeting `partition='2026-05-21'`. Validator asserts: both commits succeed (non-overlapping partitions), table version increases by 2, total row count = 2k. Then run a third writer also targeting `2026-05-20` concurrently with A — validator asserts ONE of them raises `CommitFailedError` (write-write conflict on same partition).",
+        "Use `deltalake` (deltalake-rs Python binding) to run two concurrent MERGE writers against the same Delta table on MinIO. Writer A merges 1k rows targeting `partition='2026-05-20'`; writer B merges 1k rows targeting `partition='2026-05-21'`. Self-check: confirm both commits succeed (non-overlapping partitions), the table version increases by exactly 2, and the total row count equals 2000. Then run a third writer also targeting `2026-05-20` concurrently with A — self-check: confirm that exactly one of them raises `CommitFailedError` (write-write conflict on same partition).",
       learningObjective: "Delta's ACID is partition-aware — non-overlapping writes commit concurrently, overlapping ones conflict.",
       requiredSkill: "deltalake-rs Python + concurrent writers + conflict handling",
       starterCode: SRC(`# concurrent_merge.py
@@ -171,7 +171,7 @@ async def main():
       stepNumber: 3,
       title: "Time-travel queries — VERSION AS OF + TIMESTAMP AS OF",
       instructionMd:
-        "After writing 5 commits (v0→v4) to a 100-row table, implement `read_at_version(v)` and `read_at_timestamp(ts)`. Validator asserts: read at v=0 returns 0 rows (initial empty); v=2 returns 50 rows; v=4 returns 100 rows; read_at_timestamp at the second-commit timestamp returns 50 rows.",
+        "After writing 5 commits (v0→v4) to a 100-row table, implement `read_at_version(v)` and `read_at_timestamp(ts)`. Self-check: confirm that read_at_version returns 0 rows at v=0 (initial empty table), 50 rows at v=2, and 100 rows at v=4; confirm that read_at_timestamp at the second-commit timestamp also returns 50 rows.",
       learningObjective: "Time travel is the lakehouse's killer-feature for debugging + reproducibility.",
       requiredSkill: "Delta version pinning + timestamp lookup + commit-history navigation",
       starterCode: SRC(`# time_travel.py
@@ -226,7 +226,7 @@ def history(table_uri: str) -> list[dict]:
       stepNumber: 4,
       title: "OPTIMIZE + ZORDER for selective filters",
       instructionMd:
-        "On a Delta table with 50M rows written as 5000 small files (~10k rows each), run `dt.optimize.z_order(['user_id'])` and benchmark a filtered scan `WHERE user_id = 'u_42'`. Validator asserts: file count after OPTIMIZE ≤ 50 (compacted); query latency after OPTIMIZE+ZORDER is ≥8x faster than pre-OPTIMIZE; data file pruning skips ≥95% of files.",
+        "On a Delta table with 50M rows written as 5000 small files (~10k rows each), run `dt.optimize.z_order(['user_id'])` and benchmark a filtered scan `WHERE user_id = 'u_42'`. Self-check: confirm the file count after OPTIMIZE is ≤ 50 (compacted from 5000); confirm query latency after OPTIMIZE+ZORDER is ≥8x faster than pre-OPTIMIZE; confirm data file pruning skips ≥95% of files for the filtered scan.",
       learningObjective: "Small-file problem + non-clustered layout are the two biggest lakehouse perf killers; OPTIMIZE + ZORDER fix both.",
       requiredSkill: "Delta OPTIMIZE + Z-order layout + predicate pushdown + file pruning",
       starterCode: SRC(`# optimize.py
@@ -278,7 +278,7 @@ def run_optimize_zorder(uri: str) -> dict:
       stepNumber: 5,
       title: "Delta Sharing — cross-account read access",
       instructionMd:
-        "Stand up a Delta Sharing server (`delta-sharing-server`) backed by your Delta table; create a share + schema + table; generate a profile-file token. Validator uses `delta_sharing.load_as_pandas(profile_path + '#share.schema.table')` to read the table from a second 'account' (process) and asserts: read works, row count matches, and revoking the share blocks subsequent reads.",
+        "Stand up a Delta Sharing server (`delta-sharing-server`) backed by your Delta table; create a share + schema + table; generate a profile-file token. Self-check: call `delta_sharing.load_as_pandas(profile_path + '#share.schema.table')` from a second process and confirm the read succeeds and the row count matches a direct DeltaTable read; then revoke the share and confirm subsequent reads are blocked (403 or 'forbidden' error).",
       learningObjective: "Delta Sharing is the open protocol for cross-account access without copying data.",
       requiredSkill: "delta-sharing protocol + share/schema/table model + token-based revocation",
       starterCode: SRC(`# sharing_server.yaml + share.py

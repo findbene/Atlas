@@ -58,7 +58,7 @@ export const dataEngineeringApiToWarehouseIngestion: AuthoredProject = {
       stepNumber: 1,
       title: "Cursor-based incremental resource",
       instructionMd:
-        "Build a dlt resource `@dlt.resource(name='events', primary_key='id')` that yields paginated events from the fixture API, using `dlt.sources.incremental('updated_at', initial_value='2026-01-01')` for cursor tracking. Validator runs the pipeline twice: first run loads 1000 rows (initial), second run (1h later, 50 new rows added) loads exactly 50 rows.",
+        "Build a dlt resource `@dlt.resource(name='events', primary_key='id')` that yields paginated events from the fixture API, using `dlt.sources.incremental('updated_at', initial_value='2026-01-01')` for cursor tracking. Self-check: run the pipeline twice and confirm the first run loads 1000 rows (initial load) and the second run (with 50 new rows added server-side) loads exactly 50 rows.",
       learningObjective: "Cursor incremental is the dlt-native pattern — the cursor state survives across runs in dlt's local state.",
       requiredSkill: "dlt resource + incremental() + cursor state persistence",
       starterCode: SRC(`# events_source.py
@@ -114,7 +114,7 @@ def events(
       stepNumber: 2,
       title: "Merge write disposition for upserts",
       instructionMd:
-        "Change `write_disposition='merge'` (was 'append') so duplicate `id`s update in place. Validator runs the pipeline once on the fixture (1000 rows), then modifies 100 rows server-side (same ids, new payloads) + adds 50 truly new rows, runs again, and asserts: table row count = 1050 (not 1150), the 100 updated rows have the new payloads, the 50 new rows are present.",
+        "Change `write_disposition='merge'` (was 'append') so duplicate `id`s update in place. Self-check: run the pipeline once on the fixture (1000 rows), then modify 100 rows server-side (same ids, new payloads) and add 50 truly new rows, run again, and confirm: table row count = 1050 (not 1150), the 100 updated rows reflect the new payloads, and the 50 new rows are present.",
       learningObjective: "merge = primary-key-based upsert; the difference between an ingest pipeline and a duplicate-machine.",
       requiredSkill: "dlt write_disposition='merge' + primary_key + dedup semantics",
       starterCode: SRC(`# events_source.py (updated)
@@ -287,7 +287,7 @@ def fetch_with_retry(url: str, params: dict, timeout: int = 15) -> dict:
       stepNumber: 5,
       title: "Operational metadata via _dlt_loads",
       instructionMd:
-        "After each pipeline run, query `_dlt_loads` and `_dlt_pipeline_state` to extract: last load timestamp, rows loaded per resource, cursor state. Write a `load_summary(pipeline_name) -> LoadSummary` helper. Validator runs 3 pipeline iterations (1000 / 50 / 25 rows) and asserts the summary reports 3 distinct load_ids, monotonic timestamps, and total rows = 1075.",
+        "After each pipeline run, query `_dlt_loads` and `_dlt_pipeline_state` to extract: last load timestamp, rows loaded per resource, cursor state. Write a `load_summary(pipeline_name) -> LoadSummary` helper. Self-check: run 3 pipeline iterations (1000 / 50 / 25 rows) and confirm the summary reports 3 distinct load_ids, monotonically increasing timestamps, and total rows summing to 1075.",
       learningObjective: "dlt's metadata tables are the ops-facing audit log — use them.",
       requiredSkill: "dlt metadata schema (_dlt_loads, _dlt_pipeline_state) + operational reporting",
       starterCode: SRC(`# ops.py

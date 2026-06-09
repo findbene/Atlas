@@ -55,7 +55,7 @@ export const appliedLlmPlannerExecutor: AuthoredProject = {
       stepNumber: 1,
       title: "Typed plan schema (Pydantic + JSON-mode)",
       instructionMd:
-        "Define `Plan` and `Task` as Pydantic models. A `Plan` is a list of `Task`s; each `Task` has {id: str, tool: Literal['crm','billing','product'], args: dict, depends_on: list[str]}. The planner LLM call uses `response_format={'type':'json_object'}` + a system prompt that emits valid JSON for this schema. After parsing, validate with `Plan.model_validate(json.loads(content))`. Why typed? Without it, the planner emits free-text and you spend the rest of the project parsing variations. Validator runs the planner against a fixed prompt + a mocked OpenAI response and asserts the returned Plan has 3 tasks with the expected tool names.",
+        "Define `Plan` and `Task` as Pydantic models. A `Plan` is a list of `Task`s; each `Task` has {id: str, tool: Literal['crm','billing','product'], args: dict, depends_on: list[str]}. The planner LLM call uses `response_format={'type':'json_object'}` + a system prompt that emits valid JSON for this schema. After parsing, validate with `Plan.model_validate(json.loads(content))`. Why typed? Without it, the planner emits free-text and you spend the rest of the project parsing variations. Self-check: run the planner against a fixed prompt with a mocked OpenAI response and confirm the returned Plan has exactly 3 tasks with the expected tool names (crm, billing, product).",
       learningObjective: "Constrain the planner's output to a typed schema so downstream nodes can rely on shape.",
       requiredSkill: "Pydantic v2 + OpenAI JSON mode + structured prompting",
       starterCode: SRC(`# plan_schema.py
@@ -113,7 +113,7 @@ async def plan(question: str) -> Plan:
       stepNumber: 2,
       title: "Executor node with tool-calling loop",
       instructionMd:
-        "Implement `executor(task: Task, context: dict) -> dict`. The executor LLM gets the task description + the outputs of `depends_on` tasks (from `context`) + the OpenAI tools schema for the relevant tool. It loops: call LLM → if tool_calls present, execute tool, append result, loop again → else return the final content. Cap iterations at 5 to prevent infinite loops on a confused model. Validator mocks an LLM that first calls `crm.lookup` then returns text; asserts executor returns the right content + the tool was called once.",
+        "Implement `executor(task: Task, context: dict) -> dict`. The executor LLM gets the task description + the outputs of `depends_on` tasks (from `context`) + the OpenAI tools schema for the relevant tool. It loops: call LLM → if tool_calls present, execute tool, append result, loop again → else return the final content. Cap iterations at 5 to prevent infinite loops on a confused model. Self-check: mock an LLM that first calls `crm.lookup` then returns text; confirm executor returns the right content string and called the tool exactly once.",
       learningObjective: "Implement an LLM tool-calling loop with a hard iteration cap and dependency-output injection.",
       requiredSkill: "OpenAI tool-calling spec + bounded recursion + JSON tool-result protocol",
       starterCode: SRC(`# executor.py

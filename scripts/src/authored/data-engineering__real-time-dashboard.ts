@@ -56,7 +56,7 @@ export const dataEngineeringRealTimeDashboard: AuthoredProject = {
       stepNumber: 1,
       title: "Minute-bucketed counters",
       instructionMd:
-        "Implement `record_event(redis_client, metric, ts_seconds)` that increments the per-minute counter for `metric` and sets a 25-hour TTL. Key shape: `metric:<metric>:<minute_epoch>`. Implement `last_n_minutes(redis_client, metric, n, now_seconds)` that MGETs the last N minute keys and sums them (None → 0). Validator drives both with a fixed clock and checks the sums.",
+        "Implement `record_event(redis_client, metric, ts_seconds)` that increments the per-minute counter for `metric` and sets a 25-hour TTL. Key shape: `metric:<metric>:<minute_epoch>`. Implement `last_n_minutes(redis_client, metric, n, now_seconds)` that MGETs the last N minute keys and sums them (None → 0). Self-check: drive both with a fixed clock and confirm the sums.",
       learningObjective: "Bucket counters by epoch-minute so range queries are O(1) MGET.",
       requiredSkill: "Redis INCR/EXPIRE + epoch-minute bucketing + MGET range",
       starterCode: SRC(`def record_event(redis_client, metric, ts_seconds):
@@ -96,7 +96,7 @@ def last_n_minutes(redis_client, metric, n, now_seconds):
       stepNumber: 2,
       title: "Batched writes for throughput",
       instructionMd:
-        "Implement `consume_batch(redis_client, events: list[tuple[str,int]])` that uses a single Redis pipeline to INCR every event then EXPIRE every touched key once. Compare round-trip count against naive per-event INCR. Validator asserts that 1000 events execute in exactly 1 pipeline (not 1000+).",
+        "Implement `consume_batch(redis_client, events: list[tuple[str,int]])` that uses a single Redis pipeline to INCR every event then EXPIRE every touched key once. Compare round-trip count against naive per-event INCR. Self-check: call consume_batch with 1000 events and confirm exactly 1 pipeline execution (not 1000+).",
       learningObjective: "Use Redis pipelines to amortise round-trips for high-throughput consumers.",
       requiredSkill: "Redis pipelining + worst-case round-trip math + Kafka batch semantics",
       starterCode: SRC(`def consume_batch(redis_client, events):
@@ -139,7 +139,7 @@ def last_n_minutes(redis_client, metric, n, now_seconds):
       stepNumber: 3,
       title: "Range query: last-N-minutes",
       instructionMd:
-        "Implement `range_query(redis_client, metric, n_minutes, now_seconds)` that returns a `{minute_epoch: count}` dict for the last N minutes (missing minutes → 0). One MGET round-trip. Validator drives with 5 recorded events across the window.",
+        "Implement `range_query(redis_client, metric, n_minutes, now_seconds)` that returns a `{minute_epoch: count}` dict for the last N minutes (missing minutes → 0). One MGET round-trip. Self-check: seed Redis with 5 events across the window and confirm the returned dict has the correct counts and zero-fills for missing minutes.",
       learningObjective: "Compose minute-bucketed reads into a window query usable by a dashboard renderer.",
       requiredSkill: "Range key construction + MGET + zero-fill",
       starterCode: SRC(`def range_query(redis_client, metric, n_minutes, now_seconds):
@@ -177,7 +177,7 @@ def last_n_minutes(redis_client, metric, n, now_seconds):
       stepNumber: 4,
       title: "Unique visitors via HyperLogLog",
       instructionMd:
-        "Counting unique users with a Set grows memory linearly. Use Redis HyperLogLog: PFADD to record, PFCOUNT to read, fixed 12 KB per key, ~0.81% error. Implement `record_unique(redis, metric, user_id, ts)` and `unique_last_n_minutes(redis, metric, n, now_seconds)` (PFCOUNT over multiple keys returns the union estimate). Validator inserts 10k unique IDs across 3 buckets and asserts error < 2%.",
+        "Counting unique users with a Set grows memory linearly. Use Redis HyperLogLog: PFADD to record, PFCOUNT to read, fixed 12 KB per key, ~0.81% error. Implement `record_unique(redis, metric, user_id, ts)` and `unique_last_n_minutes(redis, metric, n, now_seconds)` (PFCOUNT over multiple keys returns the union estimate). Self-check: insert 10k unique IDs across 3 buckets and confirm the PFCOUNT estimate is within ±2% of 10000.",
       learningObjective: "Trade exact unique counts for fixed-memory HLL estimates at scale.",
       requiredSkill: "Redis PFADD/PFCOUNT + HLL union semantics + memory math",
       starterCode: SRC(`def record_unique(redis_client, metric, user_id, ts_seconds, ttl=86400):
@@ -218,7 +218,7 @@ def unique_last_n_minutes(redis_client, metric, n, now_seconds):
       stepNumber: 5,
       title: "FastAPI endpoint with p99 < 50ms budget",
       instructionMd:
-        "Wire `GET /metrics/{metric}?minutes=5` that returns `{count, uniques, minutes}` by calling `range_query` and `unique_last_n_minutes` on the same Redis (one pipeline). Add a `/healthz` that pings Redis. Validator stubs both functions and asserts response JSON shape + that exactly 1 Redis pipeline is opened per request (latency budget).",
+        "Wire `GET /metrics/{metric}?minutes=5` that returns `{count, uniques, minutes}` by calling `range_query` and `unique_last_n_minutes` on the same Redis (one pipeline). Add a `/healthz` that pings Redis. Self-check: use FastAPI TestClient with a stubbed Redis and confirm the response JSON shape is `{count, uniques, minutes}` with HTTP 200, and that exactly 1 Redis pipeline is opened per request (not 2 sequential calls).",
       learningObjective: "Compose the streaming primitives into a low-latency HTTP service.",
       requiredSkill: "FastAPI + dependency injection + Redis pipelining for read fan-out",
       starterCode: SRC(`from fastapi import FastAPI, Depends, Query, HTTPException

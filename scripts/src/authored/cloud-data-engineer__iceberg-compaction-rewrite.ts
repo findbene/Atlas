@@ -56,7 +56,7 @@ export const cloudDataEngineerIcebergCompactionRewrite: AuthoredProject = {
       stepNumber: 1,
       title: "rewrite_data_files — compact to 256MB targets",
       instructionMd:
-        "Author `compact.py`: a PySpark job that calls `CALL catalog.system.rewrite_data_files(table => 'db.events', strategy => 'binpack', options => map('target-file-size-bytes', '268435456'))`. Run on partitions older than `now - 1 day` (current partition still being written). Validator runs against a fixture table with 1000 small files in one partition and asserts ≤8 files remain after compaction.",
+        "Author `compact.py`: a PySpark job that calls `CALL catalog.system.rewrite_data_files(table => 'db.events', strategy => 'binpack', options => map('target-file-size-bytes', '268435456'))`. Run on partitions older than `now - 1 day` (current partition still being written). Self-check: run the job against a fixture table with 1000 × 1MB small files in one partition and confirm ≤8 files remain after compaction; also confirm the where clause excludes the active partition.",
       learningObjective: "Use Iceberg's rewrite_data_files procedure to coalesce small files into target-sized files.",
       requiredSkill: "Iceberg procedures + Spark Iceberg catalog + partition filter syntax",
       starterCode: SRC(`# compact.py

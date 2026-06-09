@@ -29,6 +29,7 @@
  * across the whole index.
  */
 import { AUTHORED_PROJECTS } from "./authored";
+import { selfAttestHonestyViolations } from "@workspace/curriculum-quality";
 
 const ALLOWED: Record<string, Set<string>> = {
   contains: new Set(["needle", "needles", "match", "caseInsensitive"]),
@@ -54,12 +55,15 @@ for (const p of AUTHORED_PROJECTS) {
     // Narrow: matches only "Atlas <checks|verifies|grades>" — the honest "Atlas
     // does NOT run/grade" line and the contains "Atlas checks that the required
     // markers …" copy (which lives on contains steps, not self_attest) don't trip it.
-    if (kind === "self_attest" && /\bAtlas\s+(checks|verifies|grades)\b/i.test(s.instructionMd ?? "")) {
-      failures.push(
-        `${p.slug} step ${s.stepNumber} (self_attest): instructionMd claims Atlas checks/verifies/` +
-          `grades this step — but self_attest performs no grading (a false H3 claim). Reword to honest ` +
-          `self-verification copy.`,
-      );
+    if (kind === "self_attest") {
+      const bad = selfAttestHonestyViolations(s.instructionMd ?? "");
+      if (bad.length > 0) {
+        failures.push(
+          `${p.slug} step ${s.stepNumber} (self_attest): instructionMd implies automated/Atlas ` +
+            `validation, but self_attest performs no grading (false H3 claim): "${bad.join('", "')}". ` +
+            `Reword to honest self-verification copy.`,
+        );
+      }
     }
 
     if (!kind || !(kind in ALLOWED)) continue; // key-allowlist only for the graded kinds
