@@ -197,6 +197,21 @@ describe("validationConfig(contains) — Phase 56 structured-spec validator", ()
     ok({ needles: ["a", "b"] }));
 });
 
+// ── Phase 61H — `exact` structured-spec validator ─────────────────────────
+describe("validationConfig(exact) — Phase 61H marker-key rejection", () => {
+  const okExact = (spec: Record<string, unknown>) =>
+    expect(() => validationConfig("exact", "desc", spec)).not.toThrow();
+  const badExact = (spec: Record<string, unknown>, match: RegExp) =>
+    expect(() => validationConfig("exact", "desc", spec)).toThrow(match);
+
+  it("rejects 'mustContainAll' on exact (the dead C2 4/6 pattern)", () =>
+    badExact({ mustContainAll: ["a"] }, /marker key the exact runtime never reads/));
+  it("rejects 'needles' on exact", () => badExact({ needles: ["a"] }, /never reads/));
+  it("rejects 'needle' on exact", () => badExact({ needle: "a" }, /never reads/));
+  it("accepts a non-marker spec", () => okExact({ note: "expected comes from expected_output" }));
+  it("accepts empty {}", () => okExact({}));
+});
+
 
 // ── Phase 57A — `csv_set_equal` structured-spec validator ─────────────────
 describe("validationConfig(csv_set_equal) — Phase 57A structured-spec validator", () => {

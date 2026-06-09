@@ -21,17 +21,28 @@ function check(name: string, cond: boolean): void {
   else { console.error(`  FAIL ${name}`); failures++; }
 }
 
-const containsStep = P.steps.find((s) => s.validationType === "contains");
-check("has a contains step", !!containsStep);
+// Phase 61H — C2 now has 3 contains steps (4, 6, 7); steps 4 + 6 were converted
+// from the dead `exact` gate. EVERY contains step must use canonical `needles`.
+const containsSteps = P.steps.filter((s) => s.validationType === "contains");
+check("has >= 3 contains steps (4, 6, 7 — exact 4/6 converted)", containsSteps.length >= 3);
+for (const s of containsSteps) {
+  const spec = (s.validation as { spec?: Record<string, unknown> } | undefined)?.spec ?? {};
+  check(`step ${s.stepNumber} contains uses 'needles' (not dead 'mustContainAll')`,
+    Array.isArray(spec["needles"]) && (spec["needles"] as unknown[]).length > 0 && spec["mustContainAll"] === undefined);
+}
 
-const cSpec = (containsStep?.validation as { spec?: Record<string, unknown> } | undefined)?.spec ?? {};
-check("contains step uses canonical 'needles' (not the dead 'mustContainAll')",
-  Array.isArray(cSpec["needles"]) && (cSpec["needles"] as unknown[]).length > 0 && cSpec["mustContainAll"] === undefined);
+// No `exact` steps remain (61H converted the only two, which were dead gates).
+const exactSteps = P.steps.filter((s) => s.validationType === "exact");
+check("no exact steps remain (61H converted the dead exact gates → contains)", exactSteps.length === 0);
 
-const cInstr = (containsStep?.instructionMd ?? "").toLowerCase();
-const FALSE_ENFORCE = ["server-enforced", "server enforced", "commit-grader evaluates"];
-const feHits = FALSE_ENFORCE.filter((p) => cInstr.includes(p));
-check(`contains step makes no false server-enforcement claim (${feHits.join(", ") || "none"})`, feHits.length === 0);
+// No false server-enforcement / exact-match claim in any step's instruction.
+const allInstr = P.steps.map((s) => s.instructionMd ?? "").join("\n").toLowerCase();
+const FALSE_ENFORCE = [
+  "server-enforced", "server enforced", "commit-grader evaluates",
+  "exact-match check against the submission body",
+];
+const feHits = FALSE_ENFORCE.filter((p) => allInstr.includes(p));
+check(`no false server-enforcement / exact-match claims (${feHits.join(", ") || "none"})`, feHits.length === 0);
 
 const serverGraded = P.steps
   .filter((s) => (s.validation as { spec?: { serverGrade?: unknown } }).spec?.serverGrade === true)

@@ -684,3 +684,16 @@ Fixed the `contains` dead-gate (the defect 61F surfaced) + cleaned up the false 
 - **Tracked follow-ups (NOT fixed — scope):** (1) catalog-wide bespoke-key contains (`mustContain`/`userMsgMustContain`/`reportMustContain`/`expected`) on ~15 authored projects; (2) the `exact` dead-gate (C2 steps 4,6 expected_output NULL → auto-pass + false "exact-match check" copy); (3) latent `regex` wrapper bug (0 live).
 - **Reviews:** architect **PASS** + code-reviewer **SHIP** (see close-out §13).
 - **Invariants:** serverGrade=10 unchanged, sql/csv comparators byte-unchanged, Phase 52/envelope untouched, no schema, RUBRIC frozen, no leak. **Phase 61H NOT started.**
+
+## 2026-06-08 — Phase 61H SHIPPED (exact validation dead-gate fix + C2 honesty cleanup)
+
+Fixed the live `exact` dead-gate (C2 steps 4,6 — surfaced in 61G). Close-out: `docs/phases/phase-61h-exact-dead-gate-fix.md`.
+- **Root cause:** `grading.ts:99` `if (exact && expected)` → when `expected` (DB `expected_output`) is null it fell to the generic auto-pass. The authoring→promote path NEVER populates `expected_output` → every authored exact step was a dead gate (auto-pass any submission). Only 2 visible exact: C2 4,6 (null-expected, `{mustContainAll}` spec, false "exact-match check" copy).
+- **Runtime fix:** exact now **fails closed** when expected missing/empty (no silent auto-pass); populated expected grades unchanged.
+- **Authoring guard:** new `assertValidExactSpec` rejects marker keys (`mustContainAll`/`needle`/`needles`) on exact → use `contains`. Narrow (the ~5 OTHER authored exact projects use bespoke `expected*` keys → import-safe; documented follow-up).
+- **C2 repair:** steps 4 (metrics.yml) + 6 (schema/tests) `exact`→`contains`, `mustContainAll`→`needles` (markers unchanged), removed both false "exact-match check against the submission body" claims → honest marker-check copy. Re-promoted **85.3 approved**; DB steps 4,6,7 all contains; **visible exact = 0**.
+- **Proof:** new `audit:exact-bc` (0 visible exact dead gates + synthetic fail-closed via real gradeSubmission) + 5 grading.test + 5 authoring.test (all fail on old code). api-server **659/659** (+5); authoring.test **64/64** (+5).
+- **Gates:** typecheck · check:db-baseline (10) · check:authored-c2 (3 contains needles, 0 exact, no false claims, set [1,2,3,5]) · audit:exact-bc PASS · **audit:contains-bc 6/6 enforcing** (61G regression-green; C2 4,6 now enforce) · audit:sql/csv-bc PASS (no drift) · authoring (C2 publish-ready) · pedagogy (enriched) · atlas 170/170 · integration 4/4.
+- **Tracked follow-ups:** catalog-wide bespoke-`expected*` exact (~5 un-promoted: dbt-ci-state-modified, dbt-macros-mastery, hudi, iceberg, kserve) + the 61G contains bespoke-key sweep + latent regex bug.
+- **Reviews:** architect **PASS** + code-reviewer **SHIP** (see close-out §13).
+- **Invariants:** serverGrade=10, sql/csv comparators byte-unchanged, contains (61G) regression-green, Phase 52/envelope untouched, no schema, RUBRIC frozen, no leak. **Phase 61I NOT started.**

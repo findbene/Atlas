@@ -109,6 +109,9 @@ export function validationConfig(
     // exactly as the runtime auto-passes them.
     assertValidSqlResultsetSpec(spec);
   }
+  if (kind === "exact") {
+    assertValidExactSpec(spec);
+  }
   return { kind, description, spec };
 }
 
@@ -186,6 +189,29 @@ function assertValidContainsSpec(spec: Record<string, unknown>): void {
       `contains spec: 'mustContainAll' is not a key the runtime reads — it would ` +
       `silently auto-pass any submission. Use the canonical 'needles' array instead.`,
     );
+  }
+}
+
+// ── Phase 61H — `exact` structured-spec validator ──────────────────────────
+//
+// The exact runtime grades the FULL submission against the DB `expected_output`
+// column; it does NOT read the authored spec, and the authoring→promote path
+// never populates `expected_output`. So an authored exact step that carries
+// marker keys (`mustContainAll`/`needle`/`needles`) is a category error — the
+// author meant a marker/substring check (`contains`) — and as `exact` it auto-
+// passes any submission (a dead gate). Reject those keys here and point the
+// author at the canonical `contains` path (C2 steps 4/6 were exactly this, now
+// converted). See docs/phases/phase-61h-*.
+function assertValidExactSpec(spec: Record<string, unknown>): void {
+  for (const k of ["mustContainAll", "needles", "needle"]) {
+    if (spec[k] !== undefined) {
+      throw new Error(
+        `exact spec: '${k}' is a marker key the exact runtime never reads — it would ` +
+        `silently auto-pass. For a marker/substring check use ` +
+        `validationConfig("contains", …, { needles: [...] }); 'exact' compares the full ` +
+        `submission against the step's expected_output.`,
+      );
+    }
   }
 }
 

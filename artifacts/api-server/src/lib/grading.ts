@@ -96,7 +96,20 @@ export function gradeSubmission(
     };
   }
 
-  if (step.validationType === "exact" && expected) {
+  if (step.validationType === "exact") {
+    // Phase 61H — exact must produce a definite verdict. When no expected output
+    // is configured it previously fell through to the generic auto-pass below — a
+    // dead gate (the authored-exact path never populates `expected_output`, so
+    // every authored exact step was silently auto-passing; see C2 steps 4/6, now
+    // converted to `contains`). Fail CLOSED instead so a misconfigured exact step
+    // can never silently pass. A populated `expected_output` grades unchanged.
+    if (!expected) {
+      return {
+        passed: false,
+        feedback:
+          "This step has no expected output configured, so it cannot be exact-graded (authoring defect — exact requires a populated expected output).",
+      };
+    }
     const passed = submission?.trim() === expected;
     return { passed, feedback: passed ? "Correct!" : `Expected: ${expected}` };
   }

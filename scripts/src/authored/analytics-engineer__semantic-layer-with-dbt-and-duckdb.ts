@@ -38,12 +38,12 @@
  * verification of each opt-in. `sql_resultset` step 8 (NRR float) stays
  * client-provisional/dark — the commit-grader auto-passes it (exact-match
  * of a float ratio is brittle; deferred until a tolerance-aware contract).
- * 2 of 8 use `exact` (audit-classified `enforced` — server
- * commit-grader evaluates the submission body) for the declarative YAML
- * artifacts where exact-match against canonical text is the right gate.
- * 1 of 8 uses `contains` (also `enforced`, but the thin needle-substring
- * grader inherited from Phase 7) for the stakeholder-mapping doc where
- * the learner's prose can legitimately vary. Zero `json_equal`, zero
+ * 3 of 8 use `contains` with canonical `needles` marker checks (steps 4 +
+ * 6 the declarative YAML / dbt-test artifacts; step 7 the stakeholder doc).
+ * Phase 61H converted steps 4 + 6 from a DEAD `exact` gate (the exact
+ * runtime grades against `expected_output`, which the authored path never
+ * populates, so it auto-passed any submission) to honest marker checks via
+ * the Phase-61G-fixed contains path. Zero `json_equal`, zero
  * `numeric_tolerance`, zero `self_attest` — this is the strongest
  * validation-kind distribution shipped by any C-series Phase-55 project
  * (and one of the strongest in the catalog overall). The runtime
@@ -463,7 +463,7 @@ order by month_start`),
       stepNumber: 4,
       title: "Define 5 canonical SaaS metrics in metrics.yml",
       instructionMd:
-        "The metric YAML is the contract between the data team and every consumer. The exact text matters: every BI tool, every reverse-ETL job, every CFO question is going to resolve back to these YAML blocks. The 5 canonical SaaS metrics MUST be defined exactly as specified below, because step 6 reconciles them algebraically.\n\n**Build:** `models/metrics/metrics.yml` declaring 5 metrics. Each metric MUST have: `name`, `label`, `description`, `type`, `expression`, `time_grain: month`, `dimensions: [plan_tier, country_code]`, `unit`.\n\nThe 5 metrics (use the canonical expressions VERBATIM — step 6's algebra tests depend on this exact text):\n\n1. `active_customers` — `count(distinct case when status = 'active' then customer_id end)`\n2. `mrr` — `sum(mrr_amount)`\n3. `gross_revenue_retention` — `1.0 - sum(case when is_churned_this_month then mrr_amount_prev else 0 end) / nullif(sum(mrr_amount_prev), 0)`\n4. `net_revenue_retention` — `(sum(mrr_amount_prev) - sum(case when is_churned_this_month then mrr_amount_prev else 0 end) - sum(case when is_contraction_this_month then (mrr_amount_prev - mrr_amount) else 0 end) + sum(case when is_expansion_this_month then (mrr_amount - mrr_amount_prev) else 0 end)) / nullif(sum(mrr_amount_prev), 0)`\n5. `monthly_churn_rate` — `count(distinct case when is_churned_this_month then customer_id end) * 1.0 / nullif(count(distinct case when coalesce(mrr_amount_prev, 0) > 0 then customer_id end), 0)`\n\n**Validation:** `exact` — the validator reads `models/metrics/metrics.yml` and asserts that all 5 canonical expressions are present verbatim. (`exact` is the audit-classified `enforced` kind — server commit-grader does an exact-match check against the submission body.)",
+        "The metric YAML is the contract between the data team and every consumer. The exact text matters: every BI tool, every reverse-ETL job, every CFO question is going to resolve back to these YAML blocks. The 5 canonical SaaS metrics MUST be defined exactly as specified below, because step 6 reconciles them algebraically.\n\n**Build:** `models/metrics/metrics.yml` declaring 5 metrics. Each metric MUST have: `name`, `label`, `description`, `type`, `expression`, `time_grain: month`, `dimensions: [plan_tier, country_code]`, `unit`.\n\nThe 5 metrics (use the canonical expressions VERBATIM — step 6's algebra tests depend on this exact text):\n\n1. `active_customers` — `count(distinct case when status = 'active' then customer_id end)`\n2. `mrr` — `sum(mrr_amount)`\n3. `gross_revenue_retention` — `1.0 - sum(case when is_churned_this_month then mrr_amount_prev else 0 end) / nullif(sum(mrr_amount_prev), 0)`\n4. `net_revenue_retention` — `(sum(mrr_amount_prev) - sum(case when is_churned_this_month then mrr_amount_prev else 0 end) - sum(case when is_contraction_this_month then (mrr_amount_prev - mrr_amount) else 0 end) + sum(case when is_expansion_this_month then (mrr_amount - mrr_amount_prev) else 0 end)) / nullif(sum(mrr_amount_prev), 0)`\n5. `monthly_churn_rate` — `count(distinct case when is_churned_this_month then customer_id end) * 1.0 / nullif(count(distinct case when coalesce(mrr_amount_prev, 0) > 0 then customer_id end), 0)`\n\n**Validation:** `contains` — Atlas checks that your `models/metrics/metrics.yml` contains all 5 canonical metric markers (the `name:` + `expression:` lines) verbatim; every required marker must be present. This confirms the required markers are present, not that the file is otherwise complete or expert-level, and Atlas does not verify independent authorship or professional competence.",
       learningObjective: "Author a metric YAML file that declares 5 canonical SaaS metrics with formula expressions, dimensions, and time grain — the contract between data team and stakeholders.",
       requiredSkill: "Metric semantics (active_customers vs MRR vs GRR vs NRR vs churn_rate), YAML structure, SQL aggregate composition",
       starterCode: SRC(`# models/metrics/metrics.yml
@@ -505,13 +505,17 @@ metrics:
   #   count(distinct churned customer_ids in month)
   #   / count(distinct customers with mrr_amount_prev > 0 in month)
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
+      // Phase 61H — was `exact` (a dead gate: the exact runtime grades against
+      // `expected_output`, which the authored→promote path never populates, so it
+      // auto-passed ANY submission). The honest intent is a marker check — convert
+      // to `contains` with `needles` (the 5 canonical metric markers, unchanged).
       validation: validationConfig(
-        "exact",
+        "contains",
         "metrics.yml contains the 5 canonical metric expressions verbatim — active_customers, mrr, GRR, NRR, monthly_churn_rate.",
         {
-          mustContainAll: [
+          needles: [
             "name: active_customers",
             "expression: \"count(distinct case when status = 'active' then customer_id end)\"",
             "name: mrr",
@@ -634,7 +638,7 @@ where month_start = date '2025-06-01'`),
       stepNumber: 6,
       title: "Schema tests + 4 singular tests enforcing algebraic invariants",
       instructionMd:
-        "Tests turn invariants into BUILD-TIME GATES. The schema tests catch the structural slips; the singular tests catch the algebraic slips that would otherwise show up as 'why is our NRR 117% this month?' on the CFO's Friday email.\n\n**Build:**\n\n1. `models/marts/schema.yml` — declare for `mart_subscription_monthly`: `not_null` on (customer_id, month_start, mrr_amount, status); `unique` on the composite (customer_id, month_start) — write it as `dbt_utils.unique_combination_of_columns: { combination_of_columns: [customer_id, month_start] }`; `relationships` from `customer_id` → `stg_customers.customer_id`; `accepted_values` on `status: ['active', 'churned']`.\n2. `tests/mrr_non_negative.sql` — singular test asserting no row has `mrr_amount < 0`. The dbt singular-test convention: a singular test PASSES when its query returns ZERO rows.\n3. `tests/nrr_algebra_reconciles.sql` — singular test asserting the NRR formula reconciles: for every month, `(starting_mrr - churned - contraction + expansion) - ending_mrr` should be 0 (within floating-point tolerance of 0.01). Returns the months where the reconciliation breaks (test passes if zero rows).\n4. `tests/monthly_delta_ties_out.sql` — singular test asserting `sum(mrr_amount) - sum(mrr_amount_prev)` for a month equals the sum of (expansion - contraction - churned + new) revenue movements. Returns the months that don't tie.\n5. `tests/no_orphan_customer_ids.sql` — singular test asserting every `customer_id` in `mart_subscription_monthly` exists in `stg_customers`. Returns orphan customer_ids.\n\n**Validation:** `exact` — the validator inspects `models/marts/schema.yml` AND the 4 `tests/*.sql` filenames and asserts the required test types + filenames are declared. (Server commit-grader does an exact-match check against the submission body.)",
+        "Tests turn invariants into BUILD-TIME GATES. The schema tests catch the structural slips; the singular tests catch the algebraic slips that would otherwise show up as 'why is our NRR 117% this month?' on the CFO's Friday email.\n\n**Build:**\n\n1. `models/marts/schema.yml` — declare for `mart_subscription_monthly`: `not_null` on (customer_id, month_start, mrr_amount, status); `unique` on the composite (customer_id, month_start) — write it as `dbt_utils.unique_combination_of_columns: { combination_of_columns: [customer_id, month_start] }`; `relationships` from `customer_id` → `stg_customers.customer_id`; `accepted_values` on `status: ['active', 'churned']`.\n2. `tests/mrr_non_negative.sql` — singular test asserting no row has `mrr_amount < 0`. The dbt singular-test convention: a singular test PASSES when its query returns ZERO rows.\n3. `tests/nrr_algebra_reconciles.sql` — singular test asserting the NRR formula reconciles: for every month, `(starting_mrr - churned - contraction + expansion) - ending_mrr` should be 0 (within floating-point tolerance of 0.01). Returns the months where the reconciliation breaks (test passes if zero rows).\n4. `tests/monthly_delta_ties_out.sql` — singular test asserting `sum(mrr_amount) - sum(mrr_amount_prev)` for a month equals the sum of (expansion - contraction - churned + new) revenue movements. Returns the months that don't tie.\n5. `tests/no_orphan_customer_ids.sql` — singular test asserting every `customer_id` in `mart_subscription_monthly` exists in `stg_customers`. Returns orphan customer_ids.\n\n**Validation:** `contains` — Atlas checks that your `models/marts/schema.yml` + `tests/*.sql` submission contains the required markers (the schema test declarations + the 4 test filenames); every required marker must be present. This confirms the markers are present, not full correctness, and Atlas does not verify independent authorship or professional competence.",
       learningObjective: "Enforce metric algebra with dbt schema tests + singular tests that reconcile NRR + churn + expansion against the monthly snapshot delta — turning invariants into build-time gates.",
       requiredSkill: "dbt schema.yml tests (not_null/unique/relationships/accepted_values), dbt singular tests, algebraic invariants for SaaS metrics",
       starterCode: SRC(`# models/marts/schema.yml
@@ -675,13 +679,15 @@ where mrr_amount < 0;
 -- tests/monthly_delta_ties_out.sql      — TODO
 -- tests/no_orphan_customer_ids.sql      — TODO
 `),
-      validationType: "exact",
+      validationType: "contains",
       stepType: "multi_file",
+      // Phase 61H — was `exact` (a dead gate; see step 4). Converted to `contains`
+      // with `needles` (the schema + test-file markers, unchanged).
       validation: validationConfig(
-        "exact",
+        "contains",
         "schema.yml + 4 singular tests are declared with the required test names + filenames.",
         {
-          mustContainAll: [
+          needles: [
             "dbt_utils.unique_combination_of_columns",
             "combination_of_columns: [customer_id, month_start]",
             "relationships:",

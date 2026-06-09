@@ -305,6 +305,37 @@ describe("gradeSubmission", () => {
     });
   });
 
+  // ── Phase 61H — exact must fail closed without a configured expected ──
+  // Before 61H, `exact` with no `expected_output` fell through to the generic
+  // auto-pass (a dead gate — the authored-exact path never populates it; C2
+  // steps 4/6 were exactly this). It now fails closed.
+  describe("exact (Phase 61H — fail closed without expected)", () => {
+    const ex = (expected: string | null) =>
+      step({
+        validationType: "exact",
+        validationConfig: null,
+        expectedOutput: expected,
+      });
+    it("valid: submission === expected → pass (whitespace-trimmed)", () => {
+      expect(gradeSubmission(ex("foo"), "foo").passed).toBe(true);
+      expect(gradeSubmission(ex("foo"), "  foo  ").passed).toBe(true);
+    });
+    it("wrong submission → fail with expected in feedback", () => {
+      const r = gradeSubmission(ex("foo"), "bar");
+      expect(r.passed).toBe(false);
+      expect(r.feedback).toContain("foo");
+    });
+    it("empty submission (expected non-empty) → fail", () => {
+      expect(gradeSubmission(ex("foo"), "").passed).toBe(false);
+    });
+    it("null expected → FAIL CLOSED (was a dead auto-pass pre-61H)", () => {
+      expect(gradeSubmission(ex(null), "anything").passed).toBe(false);
+    });
+    it("empty-string expected → FAIL CLOSED", () => {
+      expect(gradeSubmission(ex(""), "anything").passed).toBe(false);
+    });
+  });
+
   // ── Phase 57A — csv_set_equal DARK comparator ────────────────────────
   describe("csv_set_equal (Phase 57A — dark server-side comparator)", () => {
     const cstep = (spec: unknown) =>
