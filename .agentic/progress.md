@@ -4,6 +4,27 @@
 > Live engineering state of the *Replit-era code* remains in `HANDOFF.md` (Phase 57A). This file
 > tracks the *Claude Code continuation* (the build-to-finish).
 
+## 2026-06-12 — Tracker correction + corrected post-61K roadmap (no code change)
+
+ChatGPT's tracker drifted −1 phase: it instructed "Start Phase 61K" on 2026-06-12, three days after
+61K shipped (`33747c9` feat + `2b6c83e` close-out, architect PASS, code SHIP, mini-report 40).
+Drift detected via repo verification before acting; **no work re-run**. Owner accepted repo as
+ground truth and corrected the tracker.
+
+- **Phase 61K is CLOSED. Never re-run.** Latest completed trust phase. serverGrade = 10;
+  C2/SaaS/FinOps visible+approved; self_attest honesty lint live (`selfAttestHonestyViolations()`);
+  Phase 52/envelope untouched; FinOps flips not started.
+- **Corrected sequencing (ChatGPT recommendation, owner-relayed 2026-06-12):**
+  1. **Phase 61L — General Validation Copy Honesty Sweep** (extend honesty discipline to
+     non-self_attest copy overstating what the validator does, e.g. "Validator runs…" on
+     marker/substring checks). Smaller/safer than the harness; do first.
+  2. Phase 61M — Owner-Gated FinOps Rowset Flip.
+  3. Phase 62 — Learner-Code Execution Grading Harness Epic.
+  4. Phase 63+ — Project Factory / 40 flagship projects; then IDE/cloud/data integrations.
+- **61L NOT started** — recommended, awaiting explicit owner approval per phase ritual.
+- Standing rule reaffirmed: verify every ChatGPT handoff claim against git + `docs/phases/`
+  before acting (third recorded drift; see memory `atlas-chatgpt-director`).
+
 ## 2026-06-09 — Phase 61K SHIPPED (self_attest copy honesty cleanup + lint)
 
 Cleaned the pre-existing misleading self_attest copy (61J follow-up). Close-out:
